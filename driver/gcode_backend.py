@@ -63,6 +63,15 @@ class GcodeBackend(PlotterBackend):
             self._wait_for_ok()
             self._send("G90")
             self._wait_for_ok()
+            # No homing/limit switches: define the pen's CURRENT position as the
+            # work origin (0,0). After "$X" GRBL only clears the alarm; it does
+            # not establish a known coordinate frame, so absolute plot moves
+            # (G0/G1 under G90) would drive the head to arbitrary machine
+            # coordinates and shoot off the bed. Zeroing here makes every
+            # absolute move relative to where the user positioned the pen.
+            # (Relative jog moves use G91 and are unaffected either way.)
+            self._send("G92 X0 Y0")
+            self._wait_for_ok()
             return True
         except Exception as e:
             print(f"ERROR: G-code connect failed: {e}")

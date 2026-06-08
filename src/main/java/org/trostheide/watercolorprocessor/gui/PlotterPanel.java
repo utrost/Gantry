@@ -14,6 +14,7 @@ import java.io.*;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 public class PlotterPanel extends JPanel {
 
@@ -313,6 +314,14 @@ public class PlotterPanel extends JPanel {
             return;
         }
 
+        // Release the manual-control server so the plot process can open the
+        // serial port. Jogging keeps a persistent driver connected to the
+        // plotter; two processes cannot share the port, so plotting after
+        // jogging would otherwise fail (and wedge the controller until power
+        // cycled). The server is terminated rather than asked to disconnect so
+        // the pen stays where it was jogged (disconnect would return it home).
+        shutdownManualServer();
+
         // Auto-save config so driver sees latest changes
         settingsPanel.saveConfigSilent();
 
@@ -531,6 +540,13 @@ public class PlotterPanel extends JPanel {
             return;
         }
 
+        // A running plot already owns the serial port; don't start the manual
+        // server on top of it or both connections would fight over the port.
+        if (currentProcess != null && currentProcess.isAlive()) {
+            appendToConsole("Manual control unavailable while a plot is running.");
+            return;
+        }
+
         settingsPanel.saveConfigSilent();
 
         try {
@@ -582,9 +598,35 @@ public class PlotterPanel extends JPanel {
 
     private void resetManualServer() {
         if (manualServerProcess != null && manualServerProcess.isAlive()) {
-            manualServerProcess.destroy();
-            manualServerProcess = null;
             appendToConsole("[SRV] Server reset due to configuration change.");
+            shutdownManualServer();
+        }
+    }
+
+    /**
+     * Terminate the manual-control server process and wait for it to release
+     * the serial port. The process is killed (not asked to disconnect) so the
+     * plotter is left exactly where it is, then we block until the OS has reaped
+     * it so a subsequent plot can reopen the port without a conflict.
+     */
+    private void shutdownManualServer() {
+        if (manualServerProcess == null)
+            return;
+        try {
+            if (manualServerProcess.isAlive()) {
+                appendToConsole("Releasing manual control connection...");
+                manualServerProcess.destroy();
+                if (!manualServerProcess.waitFor(3, TimeUnit.SECONDS)) {
+                    manualServerProcess.destroyForcibly();
+                    manualServerProcess.waitFor(2, TimeUnit.SECONDS);
+                }
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        } finally {
+            manualServerProcess = null;
+            manualServerWriter = null;
+            updateStatus(false);
         }
     }
 
