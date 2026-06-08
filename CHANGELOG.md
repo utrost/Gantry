@@ -21,6 +21,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Comprehensive project documentation (README.md, architecture.md, Requirements.md)
 
 ### Fixed
+- **G-code/GRBL plot driving off the bed** -- The driver now sets the pen's current position as the work origin (`G92 X0 Y0`) on connect. Previously `connect()` only cleared the GRBL alarm (`$X`) without homing or setting a work offset, so absolute plot moves (`G0/G1`) went to an undefined coordinate frame and shot the head off the bed. Relative jog (`G91`) was unaffected, which is why jogging worked but plotting did not.
 - **Visualization `physicalToScreen()` hardcoded top-right origin** -- Now correctly maps motor coordinates to screen pixels for any origin corner, not just top-right.
 - **`--origin-right` always sent to driver** -- Now conditional on actual machine origin, fixing alignment offsets for left-origin plotters.
 - **Visualization alignment calculation** -- Origin-aware left/right edge semantics now mirror the Python driver's `calculate_alignment_offset()` for all origin corners.
