@@ -2,6 +2,7 @@ import argparse
 import json
 import os
 import sys
+import threading
 import time
 
 # Import Config
@@ -97,9 +98,18 @@ def perform_refill(ad, station_id):
 
     print("--- Refill Complete ---")
 
-def execute_layer(ad, layer, report_pos=False, verbose=False, model=1, invert_x=False, invert_y=False, swap_xy=False, offset_x=0, offset_y=0, width=None, height=None, data_rotation=0, content_bounds=None, debug_position=False, flip_y=False, realtime_position=False):
+def execute_layer(ad, layer, report_pos=False, verbose=False, model=1, invert_x=False, invert_y=False, swap_xy=False, offset_x=0, offset_y=0, width=None, height=None, data_rotation=0, content_bounds=None, debug_position=False, flip_y=False, realtime_position=False, start_event=None):
     print(f"\n=== Starting Layer: {layer['id']} (Station: {layer['stationId']}) ===")
-    input("Press Enter to start this layer (Ensure correct paint is ready)...")
+    # Wait for the operator to confirm the layer. When a control thread owns
+    # stdin (so it can also receive live SPEED commands), block on the event it
+    # sets instead of reading stdin here. Fall back to input() for plain CLI use.
+    print("Press Enter to start this layer (Ensure correct paint is ready)...")
+    sys.stdout.flush()
+    if start_event is not None:
+        start_event.wait()
+        start_event.clear()
+    else:
+        input()
 
     # Model 1 (V3 A4): X ~300, Y ~218
     # Model 2 (V3 A3): X ~430, Y ~297
@@ -407,6 +417,13 @@ def main():
         realtime_position = True
         print("INFO: Realtime position reporting enabled.")
 
+    # Live speed feedback: emit the active feed-rate override percent for the GUI.
+    if args.report_position and hasattr(ad, 'set_speed_callback'):
+        def _emit_speed(percent):
+            print(f"SPEED:{percent}")
+            sys.stdout.flush()
+        ad.set_speed_callback(_emit_speed)
+
     print(f"INFO: Verify options after connect -> units={ad.options.units}, "
           f"speed_pendown={ad.options.speed_pendown}, speed_penup={ad.options.speed_penup}, "
           f"pen_pos_up={ad.options.pen_pos_up}, pen_pos_down={ad.options.pen_pos_down}")
@@ -607,8 +624,32 @@ def main():
             if oob:
                 print("WARNING: Some coordinates will be clamped to machine bounds. Drawing may be clipped.")
 
+        # Control channel: a single thread owns stdin during the plot so it can
+        # receive live "SPEED UP/DOWN/RESET" commands while also releasing the
+        # per-layer start gate (any other line, e.g. the GUI's Enter). This
+        # avoids two readers competing for stdin.
+        layer_start_event = threading.Event()
+
+        def control_loop():
+            for raw_line in sys.stdin:
+                line = raw_line.strip()
+                if line.upper().startswith("SPEED"):
+                    parts = line.split()
+                    direction = parts[1].lower() if len(parts) > 1 else "reset"
+                    if hasattr(ad, 'adjust_speed'):
+                        ad.adjust_speed(direction)
+                        print(f"INFO: Speed {direction}")
+                    else:
+                        print("INFO: Live speed control is not supported on this backend.")
+                    sys.stdout.flush()
+                else:
+                    layer_start_event.set()
+
+        control_thread = threading.Thread(target=control_loop, daemon=True)
+        control_thread.start()
+
         for layer in data['layers']:
-            execute_layer(ad, layer, report_pos=args.report_position, verbose=args.verbose, model=args.model, invert_x=args.invert_x, invert_y=args.invert_y, swap_xy=args.swap_xy, offset_x=offset_x, offset_y=offset_y, width=machine_w, height=machine_h, data_rotation=args.data_rotation, content_bounds=content_bounds, debug_position=args.debug_position, flip_y=args.flip_y, realtime_position=realtime_position)
+            execute_layer(ad, layer, report_pos=args.report_position, verbose=args.verbose, model=args.model, invert_x=args.invert_x, invert_y=args.invert_y, swap_xy=args.swap_xy, offset_x=offset_x, offset_y=offset_y, width=machine_w, height=machine_h, data_rotation=args.data_rotation, content_bounds=content_bounds, debug_position=args.debug_position, flip_y=args.flip_y, realtime_position=realtime_position, start_event=layer_start_event)
 
         # Return to home
         print("\nPlot Complete. Returning Home.")

@@ -27,6 +27,10 @@ public class PlotterPanel extends JPanel {
     private final JButton startButton;
     private final JButton stopButton;
     private final JButton inputButton;
+    private JButton speedDownButton;
+    private JButton speedUpButton;
+    private JButton speedResetButton;
+    private JLabel speedLabel;
     private final JSpinner stepSpinner;
     private final JLabel settingsSummaryLabel;
 
@@ -261,6 +265,35 @@ public class PlotterPanel extends JPanel {
         controlPanel.add(stopButton);
         controlPanel.add(resetViewBtn);
 
+        // Live speed control (GRBL feed-rate override). Disabled until a plot
+        // is running; sends realtime SPEED commands to the driver's stdin.
+        speedDownButton = new JButton("– Slower");
+        speedDownButton.setToolTipText("Decrease plot speed by 10% (live)");
+        speedDownButton.putClientProperty("JButton.buttonType", "roundRect");
+        speedDownButton.setEnabled(false);
+        speedDownButton.addActionListener(e -> sendInput("SPEED DOWN\n"));
+
+        speedLabel = new JLabel("100%");
+        speedLabel.setToolTipText("Active feed-rate override");
+        speedLabel.setBorder(new EmptyBorder(0, 4, 0, 4));
+
+        speedUpButton = new JButton("Faster +");
+        speedUpButton.setToolTipText("Increase plot speed by 10% (live)");
+        speedUpButton.putClientProperty("JButton.buttonType", "roundRect");
+        speedUpButton.setEnabled(false);
+        speedUpButton.addActionListener(e -> sendInput("SPEED UP\n"));
+
+        speedResetButton = new JButton("100%");
+        speedResetButton.setToolTipText("Reset plot speed to 100% (live)");
+        speedResetButton.putClientProperty("JButton.buttonType", "roundRect");
+        speedResetButton.setEnabled(false);
+        speedResetButton.addActionListener(e -> sendInput("SPEED RESET\n"));
+
+        controlPanel.add(speedDownButton);
+        controlPanel.add(speedLabel);
+        controlPanel.add(speedUpButton);
+        controlPanel.add(speedResetButton);
+
         add(controlPanel, BorderLayout.SOUTH);
 
         // Force initial visual update to match settings
@@ -401,6 +434,13 @@ public class PlotterPanel extends JPanel {
             stopButton.setEnabled(true);
             inputButton.setEnabled(true);
 
+            // Live speed override is a GRBL feature (realtime feed override).
+            boolean speedControl = "gcode".equals(settingsPanel.getBackend());
+            speedDownButton.setEnabled(speedControl);
+            speedUpButton.setEnabled(speedControl);
+            speedResetButton.setEnabled(speedControl);
+            speedLabel.setText("100%");
+
             settingsPanel.setSettingsEnabled(false);
 
             new Thread(() -> {
@@ -416,6 +456,16 @@ public class PlotterPanel extends JPanel {
                                 double x = Double.parseDouble(parts[2]);
                                 double y = Double.parseDouble(parts[4]);
                                 SwingUtilities.invokeLater(() -> visPanel.updatePosition(x, y));
+                            } catch (Exception parseEx) {
+                                // ignore parse errors
+                            }
+                            continue;
+                        }
+
+                        if (l.startsWith("SPEED:")) {
+                            try {
+                                int pct = (int) Double.parseDouble(l.substring(6).trim());
+                                SwingUtilities.invokeLater(() -> speedLabel.setText(pct + "%"));
                             } catch (Exception parseEx) {
                                 // ignore parse errors
                             }
@@ -472,6 +522,9 @@ public class PlotterPanel extends JPanel {
         startButton.setEnabled(true);
         stopButton.setEnabled(false);
         inputButton.setEnabled(false);
+        speedDownButton.setEnabled(false);
+        speedUpButton.setEnabled(false);
+        speedResetButton.setEnabled(false);
 
         settingsPanel.setSettingsEnabled(true);
 
