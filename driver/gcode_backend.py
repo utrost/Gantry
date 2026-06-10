@@ -54,6 +54,11 @@ class GcodeBackend(PlotterBackend):
         self._wco = (0.0, 0.0)
         self._position_callback = None
 
+        # Realtime feed-rate override (percent of programmed feed). GRBL clamps
+        # this to 10-200% and reports the active value in its status 'Ov:' field.
+        self._feed_override = 100
+        self._speed_callback = None
+
     def _apply_config(self, cfg):
         for key in ('serial_port', 'baud_rate', 'pen_mode', 'servo_pin',
                      'feed_rate_draw', 'feed_rate_travel',
@@ -74,6 +79,32 @@ class GcodeBackend(PlotterBackend):
         reports a new realtime work position. Presence of this method signals
         to the driver that the backend supports realtime position reporting."""
         self._position_callback = callback
+
+    def set_speed_callback(self, callback):
+        """Register callback(percent) invoked when GRBL's active feed-rate
+        override changes."""
+        self._speed_callback = callback
+
+    def adjust_speed(self, direction):
+        """Change the plot speed in realtime via GRBL feed-rate override.
+        These are single-byte realtime commands processed immediately, without
+        disturbing the planner buffer, so they take effect mid-move.
+          'up'    -> +10%   (0x91)
+          'down'  -> -10%   (0x92)
+          'reset' -> 100%   (0x90)
+        """
+        if not self._serial or not self._serial.is_open:
+            return
+        d = str(direction).lower()
+        byte = {"up": b"\x91", "down": b"\x92", "reset": b"\x90"}.get(d)
+        if byte is None:
+            return
+        with self._serial_lock:
+            try:
+                self._serial.write(byte)
+                self._serial.flush()
+            except Exception:
+                pass
 
     def connect(self) -> bool:
         try:
@@ -304,6 +335,16 @@ class GcodeBackend(PlotterBackend):
                 wco = self._parse_xy(field[4:])
                 if wco is not None:
                     self._wco = wco
+            elif field.startswith("Ov:"):
+                # Ov:feed,rapid,spindle -- report feed override changes.
+                try:
+                    feed = int(field[3:].split(",")[0])
+                    if feed != self._feed_override:
+                        self._feed_override = feed
+                        if self._speed_callback:
+                            self._speed_callback(feed)
+                except (ValueError, IndexError):
+                    pass
 
         if wpos is not None:
             pos = wpos
