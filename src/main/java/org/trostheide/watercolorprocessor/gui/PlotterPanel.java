@@ -260,10 +260,22 @@ public class PlotterPanel extends JPanel {
         resetViewBtn.putClientProperty("JButton.buttonType", "roundRect");
         resetViewBtn.addActionListener(e -> visPanel.resetOverlay());
 
+        JButton rotateBtn = new JButton("Rotate 90°");
+        rotateBtn.setToolTipText("Rotate the drawing 90° clockwise on the bed");
+        rotateBtn.putClientProperty("JButton.buttonType", "roundRect");
+        rotateBtn.addActionListener(e -> visPanel.rotateOverlay());
+
+        JButton mirrorBtn = new JButton("Mirror");
+        mirrorBtn.setToolTipText("Flip the drawing horizontally");
+        mirrorBtn.putClientProperty("JButton.buttonType", "roundRect");
+        mirrorBtn.addActionListener(e -> visPanel.toggleMirror());
+
         controlPanel.add(startButton);
         controlPanel.add(inputButton);
         controlPanel.add(stopButton);
         controlPanel.add(resetViewBtn);
+        controlPanel.add(rotateBtn);
+        controlPanel.add(mirrorBtn);
 
         // Live speed control (GRBL feed-rate override). Disabled until a plot
         // is running; sends realtime SPEED commands to the driver's stdin.
@@ -778,6 +790,8 @@ public class PlotterPanel extends JPanel {
         double mH = vis.getMachineHeight();
         double alignOX = vis.getAlignOffsetX();
         double alignOY = vis.getAlignOffsetY();
+        int overlayRot = vis.getOverlayRotation();
+        boolean overlayMirror = vis.isOverlayMirror();
 
         // For each point: apply overlay in raw space, forward-transform to motor space
         // (including current alignment), then inverse-transform back to raw space.
@@ -789,14 +803,16 @@ public class PlotterPanel extends JPanel {
                     for (JsonNode p : cmd.get("points")) {
                         double[] baked = bakePoint(p.get("x").asDouble(), p.get("y").asDouble(),
                                 cx, cy, scale, offsetX, offsetY,
-                                swap, invX, invY, mW, mH, rotation, rawBounds, alignOX, alignOY);
+                                swap, invX, invY, mW, mH, rotation, rawBounds, alignOX, alignOY,
+                                overlayRot, overlayMirror);
                         ((ObjectNode) p).put("x", baked[0]);
                         ((ObjectNode) p).put("y", baked[1]);
                     }
                 } else if ("MOVE".equals(cmd.get("op").asText())) {
                     double[] baked = bakePoint(cmd.get("x").asDouble(), cmd.get("y").asDouble(),
                             cx, cy, scale, offsetX, offsetY,
-                            swap, invX, invY, mW, mH, rotation, rawBounds, alignOX, alignOY);
+                            swap, invX, invY, mW, mH, rotation, rawBounds, alignOX, alignOY,
+                            overlayRot, overlayMirror);
                     ((ObjectNode) cmd).put("x", baked[0]);
                     ((ObjectNode) cmd).put("y", baked[1]);
                 }
@@ -807,9 +823,11 @@ public class PlotterPanel extends JPanel {
         if (root.has("metadata") && ((ObjectNode) root.get("metadata")).has("bounds")) {
             ObjectNode bounds = (ObjectNode) root.get("metadata").get("bounds");
             double[] bMin = bakePoint(bounds.get("minX").asDouble(), bounds.get("minY").asDouble(),
-                    cx, cy, scale, offsetX, offsetY, swap, invX, invY, mW, mH, rotation, rawBounds, alignOX, alignOY);
+                    cx, cy, scale, offsetX, offsetY, swap, invX, invY, mW, mH, rotation, rawBounds, alignOX, alignOY,
+                    overlayRot, overlayMirror);
             double[] bMax = bakePoint(bounds.get("maxX").asDouble(), bounds.get("maxY").asDouble(),
-                    cx, cy, scale, offsetX, offsetY, swap, invX, invY, mW, mH, rotation, rawBounds, alignOX, alignOY);
+                    cx, cy, scale, offsetX, offsetY, swap, invX, invY, mW, mH, rotation, rawBounds, alignOX, alignOY,
+                    overlayRot, overlayMirror);
             bounds.put("minX", Math.min(bMin[0], bMax[0]));
             bounds.put("maxX", Math.max(bMin[0], bMax[0]));
             bounds.put("minY", Math.min(bMin[1], bMax[1]));
@@ -826,10 +844,13 @@ public class PlotterPanel extends JPanel {
                                double cx, double cy, double scale, double offsetX, double offsetY,
                                boolean swap, boolean invX, boolean invY,
                                double mW, double mH, int rotation, double[] bounds,
-                               double alignOX, double alignOY) {
-        // 1. Apply overlay in raw content space
-        double ox = (x - cx) * scale + cx + offsetX;
-        double oy = (y - cy) * scale + cy + offsetY;
+                               double alignOX, double alignOY,
+                               int overlayRot, boolean overlayMirror) {
+        // 1. Apply overlay in raw content space (mirror, rotate, scale, translate)
+        double[] o = CoordinateTransform.applyOverlayRaw(x, y, cx, cy, scale, offsetX, offsetY,
+                overlayRot, overlayMirror);
+        double ox = o[0];
+        double oy = o[1];
 
         // 2. Forward transform to motor space (matching visualization)
         double[] motor = CoordinateTransform.transformPoint(ox, oy, swap, invX, invY, mW, mH, rotation, bounds);
