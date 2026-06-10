@@ -97,7 +97,7 @@ def perform_refill(ad, station_id):
 
     print("--- Refill Complete ---")
 
-def execute_layer(ad, layer, report_pos=False, verbose=False, model=1, invert_x=False, invert_y=False, swap_xy=False, offset_x=0, offset_y=0, width=None, height=None, data_rotation=0, content_bounds=None, debug_position=False, flip_y=False):
+def execute_layer(ad, layer, report_pos=False, verbose=False, model=1, invert_x=False, invert_y=False, swap_xy=False, offset_x=0, offset_y=0, width=None, height=None, data_rotation=0, content_bounds=None, debug_position=False, flip_y=False, realtime_position=False):
     print(f"\n=== Starting Layer: {layer['id']} (Station: {layer['stationId']}) ===")
     input("Press Enter to start this layer (Ensure correct paint is ready)...")
 
@@ -149,7 +149,10 @@ def execute_layer(ad, layer, report_pos=False, verbose=False, model=1, invert_x=
             print(f"  [MOVE] To ({px:.2f}, {py:.2f}) [Orig: ({cmd['x']}, {cmd['y']})]")
             ad.moveto(px, py)
             check_position(px, py)
-            if report_pos:
+            # When the backend reports realtime hardware position, let that
+            # drive the cursor instead of the commanded target (which on
+            # buffered controllers like GRBL runs ahead of the actual pen).
+            if report_pos and not realtime_position:
                 print(f"POS:X:{px}:Y:{py}")
                 sys.stdout.flush()
 
@@ -169,7 +172,7 @@ def execute_layer(ad, layer, report_pos=False, verbose=False, model=1, invert_x=
 
                 ad.lineto(px, py)
                 check_position(px, py)
-                if report_pos:
+                if report_pos and not realtime_position:
                     print(f"POS:X:{px}:Y:{py}")
                     sys.stdout.flush()
 
@@ -390,6 +393,20 @@ def main():
             print("       Continuing because we are in Mock mode (or fell back to it).")
 
     print("INFO: Connection Successful.")
+
+    # Realtime position reporting: if the backend can stream the actual
+    # hardware position (e.g. GRBL '?' status polling), register a callback
+    # that emits POS lines for the GUI. This supersedes the per-waypoint
+    # commanded positions, which on buffered controllers run ahead of the pen.
+    realtime_position = False
+    if args.report_position and hasattr(ad, 'set_position_callback'):
+        def _emit_position(x, y):
+            print(f"POS:X:{x}:Y:{y}")
+            sys.stdout.flush()
+        ad.set_position_callback(_emit_position)
+        realtime_position = True
+        print("INFO: Realtime position reporting enabled.")
+
     print(f"INFO: Verify options after connect -> units={ad.options.units}, "
           f"speed_pendown={ad.options.speed_pendown}, speed_penup={ad.options.speed_penup}, "
           f"pen_pos_up={ad.options.pen_pos_up}, pen_pos_down={ad.options.pen_pos_down}")
@@ -591,7 +608,7 @@ def main():
                 print("WARNING: Some coordinates will be clamped to machine bounds. Drawing may be clipped.")
 
         for layer in data['layers']:
-            execute_layer(ad, layer, report_pos=args.report_position, verbose=args.verbose, model=args.model, invert_x=args.invert_x, invert_y=args.invert_y, swap_xy=args.swap_xy, offset_x=offset_x, offset_y=offset_y, width=machine_w, height=machine_h, data_rotation=args.data_rotation, content_bounds=content_bounds, debug_position=args.debug_position, flip_y=args.flip_y)
+            execute_layer(ad, layer, report_pos=args.report_position, verbose=args.verbose, model=args.model, invert_x=args.invert_x, invert_y=args.invert_y, swap_xy=args.swap_xy, offset_x=offset_x, offset_y=offset_y, width=machine_w, height=machine_h, data_rotation=args.data_rotation, content_bounds=content_bounds, debug_position=args.debug_position, flip_y=args.flip_y, realtime_position=realtime_position)
 
         # Return to home
         print("\nPlot Complete. Returning Home.")

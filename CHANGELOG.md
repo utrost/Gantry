@@ -5,6 +5,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added
+- **Realtime plot cursor** -- The visualization head now tracks the plotter in (near) realtime. For GRBL, the driver runs a single serial reader thread and polls `?` status at ~10 Hz, streaming the pen's actual work position instead of the commanded waypoint (which on buffered controllers ran ahead of the pen). The GUI eases the cursor toward each update on a 60 FPS timer for smooth motion, which also smooths per-waypoint reporting on AxiDraw. Backends opt in via `set_position_callback`; mock/AxiDraw fall back to the previous per-waypoint reporting.
 - **Draw SVG mode** -- New tab for plain pen plotting without watercolor refills. Select SVG, configure size/position, click "Convert & Plot" to generate commands and auto-switch to the Plot tab.
 - **Interactive positioning** -- Drag-to-move and handle-based resize of drawing content directly on the visualization panel. Dashed bounding box with 8 handles appears around loaded content. Transform is baked into JSON on plot start.
 - **Explicit size & position** -- Target width/height spinners with aspect ratio lock and X/Y position spinners for precise placement on the machine bed. Available in both Process SVG and Draw SVG tabs.

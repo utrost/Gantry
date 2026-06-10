@@ -26,9 +26,14 @@ public class VisualizationPanel extends JPanel {
     private final ObjectMapper mapper = new ObjectMapper();
     private List<List<Point2D>> allPaths = new ArrayList<>();
 
-    // Current head position (Physical coords, reported by driver)
+    // Current head position (Physical coords). currentX/Y is the *displayed*
+    // position, which is eased toward targetX/Y so motion looks smooth even
+    // when driver position updates arrive in discrete steps.
     private double currentX = 0;
     private double currentY = 0;
+    private double targetX = 0;
+    private double targetY = 0;
+    private javax.swing.Timer cursorAnimTimer;
 
     // Machine Bounds (Fixed by Settings - A3 Portrait default)
     private double machineWidth = 297; // A3 Portrait width (short edge)
@@ -271,6 +276,11 @@ public class VisualizationPanel extends JPanel {
         allPaths.clear();
         currentX = 0;
         currentY = 0;
+        targetX = 0;
+        targetY = 0;
+        if (cursorAnimTimer != null) {
+            cursorAnimTimer.stop();
+        }
         overlayOffsetX = 0;
         overlayOffsetY = 0;
         overlayScale = 1.0;
@@ -305,9 +315,46 @@ public class VisualizationPanel extends JPanel {
         repaint();
     }
 
+    /**
+     * Report a new head position. The displayed cursor eases toward this
+     * target on a ~60 FPS timer so motion stays smooth between the discrete
+     * updates streamed by the driver (GRBL realtime polling or per-waypoint).
+     */
     public void updatePosition(double x, double y) {
-        this.currentX = x;
-        this.currentY = y;
+        this.targetX = x;
+        this.targetY = y;
+        if (cursorAnimTimer == null) {
+            cursorAnimTimer = new javax.swing.Timer(16, e -> animateCursorStep());
+        }
+        if (!cursorAnimTimer.isRunning()) {
+            cursorAnimTimer.start();
+        }
+    }
+
+    private void animateCursorStep() {
+        double dx = targetX - currentX;
+        double dy = targetY - currentY;
+        double dist = Math.hypot(dx, dy);
+        if (dist < 0.05) {
+            // Settled: snap and stop animating to avoid idle repaints.
+            currentX = targetX;
+            currentY = targetY;
+            if (cursorAnimTimer != null) {
+                cursorAnimTimer.stop();
+            }
+            repaint();
+            return;
+        }
+        // Exponential ease for smoothness, with a minimum step so long jumps
+        // don't crawl. ~0.5 mm/frame floor ≈ 30 mm/s at 60 FPS.
+        double step = Math.max(dist * 0.35, 0.5);
+        if (step >= dist) {
+            currentX = targetX;
+            currentY = targetY;
+        } else {
+            currentX += dx / dist * step;
+            currentY += dy / dist * step;
+        }
         repaint();
     }
 
