@@ -65,6 +65,8 @@ public class VisualizationPanel extends JPanel {
     // Overlay transform for interactive drag/resize (in raw content space)
     private double overlayOffsetX = 0, overlayOffsetY = 0;
     private double overlayScale = 1.0;
+    private int overlayRotation = 0;       // quarter turns: 0, 90, 180, 270
+    private boolean overlayMirror = false; // horizontal flip
 
     // When true, alignment offset is suppressed (baked coords already encode position)
     private boolean suppressAlignment = false;
@@ -114,8 +116,27 @@ public class VisualizationPanel extends JPanel {
     public double getOverlayOffsetX() { return overlayOffsetX; }
     public double getOverlayOffsetY() { return overlayOffsetY; }
     public double getOverlayScale() { return overlayScale; }
+    public int getOverlayRotation() { return overlayRotation; }
+    public boolean isOverlayMirror() { return overlayMirror; }
     public boolean hasOverlayTransform() {
-        return overlayOffsetX != 0 || overlayOffsetY != 0 || overlayScale != 1.0;
+        return overlayOffsetX != 0 || overlayOffsetY != 0 || overlayScale != 1.0
+                || overlayRotation != 0 || overlayMirror;
+    }
+
+    /** Rotate the drawing 90° clockwise (interactive overlay), re-clamping to the bed. */
+    public void rotateOverlay() {
+        overlayRotation = (overlayRotation + 90) % 360;
+        clampOverlayToBed();
+        repaint();
+        fireOverlayChange();
+    }
+
+    /** Toggle horizontal mirroring of the drawing (interactive overlay). */
+    public void toggleMirror() {
+        overlayMirror = !overlayMirror;
+        clampOverlayToBed();
+        repaint();
+        fireOverlayChange();
     }
 
     public double[] getRawBounds() { return new double[] { rawMinX, rawMaxX, rawMinY, rawMaxY }; }
@@ -138,6 +159,8 @@ public class VisualizationPanel extends JPanel {
         overlayOffsetX = 0;
         overlayOffsetY = 0;
         overlayScale = 1.0;
+        overlayRotation = 0;
+        overlayMirror = false;
         suppressAlignment = false;
         repaint();
         fireOverlayChange();
@@ -284,6 +307,8 @@ public class VisualizationPanel extends JPanel {
         overlayOffsetX = 0;
         overlayOffsetY = 0;
         overlayScale = 1.0;
+        overlayRotation = 0;
+        overlayMirror = false;
         suppressAlignment = false;
 
         try {
@@ -493,8 +518,11 @@ public class VisualizationPanel extends JPanel {
     private double[] transformPointToMotor(Point2D rawPoint) {
         double cx = (rawMinX + rawMaxX) / 2.0;
         double cy = (rawMinY + rawMaxY) / 2.0;
-        double x = (rawPoint.x() - cx) * overlayScale + cx + overlayOffsetX;
-        double y = (rawPoint.y() - cy) * overlayScale + cy + overlayOffsetY;
+        double[] o = CoordinateTransform.applyOverlayRaw(rawPoint.x(), rawPoint.y(),
+                cx, cy, overlayScale, overlayOffsetX, overlayOffsetY,
+                overlayRotation, overlayMirror);
+        double x = o[0];
+        double y = o[1];
 
         double[] motor = CoordinateTransform.transformPoint(
                 x, y,

@@ -47,6 +47,37 @@ public class CoordinateTransform {
     }
 
     /**
+     * Apply the interactive overlay transform in raw content space: mirror,
+     * quarter-turn rotation, uniform scale and translation, all about the
+     * content center (cx, cy). Shared by the live preview and the JSON baking
+     * so they stay identical.
+     *
+     * @param rotation mirror-free quarter turn in degrees (0, 90, 180, 270)
+     * @param mirror   horizontal flip (negate X about the center)
+     */
+    public static double[] applyOverlayRaw(double x, double y,
+            double cx, double cy, double scale,
+            double offsetX, double offsetY,
+            int rotation, boolean mirror) {
+
+        double dx = x - cx;
+        double dy = y - cy;
+
+        if (mirror) dx = -dx;
+
+        switch (((rotation % 360) + 360) % 360) {
+            case 90:  { double t = dx; dx = -dy; dy = t; break; }
+            case 180: { dx = -dx; dy = -dy; break; }
+            case 270: { double t = dx; dx = dy; dy = -t; break; }
+        }
+
+        dx *= scale;
+        dy *= scale;
+
+        return new double[] { dx + cx + offsetX, dy + cy + offsetY };
+    }
+
+    /**
      * Inverse of transformPoint: motor coordinates back to logical input coordinates.
      * Reverses: invertY -> invertX -> swap -> rotate(-θ)
      */
