@@ -1,3 +1,6 @@
+import queue
+import sys
+import threading
 import time
 
 from backend import PlotterBackend, BackendOptions
@@ -18,6 +21,8 @@ class GcodeOptions(BackendOptions):
         self.z_down = 0.0
         self.machine_width = 300.0
         self.machine_height = 200.0
+        # How often to poll GRBL for its realtime position (seconds)
+        self.position_poll_interval = 0.1
 
 
 class GcodeBackend(PlotterBackend):
@@ -28,11 +33,33 @@ class GcodeBackend(PlotterBackend):
         self._serial = None
         self._pen_is_down = False
 
+        # --- Serial I/O is owned by a single reader thread ---------------
+        # GRBL responds to the realtime '?' command with a status report at
+        # any time, interleaved with the line-based command/'ok' protocol.
+        # To poll position while streaming we route ALL reads through one
+        # reader thread that classifies lines, rather than reading from
+        # multiple places (which would let the poller steal an 'ok').
+        self._serial_lock = threading.Lock()      # guards writes to the port
+        self._reader_thread = None
+        self._poller_thread = None
+        self._running = False
+        self._ack_queue = queue.Queue()           # 'ok'/'error' for _wait_for_ok
+        self._raw_queue = queue.Queue()            # responses while collecting RAW
+        self._collect_raw = False
+
+        # Latest known work position (the coordinate frame G0/G1 use) and the
+        # work-coordinate offset (WCO) reported by GRBL, used to derive work
+        # position when only machine position (MPos) is given.
+        self._last_wpos = (0.0, 0.0)
+        self._wco = (0.0, 0.0)
+        self._position_callback = None
+
     def _apply_config(self, cfg):
         for key in ('serial_port', 'baud_rate', 'pen_mode', 'servo_pin',
                      'feed_rate_draw', 'feed_rate_travel',
                      'pen_servo_up', 'pen_servo_down',
-                     'z_up', 'z_down', 'machine_width', 'machine_height'):
+                     'z_up', 'z_down', 'machine_width', 'machine_height',
+                     'position_poll_interval'):
             if key in cfg:
                 setattr(self.options, key, cfg[key])
 
@@ -42,20 +69,32 @@ class GcodeBackend(PlotterBackend):
     def update(self):
         pass
 
+    def set_position_callback(self, callback):
+        """Register callback(x, y) invoked from the reader thread whenever GRBL
+        reports a new realtime work position. Presence of this method signals
+        to the driver that the backend supports realtime position reporting."""
+        self._position_callback = callback
+
     def connect(self) -> bool:
         try:
             import serial
             self._serial = serial.Serial(
                 self.options.serial_port,
                 self.options.baud_rate,
-                timeout=5
+                timeout=1
             )
             time.sleep(2)
-            # Read and display GRBL boot message
+            # Drain and display the GRBL boot banner before the reader starts.
             while self._serial.in_waiting > 0:
                 line = self._serial.readline().decode(errors='replace').strip()
                 if line:
                     print(f"GRBL: {line}")
+
+            # Start the reader thread so _wait_for_ok() can receive acks.
+            self._running = True
+            self._reader_thread = threading.Thread(target=self._reader_loop, daemon=True)
+            self._reader_thread.start()
+
             # Unlock alarm state (GRBL boots in alarm on many setups)
             self._send("$X")
             self._wait_for_ok()
@@ -72,9 +111,14 @@ class GcodeBackend(PlotterBackend):
             # (Relative jog moves use G91 and are unaffected either way.)
             self._send("G92 X0 Y0")
             self._wait_for_ok()
+
+            # Start realtime position polling.
+            self._poller_thread = threading.Thread(target=self._poller_loop, daemon=True)
+            self._poller_thread.start()
             return True
         except Exception as e:
             print(f"ERROR: G-code connect failed: {e}")
+            self._running = False
             return False
 
     def disconnect(self):
@@ -82,7 +126,19 @@ class GcodeBackend(PlotterBackend):
             self.penup()
             self._send("G0 X0 Y0")
             self._wait_for_ok()
-            self._serial.close()
+            self._running = False
+            with self._serial_lock:
+                try:
+                    self._serial.close()
+                except Exception:
+                    pass
+        else:
+            self._running = False
+        # Let the helper threads notice _running/closed port and exit.
+        if self._reader_thread:
+            self._reader_thread.join(timeout=2)
+        if self._poller_thread:
+            self._poller_thread.join(timeout=2)
         self._serial = None
 
     def moveto(self, x, y):
@@ -132,60 +188,141 @@ class GcodeBackend(PlotterBackend):
         time.sleep(0.15)
 
     def query_position(self):
+        """Return the most recent work position reported by the poller."""
         if not self._serial or not self._serial.is_open:
             return None
-        self._serial.write(b"?")
-        self._serial.flush()
-        start = time.time()
-        while time.time() - start < 2:
-            if self._serial.in_waiting > 0:
-                line = self._serial.readline().decode(errors='replace').strip()
-                if line.startswith("<") and "MPos:" in line:
-                    try:
-                        mpos = line.split("MPos:")[1].split("|")[0]
-                        parts = mpos.split(",")
-                        return (float(parts[0]), float(parts[1]))
-                    except (IndexError, ValueError):
-                        return None
-            else:
-                time.sleep(0.01)
-        return None
+        return self._last_wpos
 
     def send_raw(self, command):
         if not self._serial or not self._serial.is_open:
             return ["(no serial connection)"]
-        self._serial.write((command + "\n").encode())
-        self._serial.flush()
+        # Collect every line the reader sees until 'ok'/'error' or timeout.
+        while not self._raw_queue.empty():
+            try:
+                self._raw_queue.get_nowait()
+            except queue.Empty:
+                break
+        self._collect_raw = True
         responses = []
-        deadline = time.time() + 2.0
-        while time.time() < deadline:
-            if self._serial.in_waiting > 0:
-                resp = self._serial.readline().decode(errors='replace').strip()
-                if resp:
-                    responses.append(resp)
-                if resp.lower().startswith("ok") or resp.lower().startswith("error"):
+        try:
+            self._send(command)
+            deadline = time.time() + 2.0
+            while time.time() < deadline:
+                try:
+                    resp = self._raw_queue.get(timeout=0.1)
+                except queue.Empty:
+                    continue
+                responses.append(resp)
+                low = resp.lower()
+                if low.startswith("ok") or low.startswith("error"):
                     break
-            else:
-                time.sleep(0.05)
+        finally:
+            self._collect_raw = False
         return responses if responses else ["(no response)"]
+
+    # --- Internal serial plumbing --------------------------------------
 
     def _send(self, cmd):
         if self._serial and self._serial.is_open:
-            self._serial.write((cmd + "\n").encode())
-            self._serial.flush()
+            with self._serial_lock:
+                self._serial.write((cmd + "\n").encode())
+                self._serial.flush()
 
     def _wait_for_ok(self, timeout=30):
         if not self._serial:
             return
-        start = time.time()
-        while time.time() - start < timeout:
-            if self._serial.in_waiting > 0:
-                line = self._serial.readline().decode(errors='replace').strip()
-                if line.lower().startswith("ok"):
-                    return
-                if line.lower().startswith("error"):
-                    print(f"WARNING: G-code error: {line}")
-                    return
+        try:
+            line = self._ack_queue.get(timeout=timeout)
+        except queue.Empty:
+            print("WARNING: G-code response timeout")
+            return
+        if line.lower().startswith("error"):
+            print(f"WARNING: G-code error: {line}")
+
+    def _reader_loop(self):
+        """Single owner of serial reads. Classifies each line and dispatches
+        acks, status reports and raw responses to the right consumer."""
+        while self._running:
+            ser = self._serial
+            if not ser or not ser.is_open:
+                break
+            try:
+                raw = ser.readline()
+            except Exception:
+                break
+            if not raw:
+                continue  # read timeout, loop again
+            line = raw.decode(errors='replace').strip()
+            if not line:
+                continue
+
+            low = line.lower()
+            if low.startswith("ok") or low.startswith("error"):
+                if self._collect_raw:
+                    self._raw_queue.put(line)
+                else:
+                    self._ack_queue.put(line)
+            elif line.startswith("<"):
+                self._handle_status(line)
+                if self._collect_raw:
+                    self._raw_queue.put(line)
             else:
-                time.sleep(0.01)
-        print("WARNING: G-code response timeout")
+                if self._collect_raw:
+                    self._raw_queue.put(line)
+                else:
+                    print(f"GRBL: {line}")
+                    sys.stdout.flush()
+
+    def _poller_loop(self):
+        """Periodically request a GRBL status report (realtime '?' command)."""
+        interval = self.options.position_poll_interval
+        while self._running:
+            ser = self._serial
+            if not ser or not ser.is_open:
+                break
+            try:
+                with self._serial_lock:
+                    ser.write(b"?")
+                    ser.flush()
+            except Exception:
+                break
+            time.sleep(interval)
+
+    def _handle_status(self, line):
+        """Parse a GRBL status report such as
+        <Idle|MPos:1.000,2.000,0.000|FS:0,0|WCO:0.000,0.000,0.000>
+        and emit the work position via the callback."""
+        body = line.strip("<>")
+        mpos = None
+        wpos = None
+        for field in body.split("|"):
+            if field.startswith("MPos:"):
+                mpos = self._parse_xy(field[5:])
+            elif field.startswith("WPos:"):
+                wpos = self._parse_xy(field[5:])
+            elif field.startswith("WCO:"):
+                wco = self._parse_xy(field[4:])
+                if wco is not None:
+                    self._wco = wco
+
+        if wpos is not None:
+            pos = wpos
+        elif mpos is not None:
+            pos = (mpos[0] - self._wco[0], mpos[1] - self._wco[1])
+        else:
+            return
+
+        self._last_wpos = pos
+        if self._position_callback:
+            try:
+                self._position_callback(pos[0], pos[1])
+            except Exception:
+                pass
+
+    @staticmethod
+    def _parse_xy(s):
+        try:
+            parts = s.split(",")
+            return (float(parts[0]), float(parts[1]))
+        except (ValueError, IndexError):
+            return None
