@@ -89,6 +89,7 @@ public class GcodeBackend implements PlotterBackend {
      *   <li>"reset" &rarr; 100% (0x90)</li>
      * </ul>
      */
+    @Override
     public void adjustSpeed(String direction) {
         SerialTransport t = transport;
         if (t == null || !t.isOpen()) {

@@ -35,4 +35,8 @@ public interface PlotterBackend {
     default List<String> sendRaw(String command) {
         return List.of("(not supported by this backend)");
     }
+
+    /** Adjusts the realtime feed-rate override ("up", "down" or "reset"). No-op if unsupported. */
+    default void adjustSpeed(String direction) {
+    }
 }
