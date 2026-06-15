@@ -12,6 +12,7 @@ import org.trostheide.gantry.model.Point;
 import org.trostheide.gantry.model.ProcessorOutput;
 import org.trostheide.gantry.model.command.Command;
 import org.trostheide.gantry.model.command.DrawCommand;
+import org.trostheide.gantry.pipeline.optimize.OptimizeStage;
 import org.trostheide.gantry.plotter.GcodeBackend;
 import org.trostheide.gantry.plotter.MockPlotterBackend;
 import org.trostheide.gantry.plotter.PlotterBackend;
@@ -49,6 +50,8 @@ public class PlotterPanel extends JPanel {
     private final JLabel speedLabel = new JLabel("100%");
     private final JSpinner jogStepSpinner = new JSpinner(new SpinnerNumberModel(10.0, 0.1, 200.0, 1.0));
     private final JTextField rawCommandField = new JTextField(16);
+    private final JSpinner simplifyToleranceSpinner = new JSpinner(new SpinnerNumberModel(0.2, 0.0, 10.0, 0.1));
+    private final JCheckBox reorderStrokesCheckBox = new JCheckBox("Reorder strokes (minimize travel)", true);
 
     private PlotterBackend backend;
     private ProcessorOutput currentOutput;
@@ -72,6 +75,8 @@ public class PlotterPanel extends JPanel {
         right.add(jogSection());
         right.add(Box.createVerticalStrut(6));
         right.add(penSpeedSection());
+        right.add(Box.createVerticalStrut(6));
+        right.add(optimizeSection());
         right.add(Box.createVerticalStrut(6));
         right.add(overlaySection());
         right.add(Box.createVerticalStrut(6));
@@ -164,6 +169,29 @@ public class PlotterPanel extends JPanel {
         return panel;
     }
 
+    private JPanel optimizeSection() {
+        JPanel panel = new JPanel(new GridBagLayout());
+        panel.setBorder(section("Optimize"));
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(2, 4, 2, 4);
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+
+        gbc.gridx = 0; gbc.gridy = 0;
+        panel.add(new JLabel("Simplify tolerance (mm)"), gbc);
+        gbc.gridx = 1;
+        panel.add(simplifyToleranceSpinner, gbc);
+
+        gbc.gridx = 0; gbc.gridy = 1; gbc.gridwidth = 2;
+        panel.add(reorderStrokesCheckBox, gbc);
+
+        gbc.gridx = 0; gbc.gridy = 2; gbc.gridwidth = 2;
+        JButton optimizeBtn = new JButton("Optimize Loaded Commands");
+        optimizeBtn.addActionListener(e -> onOptimize());
+        panel.add(optimizeBtn, gbc);
+
+        return panel;
+    }
+
     private JPanel overlaySection() {
         JPanel panel = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 4));
         panel.setBorder(section("Overlay"));
@@ -242,6 +270,28 @@ public class PlotterPanel extends JPanel {
         } catch (IOException ex) {
             log("ERROR: Failed to load " + file.getName() + ": " + ex.getMessage());
         }
+    }
+
+    private void onOptimize() {
+        if (currentOutput == null) {
+            log("ERROR: Load a commands file first.");
+            return;
+        }
+        double tolerance = ((Number) simplifyToleranceSpinner.getValue()).doubleValue();
+        boolean reorder = reorderStrokesCheckBox.isSelected();
+
+        OptimizeStage.Stats before = OptimizeStage.computeStats(currentOutput);
+        currentOutput = OptimizeStage.optimize(currentOutput, tolerance, reorder);
+        OptimizeStage.Stats after = OptimizeStage.computeStats(currentOutput);
+
+        visPanel.loadFromOutput(currentOutput);
+
+        double travelSavedPct = before.travelDistanceMm() <= 0 ? 0
+                : 100.0 * (before.travelDistanceMm() - after.travelDistanceMm()) / before.travelDistanceMm();
+        log(String.format(
+                "Optimized: travel %.1fmm -> %.1fmm (%.1f%% saved), points %d -> %d",
+                before.travelDistanceMm(), after.travelDistanceMm(), travelSavedPct,
+                before.pointCount(), after.pointCount()));
     }
 
     private void onOpenSettings() {
