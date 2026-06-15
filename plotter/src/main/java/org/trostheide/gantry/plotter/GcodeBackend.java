@@ -133,17 +133,11 @@ public class GcodeBackend implements PlotterBackend {
             readerThread.setDaemon(true);
             readerThread.start();
 
-            // Unlock alarm state (GRBL boots in alarm on many setups).
-            send("$X");
-            waitForOk();
-            send("G21");
-            waitForOk();
-            send("G90");
-            waitForOk();
-            // No homing/limit switches: define the pen's CURRENT position as the work
-            // origin (0,0), so absolute moves are relative to where the pen starts.
-            send("G92 X0 Y0");
-            waitForOk();
+            // Unlock alarm state (GRBL boots in alarm on many setups), set units/mode and zero the origin.
+            for (String cmd : GcodeFormatter.setupSequence()) {
+                send(cmd);
+                waitForOk();
+            }
 
             // Start realtime position polling.
             pollerThread = new Thread(this::pollerLoop, "gcode-poller");
@@ -162,7 +156,7 @@ public class GcodeBackend implements PlotterBackend {
         SerialTransport t = transport;
         if (t != null && t.isOpen()) {
             penup();
-            send("G0 X0 Y0");
+            send(GcodeFormatter.home());
             waitForOk();
             running = false;
             synchronized (writeLock) {
@@ -181,7 +175,7 @@ public class GcodeBackend implements PlotterBackend {
         if (penIsDown) {
             penup();
         }
-        send(String.format(Locale.ROOT, "G0 X%.3f Y%.3f F%d", x, y, options.feedRateTravel));
+        send(GcodeFormatter.moveto(x, y, options.feedRateTravel));
         waitForOk();
     }
 
@@ -190,42 +184,36 @@ public class GcodeBackend implements PlotterBackend {
         if (!penIsDown) {
             pendown();
         }
-        send(String.format(Locale.ROOT, "G1 X%.3f Y%.3f F%d", x, y, options.feedRateDraw));
+        send(GcodeFormatter.lineto(x, y, options.feedRateDraw));
         waitForOk();
     }
 
     @Override
     public void move(double dx, double dy) {
-        send("G91");
-        waitForOk();
-        send(String.format(Locale.ROOT, "G1 X%.3f Y%.3f F%d", dx, dy, options.feedRateTravel));
-        waitForOk();
-        send("G90");
-        waitForOk();
+        for (String cmd : GcodeFormatter.relativeMove(dx, dy, options.feedRateTravel)) {
+            send(cmd);
+            waitForOk();
+        }
     }
 
     @Override
     public void penup() {
         penIsDown = false;
-        switch (options.penMode) {
-            case "servo" -> send(String.format(Locale.ROOT, "M280 P%d S%d", options.servoPin, options.penServoUp));
-            case "zaxis" -> send(String.format(Locale.ROOT, "G0 Z%.2f", options.zUp));
-            case "m3m5" -> send(String.format(Locale.ROOT, "M3 S%d", options.penServoUp));
-            default -> { }
+        String cmd = GcodeFormatter.penUp(options);
+        if (cmd != null) {
+            send(cmd);
+            waitForOk();
         }
-        waitForOk();
     }
 
     @Override
     public void pendown() {
         penIsDown = true;
-        switch (options.penMode) {
-            case "servo" -> send(String.format(Locale.ROOT, "M280 P%d S%d", options.servoPin, options.penServoDown));
-            case "zaxis" -> send(String.format(Locale.ROOT, "G1 Z%.2f F%d", options.zDown, options.feedRateDraw));
-            case "m3m5" -> send(String.format(Locale.ROOT, "M3 S%d", options.penServoDown));
-            default -> { }
+        String cmd = GcodeFormatter.penDown(options);
+        if (cmd != null) {
+            send(cmd);
+            waitForOk();
         }
-        waitForOk();
         sleepQuietly(150);
     }
 

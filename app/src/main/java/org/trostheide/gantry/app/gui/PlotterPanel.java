@@ -12,8 +12,11 @@ import org.trostheide.gantry.model.Point;
 import org.trostheide.gantry.model.ProcessorOutput;
 import org.trostheide.gantry.model.command.Command;
 import org.trostheide.gantry.model.command.DrawCommand;
+import org.trostheide.gantry.pipeline.optimize.MultipassStage;
 import org.trostheide.gantry.pipeline.optimize.OptimizeStage;
 import org.trostheide.gantry.plotter.GcodeBackend;
+import org.trostheide.gantry.plotter.GcodeFileBackend;
+import org.trostheide.gantry.plotter.GcodeFileReplay;
 import org.trostheide.gantry.plotter.MockPlotterBackend;
 import org.trostheide.gantry.plotter.PlotterBackend;
 
@@ -52,6 +55,7 @@ public class PlotterPanel extends JPanel {
     private final JTextField rawCommandField = new JTextField(16);
     private final JSpinner simplifyToleranceSpinner = new JSpinner(new SpinnerNumberModel(0.2, 0.0, 10.0, 0.1));
     private final JCheckBox reorderStrokesCheckBox = new JCheckBox("Reorder strokes (minimize travel)", true);
+    private final JSpinner multipassSpinner = new JSpinner(new SpinnerNumberModel(1, 1, 10, 1));
 
     private PlotterBackend backend;
     private ProcessorOutput currentOutput;
@@ -217,9 +221,20 @@ public class PlotterPanel extends JPanel {
         confirmBtn.addActionListener(e -> confirmGate.release());
         stopBtn.addActionListener(e -> onStopPlot());
 
+        panel.add(new JLabel("Passes"));
+        panel.add(multipassSpinner);
         panel.add(startBtn);
         panel.add(confirmBtn);
         panel.add(stopBtn);
+
+        JButton exportBtn = new JButton("Export G-code...");
+        exportBtn.addActionListener(e -> onExportGcode());
+        panel.add(exportBtn);
+
+        JButton replayBtn = new JButton("Replay G-code...");
+        replayBtn.addActionListener(e -> onReplayGcode());
+        panel.add(replayBtn);
+
         return panel;
     }
 
@@ -354,10 +369,7 @@ public class PlotterPanel extends JPanel {
             return;
         }
 
-        ProcessorOutput toPlot = currentOutput;
-        if (visPanel.hasOverlayTransform()) {
-            toPlot = bakeOverlay(toPlot);
-        }
+        ProcessorOutput toPlot = preparePlotOutput();
 
         PlotSettings settings = config.toPlotSettings();
         settings.reportPosition = true;
@@ -432,6 +444,71 @@ public class PlotterPanel extends JPanel {
             return;
         }
         new Thread(() -> action.accept(b), "backend-action").start();
+    }
+
+    /** Applies overlay baking and the configured multipass count to {@link #currentOutput} for plotting/export. */
+    private ProcessorOutput preparePlotOutput() {
+        ProcessorOutput result = currentOutput;
+        if (visPanel.hasOverlayTransform()) {
+            result = bakeOverlay(result);
+        }
+        int passes = ((Number) multipassSpinner.getValue()).intValue();
+        result = MultipassStage.apply(result, passes);
+        return result;
+    }
+
+    private void onExportGcode() {
+        if (currentOutput == null) {
+            log("ERROR: Load a commands file first.");
+            return;
+        }
+        JFileChooser chooser = new JFileChooser();
+        chooser.setFileFilter(new javax.swing.filechooser.FileNameExtensionFilter("G-code files (*.gcode)", "gcode"));
+        if (chooser.showSaveDialog(this) != JFileChooser.APPROVE_OPTION) {
+            return;
+        }
+        File file = chooser.getSelectedFile();
+
+        ProcessorOutput toExport = preparePlotOutput();
+        PlotSettings settings = config.toPlotSettings();
+
+        new Thread(() -> {
+            GcodeFileBackend fileBackend = new GcodeFileBackend(config.gcode, file);
+            PlotService service = new PlotService(fileBackend, settings);
+            service.setLogCallback(this::log);
+            if (fileBackend.connect()) {
+                try {
+                    service.plot(toExport);
+                } finally {
+                    fileBackend.disconnect();
+                }
+                log("Exported G-code to " + file.getName());
+            } else {
+                log("ERROR: Failed to open " + file.getName() + " for writing.");
+            }
+        }, "gcode-export").start();
+    }
+
+    private void onReplayGcode() {
+        if (!(backend instanceof GcodeBackend gcodeBackend)) {
+            log("ERROR: Connect to a real G-code backend first (not available in mock mode).");
+            return;
+        }
+        JFileChooser chooser = new JFileChooser();
+        chooser.setFileFilter(new javax.swing.filechooser.FileNameExtensionFilter("G-code files (*.gcode)", "gcode"));
+        if (chooser.showOpenDialog(this) != JFileChooser.APPROVE_OPTION) {
+            return;
+        }
+        File file = chooser.getSelectedFile();
+        new Thread(() -> {
+            try {
+                log("Replaying " + file.getName() + "...");
+                GcodeFileReplay.replay(file, gcodeBackend, this::log);
+                log("--- Replay finished ---");
+            } catch (IOException ex) {
+                log("ERROR: Failed to replay " + file.getName() + ": " + ex.getMessage());
+            }
+        }, "gcode-replay").start();
     }
 
     /** Bakes the interactive overlay transform (drag/resize/rotate/mirror) into raw content coordinates. */
