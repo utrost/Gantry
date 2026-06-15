@@ -99,8 +99,32 @@ oracle until Phase 3.
 | **3. Port orchestration** | `driver.py` → in-process `PlotService` in `app/`; replace stdin/stdout IPC (`POS:`/`SPEED:`/layer-start) with direct callbacks/events; unify "Process" + "Direct Draw" into one preset-driven pipeline (**pen preset is the default, complete path**) | Full plot from GUI with **no Python**: jog, layer-start, speed control, eased cursor all in-process |
 | **4. Optimization stage** | Insert SVGToolBox PathOptimize + Simplify pre-refill, **per-layer** so station mapping is preserved | Measurable pen-travel reduction on a sample; layer→station intact; before/after stats shown |
 | **5. New features** | Multipass/pigment (`pipeline-core`, benefits pen *and* watercolor) · G-code file export + re-plot (`plotter`) · refill stays in `watercolor` | Each behind a tested toggle in the GUI |
-| **6. SVG ingestion & processing pipeline** | Port the SVG→command-model pipeline (`legacy/SVG2WaterColor`'s `ProcessorService`) into `pipeline-core`/`svgtoolbox-core`, plus the SVGToolBox SVG→SVG processors not yet covered by Phase 4; add "Process SVG"/"Draw SVG" GUI entry points and a headless CLI | An SVG file can be loaded in the GUI/CLI and produce a plottable command model with no external tooling; `legacy/` no longer the only path from SVG to plot |
+| **6. SVG ingestion & processing pipeline** ✅ | Port the SVG→command-model pipeline (`legacy/SVG2WaterColor`'s `ProcessorService`) into `pipeline-core`/`svgtoolbox-core`, plus the SVGToolBox SVG→SVG processors not yet covered by Phase 4; add "Process SVG"/"Draw SVG" GUI entry points and a headless CLI | An SVG file can be loaded in the GUI/CLI and produce a plottable command model with no external tooling; `legacy/` no longer the only path from SVG to plot |
 | **7. Cutover** | Delete `legacy/`; docs; single-artifact release | One JAR, no Python anywhere |
+
+### Phase 6 — done
+
+All 13 SVGToolBox SVG→SVG processors (Visibility, StyleNormalizer, Rotate,
+StrokeWidth, Palette, Simplify, Hatch + 5 patterns, Linesimplify, Linemerge,
+Linesort, Reloop, Layer, Crop, PathOptimize) plus `SvgStatistics` are ported
+into `svgtoolbox-core`, orchestrated by `SvgToolboxPipeline.buildPipeline`/
+`process` (mirrors legacy `SvgToolboxRunner.processPipeline`, with progress
+callback).
+
+`pipeline-core`'s `SvgImportStage` gained:
+- `importSvg(File, SvgImportOptions)` — unchanged, existing SVG→command-model path.
+- `importSvg(File, Config, SvgImportOptions)` — runs the SVGToolBox pipeline
+  against the loaded document first, then imports.
+- `importSvg(Document, String, SvgImportOptions)` — for callers with an
+  already-parsed document.
+
+Headless CLI (`cli/SvgImportCli`) gained a `--toolbox` flag plus palette,
+hatch, crop, rotate, stroke-width, simplify, and line-optimization options
+mirroring legacy `SvgToolboxRunner`.
+
+GUI `SvgImportDialog` gained a "Process SVG (optional)" tab exposing the same
+SVGToolBox options; `PlotterPanel`'s "Import SVG..." runs the toolbox pipeline
+first when enabled.
 
 ---
 
@@ -157,7 +181,7 @@ major gap that Phase 6 above exists to close.
   the legacy `PlotterBackend` ABC, minus AxiDraw — intentionally dropped
   (GRBL-only decision, confirmed out of scope, not a gap).
 
-### ❌ Major gap: no SVG-ingestion pipeline (addressed by Phase 6)
+### ✅ Major gap: no SVG-ingestion pipeline (addressed by Phase 6, now closed)
 Nothing in Gantry currently turns an SVG file into a `ProcessorOutput`. The
 GUI's `PlotterPanel` only offers "Load Commands JSON..." — it expects
 pre-generated command JSON. Missing pieces:
@@ -183,16 +207,22 @@ pre-generated command JSON. Missing pieces:
   (SVG→JSON, no refill), *Plot*. Gantry's `PlotterPanel` only covers the *Plot*
   tab equivalent (plus Optimize/Multipass/Export added in Phases 4–5).
 
-### ⚠️ To verify during Phase 6
-- Manual jog / pen up-down / interactive raw G-code server mode — appears
-  largely present in `PlotterPanel`, recheck against `driver.py`'s server mode.
-- Station config `z_down` (Z-axis dip depth) — present in legacy
-  `StationConfig`; confirm `app/.../StationConfig.java` carries it through to
-  `performRefill`.
+### ✅ Verified during Phase 6
+- Manual jog / pen up-down / interactive raw G-code server mode — `PlotterPanel`
+  has jog buttons (with step size), Pen Up/Down buttons, and a raw G-code
+  console (`sendRaw`), covering `driver.py`'s `MOVE`/`PEN`/`RAW`
+  interactive-server commands. At parity.
+- Station config `z_down` (Z-axis dip depth) — present per-station in both
+  legacy `config.py`'s `STATIONS` dict and Gantry's `StationConfig.zDown`, but
+  **unused by `perform_refill`/`performRefill` in both** (refill dip uses the
+  global `pendown()` Z, not a per-station value). Gantry's `performRefill`
+  matches legacy `perform_refill` exactly (move → pendown → sleep → penup,
+  optional `dip_swirl`). At parity — no fix needed.
 
-This gap means `legacy/` is currently the **only** path from an SVG file to a
-plottable command model — Phase 7 (cutover) cannot proceed until Phase 6 closes
-this gap.
+This gap previously meant `legacy/` was the **only** path from an SVG file to
+a plottable command model. Phase 6 closes this gap: SVG ingestion + the full
+SVGToolBox processor pipeline are now available in `pipeline-core`/
+`svgtoolbox-core` with GUI and CLI entry points. Phase 7 (cutover) can proceed.
 
 ## Deferred decisions
 
