@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 800" width="800" height="800">
+  <title>Test: Rectangles &amp; Squares</title>
+
+  <!-- Regular rectangles -->
+  <rect x="10"  y="10"  width="300" height="100" fill="#e63946" stroke="#1d1d1d" stroke-width="2"/>
+  <rect x="330" y="10"  width="160" height="100" fill="#457b9d" stroke="#1d1d1d" stroke-width="2"/>
+  <rect x="510" y="10"  width="280" height="100" fill="#2dc653" stroke="#1d1d1d" stroke-width="2"/>
+
+  <!-- Squares -->
+  <rect x="10"  y="130" width="100" height="100" fill="#f4a261" stroke="#1d1d1d" stroke-width="2"/>
+  <rect x="130" y="130" width="100" height="100" fill="#9b5de5" stroke="#1d1d1d" stroke-width="2"/>
+  <rect x="250" y="130" width="100" height="100" fill="#f72585" stroke="#1d1d1d" stroke-width="2"/>
+  <rect x="370" y="130" width="100" height="100" fill="#0077b6" stroke="#1d1d1d" stroke-width="2"/>
+  <rect x="490" y="130" width="100" height="100" fill="#ffb703" stroke="#1d1d1d" stroke-width="2"/>
+  <rect x="610" y="130" width="100" height="100" fill="#606c38" stroke="#1d1d1d" stroke-width="2"/>
+
+  <!-- Tall and narrow -->
+  <rect x="10"  y="250" width="60"  height="260" fill="#48cae4" stroke="#1d1d1d" stroke-width="2"/>
+  <rect x="90"  y="250" width="60"  height="200" fill="#d62828" stroke="#1d1d1d" stroke-width="2"/>
+
+  <!-- Wide and short -->
+  <rect x="170" y="250" width="360" height="50"  fill="#023e8a" stroke="#1d1d1d" stroke-width="2"/>
+  <rect x="170" y="320" width="360" height="80"  fill="#e76f51" stroke="#1d1d1d" stroke-width="2"/>
+
+  <!-- Rotated rectangles (via transform) -->
+  <rect x="600" y="250" width="160" height="60" fill="#9b5de5" stroke="#1d1d1d" stroke-width="2" transform="rotate(30, 680, 280)"/>
+  <rect x="600" y="370" width="160" height="60" fill="#2dc653" stroke="#1d1d1d" stroke-width="2" transform="rotate(-45, 680, 400)"/>
+
+  <!-- Large background-filling rectangle -->
+  <rect x="10"  y="530" width="780" height="50"  fill="#ffb703" stroke="#1d1d1d" stroke-width="2"/>
+
+  <!-- Outline only -->
+  <rect x="10"  y="610" width="200" height="150" fill="none" stroke="#e63946" stroke-width="5"/>
+  <rect x="230" y="610" width="200" height="150" fill="none" stroke="#457b9d" stroke-width="5" rx="20" ry="20"/>
+  <rect x="450" y="610" width="200" height="150" fill="none" stroke="#2dc653" stroke-width="5" rx="50" ry="50"/>
+
+  <!-- Rounded rectangles with fill -->
+  <rect x="670" y="530" width="120" height="80"  fill="#f4a261" stroke="#1d1d1d" stroke-width="2" rx="15" ry="15"/>
+  <rect x="670" y="630" width="120" height="80"  fill="#9b5de5" stroke="#1d1d1d" stroke-width="2" rx="40" ry="40"/>
+</svg>

@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 800" width="800" height="800">
+  <title>Test: Circles</title>
+
+  <!-- Row 1: small circles -->
+  <circle cx="80"  cy="80"  r="50" fill="#e63946" stroke="#1d1d1d" stroke-width="2"/>
+  <circle cx="230" cy="80"  r="50" fill="#457b9d" stroke="#1d1d1d" stroke-width="2"/>
+  <circle cx="380" cy="80"  r="50" fill="#2dc653" stroke="#1d1d1d" stroke-width="2"/>
+  <circle cx="530" cy="80"  r="50" fill="#f4a261" stroke="#1d1d1d" stroke-width="2"/>
+  <circle cx="680" cy="80"  r="50" fill="#9b5de5" stroke="#1d1d1d" stroke-width="2"/>
+
+  <!-- Row 2: medium circles -->
+  <circle cx="100" cy="250" r="80" fill="#0077b6" stroke="#1d1d1d" stroke-width="2"/>
+  <circle cx="320" cy="250" r="80" fill="#d62828" stroke="#1d1d1d" stroke-width="2"/>
+  <circle cx="540" cy="250" r="80" fill="#606c38" stroke="#1d1d1d" stroke-width="2"/>
+  <circle cx="720" cy="250" r="60" fill="#f72585" stroke="#1d1d1d" stroke-width="2"/>
+
+  <!-- Row 3: large circles -->
+  <circle cx="150" cy="530" r="130" fill="#ffb703" stroke="#1d1d1d" stroke-width="2"/>
+  <circle cx="500" cy="530" r="130" fill="#48cae4" stroke="#1d1d1d" stroke-width="2"/>
+
+  <!-- Outline-only circles -->
+  <circle cx="680" cy="650" r="100" fill="none" stroke="#e63946" stroke-width="4"/>
+  <circle cx="680" cy="650" r="60"  fill="none" stroke="#457b9d" stroke-width="4"/>
+  <circle cx="680" cy="650" r="25"  fill="none" stroke="#2dc653" stroke-width="4"/>
+
+  <!-- Ellipses -->
+  <ellipse cx="150" cy="740" rx="130" ry="40" fill="#9b5de5" stroke="#1d1d1d" stroke-width="2"/>
+  <ellipse cx="480" cy="740" rx="60"  ry="40" fill="#f4a261" stroke="#1d1d1d" stroke-width="2"/>
+</svg>

@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 900" width="900" height="900">
+  <title>Test: Mixed Shapes</title>
+
+  <!-- === Row 1 === -->
+  <!-- Circle -->
+  <circle cx="75"  cy="75"  r="60"  fill="#e63946" stroke="#1d1d1d" stroke-width="2"/>
+  <!-- Triangle -->
+  <polygon points="225,15 300,135 150,135" fill="#ffb703" stroke="#1d1d1d" stroke-width="2"/>
+  <!-- Rectangle -->
+  <rect x="330" y="20" width="130" height="110" fill="#457b9d" stroke="#1d1d1d" stroke-width="2"/>
+  <!-- Hexagon -->
+  <polygon points="540,15 585,50 585,110 540,145 495,110 495,50" fill="#2dc653" stroke="#1d1d1d" stroke-width="2"/>
+  <!-- Pentagon -->
+  <polygon points="690,15 750,60 730,130 650,130 630,60" fill="#9b5de5" stroke="#1d1d1d" stroke-width="2"/>
+  <!-- Star -->
+  <polygon points="855,15 870,65 900,65 875,92 885,135 855,110 825,135 835,92 810,65 840,65"
+           fill="#f72585" stroke="#1d1d1d" stroke-width="2"/>
+
+  <!-- === Row 2 === -->
+  <!-- Ellipse -->
+  <ellipse cx="75" cy="250" rx="65" ry="40" fill="#0077b6" stroke="#1d1d1d" stroke-width="2"/>
+  <!-- Right-angle triangle -->
+  <polygon points="150,190 300,300 150,300" fill="#d62828" stroke="#1d1d1d" stroke-width="2"/>
+  <!-- Rounded rect -->
+  <rect x="330" y="190" width="130" height="110" rx="25" ry="25" fill="#f4a261" stroke="#1d1d1d" stroke-width="2"/>
+  <!-- Diamond (rotated square) -->
+  <rect x="495" y="190" width="110" height="110" fill="#606c38" stroke="#1d1d1d" stroke-width="2" transform="rotate(45, 550, 245)"/>
+  <!-- Arrow -->
+  <polygon points="630,250 720,195 720,225 870,225 870,275 720,275 720,305" fill="#48cae4" stroke="#1d1d1d" stroke-width="2"/>
+
+  <!-- === Row 3: Curves === -->
+  <!-- Cubic bezier shape -->
+  <path d="M 10,370 C 80,320 130,450 200,400 C 270,350 280,480 350,430" fill="none" stroke="#e63946" stroke-width="5"/>
+  <!-- Quadratic bezier -->
+  <path d="M 380,350 Q 490,290 560,430" fill="none" stroke="#457b9d" stroke-width="5"/>
+  <!-- Arc -->
+  <path d="M 600,350 A 120,80 0 1 1 840,440" fill="none" stroke="#2dc653" stroke-width="5"/>
+  <!-- Filled closed bezier -->
+  <path d="M 30,490 C 80,440 160,440 180,490 C 200,550 100,580 30,555 Z" fill="#ffb703" stroke="#1d1d1d" stroke-width="2"/>
+
+  <!-- === Row 4: Polygons === -->
+  <!-- Octagon -->
+  <polygon points="110,620 160,580 220,580 265,620 265,680 220,720 160,720 110,680" fill="#9b5de5" stroke="#1d1d1d" stroke-width="2"/>
+  <!-- 5-pointed star -->
+  <polygon points="400,580 420,640 490,640 432,678 454,740 400,700 346,740 368,678 310,640 380,640"
+           fill="#f72585" stroke="#1d1d1d" stroke-width="2"/>
+  <!-- Cross / plus -->
+  <polygon points="570,580 620,580 620,630 670,630 670,680 620,680 620,730 570,730 570,680 520,680 520,630 570,630"
+           fill="#0077b6" stroke="#1d1d1d" stroke-width="2"/>
+  <!-- Crescent (path with arc cutout) -->
+  <path d="M 760,580 A 80,80 0 1 1 760,740 A 55,55 0 1 0 760,580 Z"
+        fill="#d62828" stroke="#1d1d1d" stroke-width="2"/>
+
+  <!-- === Row 5: Overlapping shapes (multi-layer blending test) === -->
+  <circle cx="100" cy="840" r="60" fill="#e63946" fill-opacity="0.7" stroke="#1d1d1d" stroke-width="2"/>
+  <circle cx="150" cy="840" r="60" fill="#457b9d" fill-opacity="0.7" stroke="#1d1d1d" stroke-width="2"/>
+  <circle cx="200" cy="840" r="60" fill="#2dc653" fill-opacity="0.7" stroke="#1d1d1d" stroke-width="2"/>
+  <rect x="330" y="790" width="100" height="100" fill="#ffb703" fill-opacity="0.7" stroke="#1d1d1d" stroke-width="2"/>
+  <rect x="375" y="810" width="100" height="100" fill="#9b5de5" fill-opacity="0.7" stroke="#1d1d1d" stroke-width="2"/>
+  <polygon points="600,790 680,890 520,890" fill="#f72585" fill-opacity="0.7" stroke="#1d1d1d" stroke-width="2"/>
+  <polygon points="650,790 730,890 570,890" fill="#0077b6" fill-opacity="0.7" stroke="#1d1d1d" stroke-width="2"/>
+</svg>
