@@ -12,8 +12,11 @@ import org.trostheide.gantry.model.Point;
 import org.trostheide.gantry.model.ProcessorOutput;
 import org.trostheide.gantry.model.command.Command;
 import org.trostheide.gantry.model.command.DrawCommand;
+import org.trostheide.gantry.pipeline.io.ProcessorOutputIO;
 import org.trostheide.gantry.pipeline.optimize.MultipassStage;
 import org.trostheide.gantry.pipeline.optimize.OptimizeStage;
+import org.trostheide.gantry.pipeline.svgimport.SvgImportOptions;
+import org.trostheide.gantry.pipeline.svgimport.SvgImportStage;
 import org.trostheide.gantry.plotter.GcodeBackend;
 import org.trostheide.gantry.plotter.GcodeFileBackend;
 import org.trostheide.gantry.plotter.GcodeFileReplay;
@@ -104,6 +107,14 @@ public class PlotterPanel extends JPanel {
         JButton loadBtn = new JButton("Load Commands...");
         loadBtn.addActionListener(e -> onLoadCommands());
         bar.add(loadBtn);
+
+        JButton importSvgBtn = new JButton("Import SVG...");
+        importSvgBtn.addActionListener(e -> onImportSvg());
+        bar.add(importSvgBtn);
+
+        JButton saveBtn = new JButton("Save Commands...");
+        saveBtn.addActionListener(e -> onSaveCommands());
+        bar.add(saveBtn);
 
         JButton settingsBtn = new JButton("Settings...");
         settingsBtn.addActionListener(e -> onOpenSettings());
@@ -284,6 +295,48 @@ public class PlotterPanel extends JPanel {
             log("Loaded " + file.getName());
         } catch (IOException ex) {
             log("ERROR: Failed to load " + file.getName() + ": " + ex.getMessage());
+        }
+    }
+
+    private void onImportSvg() {
+        JFileChooser chooser = new JFileChooser();
+        chooser.setFileFilter(new javax.swing.filechooser.FileNameExtensionFilter("SVG files (*.svg)", "svg"));
+        if (chooser.showOpenDialog(this) != JFileChooser.APPROVE_OPTION) {
+            return;
+        }
+        File file = chooser.getSelectedFile();
+
+        SvgImportOptions options = new SvgImportDialog(SwingUtilities.getWindowAncestor(this)).showDialog();
+        if (options == null) {
+            return;
+        }
+
+        try {
+            currentOutput = SvgImportStage.importSvg(file, options);
+            visPanel.loadFromOutput(currentOutput);
+            log(String.format("Imported %s: %d layer(s), %d command(s)",
+                    file.getName(), currentOutput.layers().size(), currentOutput.metadata().totalCommands()));
+        } catch (IOException ex) {
+            log("ERROR: Failed to import " + file.getName() + ": " + ex.getMessage());
+        }
+    }
+
+    private void onSaveCommands() {
+        if (currentOutput == null) {
+            log("ERROR: Nothing to save. Load or import commands first.");
+            return;
+        }
+        JFileChooser chooser = new JFileChooser();
+        chooser.setFileFilter(new javax.swing.filechooser.FileNameExtensionFilter("Command files (*.json)", "json"));
+        if (chooser.showSaveDialog(this) != JFileChooser.APPROVE_OPTION) {
+            return;
+        }
+        File file = chooser.getSelectedFile();
+        try {
+            ProcessorOutputIO.save(currentOutput, file);
+            log("Saved " + file.getName());
+        } catch (IOException ex) {
+            log("ERROR: Failed to save " + file.getName() + ": " + ex.getMessage());
         }
     }
 
