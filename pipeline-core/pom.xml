@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>org.trostheide.gantry</groupId>
+        <artifactId>gantry</artifactId>
+        <version>1.0-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>pipeline-core</artifactId>
+    <packaging>jar</packaging>
+
+    <name>Gantry Pipeline Core</name>
+    <description>Flatten, position, multipass, command model and output orchestration. Pen plotting works end-to-end with just this module.</description>
+
+    <dependencies>
+        <dependency>
+            <groupId>org.trostheide.gantry</groupId>
+            <artifactId>model</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.trostheide.gantry</groupId>
+            <artifactId>svgtoolbox-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.xmlgraphics</groupId>
+            <artifactId>batik-all</artifactId>
+            <type>pom</type>
+        </dependency>
+    </dependencies>
+</project>
