@@ -15,7 +15,6 @@ import org.trostheide.gantry.model.command.DrawCommand;
 import org.trostheide.gantry.pipeline.io.ProcessorOutputIO;
 import org.trostheide.gantry.pipeline.optimize.MultipassStage;
 import org.trostheide.gantry.pipeline.optimize.OptimizeStage;
-import org.trostheide.gantry.pipeline.svgimport.SvgImportOptions;
 import org.trostheide.gantry.pipeline.svgimport.SvgImportStage;
 import org.trostheide.gantry.plotter.GcodeBackend;
 import org.trostheide.gantry.plotter.GcodeFileBackend;
@@ -306,13 +305,15 @@ public class PlotterPanel extends JPanel {
         }
         File file = chooser.getSelectedFile();
 
-        SvgImportOptions options = new SvgImportDialog(SwingUtilities.getWindowAncestor(this)).showDialog();
-        if (options == null) {
+        SvgImportDialog.Result dialogResult = new SvgImportDialog(SwingUtilities.getWindowAncestor(this)).showDialog();
+        if (dialogResult == null) {
             return;
         }
 
         try {
-            currentOutput = SvgImportStage.importSvg(file, options);
+            currentOutput = dialogResult.toolboxConfig() != null
+                    ? SvgImportStage.importSvg(file, dialogResult.toolboxConfig(), dialogResult.importOptions())
+                    : SvgImportStage.importSvg(file, dialogResult.importOptions());
             visPanel.loadFromOutput(currentOutput);
             log(String.format("Imported %s: %d layer(s), %d command(s)",
                     file.getName(), currentOutput.layers().size(), currentOutput.metadata().totalCommands()));
