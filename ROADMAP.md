@@ -99,7 +99,8 @@ oracle until Phase 3.
 | **3. Port orchestration** | `driver.py` → in-process `PlotService` in `app/`; replace stdin/stdout IPC (`POS:`/`SPEED:`/layer-start) with direct callbacks/events; unify "Process" + "Direct Draw" into one preset-driven pipeline (**pen preset is the default, complete path**) | Full plot from GUI with **no Python**: jog, layer-start, speed control, eased cursor all in-process |
 | **4. Optimization stage** | Insert SVGToolBox PathOptimize + Simplify pre-refill, **per-layer** so station mapping is preserved | Measurable pen-travel reduction on a sample; layer→station intact; before/after stats shown |
 | **5. New features** | Multipass/pigment (`pipeline-core`, benefits pen *and* watercolor) · G-code file export + re-plot (`plotter`) · refill stays in `watercolor` | Each behind a tested toggle in the GUI |
-| **6. Cutover** | Delete `legacy/`; docs; single-artifact release | One JAR, no Python anywhere |
+| **6. SVG ingestion & processing pipeline** | Port the SVG→command-model pipeline (`legacy/SVG2WaterColor`'s `ProcessorService`) into `pipeline-core`/`svgtoolbox-core`, plus the SVGToolBox SVG→SVG processors not yet covered by Phase 4; add "Process SVG"/"Draw SVG" GUI entry points and a headless CLI | An SVG file can be loaded in the GUI/CLI and produce a plottable command model with no external tooling; `legacy/` no longer the only path from SVG to plot |
+| **7. Cutover** | Delete `legacy/`; docs; single-artifact release | One JAR, no Python anywhere |
 
 ---
 
@@ -130,6 +131,68 @@ oracle until Phase 3.
   compatible before the merge (Phase 0).
 
 ---
+
+## Feature-parity audit (Phases 0–5 vs. legacy)
+
+An in-depth audit of `legacy/SVG2WaterColor` and `legacy/SVGToolBox` against the
+current Gantry modules (post Phase 5) found the plotter-driving side at full
+parity (and ahead, with file export/replay and multipass), but identified one
+major gap that Phase 6 above exists to close.
+
+### ✅ Ported / at parity
+- **Orchestration** (`driver.py` → `app/.../PlotService`): layer gating, soft
+  clamping + OOB warnings, preflight bounds check, refill (`simple_dip` /
+  `dip_swirl` / `default_station` fallback), per-waypoint position reporting,
+  debug-position drift logging, cancel.
+- **Coordinate transforms** (`transforms.py` → `model/CoordinateTransform`):
+  rotate→swap→invertX→invertY, content bounds, 5-mode canvas alignment,
+  portrait auto-swap + alignment translation.
+- **G-code backend** (`gcode_backend.py` → `plotter/GcodeBackend` +
+  `GcodeFormatter`): GRBL init (`$X`, `G21`, `G90`, `G92`), pen modes, realtime
+  `?` status polling, feed-override realtime commands; plus new
+  `.gcode` file export/replay with no Python equivalent.
+- **SVGToolBox optimize/simplify** (command-model form, `pipeline-core/optimize`):
+  RDP simplify, greedy-NN + 2-opt reorder, multipass (new).
+- **Backend abstraction**: `PlotterBackend` (Gcode/Mock/GcodeFile/Fake) covers
+  the legacy `PlotterBackend` ABC, minus AxiDraw — intentionally dropped
+  (GRBL-only decision, confirmed out of scope, not a gap).
+
+### ❌ Major gap: no SVG-ingestion pipeline (addressed by Phase 6)
+Nothing in Gantry currently turns an SVG file into a `ProcessorOutput`. The
+GUI's `PlotterPanel` only offers "Load Commands JSON..." — it expects
+pre-generated command JSON. Missing pieces:
+
+- From `legacy/SVG2WaterColor`'s `ProcessorService.java`: SVG parsing (Batik +
+  XML fallback) with Inkscape layer detection → `Layer1`/`Layer2` + `stationId`;
+  primitive normalization (rect/circle/ellipse/line/polyline/polygon → path);
+  curve linearization (configurable step, default 0.5mm); size/position
+  transform (fit-to-format A5/A4/A3/XL, aspect-ratio lock, mirror, padding);
+  paint-capacity segmentation (auto-`REFILL` insertion at `maxDrawDistance`,
+  including path-closure handling); no-refill mode for pure pen plotting; the
+  headless `WatercolorProcessor` CLI (Gantry's `cli` module is still an empty
+  placeholder).
+- From `legacy/SVGToolBox` (Gantry's `svgtoolbox-core` is still a placeholder):
+  `VisibilityProcessor`, `StyleNormalizerProcessor`, `RotateProcessor` (canvas
+  rotation), `StrokeWidthProcessor`, `PaletteProcessor` (CIELAB quantization),
+  `HatchProcessor` (linear/cross/zigzag/wave/dot patterns, per-color overrides,
+  area filtering, no-hatch list), `LinesimplifyProcessor`,
+  `LinemergeProcessor`, `LinesortProcessor` (2-opt), `ReloopProcessor`,
+  `LayerProcessor` (color→Inkscape-layer organization, viewBox auto-fit),
+  `CropProcessor` (custom/A4/Letter presets).
+- **GUI**: legacy had 3 tabs — *Process SVG* (SVG→JSON with refill), *Draw SVG*
+  (SVG→JSON, no refill), *Plot*. Gantry's `PlotterPanel` only covers the *Plot*
+  tab equivalent (plus Optimize/Multipass/Export added in Phases 4–5).
+
+### ⚠️ To verify during Phase 6
+- Manual jog / pen up-down / interactive raw G-code server mode — appears
+  largely present in `PlotterPanel`, recheck against `driver.py`'s server mode.
+- Station config `z_down` (Z-axis dip depth) — present in legacy
+  `StationConfig`; confirm `app/.../StationConfig.java` carries it through to
+  `performRefill`.
+
+This gap means `legacy/` is currently the **only** path from an SVG file to a
+plottable command model — Phase 7 (cutover) cannot proceed until Phase 6 closes
+this gap.
 
 ## Deferred decisions
 
