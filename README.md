@@ -37,3 +37,16 @@ own `pom.xml` and build independently:
 mvn -f legacy/SVG2WaterColor/pom.xml clean package
 mvn -f legacy/SVGToolBox/pom.xml clean package
 ```
+
+## Scripts
+
+The `scripts/` directory has helper scripts for Linux/macOS (`.sh`) and
+Windows (`.cmd`), all run from the repo root:
+
+| Script | Purpose |
+|---|---|
+| `update.sh` / `update.cmd` | `git pull` the current branch |
+| `build.sh` / `build.cmd` | `mvn clean install` everything (pass `--skip-tests` to skip tests) |
+| `start.sh` / `start.cmd` | Launch the Gantry GUI (`app/target/app-1.0-SNAPSHOT.jar`), building it first if missing |
+
+Requires Java 17+ and Maven 3.8+ on `PATH`.
