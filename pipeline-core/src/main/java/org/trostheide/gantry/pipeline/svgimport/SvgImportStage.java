@@ -15,6 +15,7 @@ import org.trostheide.gantry.model.command.Command;
 import org.trostheide.gantry.model.command.DrawCommand;
 import org.trostheide.gantry.model.command.MoveCommand;
 import org.trostheide.gantry.model.command.RefillCommand;
+import org.trostheide.gantry.svgtoolbox.SvgToolboxPipeline;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
@@ -54,7 +55,22 @@ public final class SvgImportStage {
     /** Loads {@code inputFile} as an SVG and converts it to a command model. */
     public static ProcessorOutput importSvg(File inputFile, SvgImportOptions options) throws IOException {
         Document doc = loadDocument(inputFile);
+        return importSvg(doc, inputFile.getName(), options);
+    }
 
+    /**
+     * Loads {@code inputFile} as an SVG, runs the SVGToolBox processor pipeline against it using
+     * {@code toolboxConfig}, and converts the result to a command model.
+     */
+    public static ProcessorOutput importSvg(File inputFile, org.trostheide.gantry.svgtoolbox.Config toolboxConfig,
+            SvgImportOptions options) throws IOException {
+        Document doc = loadDocument(inputFile);
+        SvgToolboxPipeline.process(doc, toolboxConfig);
+        return importSvg(doc, inputFile.getName(), options);
+    }
+
+    /** Converts an already-loaded SVG {@link Document} to a command model. */
+    public static ProcessorOutput importSvg(Document doc, String sourceName, SvgImportOptions options) {
         boolean hasTargetSize = options.targetWidth() > 0 && options.targetHeight() > 0;
         boolean hasPosition = options.posX() != 0 || options.posY() != 0;
 
@@ -108,7 +124,7 @@ public final class SvgImportStage {
         }
 
         Metadata metadata = new Metadata(
-                inputFile.getName(),
+                sourceName,
                 Instant.now(),
                 "MULTI_LAYER",
                 "mm",

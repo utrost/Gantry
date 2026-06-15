@@ -232,5 +232,21 @@ class SvgImportStageTest {
             assertEquals(normal.layers().size(), mirrored.layers().size());
             assertEquals(normal.metadata().totalCommands(), mirrored.metadata().totalCommands());
         }
+
+        @Test
+        void toolboxPipelineRunsBeforeImport() throws Exception {
+            org.trostheide.gantry.svgtoolbox.Config toolboxConfig =
+                    new org.trostheide.gantry.svgtoolbox.Config.Builder()
+                            .inputPath("in").outputPath("out")
+                            .build();
+
+            ProcessorOutput result = SvgImportStage.importSvg(resource("test_simple.svg"), toolboxConfig,
+                    new SvgImportOptions(500, "default_station", 0.5, 0, 0, true, 0, 0, false));
+
+            assertNotNull(result.metadata());
+            assertEquals("test_simple.svg", result.metadata().source());
+            assertFalse(result.layers().isEmpty());
+            assertTrue(result.metadata().totalCommands() > 0);
+        }
     }
 }
