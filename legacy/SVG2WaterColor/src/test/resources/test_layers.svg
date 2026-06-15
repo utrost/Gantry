@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg"
+     xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+     width="200" height="200" viewBox="0 0 200 200">
+  <g inkscape:groupmode="layer" inkscape:label="red_wash">
+    <rect x="10" y="10" width="50" height="50"/>
+  </g>
+  <g inkscape:groupmode="layer" inkscape:label="blue_detail">
+    <line x1="100" y1="100" x2="180" y2="180"/>
+  </g>
+</svg>
