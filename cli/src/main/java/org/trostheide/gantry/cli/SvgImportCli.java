@@ -11,8 +11,17 @@ import org.trostheide.gantry.pipeline.io.ProcessorOutputIO;
 import org.trostheide.gantry.pipeline.svgimport.PaperFormat;
 import org.trostheide.gantry.pipeline.svgimport.SvgImportOptions;
 import org.trostheide.gantry.pipeline.svgimport.SvgImportStage;
+import org.trostheide.gantry.svgtoolbox.Config;
+import org.trostheide.gantry.svgtoolbox.HatchStyle;
 
+import java.awt.Color;
 import java.io.File;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * Headless SVG-to-commands converter: the Gantry replacement for the legacy
@@ -44,6 +53,56 @@ public final class SvgImportCli {
                 .desc("Mirror the drawing horizontally.").build());
         options.addOption(Option.builder("h").longOpt("help").desc("Show help.").build());
 
+        // SVGToolBox pre-processing options
+        options.addOption(Option.builder().longOpt("toolbox")
+                .desc("Run the SVGToolBox processor pipeline before import.").build());
+        options.addOption(Option.builder().longOpt("stroke-width").hasArg()
+                .desc("Toolbox: stroke width override (px).").build());
+        options.addOption(Option.builder().longOpt("palette").hasArg()
+                .desc("Toolbox: quantize to hex colors (e.g. #000000,#FF0000).").build());
+        options.addOption(Option.builder().longOpt("hatch")
+                .desc("Toolbox: enable hatching.").build());
+        options.addOption(Option.builder().longOpt("hatch-angle").hasArg()
+                .desc("Toolbox: global hatch angle (default 45).").build());
+        options.addOption(Option.builder().longOpt("hatch-gap").hasArg()
+                .desc("Toolbox: global hatch gap (default 5).").build());
+        options.addOption(Option.builder().longOpt("style").hasArg()
+                .desc("Toolbox: per-color hatch overrides HEX:ANGLE:GAP:PATTERN;...").build());
+        options.addOption(Option.builder().longOpt("no-hatch").hasArg()
+                .desc("Toolbox: hex colors to skip hatching for.").build());
+        options.addOption(Option.builder().longOpt("min-area").hasArg()
+                .desc("Toolbox: minimum hatch area in px^2 (default 100).").build());
+        options.addOption(Option.builder().longOpt("hidden-layers").hasArg()
+                .desc("Toolbox: comma-separated hex colors to remove.").build());
+        options.addOption(Option.builder().longOpt("layer-width").hasArg()
+                .desc("Toolbox: per-color stroke width overrides HEX:WIDTH;...").build());
+        options.addOption(Option.builder().longOpt("toolbox-simplify").hasArg()
+                .desc("Toolbox: RDP simplify tolerance.").build());
+        options.addOption(Option.builder().longOpt("pattern").hasArg()
+                .desc("Toolbox: hatch pattern (none, empty, linear, cross, zigzag, wave, dot).").build());
+        options.addOption(Option.builder().longOpt("rotate").hasArg()
+                .desc("Toolbox: rotate degrees (90, 180...).").build());
+        options.addOption(Option.builder().longOpt("toolbox-crop").hasArg()
+                .desc("Toolbox: crop bounds (WxH, A4, Letter).").build());
+        options.addOption(Option.builder().longOpt("optimize")
+                .desc("Toolbox: optimize path order for plotting.").build());
+        options.addOption(Option.builder().longOpt("linesimplify")
+                .desc("Toolbox: simplify path lines (RDP).").build());
+        options.addOption(Option.builder().longOpt("linesimplify-tolerance").hasArg()
+                .desc("Toolbox: linesimplify tolerance (default 0.378).").build());
+        options.addOption(Option.builder().longOpt("linemerge")
+                .desc("Toolbox: merge adjacent open paths.").build());
+        options.addOption(Option.builder().longOpt("linemerge-tolerance").hasArg()
+                .desc("Toolbox: linemerge tolerance (default 1.89).").build());
+        options.addOption(Option.builder().longOpt("linesort")
+                .desc("Toolbox: sort paths for minimum pen travel.").build());
+        options.addOption(Option.builder().longOpt("linesort-twoopt")
+                .desc("Toolbox: enable 2-opt improvement for linesort.").build());
+        options.addOption(Option.builder().longOpt("reloop")
+                .desc("Toolbox: rotate closed-path start points for minimum pen travel.").build());
+        options.addOption(Option.builder().longOpt("toolbox-stats")
+                .desc("Toolbox: print element/length statistics.").build());
+
         CommandLineParser parser = new DefaultParser();
         try {
             CommandLine cmd = parser.parse(options, args);
@@ -72,7 +131,9 @@ public final class SvgImportCli {
                     ? SvgImportOptions.fitToFormat(maxDrawDistance, defaultStationId, curveStep, fitTo, padding, mirror)
                     : new SvgImportOptions(maxDrawDistance, defaultStationId, curveStep, 0, 0, true, 0, 0, mirror);
 
-            ProcessorOutput output = SvgImportStage.importSvg(inputFile, importOptions);
+            ProcessorOutput output = cmd.hasOption("toolbox")
+                    ? SvgImportStage.importSvg(inputFile, buildToolboxConfig(cmd, inputFile, outputFile), importOptions)
+                    : SvgImportStage.importSvg(inputFile, importOptions);
             ProcessorOutputIO.save(output, outputFile);
 
             System.out.printf("Wrote %d layer(s), %d command(s) to %s%n",
@@ -82,6 +143,118 @@ public final class SvgImportCli {
             printHelp(options);
             System.exit(1);
         }
+    }
+
+    /** Builds the SVGToolBox {@link Config} from CLI options, mirroring legacy {@code SvgToolboxRunner.buildConfig}. */
+    private static Config buildToolboxConfig(CommandLine cmd, File inputFile, File outputFile) {
+        List<Color> palette = parseColors(cmd.getOptionValue("palette"));
+        List<Color> noHatch = parseColors(cmd.getOptionValue("no-hatch"));
+
+        double defAngle = cmd.hasOption("hatch-angle") ? Double.parseDouble(cmd.getOptionValue("hatch-angle")) : 45.0;
+        double defGap = cmd.hasOption("hatch-gap") ? Double.parseDouble(cmd.getOptionValue("hatch-gap")) : 5.0;
+        HatchStyle globalStyle = new HatchStyle(defAngle, defGap, "linear");
+
+        Map<String, HatchStyle> overrides = new HashMap<>();
+        if (cmd.hasOption("style")) {
+            for (String entry : cmd.getOptionValue("style").split(";")) {
+                String[] parts = entry.split(":");
+                if (parts.length >= 3) {
+                    String hex = parts[0].trim().toLowerCase();
+                    double angle = Double.parseDouble(parts[1]);
+                    double gap = Double.parseDouble(parts[2]);
+                    String pat = parts.length > 3 ? parts[3].trim() : "linear";
+                    if ("true".equalsIgnoreCase(pat)) pat = "cross";
+                    else if ("false".equalsIgnoreCase(pat)) pat = "linear";
+                    overrides.put(hex, new HatchStyle(angle, gap, pat));
+                }
+            }
+        }
+
+        Map<String, Float> strokeWidthOverrides = new HashMap<>();
+        if (cmd.hasOption("layer-width")) {
+            for (String entry : cmd.getOptionValue("layer-width").split(";")) {
+                String[] parts = entry.split(":");
+                if (parts.length >= 2) {
+                    try {
+                        strokeWidthOverrides.put(parts[0].trim().toLowerCase(), Float.parseFloat(parts[1]));
+                    } catch (NumberFormatException ignored) {
+                        // skip malformed override
+                    }
+                }
+            }
+        }
+
+        List<String> hiddenLayers = new ArrayList<>();
+        if (cmd.hasOption("hidden-layers")) {
+            for (String color : cmd.getOptionValue("hidden-layers").split(",")) {
+                hiddenLayers.add(color.trim().toLowerCase());
+            }
+        }
+
+        return new Config.Builder()
+                .inputPath(inputFile.getPath())
+                .outputPath(outputFile.getPath())
+                .strokeWidth((float) Double.parseDouble(cmd.getOptionValue("stroke-width", "0")))
+                .palette(palette)
+                .enableHatching(cmd.hasOption("hatch"))
+                .globalStyle(globalStyle)
+                .overrides(overrides)
+                .strokeWidthOverrides(strokeWidthOverrides)
+                .hiddenLayers(hiddenLayers)
+                .noHatchColors(noHatch)
+                .minHatchArea(Double.parseDouble(cmd.getOptionValue("min-area", "100.0")))
+                .simplifyTolerance(Double.parseDouble(cmd.getOptionValue("toolbox-simplify", "0.0")))
+                .hatchPattern(cmd.getOptionValue("pattern", "linear"))
+                .rotationDegrees(Double.parseDouble(cmd.getOptionValue("rotate", "0.0")))
+                .printStats(cmd.hasOption("toolbox-stats"))
+                .cropBounds(parseCrop(cmd.getOptionValue("toolbox-crop")))
+                .optimizePaths(cmd.hasOption("optimize"))
+                .linesimplify(cmd.hasOption("linesimplify"))
+                .linesimplifyTolerance(Double.parseDouble(cmd.getOptionValue("linesimplify-tolerance", "0.378")))
+                .linemerge(cmd.hasOption("linemerge"))
+                .linemergeTolerance(Double.parseDouble(cmd.getOptionValue("linemerge-tolerance", "1.89")))
+                .linesort(cmd.hasOption("linesort"))
+                .linesortTwoOpt(cmd.hasOption("linesort-twoopt"))
+                .reloop(cmd.hasOption("reloop"))
+                .build();
+    }
+
+    /** Parses a crop spec: {@code WxH}, {@code A4}, or {@code Letter}. Mirrors legacy {@code SvgToolboxRunner.parseCrop}. */
+    private static java.awt.geom.Rectangle2D parseCrop(String arg) {
+        if (arg == null || arg.isEmpty()) {
+            return null;
+        }
+        double w;
+        double h;
+        switch (arg.toUpperCase()) {
+            case "A4":
+                w = 793.7;
+                h = 1122.5;
+                break;
+            case "LETTER":
+                w = 816.0;
+                h = 1056.0;
+                break;
+            default:
+                try {
+                    String[] parts = arg.split("x");
+                    w = Double.parseDouble(parts[0]);
+                    h = Double.parseDouble(parts[1]);
+                } catch (Exception e) {
+                    return null;
+                }
+        }
+        return new java.awt.geom.Rectangle2D.Double(0, 0, w, h);
+    }
+
+    private static List<Color> parseColors(String arg) {
+        if (arg == null || arg.isEmpty()) {
+            return new ArrayList<>();
+        }
+        return Arrays.stream(arg.split(","))
+                .map(String::trim)
+                .map(Color::decode)
+                .collect(Collectors.toList());
     }
 
     private static void printHelp(Options options) {
