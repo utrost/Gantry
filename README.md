@@ -26,7 +26,7 @@ checklist.
 | `plotter` | G-code backend (jSerialComm), mock backend, `.gcode` file writer |
 | `cli` | Headless entry point |
 | `app` | Swing/FlatLaf GUI and orchestration service |
-| `legacy/SVG2WaterColor`, `legacy/SVGToolBox` | Original projects, imported with full history, kept as reference until cutover (Phase 6) |
+| `legacy/SVG2WaterColor`, `legacy/SVGToolBox` | Original projects, imported with full history, kept as reference until cutover (Phase 7) |
 
 ## Building
 

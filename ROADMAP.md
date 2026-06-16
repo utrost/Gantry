@@ -93,12 +93,12 @@ oracle until Phase 3.
 
 | Phase | Goal | Exit criteria |
 |---|---|---|
-| **0. Scaffold** | New monorepo; Maven multi-module skeleton; import both codebases (git subtree to preserve history); CI; both old tools still build/run (Python under `legacy/`) | Green build of all modules; old GUI + Python driver still work |
-| **1. Shared model** | Move DTOs + `CoordinateTransform` into `model/`; delete the Python↔Java transform duplication | One transform implementation used everywhere; tests pass |
-| **2. Port G-code backend** | Java `GcodeBackend` on jSerialComm — faithful port of `gcode_backend.py` (reader/poller threads, pen modes, `?` status, feed override) | Java backend reproduces Python's G-code on sample JSON; realtime position + speed override verified on fake serial and on the plotter |
-| **3. Port orchestration** | `driver.py` → in-process `PlotService` in `app/`; replace stdin/stdout IPC (`POS:`/`SPEED:`/layer-start) with direct callbacks/events; unify "Process" + "Direct Draw" into one preset-driven pipeline (**pen preset is the default, complete path**) | Full plot from GUI with **no Python**: jog, layer-start, speed control, eased cursor all in-process |
-| **4. Optimization stage** | Insert SVGToolBox PathOptimize + Simplify pre-refill, **per-layer** so station mapping is preserved | Measurable pen-travel reduction on a sample; layer→station intact; before/after stats shown |
-| **5. New features** | Multipass/pigment (`pipeline-core`, benefits pen *and* watercolor) · G-code file export + re-plot (`plotter`) · refill stays in `watercolor` | Each behind a tested toggle in the GUI |
+| **0. Scaffold** ✅ | New monorepo; Maven multi-module skeleton; import both codebases (git subtree to preserve history); CI; both old tools still build/run (Python under `legacy/`) | Green build of all modules; old GUI + Python driver still work |
+| **1. Shared model** ✅ | Move DTOs + `CoordinateTransform` into `model/`; delete the Python↔Java transform duplication | One transform implementation used everywhere; tests pass |
+| **2. Port G-code backend** ✅ | Java `GcodeBackend` on jSerialComm — faithful port of `gcode_backend.py` (reader/poller threads, pen modes, `?` status, feed override) | Java backend reproduces Python's G-code on sample JSON; realtime position + speed override verified on fake serial and on the plotter |
+| **3. Port orchestration** ✅ | `driver.py` → in-process `PlotService` in `app/`; replace stdin/stdout IPC (`POS:`/`SPEED:`/layer-start) with direct callbacks/events; unify "Process" + "Direct Draw" into one preset-driven pipeline (**pen preset is the default, complete path**) | Full plot from GUI with **no Python**: jog, layer-start, speed control, eased cursor all in-process |
+| **4. Optimization stage** ✅ | Insert SVGToolBox PathOptimize + Simplify pre-refill, **per-layer** so station mapping is preserved | Measurable pen-travel reduction on a sample; layer→station intact; before/after stats shown |
+| **5. New features** ✅ | Multipass/pigment (`pipeline-core`, benefits pen *and* watercolor) · G-code file export + re-plot (`plotter`) · refill stays in `watercolor` | Each behind a tested toggle in the GUI |
 | **6. SVG ingestion & processing pipeline** ✅ | Port the SVG→command-model pipeline (`legacy/SVG2WaterColor`'s `ProcessorService`) into `pipeline-core`/`svgtoolbox-core`, plus the SVGToolBox SVG→SVG processors not yet covered by Phase 4; add "Process SVG"/"Draw SVG" GUI entry points and a headless CLI | An SVG file can be loaded in the GUI/CLI and produce a plottable command model with no external tooling; `legacy/` no longer the only path from SVG to plot |
 | **7. Cutover** | Delete `legacy/`; docs; single-artifact release | One JAR, no Python anywhere |
 
@@ -141,18 +141,19 @@ first when enabled.
 
 ## Risks & mitigations
 
-- **Serial permissions / native libs** — jSerialComm bundles natives; on Linux the
-  user still needs to be in the `dialout` group (identical to today's pyserial, not
-  worse). Verify early in Phase 2.
-- **Per-layer reorder** — SVGToolBox's PathOptimize must not reorder/flatten across
-  Inkscape layer groups, or it scrambles station assignment (and refill). Addressed
-  in Phase 4 — and far easier to fix now that it's one codebase.
-- **Float/format parity (Python↔Java)** — coordinate formatting (`%.3f`) and
-  transform math must match during the parity gate. Covered by the Phase 2 diff test.
-- **Scope creep** — the phase gates contain it; new features are quarantined to
-  Phase 5.
-- **License reconciliation** — confirm SVG2WaterColor and SVGToolBox licenses are
-  compatible before the merge (Phase 0).
+- **Serial permissions / native libs** ✅ — jSerialComm bundles natives; on Linux the
+  user still needs to be in the `dialout` group (identical to old pyserial). Verified
+  in Phase 2.
+- **Per-layer reorder** ✅ — SVGToolBox's PathOptimize operates per `<g>` group, so
+  it cannot reorder across Inkscape layers. Station assignment and refill are safe.
+  Addressed in Phase 4.
+- **Float/format parity (Python↔Java)** ✅ — coordinate transform math matches;
+  `CoordinateTransformTest` covers all axis combinations.
+- **Scope creep** ✅ — contained by phase gates; new features (multipass, G-code
+  export) were quarantined to Phase 5.
+- **License reconciliation** ✅ — confirmed compatible before merge (Phase 0).
+- **Phase 7 cutover** — deleting `legacy/` is irreversible; requires explicit
+  confirmation before proceeding.
 
 ---
 
@@ -181,31 +182,27 @@ major gap that Phase 6 above exists to close.
   the legacy `PlotterBackend` ABC, minus AxiDraw — intentionally dropped
   (GRBL-only decision, confirmed out of scope, not a gap).
 
-### ✅ Major gap: no SVG-ingestion pipeline (addressed by Phase 6, now closed)
-Nothing in Gantry currently turns an SVG file into a `ProcessorOutput`. The
-GUI's `PlotterPanel` only offers "Load Commands JSON..." — it expects
-pre-generated command JSON. Missing pieces:
+### ✅ SVG-ingestion pipeline — closed in Phase 6
 
-- From `legacy/SVG2WaterColor`'s `ProcessorService.java`: SVG parsing (Batik +
-  XML fallback) with Inkscape layer detection → `Layer1`/`Layer2` + `stationId`;
-  primitive normalization (rect/circle/ellipse/line/polyline/polygon → path);
-  curve linearization (configurable step, default 0.5mm); size/position
-  transform (fit-to-format A5/A4/A3/XL, aspect-ratio lock, mirror, padding);
-  paint-capacity segmentation (auto-`REFILL` insertion at `maxDrawDistance`,
-  including path-closure handling); no-refill mode for pure pen plotting; the
-  headless `WatercolorProcessor` CLI (Gantry's `cli` module is still an empty
-  placeholder).
-- From `legacy/SVGToolBox` (Gantry's `svgtoolbox-core` is still a placeholder):
-  `VisibilityProcessor`, `StyleNormalizerProcessor`, `RotateProcessor` (canvas
-  rotation), `StrokeWidthProcessor`, `PaletteProcessor` (CIELAB quantization),
-  `HatchProcessor` (linear/cross/zigzag/wave/dot patterns, per-color overrides,
-  area filtering, no-hatch list), `LinesimplifyProcessor`,
-  `LinemergeProcessor`, `LinesortProcessor` (2-opt), `ReloopProcessor`,
-  `LayerProcessor` (color→Inkscape-layer organization, viewBox auto-fit),
-  `CropProcessor` (custom/A4/Letter presets).
-- **GUI**: legacy had 3 tabs — *Process SVG* (SVG→JSON with refill), *Draw SVG*
-  (SVG→JSON, no refill), *Plot*. Gantry's `PlotterPanel` only covers the *Plot*
-  tab equivalent (plus Optimize/Multipass/Export added in Phases 4–5).
+`pipeline-core`'s `SvgImportStage` converts an SVG file into a `ProcessorOutput`
+command model (Batik + XML fallback parsing, Inkscape layer detection, primitive
+normalisation, curve linearisation, fit-to-format, mirror, refill-split).
+
+`svgtoolbox-core` contains all 13 SVGToolBox SVG→SVG processors:
+`VisibilityProcessor`, `StyleNormalizerProcessor`, `RotateProcessor`,
+`StrokeWidthProcessor`, `PaletteProcessor` (CIELAB quantisation),
+`HatchProcessor` (linear/cross/zigzag/wave/dot, per-colour overrides, area
+filter, no-hatch list), `SimplifyProcessor`, `LinesimplifyProcessor`,
+`LinemergeProcessor`, `LinesortProcessor` (2-opt), `ReloopProcessor`,
+`LayerProcessor`, `CropProcessor`, plus `PathOptimizeProcessor` and
+`SvgStatistics`. All are orchestrated by `SvgToolboxPipeline`.
+
+`cli/SvgImportCli` is a full headless converter with `--toolbox` flag exposing
+all SVGToolBox options.
+
+`SvgImportDialog` has an "Import" tab (scaling, refill, curve step, paper
+format) and a "Process SVG (optional)" tab (all SVGToolBox options), wired into
+`PlotterPanel`'s "Import SVG…" button.
 
 ### ✅ Verified during Phase 6
 - Manual jog / pen up-down / interactive raw G-code server mode — `PlotterPanel`
@@ -226,10 +223,12 @@ SVGToolBox processor pipeline are now available in `pipeline-core`/
 
 ## Deferred decisions
 
-- **History-import method** — recommended: `git subtree` (simpler than `filter-repo`).
-- **Keep a CLI?** — both old tools had one; cheap to retain for automation.
-- **Package namespace** — keep `org.trostheide.gantry.*`.
-- **CI provider / release packaging** — decide in Phase 0.
+- **History-import method** ✅ — used `git subtree`; both legacy projects imported
+  with full commit history under `legacy/`.
+- **Keep a CLI?** ✅ — retained as `cli/SvgImportCli`; full headless SVG→JSON
+  converter with all SVGToolBox options.
+- **Package namespace** ✅ — `org.trostheide.gantry.*`.
+- **CI provider / release packaging** — not yet decided; pending Phase 7.
 
 ---
 
