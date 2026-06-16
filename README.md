@@ -11,6 +11,10 @@ path; watercolor (paint stations + refill) is an optional stage layered on top.
 See [ROADMAP.md](ROADMAP.md) for the full design, pipeline, module layout and
 phased delivery plan.
 
+See [docs/USER_GUIDE.md](docs/USER_GUIDE.md) for operating instructions and
+[docs/TESTING.md](docs/TESTING.md) for the test suite and manual acceptance
+checklist.
+
 ## Modules
 
 | Module | Purpose |
