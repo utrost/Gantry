@@ -49,7 +49,7 @@ Open with the **Settings** button. Changes take effect after clicking **Save**.
 
 | Field | Description |
 |---|---|
-| Serial port | e.g. `/dev/ttyUSB0` (Linux), `COM3` (Windows) |
+| Serial port | A dropdown of detected ports (click **Refresh** to rescan), or type one manually. On Windows this is `COM3`, `COM4`, etc. (check Device Manager → Ports (COM & LPT) if unsure); on Linux/macOS it's a device path such as `/dev/ttyUSB0` or `/dev/ttyACM0`. The field is editable so a port not yet plugged in can still be typed in. |
 | Baud rate | Default 115200 |
 | Mock backend | Simulates the plotter without a serial connection — useful for testing |
 

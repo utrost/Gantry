@@ -1,5 +1,6 @@
 package org.trostheide.gantry.app.gui;
 
+import com.fazecast.jSerialComm.SerialPort;
 import org.trostheide.gantry.app.plot.GantryConfig;
 import org.trostheide.gantry.app.plot.StationConfig;
 
@@ -23,7 +24,8 @@ public class SettingsPanel extends JPanel {
     private static final String[] BEHAVIORS = {"simple_dip", "dip_swirl"};
     private static final Integer[] ROTATIONS = {0, 90, 180, 270};
 
-    private final JTextField serialPortField = new JTextField(14);
+    private final JComboBox<String> serialPortCombo = new JComboBox<>();
+    private final JButton refreshPortsButton = new JButton("Refresh");
     private final JSpinner baudRateSpinner = new JSpinner(new SpinnerNumberModel(115200, 9600, 250000, 100));
     private final JCheckBox mockCheckBox = new JCheckBox("Mock backend (no serial port)");
 
@@ -63,6 +65,30 @@ public class SettingsPanel extends JPanel {
         add(penSection());
         add(Box.createVerticalStrut(8));
         add(stationsSection());
+
+        serialPortCombo.setEditable(true);
+        refreshPortsButton.addActionListener(e -> refreshSerialPorts());
+        refreshSerialPorts();
+    }
+
+    /** Repopulates the serial port combo box with currently detected ports (jSerialComm). */
+    private void refreshSerialPorts() {
+        String current = (String) serialPortCombo.getEditor().getItem();
+        serialPortCombo.removeAllItems();
+        for (SerialPort port : SerialPort.getCommPorts()) {
+            String label = port.getSystemPortName() + " — " + port.getDescriptivePortName();
+            serialPortCombo.addItem(label);
+        }
+        if (current != null && !current.isBlank()) {
+            serialPortCombo.getEditor().setItem(current);
+        }
+    }
+
+    /** Extracts the raw port name (e.g. "COM3") from a combo box entry, stripping any descriptive suffix. */
+    private String extractPortName(String text) {
+        if (text == null) return "";
+        int sep = text.indexOf(" — ");
+        return (sep >= 0 ? text.substring(0, sep) : text).trim();
     }
 
     private JPanel connectionSection() {
@@ -70,7 +96,10 @@ public class SettingsPanel extends JPanel {
         panel.setBorder(section("Connection"));
         GridBagConstraints gbc = gbc();
 
-        addRow(panel, gbc, "Serial Port", serialPortField);
+        JPanel portPanel = new JPanel(new BorderLayout(4, 0));
+        portPanel.add(serialPortCombo, BorderLayout.CENTER);
+        portPanel.add(refreshPortsButton, BorderLayout.EAST);
+        addRow(panel, gbc, "Serial Port", portPanel);
         addRow(panel, gbc, "Baud Rate", baudRateSpinner);
 
         gbc.gridx = 0; gbc.gridy++; gbc.gridwidth = 2;
@@ -173,7 +202,7 @@ public class SettingsPanel extends JPanel {
 
     /** Loads every field from {@code config} (does not retain a reference to it). */
     public void loadConfig(GantryConfig config) {
-        serialPortField.setText(config.gcode.serialPort);
+        serialPortCombo.getEditor().setItem(config.gcode.serialPort);
         baudRateSpinner.setValue(config.gcode.baudRate);
         mockCheckBox.setSelected(config.mock);
 
@@ -205,7 +234,7 @@ public class SettingsPanel extends JPanel {
     /** Builds a fresh {@link GantryConfig} from the current field values. */
     public GantryConfig toConfig() {
         GantryConfig config = new GantryConfig();
-        config.gcode.serialPort = serialPortField.getText().trim();
+        config.gcode.serialPort = extractPortName((String) serialPortCombo.getEditor().getItem());
         config.gcode.baudRate = (Integer) baudRateSpinner.getValue();
         config.mock = mockCheckBox.isSelected();
 
