@@ -6,7 +6,7 @@ cd "%~dp0\.."
 
 where mvn >nul 2>nul
 if errorlevel 1 (
-    echo ERROR: Maven (mvn) was not found on PATH. Install Maven 3.8+ and Java 17+.
+    echo ERROR: Maven ^(mvn^) was not found on PATH. Install Maven 3.8+ and Java 17+.
     exit /b 1
 )
 
