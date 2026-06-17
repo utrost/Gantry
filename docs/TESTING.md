@@ -119,6 +119,8 @@ Use an SVG with two Inkscape layers (`inkscape:groupmode="layer"`).
 - [ ] Change step to 1 mm. Press ◄ — move is 1 mm.
 - [ ] **Pen Down** — console shows pen-down G-code. **Pen Up** — pen-up G-code.
 - [ ] Type a raw G-code command (e.g. `?`) in the raw field and press Enter — response appears in console.
+- [ ] Click **Home (limit switches)** — a confirmation dialog appears. Cancel — nothing happens.
+- [ ] Click **Home** again, confirm — console logs "Homing..." then "Homed. Origin zeroed at (0, 0)." (mock backend simulates the cycle instantly; on real hardware this runs GRBL's `$H`).
 
 ### 2.9 Plotting (mock backend)
 

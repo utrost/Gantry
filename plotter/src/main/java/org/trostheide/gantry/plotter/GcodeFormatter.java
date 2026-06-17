@@ -22,6 +22,16 @@ public final class GcodeFormatter {
         return "G0 X0 Y0";
     }
 
+    /** GRBL homing cycle: seeks the limit switches and sets machine position at the switches. */
+    public static String homingCycle() {
+        return "$H";
+    }
+
+    /** Zeroes the work coordinate origin at the current position (used right after homing). */
+    public static String zeroWorkOrigin() {
+        return "G92 X0 Y0";
+    }
+
     /** Absolute rapid move (pen up) at the travel feed rate. */
     public static String moveto(double x, double y, int feedRateTravel) {
         return String.format(Locale.ROOT, "G0 X%.3f Y%.3f F%d", x, y, feedRateTravel);

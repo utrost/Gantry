@@ -39,4 +39,11 @@ public interface PlotterBackend {
     /** Adjusts the realtime feed-rate override ("up", "down" or "reset"). No-op if unsupported. */
     default void adjustSpeed(String direction) {
     }
+
+    /**
+     * Runs a homing cycle against physical limit switches (GRBL {@code $H}) and zeroes the
+     * work origin at the resulting position. No-op if unsupported.
+     */
+    default void home() {
+    }
 }
