@@ -217,6 +217,25 @@ public class GcodeBackend implements PlotterBackend {
         sleepQuietly(150);
     }
 
+    /**
+     * Runs GRBL's homing cycle ({@code $H}) against the limit switches, then zeroes the work
+     * origin at the resulting position so the plotter's logical (0,0) matches the switches.
+     * Homing can take much longer than a normal move on large machines, so it gets its own
+     * extended wait.
+     */
+    @Override
+    public void home() {
+        SerialTransport t = transport;
+        if (t == null || !t.isOpen()) {
+            return;
+        }
+        send(GcodeFormatter.homingCycle());
+        waitForOk(120);
+        send(GcodeFormatter.zeroWorkOrigin());
+        waitForOk(30);
+        lastWpos = new double[] { 0.0, 0.0 };
+    }
+
     /** Returns the most recent work position reported by the poller, or null if disconnected. */
     @Override
     public double[] queryPosition() {
@@ -278,12 +297,16 @@ public class GcodeBackend implements PlotterBackend {
     }
 
     private void waitForOk() {
+        waitForOk(30);
+    }
+
+    private void waitForOk(long timeoutSeconds) {
         if (transport == null) {
             return;
         }
         String line;
         try {
-            line = ackQueue.poll(30, TimeUnit.SECONDS);
+            line = ackQueue.poll(timeoutSeconds, TimeUnit.SECONDS);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             return;

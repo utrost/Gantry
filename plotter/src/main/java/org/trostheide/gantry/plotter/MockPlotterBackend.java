@@ -74,6 +74,13 @@ public class MockPlotterBackend implements PlotterBackend {
     }
 
     @Override
+    public void home() {
+        x = 0;
+        y = 0;
+        log.accept("[Mock] Homing cycle -> origin zeroed at (0.00, 0.00)");
+    }
+
+    @Override
     public void adjustSpeed(String direction) {
         switch (direction.toLowerCase(Locale.ROOT)) {
             case "up" -> feedOverride = Math.min(200, feedOverride + 10);

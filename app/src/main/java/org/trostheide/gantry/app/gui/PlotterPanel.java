@@ -162,6 +162,11 @@ public class PlotterPanel extends JPanel {
         penButtons.add(penDownBtn);
         panel.add(penButtons, gbc);
 
+        gbc.gridx = 0; gbc.gridy = 5; gbc.gridwidth = 3;
+        JButton homeBtn = new JButton("Home (limit switches)");
+        homeBtn.addActionListener(e -> onHome());
+        panel.add(homeBtn, gbc);
+
         return panel;
     }
 
@@ -489,6 +494,24 @@ public class PlotterPanel extends JPanel {
         double mdx = dx * step;
         double mdy = dy * step;
         runOnBackend(b -> b.move(mdx, mdy));
+    }
+
+    private void onHome() {
+        if (backend == null) {
+            log("ERROR: Not connected.");
+            return;
+        }
+        int choice = JOptionPane.showConfirmDialog(this,
+                "Run the homing cycle? The plotter will drive toward the limit switches at 0/0.",
+                "Home plotter", JOptionPane.OK_CANCEL_OPTION, JOptionPane.WARNING_MESSAGE);
+        if (choice != JOptionPane.OK_OPTION) {
+            return;
+        }
+        log("Homing...");
+        runOnBackend(b -> {
+            b.home();
+            log("Homed. Origin zeroed at (0, 0).");
+        });
     }
 
     private void runOnBackend(java.util.function.Consumer<PlotterBackend> action) {
