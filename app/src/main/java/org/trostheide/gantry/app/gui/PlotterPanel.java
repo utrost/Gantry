@@ -619,9 +619,8 @@ public class PlotterPanel extends JPanel {
         visPanel.setMachineSize(config.gcode.machineWidth, config.gcode.machineHeight);
         visPanel.setCanvasAlignment(config.canvasAlignment);
         visPanel.setDataRotation(config.dataRotation);
-        visPanel.setSwapXY(config.swapXY);
-        visPanel.setDataInvertX(config.invertX);
-        visPanel.setDataInvertY(config.invertY);
+        PlotSettings settings = config.toPlotSettings();
+        visPanel.setEffectiveAxes(settings.swapXY, settings.invertX, settings.invertY);
         visPanel.setPadding(config.paddingX, config.paddingY);
         visPanel.setFlipY(config.flipY);
 

@@ -54,9 +54,12 @@ public class VisualizationPanel extends JPanel {
     private String orientation = "Portrait";
 
     // Driver Simulation Flags
-    private boolean swapXY = false;
-    private boolean invertX = false;
-    private boolean invertY = false;
+    // Fully-composited transform (machine origin + portrait-swap + extra flags already
+    // folded in by GantryConfig.toPlotSettings()) — the single source of truth shared with
+    // jogging and G-code generation, so the preview/cursor and the actual hardware always agree.
+    private boolean effSwapXY = false;
+    private boolean effInvertX = false;
+    private boolean effInvertY = false;
     private double paddingX = 0;
     private double paddingY = 0;
 
@@ -186,20 +189,16 @@ public class VisualizationPanel extends JPanel {
         setDataRotation(degrees);
     }
 
-    public void setSwapXY(boolean swap) {
-        this.swapXY = swap;
-        recalculateTransform();
-        repaint();
-    }
-
-    public void setDataInvertX(boolean invert) {
-        this.invertX = invert;
-        recalculateTransform();
-        repaint();
-    }
-
-    public void setDataInvertY(boolean invert) {
-        this.invertY = invert;
+    /**
+     * Sets the fully-composited swap/invert transform, as computed by
+     * {@code GantryConfig.toPlotSettings()} (machine origin + portrait-swap + extra flags
+     * already folded in). Must match what jogging/G-code generation use, or the cursor and
+     * content preview will move along the wrong axis relative to the real hardware.
+     */
+    public void setEffectiveAxes(boolean swapXY, boolean invertX, boolean invertY) {
+        this.effSwapXY = swapXY;
+        this.effInvertX = invertX;
+        this.effInvertY = invertY;
         recalculateTransform();
         repaint();
     }
@@ -377,11 +376,12 @@ public class VisualizationPanel extends JPanel {
 
     // ----- Transformation Helpers -----
 
-    // Portrait axis swap only when machine dimensions are landscape-oriented (width > height)
-    // and user selects portrait. For machines with portrait dimensions (e.g. GRBL 297x420), no swap needed.
-    private boolean effectiveSwap() { return needsAxisSwap() ^ swapXY; }
-    private boolean effectiveInvertX() { return needsAxisSwap() ? invertY : invertX; }
-    private boolean effectiveInvertY() { return needsAxisSwap() ? invertX : invertY; }
+    // The composited transform is supplied wholesale via setEffectiveAxes() (it already
+    // accounts for portrait axis swap, machine origin and the extra flags), so these just
+    // expose it under the names the rest of this class already uses.
+    private boolean effectiveSwap() { return effSwapXY; }
+    private boolean effectiveInvertX() { return effInvertX; }
+    private boolean effectiveInvertY() { return effInvertY; }
 
     private double[] contentBoundsArray() {
         return new double[] { rawMinX, rawMaxX, rawMinY, rawMaxY };
@@ -455,9 +455,13 @@ public class VisualizationPanel extends JPanel {
     }
 
     private double[] physicalToScreen(double motorX, double motorY) {
-        return CoordinateTransform.physicalToScreen(motorX, motorY,
-                needsAxisSwap(), isOriginRight(), isOriginBottom(),
-                machineWidth, machineHeight);
+        // Exact inverse of CoordinateTransform.transformPoint() using the same composited
+        // swap/invert flags as transformPointToMotor(), so motor coordinates (real hardware
+        // feedback, or the bed/origin/station markers) map back to the same screen position
+        // that content placed at that spot would render at.
+        return CoordinateTransform.inverseTransformPoint(motorX, motorY,
+                effectiveSwap(), effectiveInvertX(), effectiveInvertY(),
+                machineWidth, machineHeight, 0, null);
     }
 
     /**
