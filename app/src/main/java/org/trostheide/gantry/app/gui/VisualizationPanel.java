@@ -455,13 +455,15 @@ public class VisualizationPanel extends JPanel {
     }
 
     private double[] physicalToScreen(double motorX, double motorY) {
-        // Exact inverse of CoordinateTransform.transformPoint() using the same composited
-        // swap/invert flags as transformPointToMotor(), so motor coordinates (real hardware
-        // feedback, or the bed/origin/station markers) map back to the same screen position
-        // that content placed at that spot would render at.
-        return CoordinateTransform.inverseTransformPoint(motorX, motorY,
+        // Motor space already has swap/invert baked in relative to content; mapping it to
+        // screen space (top-left origin, X right, Y down) applies the same swap/invert
+        // formula again (not its inverse) against the bed bounds, swapped when the axes
+        // are swapped, so it matches transformPointToMotor()'s composited flags exactly.
+        double maxX = effectiveSwap() ? machineHeight : machineWidth;
+        double maxY = effectiveSwap() ? machineWidth : machineHeight;
+        return CoordinateTransform.transformPoint(motorX, motorY,
                 effectiveSwap(), effectiveInvertX(), effectiveInvertY(),
-                machineWidth, machineHeight, 0, null);
+                maxX, maxY, 0, null);
     }
 
     /**
