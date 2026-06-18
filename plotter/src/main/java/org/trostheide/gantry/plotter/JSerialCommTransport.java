@@ -1,6 +1,7 @@
 package org.trostheide.gantry.plotter;
 
 import com.fazecast.jSerialComm.SerialPort;
+import com.fazecast.jSerialComm.SerialPortTimeoutException;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -45,7 +46,15 @@ public final class JSerialCommTransport implements SerialTransport {
     public String readLine() throws IOException {
         ByteArrayOutputStream buffer = new ByteArrayOutputStream();
         while (true) {
-            int b = in.read();
+            int b;
+            try {
+                b = in.read();
+            } catch (SerialPortTimeoutException e) {
+                // On Windows, a semi-blocking read with zero bytes available throws
+                // SerialPortTimeoutException instead of returning -1 (unlike Linux/macOS).
+                // Treat it the same as a timeout with nothing buffered.
+                b = -1;
+            }
             if (b == -1) {
                 // Read timeout or port closed with nothing buffered: behave like
                 // pyserial's readline() returning b"" so the caller can poll again.

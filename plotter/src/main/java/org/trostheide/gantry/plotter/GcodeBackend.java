@@ -147,6 +147,13 @@ public class GcodeBackend implements PlotterBackend {
         } catch (Exception e) {
             System.out.println("ERROR: G-code connect failed: " + e.getMessage());
             running = false;
+            SerialTransport t = transport;
+            if (t != null) {
+                // Release the OS handle on failure so a retry doesn't also fail with
+                // "Failed to open serial port" because this attempt's handle is still open.
+                t.close();
+            }
+            transport = null;
             return false;
         }
     }
