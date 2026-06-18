@@ -1,0 +1,30 @@
+{
+  "gcode" : {
+    "serialPort" : "/dev/ttyUSB3",
+    "baudRate" : 115200,
+    "penMode" : "servo",
+    "servoPin" : 0,
+    "feedRateDraw" : 1000,
+    "feedRateTravel" : 3000,
+    "penServoUp" : 60,
+    "penServoDown" : 30,
+    "zUp" : 5.0,
+    "zDown" : 0.0,
+    "machineWidth" : 300.0,
+    "machineHeight" : 200.0,
+    "positionPollIntervalSeconds" : 0.1,
+    "bootDelayMillis" : 2000
+  },
+  "mock" : false,
+  "machineOrigin" : "Top-Right",
+  "orientation" : "Landscape",
+  "invertX" : false,
+  "invertY" : false,
+  "swapXY" : false,
+  "flipY" : false,
+  "canvasAlignment" : "Top Right",
+  "dataRotation" : 0,
+  "paddingX" : 0.0,
+  "paddingY" : 0.0,
+  "stations" : { }
+}

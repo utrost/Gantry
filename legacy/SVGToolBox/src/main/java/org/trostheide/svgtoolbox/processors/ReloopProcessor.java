@@ -97,7 +97,7 @@ public class ReloopProcessor implements Processor {
 
         // New MOVETO at the rotation point
         Point2D.Double startPt = segments.get(rotateIdx).endpoint;
-        sb.append(String.format("M %.4f %.4f", startPt.x, startPt.y));
+        sb.append(String.format(java.util.Locale.US, "M %.4f %.4f", startPt.x, startPt.y));
 
         // Emit segments after rotateIdx (indices rotateIdx+1 through n-1)
         for (int i = rotateIdx + 1; i < n; i++) {
@@ -106,7 +106,7 @@ public class ReloopProcessor implements Processor {
 
         // Bridge: explicit LINETO to original start (p0) — replaces implicit close edge
         Point2D.Double origStart = segments.get(0).endpoint;
-        sb.append(String.format(" L %.4f %.4f", origStart.x, origStart.y));
+        sb.append(String.format(java.util.Locale.US, " L %.4f %.4f", origStart.x, origStart.y));
 
         // Emit segments 1 through rotateIdx (going from p0 to pk)
         for (int i = 1; i <= rotateIdx; i++) {
@@ -127,13 +127,13 @@ public class ReloopProcessor implements Processor {
         String toSvg() {
             return switch (type) {
                 case PathIterator.SEG_MOVETO ->
-                        String.format("M %.4f %.4f", coords[0], coords[1]);
+                        String.format(java.util.Locale.US, "M %.4f %.4f", coords[0], coords[1]);
                 case PathIterator.SEG_LINETO ->
-                        String.format("L %.4f %.4f", coords[0], coords[1]);
+                        String.format(java.util.Locale.US, "L %.4f %.4f", coords[0], coords[1]);
                 case PathIterator.SEG_QUADTO ->
-                        String.format("Q %.4f %.4f %.4f %.4f", coords[0], coords[1], coords[2], coords[3]);
+                        String.format(java.util.Locale.US, "Q %.4f %.4f %.4f %.4f", coords[0], coords[1], coords[2], coords[3]);
                 case PathIterator.SEG_CUBICTO ->
-                        String.format("C %.4f %.4f %.4f %.4f %.4f %.4f",
+                        String.format(java.util.Locale.US, "C %.4f %.4f %.4f %.4f %.4f %.4f",
                                 coords[0], coords[1], coords[2], coords[3], coords[4], coords[5]);
                 default -> "";
             };

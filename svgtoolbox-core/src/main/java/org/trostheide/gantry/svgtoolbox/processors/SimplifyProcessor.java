@@ -141,7 +141,7 @@ public class SimplifyProcessor implements Processor {
     private String toPolyString(List<Point> points) {
         StringBuilder sb = new StringBuilder();
         for (Point p : points) {
-            sb.append(String.format("%.2f,%.2f ", p.x, p.y));
+            sb.append(String.format(java.util.Locale.US, "%.2f,%.2f ", p.x, p.y));
         }
         return sb.toString().trim();
     }
@@ -150,9 +150,9 @@ public class SimplifyProcessor implements Processor {
         if (points.isEmpty())
             return "";
         StringBuilder sb = new StringBuilder();
-        sb.append(String.format("M %.2f %.2f ", points.get(0).x, points.get(0).y));
+        sb.append(String.format(java.util.Locale.US, "M %.2f %.2f ", points.get(0).x, points.get(0).y));
         for (int i = 1; i < points.size(); i++) {
-            sb.append(String.format("L %.2f %.2f ", points.get(i).x, points.get(i).y));
+            sb.append(String.format(java.util.Locale.US, "L %.2f %.2f ", points.get(i).x, points.get(i).y));
         }
         sb.append("Z");
         return sb.toString();
