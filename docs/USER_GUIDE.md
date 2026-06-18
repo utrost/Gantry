@@ -21,7 +21,78 @@ It converts SVG files into G-code and streams it to a GRBL-based plotter over se
 ```
 
 The GUI opens. For a first run, go to **Settings** and configure your machine
-before doing anything else.
+before doing anything else — see **First start** below.
+
+---
+
+## First start
+
+Do this once per machine, before importing or plotting anything. Open
+**Settings**, work through the sections top to bottom, then **Save**.
+
+### 1. Connection
+
+- Set **Mock backend** checked if you just want to explore the GUI without
+  hardware connected.
+- Otherwise pick your **Serial Port** from the dropdown (click **Refresh**
+  after plugging the cable in if it's not listed yet) and leave **Baud Rate**
+  at 115200 unless your GRBL firmware was built with a different rate.
+
+### 2. Plotter area (Machine geometry → Width / Height)
+
+Measure the plotter's actual travel range in mm — not the paper size, the
+**physical travel of the carriage** — and enter it as **Machine Width** /
+**Machine Height**. Everything else (canvas alignment, fit-to-page, the bed
+outline in the visualisation) is computed from this, so get it right first.
+
+### 3. Machine origin corner
+
+Figure out which corner of the bed the machine considers (0,0) — usually
+wherever it sits when first powered on, or wherever the limit switches are.
+Set **Machine Origin** to that corner (Top-Left / Top-Right / Bottom-Left /
+Bottom-Right). Getting this wrong is the most common cause of the drawing
+appearing mirrored or in the wrong corner.
+
+### 4. Orientation
+
+Leave this as **Landscape** unless your bed is physically wider than it is
+tall (`Width > Height`) and you want to plot tall/portrait-format drawings
+on it without rotating every SVG by hand. It's independent of Width/Height —
+see [Troubleshooting](#troubleshooting) if you're unsure whether you need it.
+
+### 5. Pen / Z-axis type
+
+Set **Pen Mode** to match how your plotter physically lifts the pen:
+
+| Pen Mode | Use when... |
+|---|---|
+| `zaxis` | The pen holder rides on a real Z axis (G-code `G0/G1 Z...`) — most CNC-style plotters. Set **Z Up** / **Z Down** to the clearance and contact heights in mm. |
+| `servo` | A hobby servo (e.g. on an Arduino pin via `M280`) lifts the pen. Set **Servo Pin** and **Pen Up** / **Pen Down** servo angles (0–180°). |
+| `m3m5` | The pen solenoid/lift is wired to the spindle on/off output (`M3`/`M5`), as on some laser/CNC conversions. **Pen Up** / **Pen Down** are the `M3` S-values used. |
+
+Set **Draw Feed Rate** / **Travel Feed Rate** to sensible starting points
+(defaults: 1000 / 3000 mm/min) — tune later once you see real plots.
+
+### 6. Verify jogging before your first real plot
+
+With the plotter connected (or Mock backend), use the **Jog** ▲▼◄► buttons.
+Each one should move the pen toward that side of the *bed as you're looking
+at it*. If any direction is wrong, **don't** ignore it — fix it now via the
+**Extra Invert X/Y** / **Extra Swap X/Y** checkboxes (see
+[Troubleshooting](#troubleshooting)), since the same settings also control
+where imported drawings land and how the live cursor tracks. If your
+controller has limit switches and GRBL homing enabled, use **Home (limit
+switches)** to confirm homing works too.
+
+### 7. Canvas alignment
+
+Set **Canvas Alignment** to where on the bed you generally want drawings
+placed by default (e.g. "Top Left" with some **Padding**) — this is the
+position **Reset Position** returns to after you've dragged a drawing
+around.
+
+Once jogging feels right and the bed dimensions/origin are correct, you're
+ready to import an SVG.
 
 ---
 
@@ -249,6 +320,68 @@ Key flags:
 | `--toolbox-stats` | Print statistics |
 
 Run with `--help` for the full list.
+
+---
+
+## Troubleshooting
+
+### Jog buttons move the wrong direction (e.g. left moves the pen down)
+
+The bed outline, origin marker and jog directions are all derived from
+**Machine Origin** + **Orientation** + the **Extra Invert X/Y** / **Extra
+Swap X/Y** checkboxes (Settings → Machine geometry). If your plotter's axis
+wiring doesn't match what those settings assume, jogging will feel rotated
+or mirrored — e.g. left moves the pen down, down moves it right, and so on.
+
+This is **not a bug**, it's a wiring mismatch — fix it with the checkboxes,
+not by changing Machine Origin/Orientation (those should match the
+physical bed, not be tweaked to compensate):
+
+1. Set **Machine Origin** to the corner the machine actually treats as
+   (0,0), and **Orientation** to match the physical bed (see next section).
+2. With the plotter connected (or **Mock backend**), jog ▲. If the pen
+   moves toward the wrong bed edge, the X/Y axes are swapped on this
+   hardware — check **Extra Swap X/Y** and try again.
+3. Jog ◄ and ►. If left/right are reversed, check **Extra Invert X**.
+4. Jog ▲ and ▼. If up/down are reversed, check **Extra Invert Y**.
+5. Repeat until all four directions move the pen toward the correct edge
+   of the bed *as you're looking at it*. Save.
+
+These same flags also control where imported drawings land on the bed and
+how the on-screen cursor tracks during jogging, so getting this right here
+fixes both at once.
+
+### Cursor / visualization moves on the wrong axis while jogging
+
+If jogging itself moves the pen correctly but the on-screen cursor (or the
+bed outline / origin dot / station markers) moves along the wrong axis —
+e.g. the cursor moves horizontally when you jog Y — this was a known
+rendering bug where the visualization recomputed its own axis
+swap/invert instead of using the exact same composited values as the
+hardware/jogging code, so the two could disagree whenever an "Extra"
+flag and the Machine-Origin-implied invert were combined. This has been
+fixed: the visualization now consumes the same effective swap/invert
+values used for jogging and G-code, so the cursor always tracks the same
+axes as the physical pen. If you still see this on a recent build, it's
+worth filing as a bug rather than working around it with settings.
+
+### Connecting on Windows fails or times out (CH340/USB-serial adapters)
+
+- First connect attempt reports a read timeout, and the next attempt
+  reports "Failed to open serial port": this was caused by a Windows-only
+  serial driver quirk and a leaked port handle after a failed connect, and
+  has been fixed. Make sure you're on a current build.
+- If it still fails: confirm the port shown in **Serial Port** (click
+  **Refresh**) matches the COM port in Windows Device Manager → Ports (COM
+  & LPT), and that no other program (e.g. Arduino IDE's Serial Monitor) has
+  the port open.
+
+### Home (limit switches) does nothing or errors
+
+`$H` only works if GRBL homing is enabled and configured on the
+controller (`$22=1`, plus the matching `$23`/`$24`/`$25` settings) and the
+limit switches are wired and triggering correctly. Gantry just sends the
+command — it doesn't enable or configure homing on the controller itself.
 
 ---
 
