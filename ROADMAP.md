@@ -72,9 +72,11 @@ gantry/                       (new repository)
 ├─ watercolor/       station mapping + refill stages (optional; depends on pipeline-core)
 ├─ plotter/          serial G-code backend (jSerialComm) + mock + .gcode file writer
 ├─ app/              Swing/FlatLaf GUI + orchestration service (replaces driver.py)
-├─ cli/   (optional) headless entry point for scripting/automation
-└─ legacy/           old Python driver, kept as reference until cutover, then deleted
+└─ cli/   (optional) headless entry point for scripting/automation
 ```
+
+(The original projects were kept under `legacy/` as a reference oracle during
+the port and removed at cutover; their history lives in their own repos.)
 
 Module names encode the priority: removing `watercolor/` still leaves a fully
 functional pen plotter.
@@ -100,7 +102,7 @@ oracle until Phase 3.
 | **4. Optimization stage** ✅ | Insert SVGToolBox PathOptimize + Simplify pre-refill, **per-layer** so station mapping is preserved | Measurable pen-travel reduction on a sample; layer→station intact; before/after stats shown |
 | **5. New features** ✅ | Multipass/pigment (`pipeline-core`, benefits pen *and* watercolor) · G-code file export + re-plot (`plotter`) · refill stays in `watercolor` | Each behind a tested toggle in the GUI |
 | **6. SVG ingestion & processing pipeline** ✅ | Port the SVG→command-model pipeline (`legacy/SVG2WaterColor`'s `ProcessorService`) into `pipeline-core`/`svgtoolbox-core`, plus the SVGToolBox SVG→SVG processors not yet covered by Phase 4; add "Process SVG"/"Draw SVG" GUI entry points and a headless CLI | An SVG file can be loaded in the GUI/CLI and produce a plottable command model with no external tooling; `legacy/` no longer the only path from SVG to plot |
-| **7. Cutover** | Delete `legacy/`; docs; single-artifact release | One JAR, no Python anywhere |
+| **7. Cutover** ✅ | Delete `legacy/`; docs; single-artifact release | One JAR, no Python anywhere |
 
 ### Phase 6 — done
 
@@ -152,8 +154,8 @@ first when enabled.
 - **Scope creep** ✅ — contained by phase gates; new features (multipass, G-code
   export) were quarantined to Phase 5.
 - **License reconciliation** ✅ — confirmed compatible before merge (Phase 0).
-- **Phase 7 cutover** — deleting `legacy/` is irreversible; requires explicit
-  confirmation before proceeding.
+- **Phase 7 cutover** ✅ — `legacy/` removed; the original SVGToolBox and
+  SVG2WaterColor sources remain available in their own repositories.
 
 ---
 

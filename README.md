@@ -26,20 +26,16 @@ checklist.
 | `plotter` | G-code backend (jSerialComm), mock backend, `.gcode` file writer |
 | `cli` | Headless entry point |
 | `app` | Swing/FlatLaf GUI and orchestration service |
-| `legacy/SVG2WaterColor`, `legacy/SVGToolBox` | Original projects, imported with full history, kept as reference until cutover (Phase 7) |
+
+The original projects this was merged from live in their own repositories
+([SVGToolBox](https://github.com/utrost/SVGToolBox),
+[SVG2WaterColor](https://github.com/utrost/SVG2WaterColor)); they were kept
+under `legacy/` as a reference during the port and have since been removed.
 
 ## Building
 
 ```
 mvn clean package
-```
-
-The legacy projects under `legacy/` are standalone Maven projects with their
-own `pom.xml` and build independently:
-
-```
-mvn -f legacy/SVG2WaterColor/pom.xml clean package
-mvn -f legacy/SVGToolBox/pom.xml clean package
 ```
 
 ## Scripts

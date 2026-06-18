@@ -180,21 +180,7 @@ java -jar cli/target/cli-1.0-SNAPSHOT.jar \
 
 ---
 
-## 3. Running legacy projects (reference)
-
-The legacy projects build independently and remain unchanged:
-
-```bash
-mvn -f legacy/SVG2WaterColor/pom.xml clean package
-mvn -f legacy/SVGToolBox/pom.xml clean package
-```
-
-Both should produce `BUILD SUCCESS`. They are kept as a reference oracle and
-are not modified until Phase 7 (cutover).
-
----
-
-## 4. What is not yet automated
+## 3. What is not yet automated
 
 The following are covered by manual checks above but do not have automated unit tests:
 
