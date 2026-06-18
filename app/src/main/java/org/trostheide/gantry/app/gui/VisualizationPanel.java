@@ -455,15 +455,24 @@ public class VisualizationPanel extends JPanel {
     }
 
     private double[] physicalToScreen(double motorX, double motorY) {
-        // Motor space already has swap/invert baked in relative to content; mapping it to
-        // screen space (top-left origin, X right, Y down) applies the same swap/invert
-        // formula again (not its inverse) against the bed bounds, swapped when the axes
-        // are swapped, so it matches transformPointToMotor()'s composited flags exactly.
-        double maxX = effectiveSwap() ? machineHeight : machineWidth;
-        double maxY = effectiveSwap() ? machineWidth : machineHeight;
-        return CoordinateTransform.transformPoint(motorX, motorY,
-                effectiveSwap(), effectiveInvertX(), effectiveInvertY(),
-                maxX, maxY, 0, null);
+        // This is the exact inverse of the jog logic in PlotterPanel.jog(): jogging maps a
+        // desired on-screen direction (right/up) to a motor delta using the composited
+        // swap/invert flags; rendering a motor position back to screen must invert that, so
+        // the cursor, origin marker, axes and stations always track the same direction the
+        // pen physically moves. Undo invert, then swap, to recover the screen-space offset
+        // (dx = rightward, dy = upward) of this motor position from the origin corner.
+        double dx = motorX;
+        double dy = motorY;
+        if (effectiveInvertY()) dy = -dy;
+        if (effectiveInvertX()) dx = -dx;
+        if (effectiveSwap()) {
+            double t = dx; dx = dy; dy = t;
+        }
+        // Place relative to the machine-origin corner of the displayed bed. Screen Y grows
+        // downward, so the upward component dy is subtracted.
+        double originScreenX = isOriginRight() ? displayWidth() : 0;
+        double originScreenY = isOriginBottom() ? displayHeight() : 0;
+        return new double[] { originScreenX + dx, originScreenY - dy };
     }
 
     /**
