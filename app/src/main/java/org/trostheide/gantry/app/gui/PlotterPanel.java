@@ -58,7 +58,7 @@ public class PlotterPanel extends JPanel {
     private final JSpinner jogStepSpinner = new JSpinner(new SpinnerNumberModel(10.0, 0.1, 200.0, 1.0));
     private final JTextField rawCommandField = new JTextField(16);
     private final JSpinner simplifyToleranceSpinner = new JSpinner(new SpinnerNumberModel(0.2, 0.0, 10.0, 0.1));
-    private final JCheckBox reorderStrokesCheckBox = new JCheckBox("Reorder strokes (minimize travel)", true);
+    private final JCheckBox reorderStrokesCheckBox = new JCheckBox("Reorder", true);
     private final JSpinner multipassSpinner = new JSpinner(new SpinnerNumberModel(1, 1, 10, 1));
     private final JSpinner posXSpinner = new JSpinner(new SpinnerNumberModel(0.0, -2000.0, 2000.0, 1.0));
     private final JSpinner posYSpinner = new JSpinner(new SpinnerNumberModel(0.0, -2000.0, 2000.0, 1.0));
@@ -303,24 +303,19 @@ public class PlotterPanel extends JPanel {
     }
 
     private JPanel optimizeSection() {
-        JPanel panel = new JPanel(new GridBagLayout());
+        JPanel panel = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 2));
         panel.setBorder(section("Optimize"));
-        GridBagConstraints gbc = new GridBagConstraints();
-        gbc.insets = new Insets(2, 4, 2, 4);
-        gbc.fill = GridBagConstraints.HORIZONTAL;
 
-        gbc.gridx = 0; gbc.gridy = 0;
-        panel.add(new JLabel("Simplify tolerance (mm)"), gbc);
-        gbc.gridx = 1;
-        panel.add(simplifyToleranceSpinner, gbc);
+        simplifyToleranceSpinner.setToolTipText("Simplify tolerance (mm)");
+        panel.add(new JLabel("Tol."));
+        panel.add(simplifyToleranceSpinner);
+        reorderStrokesCheckBox.setToolTipText("Reorder strokes to minimize travel");
+        panel.add(reorderStrokesCheckBox);
 
-        gbc.gridx = 0; gbc.gridy = 1; gbc.gridwidth = 2;
-        panel.add(reorderStrokesCheckBox, gbc);
-
-        gbc.gridx = 0; gbc.gridy = 2; gbc.gridwidth = 2;
-        JButton optimizeBtn = disableDuringPlot(new JButton("Optimize Loaded Commands"));
+        JButton optimizeBtn = disableDuringPlot(new JButton("Optimize"));
+        optimizeBtn.setToolTipText("Optimize Loaded Commands");
         optimizeBtn.addActionListener(e -> onOptimize());
-        panel.add(optimizeBtn, gbc);
+        panel.add(optimizeBtn);
 
         return panel;
     }
@@ -401,28 +396,35 @@ public class PlotterPanel extends JPanel {
         row1.add(confirmBtn);
         row1.add(pauseBtn);
         row1.add(stopBtn);
-
-        JPanel row2 = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 2));
-        JButton exportBtn = disableDuringPlot(new JButton("Export G-code..."));
-        exportBtn.addActionListener(e -> onExportGcode());
-        row2.add(exportBtn);
-
-        JButton replayBtn = disableDuringPlot(new JButton("Replay G-code..."));
-        replayBtn.addActionListener(e -> onReplayGcode());
-        row2.add(replayBtn);
+        row1.add(disableDuringPlot(plotMoreButton()));
 
         JPanel row3 = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 2));
         timeLabel.setToolTipText("Per-layer time estimate (hover after loading/importing commands)");
         row3.add(timeLabel);
 
         row1.setAlignmentX(LEFT_ALIGNMENT);
-        row2.setAlignmentX(LEFT_ALIGNMENT);
         row3.setAlignmentX(LEFT_ALIGNMENT);
         panel.add(row1);
-        panel.add(row2);
         panel.add(row3);
 
         return panel;
+    }
+
+    /** Builds the "More..." overflow button holding the less-frequently-used Export/Replay actions. */
+    private JButton plotMoreButton() {
+        JButton moreBtn = new JButton("More ▾");
+        JPopupMenu menu = new JPopupMenu();
+
+        JMenuItem exportItem = new JMenuItem("Export G-code...");
+        exportItem.addActionListener(e -> onExportGcode());
+        menu.add(exportItem);
+
+        JMenuItem replayItem = new JMenuItem("Replay G-code...");
+        replayItem.addActionListener(e -> onReplayGcode());
+        menu.add(replayItem);
+
+        moreBtn.addActionListener(e -> menu.show(moreBtn, 0, moreBtn.getHeight()));
+        return moreBtn;
     }
 
     /** Recomputes and displays the pre-plot time estimate (total + per-layer, via tooltip). */
