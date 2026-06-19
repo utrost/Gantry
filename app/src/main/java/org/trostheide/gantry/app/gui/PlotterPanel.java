@@ -95,16 +95,17 @@ public class PlotterPanel extends JPanel {
 
         JPanel right = new JPanel();
         right.setLayout(new BoxLayout(right, BoxLayout.Y_AXIS));
-        right.add(jogSection());
+        right.add(capHeight(jogSection()));
         right.add(Box.createVerticalStrut(3));
-        right.add(optimizeSection());
+        right.add(capHeight(optimizeSection()));
         right.add(Box.createVerticalStrut(3));
-        right.add(overlaySection());
+        right.add(capHeight(overlaySection()));
         right.add(Box.createVerticalStrut(3));
-        right.add(plotSection());
+        right.add(capHeight(plotSection()));
         right.add(Box.createVerticalStrut(3));
-        right.add(rawCommandSection());
+        right.add(capHeight(rawCommandSection()));
         right.add(Box.createVerticalStrut(3));
+        // Console absorbs any leftover vertical space; the fixed sections stay at their natural height.
         right.add(consoleScroll);
 
         right.setPreferredSize(new Dimension(300, right.getPreferredSize().height));
@@ -210,6 +211,13 @@ public class PlotterPanel extends JPanel {
         return bar;
     }
 
+    /** Caps a section's maximum height to its preferred height so BoxLayout won't stretch it vertically. */
+    private static <T extends JComponent> T capHeight(T component) {
+        Dimension pref = component.getPreferredSize();
+        component.setMaximumSize(new Dimension(Integer.MAX_VALUE, pref.height));
+        return component;
+    }
+
     /** Registers controls so they get disabled while a plot is running, then returns them for layout. */
     private <T extends JComponent> T disableDuringPlot(T component) {
         plotDisabledControls.add(component);
@@ -253,9 +261,9 @@ public class PlotterPanel extends JPanel {
         penDownBtn.addActionListener(e -> runOnBackend(PlotterBackend::pendown));
 
         JPanel stepRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 0));
+        jogStepSpinner.setToolTipText("Jog step size (mm)");
         stepRow.add(new JLabel("Step"));
         stepRow.add(disableDuringPlot(jogStepSpinner));
-        stepRow.add(new JLabel("mm"));
 
         JPanel side = new JPanel();
         side.setLayout(new BoxLayout(side, BoxLayout.Y_AXIS));
