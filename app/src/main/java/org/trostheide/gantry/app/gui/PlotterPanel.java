@@ -96,15 +96,15 @@ public class PlotterPanel extends JPanel {
         JPanel right = new JPanel();
         right.setLayout(new BoxLayout(right, BoxLayout.Y_AXIS));
         right.add(jogSection());
-        right.add(Box.createVerticalStrut(6));
+        right.add(Box.createVerticalStrut(3));
         right.add(optimizeSection());
-        right.add(Box.createVerticalStrut(6));
+        right.add(Box.createVerticalStrut(3));
         right.add(overlaySection());
-        right.add(Box.createVerticalStrut(6));
+        right.add(Box.createVerticalStrut(3));
         right.add(plotSection());
-        right.add(Box.createVerticalStrut(6));
+        right.add(Box.createVerticalStrut(3));
         right.add(rawCommandSection());
-        right.add(Box.createVerticalStrut(6));
+        right.add(Box.createVerticalStrut(3));
         right.add(consoleScroll);
 
         right.setPreferredSize(new Dimension(300, right.getPreferredSize().height));
@@ -216,11 +216,11 @@ public class PlotterPanel extends JPanel {
         return component;
     }
 
-    private static final Dimension JOG_BUTTON_SIZE = new Dimension(72, 72);
+    private static final Dimension JOG_BUTTON_SIZE = new Dimension(54, 54);
 
     private JButton jogButton(String label) {
         JButton b = new JButton(label);
-        b.setFont(b.getFont().deriveFont(Font.BOLD, 28f));
+        b.setFont(b.getFont().deriveFont(Font.BOLD, 22f));
         b.setPreferredSize(JOG_BUTTON_SIZE);
         b.setMargin(new Insets(0, 0, 0, 0));
         return b;
@@ -230,7 +230,7 @@ public class PlotterPanel extends JPanel {
         JPanel panel = new JPanel(new GridBagLayout());
         panel.setBorder(section("Jog"));
         GridBagConstraints gbc = new GridBagConstraints();
-        gbc.insets = new Insets(3, 3, 3, 3);
+        gbc.insets = new Insets(2, 2, 2, 2);
 
         JButton up = disableDuringPlot(jogButton("▲"));
         JButton down = disableDuringPlot(jogButton("▼"));
@@ -246,22 +246,37 @@ public class PlotterPanel extends JPanel {
         gbc.gridx = 2; gbc.gridy = 1; panel.add(right, gbc);
         gbc.gridx = 1; gbc.gridy = 2; panel.add(down, gbc);
 
-        gbc.gridx = 0; gbc.gridy = 3; gbc.gridwidth = 1;
-        panel.add(new JLabel("Step (mm)"), gbc);
-        gbc.gridx = 1; gbc.gridy = 3; gbc.gridwidth = 2;
-        panel.add(disableDuringPlot(jogStepSpinner), gbc);
-
-        gbc.gridx = 0; gbc.gridy = 4; gbc.gridwidth = 3;
-        JPanel penButtons = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 0));
+        // Step + pen controls tuck into the empty space to the right of the jog cross.
         JButton penUpBtn = disableDuringPlot(new JButton("Pen Up"));
         JButton penDownBtn = disableDuringPlot(new JButton("Pen Down"));
         penUpBtn.addActionListener(e -> runOnBackend(PlotterBackend::penup));
         penDownBtn.addActionListener(e -> runOnBackend(PlotterBackend::pendown));
-        penButtons.add(penUpBtn);
-        penButtons.add(penDownBtn);
-        panel.add(penButtons, gbc);
 
-        gbc.gridx = 0; gbc.gridy = 5; gbc.gridwidth = 3;
+        JPanel stepRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 0));
+        stepRow.add(new JLabel("Step"));
+        stepRow.add(disableDuringPlot(jogStepSpinner));
+        stepRow.add(new JLabel("mm"));
+
+        JPanel side = new JPanel();
+        side.setLayout(new BoxLayout(side, BoxLayout.Y_AXIS));
+        stepRow.setAlignmentX(LEFT_ALIGNMENT);
+        penUpBtn.setAlignmentX(LEFT_ALIGNMENT);
+        penDownBtn.setAlignmentX(LEFT_ALIGNMENT);
+        penUpBtn.setMaximumSize(new Dimension(Integer.MAX_VALUE, penUpBtn.getPreferredSize().height));
+        penDownBtn.setMaximumSize(new Dimension(Integer.MAX_VALUE, penDownBtn.getPreferredSize().height));
+        side.add(stepRow);
+        side.add(Box.createVerticalStrut(4));
+        side.add(penUpBtn);
+        side.add(Box.createVerticalStrut(2));
+        side.add(penDownBtn);
+
+        gbc.gridx = 3; gbc.gridy = 0; gbc.gridheight = 3;
+        gbc.insets = new Insets(2, 10, 2, 2);
+        gbc.anchor = GridBagConstraints.CENTER;
+        panel.add(side, gbc);
+        gbc.gridheight = 1; gbc.anchor = GridBagConstraints.WEST; gbc.insets = new Insets(2, 2, 2, 2);
+
+        gbc.gridx = 0; gbc.gridy = 3; gbc.gridwidth = 4;
         JPanel speedRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 0));
         speedRow.add(new JLabel("Speed"));
         JButton speedDown = new JButton("-");
@@ -276,7 +291,8 @@ public class PlotterPanel extends JPanel {
         speedRow.add(speedReset);
         panel.add(speedRow, gbc);
 
-        gbc.gridx = 0; gbc.gridy = 6; gbc.gridwidth = 3;
+        gbc.gridx = 0; gbc.gridy = 4; gbc.gridwidth = 4;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
         JButton homeBtn = disableDuringPlot(new JButton("⌂ Home (limit switches)"));
         homeBtn.setFont(homeBtn.getFont().deriveFont(Font.BOLD));
         homeBtn.setToolTipText("Run the homing cycle against the limit switches");
@@ -327,12 +343,15 @@ public class PlotterPanel extends JPanel {
         buttons.add(mirrorBtn);
 
         JPanel posRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 2));
+        posXSpinner.setToolTipText("X offset in mm from the machine origin");
+        posYSpinner.setToolTipText("Y offset in mm from the machine origin");
         posRow.add(new JLabel("X"));
-        posXSpinner.setPreferredSize(new Dimension(70, posXSpinner.getPreferredSize().height));
+        posXSpinner.setPreferredSize(new Dimension(64, posXSpinner.getPreferredSize().height));
         posRow.add(disableDuringPlot(posXSpinner));
-        posRow.add(new JLabel("Y (mm from origin)"));
-        posYSpinner.setPreferredSize(new Dimension(70, posYSpinner.getPreferredSize().height));
+        posRow.add(new JLabel("Y"));
+        posYSpinner.setPreferredSize(new Dimension(64, posYSpinner.getPreferredSize().height));
         posRow.add(disableDuringPlot(posYSpinner));
+        posRow.add(new JLabel("mm"));
         JButton setPosBtn = disableDuringPlot(new JButton("Set"));
         setPosBtn.addActionListener(e -> applyPositionFromFields());
         posRow.add(setPosBtn);
@@ -479,7 +498,7 @@ public class PlotterPanel extends JPanel {
 
     private static TitledBorder section(String title) {
         TitledBorder border = BorderFactory.createTitledBorder(title);
-        border.setTitleFont(border.getTitleFont().deriveFont(Font.BOLD, 12f));
+        border.setTitleFont(border.getTitleFont().deriveFont(Font.BOLD, 11f));
         return border;
     }
 
