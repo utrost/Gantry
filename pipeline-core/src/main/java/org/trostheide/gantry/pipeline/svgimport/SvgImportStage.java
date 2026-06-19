@@ -125,7 +125,7 @@ public final class SvgImportStage {
         for (LayerContext ctx : layersToProcess) {
             List<Command> layerCommands = generateCommandsForLayer(ctx.rootNode, ctx.stationId,
                     options.maxDrawDistance(), options.curveStep(), pathParser, pathProducer,
-                    globalBoundsBuilder, globalTx, commandCounter);
+                    globalBoundsBuilder, globalTx, commandCounter, preScannedBounds);
 
             if (!layerCommands.isEmpty()) {
                 resultLayers.add(new Layer(ctx.layerName, ctx.stationId, layerCommands));
@@ -202,7 +202,7 @@ public final class SvgImportStage {
 
     private static List<Command> generateCommandsForLayer(Element layerRoot, String stationId, double maxDist,
             double curveStep, PathParser parser, AWTPathProducer producer, BoundsBuilder bounds,
-            AffineTransform globalTx, int[] commandCounter) {
+            AffineTransform globalTx, int[] commandCounter, Bounds contentBounds) {
         List<Command> cmds = new ArrayList<>();
         List<Node> drawables = new ArrayList<>();
         collectDrawableElements(layerRoot, drawables);
@@ -226,6 +226,12 @@ public final class SvgImportStage {
             Shape shape = producer.getShape();
 
             shape = applyElementTransform(node, shape);
+
+            // Skip a full-page background/border rectangle (e.g. an Inkscape page rect): it would
+            // otherwise be plotted as the drawing's outer frame before the real content.
+            if (isPageBorderRect(shape, contentBounds)) {
+                continue;
+            }
 
             if (globalTx != null && !globalTx.isIdentity()) {
                 shape = globalTx.createTransformedShape(shape);
@@ -322,6 +328,51 @@ public final class SvgImportStage {
     }
 
     // --- Helpers ---
+
+    /**
+     * Returns true if {@code shape} is an axis-aligned rectangle that spans (within tolerance) the
+     * whole {@code contentBounds} — i.e. a full-page background/border rectangle that should not be
+     * plotted as the drawing's outer frame.
+     */
+    private static boolean isPageBorderRect(Shape shape, Bounds contentBounds) {
+        if (contentBounds == null || contentBounds.minX() == Double.MAX_VALUE) {
+            return false;
+        }
+        double gw = contentBounds.maxX() - contentBounds.minX();
+        double gh = contentBounds.maxY() - contentBounds.minY();
+        if (gw <= 0 || gh <= 0) {
+            return false;
+        }
+        double tol = 0.02 * Math.max(gw, gh) + 0.01;
+        Rectangle2D b = shape.getBounds2D();
+        boolean spansContent = Math.abs(b.getMinX() - contentBounds.minX()) <= tol
+                && Math.abs(b.getMinY() - contentBounds.minY()) <= tol
+                && Math.abs(b.getMaxX() - contentBounds.maxX()) <= tol
+                && Math.abs(b.getMaxY() - contentBounds.maxY()) <= tol;
+        return spansContent && isAxisAlignedRectangleOutline(shape, b, tol);
+    }
+
+    /** True if every vertex of {@code shape} sits on a corner of {@code box} and it has no curves. */
+    private static boolean isAxisAlignedRectangleOutline(Shape shape, Rectangle2D box, double tol) {
+        PathIterator pi = shape.getPathIterator(null);
+        double[] c = new double[6];
+        int vertices = 0;
+        while (!pi.isDone()) {
+            int type = pi.currentSegment(c);
+            if (type == PathIterator.SEG_MOVETO || type == PathIterator.SEG_LINETO) {
+                boolean onX = Math.abs(c[0] - box.getMinX()) <= tol || Math.abs(c[0] - box.getMaxX()) <= tol;
+                boolean onY = Math.abs(c[1] - box.getMinY()) <= tol || Math.abs(c[1] - box.getMaxY()) <= tol;
+                if (!(onX && onY)) {
+                    return false;
+                }
+                vertices++;
+            } else if (type == PathIterator.SEG_QUADTO || type == PathIterator.SEG_CUBICTO) {
+                return false;
+            }
+            pi.next();
+        }
+        return vertices >= 4;
+    }
 
     private static void collectDrawableElements(Node node, List<Node> result) {
         if (node.getNodeType() == Node.ELEMENT_NODE) {

@@ -41,7 +41,8 @@ class PlotServiceTest {
 
         service.plot(output(layer));
 
-        assertEquals(List.of("MOVETO 90.000 20.000", "LINETO 95.000 5.000"), backend.calls);
+        assertEquals(List.of("MOVETO 90.000 20.000", "LINETO 95.000 5.000",
+                "PENUP", "MOVETO 0.000 0.000"), backend.calls);
     }
 
     @Test
@@ -60,7 +61,7 @@ class PlotServiceTest {
 
         service.plot(output(layer));
 
-        assertEquals(List.of("MOVETO 100.000 0.000"), backend.calls);
+        assertEquals(List.of("MOVETO 100.000 0.000", "PENUP", "MOVETO 0.000 0.000"), backend.calls);
         assertTrue(logs.stream().anyMatch(l -> l.contains("SOFT LIMIT")), "expected a soft-limit warning, got: " + logs);
     }
 
@@ -79,7 +80,8 @@ class PlotServiceTest {
 
         service.plot(output(layer));
 
-        assertEquals(List.of("LINETO 45.000 40.000", "LINETO 55.000 60.000"), backend.calls);
+        assertEquals(List.of("LINETO 45.000 40.000", "LINETO 55.000 60.000",
+                "PENUP", "MOVETO 0.000 0.000"), backend.calls);
     }
 
     @Test
@@ -95,7 +97,8 @@ class PlotServiceTest {
 
         service.plot(output(layer));
 
-        assertEquals(List.of("MOVETO 10.000 20.000", "PENDOWN", "PENUP"), backend.calls);
+        assertEquals(List.of("MOVETO 10.000 20.000", "PENDOWN", "PENUP",
+                "PENUP", "MOVETO 0.000 0.000"), backend.calls);
     }
 
     @Test
@@ -113,7 +116,8 @@ class PlotServiceTest {
 
         assertEquals(List.of(
                 "MOVETO 10.000 20.000", "PENDOWN", "PENUP",
-                "PENDOWN", "LINETO 12.000 20.000", "LINETO 8.000 20.000", "MOVETO 10.000 20.000", "PENUP"
+                "PENDOWN", "LINETO 12.000 20.000", "LINETO 8.000 20.000", "MOVETO 10.000 20.000", "PENUP",
+                "PENUP", "MOVETO 0.000 0.000"
         ), backend.calls);
     }
 
@@ -133,7 +137,8 @@ class PlotServiceTest {
 
         service.plot(output(layer));
 
-        assertEquals(List.of("MOVETO 1.000 2.000", "PENDOWN", "PENUP"), backend.calls);
+        assertEquals(List.of("MOVETO 1.000 2.000", "PENDOWN", "PENUP",
+                "PENUP", "MOVETO 0.000 0.000"), backend.calls);
         assertTrue(logs.stream().anyMatch(l -> l.contains("Unknown station")));
     }
 

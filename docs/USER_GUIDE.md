@@ -163,6 +163,10 @@ Used for watercolor painting. Each station has:
 
 Click **Import SVG…** and choose an SVG file. A two-tab dialog opens.
 
+> Note: a full-page background/border rectangle (the kind Inkscape adds as the page outline) is
+> detected and dropped automatically on import, so the pen no longer traces the outer frame before
+> drawing the content.
+
 ### Import tab
 
 | Field | Description |
@@ -256,7 +260,7 @@ already-loaded commands:
 1. Connect to the plotter with **Connect**.
 2. Adjust speed if needed with **Speed +** / **Speed −** / **Reset** in the Jog section.
 3. Click **Start Plot**.
-4. For each layer, the plotter will pause and wait for you to click **Confirm Layer** before continuing (allows brush/pen changes).
+4. For each layer, the plotter will pause and wait for you to click **Confirm Layer** before continuing (allows brush/pen changes). When a layer finishes, the head automatically raises the pen and returns to the origin (0, 0), so it's parked clear for a pen swap while you confirm the next layer.
 5. Click **Pause** at any time to halt motion and raise the pen; click **Resume** (same button) to continue from where it left off.
 6. Click **Stop** at any time to cancel. This immediately halts the plotter (including any motion already queued on the controller) and raises the pen, rather than just stopping new commands from being sent.
 

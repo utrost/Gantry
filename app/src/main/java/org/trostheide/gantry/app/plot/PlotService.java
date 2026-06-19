@@ -173,7 +173,19 @@ public class PlotService {
             logCallback.accept(String.format("=== Layer '%s' (%d/%d): %d commands ===",
                     layer.id(), layerIndex, layers.size(), layer.commands().size()));
             executeLayer(layer, machineW, machineH, offsetX, offsetY, contentBounds);
+
+            if (!cancelled) {
+                parkAtOrigin();
+            }
         }
+    }
+
+    /** Raises the pen and returns to the work origin, so the head is clear for a pen change between layers. */
+    private void parkAtOrigin() {
+        backend.penup();
+        backend.moveto(0, 0);
+        reportPosition(0, 0);
+        logCallback.accept("--- Layer complete: parked at origin (0, 0), pen up ---");
     }
 
     /**

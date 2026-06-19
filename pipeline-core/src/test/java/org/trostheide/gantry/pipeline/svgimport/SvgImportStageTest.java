@@ -141,6 +141,32 @@ class SvgImportStageTest {
         }
 
         @Test
+        void fullPageBackgroundRectIsDropped() throws Exception {
+            String svg = "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"100\" height=\"100\" "
+                    + "viewBox=\"0 0 100 100\">"
+                    + "<rect x=\"0\" y=\"0\" width=\"100\" height=\"100\"/>"
+                    + "<path d=\"M40 40 L60 40\"/>"
+                    + "</svg>";
+            File temp = File.createTempFile("pagerect", ".svg");
+            temp.deleteOnExit();
+            java.nio.file.Files.writeString(temp.toPath(), svg);
+
+            ProcessorOutput result = SvgImportStage.importSvg(temp,
+                    new SvgImportOptions(0, "default_station", 0.5, 0, 0, true, 0, 0, false));
+
+            long drawCount = result.layers().stream()
+                    .flatMap(l -> l.commands().stream())
+                    .filter(c -> c instanceof org.trostheide.gantry.model.command.DrawCommand)
+                    .count();
+            assertEquals(1, drawCount, "the full-page rect should be dropped, leaving only the inner stroke");
+
+            // Bounds should hug the inner stroke (x in [40,60]), not the dropped 0..100 page rect.
+            Bounds bounds = result.metadata().bounds();
+            assertTrue(bounds.minX() >= 40 - 1e-6, "minX should reflect inner content, got " + bounds.minX());
+            assertTrue(bounds.maxX() <= 60 + 1e-6, "maxX should reflect inner content, got " + bounds.maxX());
+        }
+
+        @Test
         void fitToA4KeepsBoundsWithinPage() throws Exception {
             ProcessorOutput result = SvgImportStage.importSvg(resource("test_simple.svg"),
                     SvgImportOptions.fitToFormat(500, "default_station", 0.5, PaperFormat.A4, 10.0, false));
