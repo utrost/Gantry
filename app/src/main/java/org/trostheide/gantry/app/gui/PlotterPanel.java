@@ -70,6 +70,7 @@ public class PlotterPanel extends JPanel {
     private final Semaphore confirmGate = new Semaphore(0);
     private boolean paused;
     private TimeEstimator.PlotEstimate currentEstimate;
+    private volatile int speedPercent = 100;
     private javax.swing.Timer plotClockTimer;
     private long plotStartMillis;
     private long layerStartMillis;
@@ -413,12 +414,17 @@ public class PlotterPanel extends JPanel {
             return;
         }
         currentEstimate = TimeEstimator.estimate(preparePlotOutput(), config.gcode, config.stations);
-        timeLabel.setText("Est: " + TimeEstimator.format(currentEstimate.totalSeconds()));
+        double speedFactor = 100.0 / speedPercent;
+        timeLabel.setText("Est: " + TimeEstimator.format(currentEstimate.totalSeconds() * speedFactor));
         StringBuilder tooltip = new StringBuilder("<html>Per-layer estimate:<br>");
         for (TimeEstimator.LayerEstimate le : currentEstimate.layers()) {
-            tooltip.append(le.layerId()).append(": ").append(TimeEstimator.format(le.estimatedSeconds())).append("<br>");
+            tooltip.append(le.layerId()).append(": ").append(TimeEstimator.format(le.estimatedSeconds() * speedFactor)).append("<br>");
         }
-        tooltip.append("Total: ").append(TimeEstimator.format(currentEstimate.totalSeconds())).append("</html>");
+        tooltip.append("Total: ").append(TimeEstimator.format(currentEstimate.totalSeconds() * speedFactor));
+        if (speedPercent != 100) {
+            tooltip.append(" (at ").append(speedPercent).append("% speed)");
+        }
+        tooltip.append("</html>");
         timeLabel.setToolTipText(tooltip.toString());
     }
 
@@ -427,11 +433,12 @@ public class PlotterPanel extends JPanel {
         if (currentEstimate == null) {
             return;
         }
+        double speedFactor = 100.0 / speedPercent;
         double elapsed = (System.currentTimeMillis() - plotStartMillis) / 1000.0;
         StringBuilder text = new StringBuilder("Elapsed: ")
                 .append(TimeEstimator.format(elapsed))
                 .append(" / Est: ")
-                .append(TimeEstimator.format(currentEstimate.totalSeconds()));
+                .append(TimeEstimator.format(currentEstimate.totalSeconds() * speedFactor));
         if (currentLayerId != null) {
             double layerElapsed = (System.currentTimeMillis() - layerStartMillis) / 1000.0;
             double layerEstimate = currentEstimate.layers().stream()
@@ -439,7 +446,7 @@ public class PlotterPanel extends JPanel {
                     .mapToDouble(TimeEstimator.LayerEstimate::estimatedSeconds)
                     .findFirst().orElse(0);
             text.append(" | ").append(currentLayerId).append(": ")
-                    .append(TimeEstimator.format(layerElapsed)).append(" / ").append(TimeEstimator.format(layerEstimate));
+                    .append(TimeEstimator.format(layerElapsed)).append(" / ").append(TimeEstimator.format(layerEstimate * speedFactor));
         }
         timeLabel.setText(text.toString());
     }
@@ -620,6 +627,12 @@ public class PlotterPanel extends JPanel {
                 gcode.setSpeedCallback(percent -> SwingUtilities.invokeLater(() -> {
                     speedLabel.setText(percent + "%");
                     visPanel.setSpeedPercent(percent);
+                    speedPercent = percent;
+                    if (plotClockTimer == null) {
+                        refreshTimeEstimate();
+                    } else {
+                        updateTimeLabelDuringPlot();
+                    }
                 }));
             }
             connectBtn.setEnabled(false);
