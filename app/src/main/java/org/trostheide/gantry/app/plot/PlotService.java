@@ -154,7 +154,9 @@ public class PlotService {
 
         checkPreflightBounds(contentBounds, machineW, machineH, offsetX, offsetY);
 
+        int layerIndex = 0;
         for (Layer layer : layers) {
+            layerIndex++;
             if (cancelled) {
                 return;
             }
@@ -168,6 +170,8 @@ public class PlotService {
                 return;
             }
             layerStartedCallback.accept(layer);
+            logCallback.accept(String.format("=== Layer '%s' (%d/%d): %d commands ===",
+                    layer.id(), layerIndex, layers.size(), layer.commands().size()));
             executeLayer(layer, machineW, machineH, offsetX, offsetY, contentBounds);
         }
     }
@@ -245,11 +249,17 @@ public class PlotService {
         }
     }
 
+    /** How often (in commands) to log a "Layer ... x% done" progress line while drawing. */
+    private static final int PROGRESS_LOG_INTERVAL = 100;
+
     private void executeLayer(Layer layer, double machineW, double machineH,
             double offsetX, double offsetY, double[] contentBounds) {
         int[] oobCount = {0};
+        int totalCommands = layer.commands().size();
+        int commandIndex = 0;
 
         for (Command cmd : layer.commands()) {
+            commandIndex++;
             if (cancelled) {
                 return;
             }
@@ -276,6 +286,10 @@ public class PlotService {
                 }
             } else if (cmd instanceof RefillCommand refill) {
                 performRefill(refill.stationId);
+            }
+            if (commandIndex % PROGRESS_LOG_INTERVAL == 0 || commandIndex == totalCommands) {
+                logCallback.accept(String.format("Layer '%s': %d/%d commands (%.0f%%)",
+                        layer.id(), commandIndex, totalCommands, 100.0 * commandIndex / totalCommands));
             }
         }
 

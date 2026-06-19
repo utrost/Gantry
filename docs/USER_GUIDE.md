@@ -289,6 +289,17 @@ pre-plot estimate when the plot finishes or is stopped.
 Note: the live "Elapsed" clock is wall-clock time and keeps running while a plot is
 paused, so a long pause will make elapsed time exceed the estimate until resumed.
 
+### Live plot log
+
+While plotting, the **Console** at the bottom of the window streams what's actually
+happening:
+
+- A `=== Layer 'L1' (1/3): 42 commands ===` line each time a new layer starts.
+- Periodic `Layer 'L1': 100/420 commands (24%)` progress lines as it works through a layer.
+- Every G-code line as it's sent to the machine (e.g. `> G1 X10.00 Y20.00 F3000`), prefixed
+  with `>` — useful for confirming exactly what's being commanded in real time, or for
+  diagnosing a stall.
+
 ### Jog controls
 
 | Control | Action |

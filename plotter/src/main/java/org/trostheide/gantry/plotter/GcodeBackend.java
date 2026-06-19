@@ -49,6 +49,7 @@ public class GcodeBackend implements PlotterBackend {
 
     private BiConsumer<Double, Double> positionCallback;
     private IntConsumer speedCallback;
+    private java.util.function.Consumer<String> sentCommandCallback;
 
     private Thread readerThread;
     private Thread pollerThread;
@@ -77,6 +78,11 @@ public class GcodeBackend implements PlotterBackend {
     /** Register a callback(percent) invoked when GRBL's active feed-rate override changes. */
     public void setSpeedCallback(IntConsumer callback) {
         this.speedCallback = callback;
+    }
+
+    /** Register a callback(line) invoked with every G-code line as it's sent to the machine. */
+    public void setSentCommandCallback(java.util.function.Consumer<String> callback) {
+        this.sentCommandCallback = callback;
     }
 
     /**
@@ -324,6 +330,9 @@ public class GcodeBackend implements PlotterBackend {
             synchronized (writeLock) {
                 try {
                     t.writeLine(cmd);
+                    if (sentCommandCallback != null) {
+                        sentCommandCallback.accept(cmd);
+                    }
                 } catch (IOException ignored) {
                     // dropped writes surface as a waitForOk() timeout
                 }

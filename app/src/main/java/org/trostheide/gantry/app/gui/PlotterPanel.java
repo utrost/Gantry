@@ -663,6 +663,7 @@ public class PlotterPanel extends JPanel {
                         updateTimeLabelDuringPlot();
                     }
                 }));
+                gcode.setSentCommandCallback(line -> log("> " + line));
             }
             connectBtn.setEnabled(false);
             statusLabel.setText("Connecting...");
