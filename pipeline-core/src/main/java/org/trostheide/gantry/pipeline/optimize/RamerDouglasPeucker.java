@@ -48,7 +48,9 @@ public final class RamerDouglasPeucker {
                 - lineEnd.x() * lineStart.y() - p.x() * lineEnd.y() - lineStart.x() * p.y()));
         double bottom = Math.hypot(lineStart.x() - lineEnd.x(), lineStart.y() - lineEnd.y());
         if (bottom == 0) {
-            return 0;
+            // Degenerate segment (e.g. a closed path's start == end): fall back to point distance
+            // so closed strokes aren't mistaken for perfectly-collinear points and collapsed away.
+            return Math.hypot(p.x() - lineStart.x(), p.y() - lineStart.y());
         }
         return (area * 2.0) / bottom;
     }
