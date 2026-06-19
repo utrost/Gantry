@@ -416,15 +416,24 @@ public class PlotterPanel extends JPanel {
         confirmBtn.setText("Confirm");
         confirmBtn.setToolTipText("Confirm Layer");
 
-        JPanel row1 = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 2));
+        // Non-wrapping horizontal rows: a FlowLayout would wrap onto a second line once the
+        // control column is narrow, and the wrapped line then gets clipped by capHeight().
+        JPanel row1 = new JPanel();
+        row1.setLayout(new BoxLayout(row1, BoxLayout.X_AXIS));
         row1.add(new JLabel("Passes"));
+        row1.add(Box.createHorizontalStrut(4));
         row1.add(multipassSpinner);
+        row1.add(Box.createHorizontalStrut(4));
         row1.add(startBtn);
+        row1.add(Box.createHorizontalStrut(4));
         row1.add(stopBtn);
 
-        JPanel row2 = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 2));
+        JPanel row2 = new JPanel();
+        row2.setLayout(new BoxLayout(row2, BoxLayout.X_AXIS));
         row2.add(confirmBtn);
+        row2.add(Box.createHorizontalStrut(4));
         row2.add(pauseBtn);
+        row2.add(Box.createHorizontalStrut(4));
         row2.add(disableDuringPlot(plotMoreButton()));
 
         JPanel row3 = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 2));
