@@ -29,7 +29,10 @@ public final class SvgImportDialog extends JDialog {
     private final JSpinner maxDrawDistanceSpinner = new JSpinner(new SpinnerNumberModel(0.0, 0.0, 100000.0, 10.0));
     private final JTextField stationField = new JTextField("default_station", 14);
     private final JSpinner curveStepSpinner = new JSpinner(new SpinnerNumberModel(0.5, 0.01, 10.0, 0.1));
-    private final JComboBox<String> fitToCombo = new JComboBox<>(new String[] {"None", "A5", "A4", "A3", "XL", "Custom"});
+    /** Shown as the initial, non-committal selection so the user must consciously pick a size. */
+    private static final String FIT_TO_PROMPT = "-- Select size --";
+    private final JComboBox<String> fitToCombo = new JComboBox<>(
+            new String[] {FIT_TO_PROMPT, "A6", "A5", "A4", "A3", "A2", "A1", "XL", "Custom"});
     private final JTextField customSizeField = new JTextField("210x297", 10);
     private final JSpinner paddingSpinner = new JSpinner(new SpinnerNumberModel(10.0, 0.0, 500.0, 1.0));
     private final JCheckBox keepAspectRatioCheck = new JCheckBox("Keep aspect ratio", true);
@@ -201,19 +204,24 @@ public final class SvgImportDialog extends JDialog {
         boolean mirror = mirrorCheck.isSelected();
 
         String fitToSelection = (String) fitToCombo.getSelectedItem();
+        if (FIT_TO_PROMPT.equals(fitToSelection)) {
+            JOptionPane.showMessageDialog(this,
+                    "Please choose a 'Fit to' size before importing (e.g. A4, A3, or a custom size).",
+                    "Size required", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
         PaperFormat format = "Custom".equals(fitToSelection)
                 ? PaperFormat.fromString(customSizeField.getText().trim())
-                : PaperFormat.fromString("None".equals(fitToSelection) ? null : fitToSelection);
+                : PaperFormat.fromString(fitToSelection);
 
-        if ("Custom".equals(fitToSelection) && format == null) {
+        if (format == null) {
             JOptionPane.showMessageDialog(this, "Custom size must be 'WxH' in mm, e.g. 210x297.",
                     "Invalid size", JOptionPane.ERROR_MESSAGE);
             return;
         }
 
-        SvgImportOptions importOptions = format != null
-                ? SvgImportOptions.fitToFormat(maxDrawDistance, station, curveStep, format, padding, mirror)
-                : new SvgImportOptions(maxDrawDistance, station, curveStep, 0, 0, keepAspect, 0, 0, mirror);
+        SvgImportOptions importOptions =
+                SvgImportOptions.fitToFormat(maxDrawDistance, station, curveStep, format, padding, mirror, keepAspect);
 
         Config toolboxConfig = null;
         if (toolboxEnableCheck.isSelected()) {

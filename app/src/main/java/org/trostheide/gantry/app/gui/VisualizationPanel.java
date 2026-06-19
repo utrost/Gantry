@@ -37,6 +37,9 @@ public class VisualizationPanel extends JPanel {
     private double targetY = 0;
     private javax.swing.Timer cursorAnimTimer;
 
+    // Current feed-rate override reported by the backend, in percent (100 = nominal).
+    private int speedPercent = 100;
+
     // Machine Bounds (Fixed by Settings - A3 Portrait default)
     private double machineWidth = 297; // A3 Portrait width (short edge)
     private double machineHeight = 420; // A3 Portrait height (long edge)
@@ -345,6 +348,12 @@ public class VisualizationPanel extends JPanel {
         if (!cursorAnimTimer.isRunning()) {
             cursorAnimTimer.start();
         }
+    }
+
+    /** Updates the feed-rate override (percent) shown in the HUD. */
+    public void setSpeedPercent(int percent) {
+        this.speedPercent = percent;
+        repaint();
     }
 
     private void animateCursorStep() {
@@ -752,8 +761,8 @@ public class VisualizationPanel extends JPanel {
         g2.setColor(new Color(180, 180, 180));
         g2.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 11));
         g2.drawString(String.format(
-                "Pos: %.1f, %.1f | Align: %s | Rot: %d | Origin: %s | %s",
-                currentX, currentY, canvasAlignment, dataRotation,
+                "Pos: %.1f, %.1f | Speed: %d%% | Align: %s | Rot: %d | Origin: %s | %s",
+                currentX, currentY, speedPercent, canvasAlignment, dataRotation,
                 machineOrigin, orientation), 10, h - 10);
         if (hasOverlayTransform()) {
             g2.drawString(String.format(

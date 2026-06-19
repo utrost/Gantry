@@ -38,6 +38,11 @@ public record SvgImportOptions(
      */
     public static SvgImportOptions fitToFormat(double maxDrawDistance, String defaultStationId,
             double curveStep, PaperFormat format, double padding, boolean mirror) {
+        return fitToFormat(maxDrawDistance, defaultStationId, curveStep, format, padding, mirror, true);
+    }
+
+    public static SvgImportOptions fitToFormat(double maxDrawDistance, String defaultStationId,
+            double curveStep, PaperFormat format, double padding, boolean mirror, boolean keepAspectRatio) {
         double targetW = 0;
         double targetH = 0;
         if (format != null) {
@@ -45,6 +50,6 @@ public record SvgImportOptions(
             targetH = format.height() - padding * 2;
         }
         return new SvgImportOptions(maxDrawDistance, defaultStationId, curveStep,
-                targetW, targetH, true, 0, 0, mirror);
+                targetW, targetH, keepAspectRatio, 0, 0, mirror);
     }
 }

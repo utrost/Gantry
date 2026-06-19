@@ -67,7 +67,11 @@ public class PlotterPanel extends JPanel {
     private volatile PlotService activeService;
     private final Semaphore confirmGate = new Semaphore(0);
     private boolean paused;
+    private volatile boolean plotting;
     private java.awt.KeyEventDispatcher jogKeyDispatcher;
+
+    /** Controls that should be disabled while a plot is running (jog, pen, speed, edit actions). */
+    private final List<JComponent> plotDisabledControls = new ArrayList<>();
 
     public PlotterPanel() {
         setLayout(new BorderLayout(4, 4));
@@ -139,6 +143,9 @@ public class PlotterPanel extends JPanel {
             if (e.getID() != java.awt.event.KeyEvent.KEY_PRESSED) {
                 return false;
             }
+            if (plotting) {
+                return false;
+            }
             Component focusOwner = KeyboardFocusManager.getCurrentKeyboardFocusManager().getFocusOwner();
             if (focusOwner instanceof javax.swing.text.JTextComponent) {
                 return false;
@@ -171,19 +178,19 @@ public class PlotterPanel extends JPanel {
     private JPanel toolbar() {
         JPanel bar = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 4));
 
-        JButton loadBtn = new JButton("Load Commands...");
+        JButton loadBtn = disableDuringPlot(new JButton("Load Commands..."));
         loadBtn.addActionListener(e -> onLoadCommands());
         bar.add(loadBtn);
 
-        JButton importSvgBtn = new JButton("Import SVG...");
+        JButton importSvgBtn = disableDuringPlot(new JButton("Import SVG..."));
         importSvgBtn.addActionListener(e -> onImportSvg());
         bar.add(importSvgBtn);
 
-        JButton saveBtn = new JButton("Save Commands...");
+        JButton saveBtn = disableDuringPlot(new JButton("Save Commands..."));
         saveBtn.addActionListener(e -> onSaveCommands());
         bar.add(saveBtn);
 
-        JButton settingsBtn = new JButton("Settings...");
+        JButton settingsBtn = disableDuringPlot(new JButton("Settings..."));
         settingsBtn.addActionListener(e -> onOpenSettings());
         bar.add(settingsBtn);
 
@@ -193,6 +200,12 @@ public class PlotterPanel extends JPanel {
         bar.add(Box.createHorizontalStrut(12));
         bar.add(statusLabel);
         return bar;
+    }
+
+    /** Registers controls so they get disabled while a plot is running, then returns them for layout. */
+    private <T extends JComponent> T disableDuringPlot(T component) {
+        plotDisabledControls.add(component);
+        return component;
     }
 
     private static final Dimension JOG_BUTTON_SIZE = new Dimension(72, 72);
@@ -211,10 +224,10 @@ public class PlotterPanel extends JPanel {
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.insets = new Insets(3, 3, 3, 3);
 
-        JButton up = jogButton("▲");
-        JButton down = jogButton("▼");
-        JButton left = jogButton("◄");
-        JButton right = jogButton("►");
+        JButton up = disableDuringPlot(jogButton("▲"));
+        JButton down = disableDuringPlot(jogButton("▼"));
+        JButton left = disableDuringPlot(jogButton("◄"));
+        JButton right = disableDuringPlot(jogButton("►"));
         up.addActionListener(e -> jog(0, 1));
         down.addActionListener(e -> jog(0, -1));
         left.addActionListener(e -> jog(-1, 0));
@@ -228,12 +241,12 @@ public class PlotterPanel extends JPanel {
         gbc.gridx = 0; gbc.gridy = 3; gbc.gridwidth = 1;
         panel.add(new JLabel("Step (mm)"), gbc);
         gbc.gridx = 1; gbc.gridy = 3; gbc.gridwidth = 2;
-        panel.add(jogStepSpinner, gbc);
+        panel.add(disableDuringPlot(jogStepSpinner), gbc);
 
         gbc.gridx = 0; gbc.gridy = 4; gbc.gridwidth = 3;
         JPanel penButtons = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 0));
-        JButton penUpBtn = new JButton("Pen Up");
-        JButton penDownBtn = new JButton("Pen Down");
+        JButton penUpBtn = disableDuringPlot(new JButton("Pen Up"));
+        JButton penDownBtn = disableDuringPlot(new JButton("Pen Down"));
         penUpBtn.addActionListener(e -> runOnBackend(PlotterBackend::penup));
         penDownBtn.addActionListener(e -> runOnBackend(PlotterBackend::pendown));
         penButtons.add(penUpBtn);
@@ -256,7 +269,7 @@ public class PlotterPanel extends JPanel {
         panel.add(speedRow, gbc);
 
         gbc.gridx = 0; gbc.gridy = 6; gbc.gridwidth = 3;
-        JButton homeBtn = new JButton("⌂ Home (limit switches)");
+        JButton homeBtn = disableDuringPlot(new JButton("⌂ Home (limit switches)"));
         homeBtn.setFont(homeBtn.getFont().deriveFont(Font.BOLD));
         homeBtn.setToolTipText("Run the homing cycle against the limit switches");
         homeBtn.addActionListener(e -> onHome());
@@ -281,7 +294,7 @@ public class PlotterPanel extends JPanel {
         panel.add(reorderStrokesCheckBox, gbc);
 
         gbc.gridx = 0; gbc.gridy = 2; gbc.gridwidth = 2;
-        JButton optimizeBtn = new JButton("Optimize Loaded Commands");
+        JButton optimizeBtn = disableDuringPlot(new JButton("Optimize Loaded Commands"));
         optimizeBtn.addActionListener(e -> onOptimize());
         panel.add(optimizeBtn, gbc);
 
@@ -293,9 +306,9 @@ public class PlotterPanel extends JPanel {
         panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
         panel.setBorder(section("Overlay / Position"));
 
-        JButton resetBtn = new JButton("Reset Position");
-        JButton rotateBtn = new JButton("Rotate 90°");
-        JButton mirrorBtn = new JButton("Mirror");
+        JButton resetBtn = disableDuringPlot(new JButton("Reset Position"));
+        JButton rotateBtn = disableDuringPlot(new JButton("Rotate 90°"));
+        JButton mirrorBtn = disableDuringPlot(new JButton("Mirror"));
         resetBtn.addActionListener(e -> visPanel.resetOverlay());
         rotateBtn.addActionListener(e -> visPanel.rotateOverlay());
         mirrorBtn.addActionListener(e -> visPanel.toggleMirror());
@@ -308,11 +321,11 @@ public class PlotterPanel extends JPanel {
         JPanel posRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 2));
         posRow.add(new JLabel("X"));
         posXSpinner.setPreferredSize(new Dimension(70, posXSpinner.getPreferredSize().height));
-        posRow.add(posXSpinner);
+        posRow.add(disableDuringPlot(posXSpinner));
         posRow.add(new JLabel("Y (mm from origin)"));
         posYSpinner.setPreferredSize(new Dimension(70, posYSpinner.getPreferredSize().height));
-        posRow.add(posYSpinner);
-        JButton setPosBtn = new JButton("Set");
+        posRow.add(disableDuringPlot(posYSpinner));
+        JButton setPosBtn = disableDuringPlot(new JButton("Set"));
         setPosBtn.addActionListener(e -> applyPositionFromFields());
         posRow.add(setPosBtn);
 
@@ -363,11 +376,11 @@ public class PlotterPanel extends JPanel {
         row1.add(stopBtn);
 
         JPanel row2 = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 2));
-        JButton exportBtn = new JButton("Export G-code...");
+        JButton exportBtn = disableDuringPlot(new JButton("Export G-code..."));
         exportBtn.addActionListener(e -> onExportGcode());
         row2.add(exportBtn);
 
-        JButton replayBtn = new JButton("Replay G-code...");
+        JButton replayBtn = disableDuringPlot(new JButton("Replay G-code..."));
         replayBtn.addActionListener(e -> onReplayGcode());
         row2.add(replayBtn);
 
@@ -383,7 +396,8 @@ public class PlotterPanel extends JPanel {
         JPanel panel = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 4));
         panel.setBorder(section("Raw G-code"));
 
-        JButton sendBtn = new JButton("Send");
+        JButton sendBtn = disableDuringPlot(new JButton("Send"));
+        disableDuringPlot(rawCommandField);
         ActionListener send = e -> {
             String cmd = rawCommandField.getText().trim();
             if (cmd.isEmpty()) {
@@ -548,7 +562,10 @@ public class PlotterPanel extends JPanel {
             PlotterBackend newBackend = config.mock ? new MockPlotterBackend(this::log) : new GcodeBackend(config.gcode);
             if (newBackend instanceof GcodeBackend gcode) {
                 gcode.setPositionCallback((x, y) -> SwingUtilities.invokeLater(() -> visPanel.updatePosition(x, y)));
-                gcode.setSpeedCallback(percent -> SwingUtilities.invokeLater(() -> speedLabel.setText(percent + "%")));
+                gcode.setSpeedCallback(percent -> SwingUtilities.invokeLater(() -> {
+                    speedLabel.setText(percent + "%");
+                    visPanel.setSpeedPercent(percent);
+                }));
             }
             connectBtn.setEnabled(false);
             statusLabel.setText("Connecting...");
@@ -647,10 +664,15 @@ public class PlotterPanel extends JPanel {
     }
 
     private void setPlottingState(boolean plotting) {
+        this.plotting = plotting;
         startBtn.setEnabled(!plotting);
         confirmBtn.setEnabled(plotting);
         pauseBtn.setEnabled(plotting);
         stopBtn.setEnabled(plotting);
+        // Jog/pen/edit controls are unsafe to use mid-plot — disable them while plotting.
+        for (JComponent c : plotDisabledControls) {
+            c.setEnabled(!plotting);
+        }
         if (!plotting) {
             paused = false;
             pauseBtn.setText("Pause");

@@ -170,7 +170,7 @@ Click **Import SVG…** and choose an SVG file. A two-tab dialog opens.
 | Max draw distance (mm) | Insert a REFILL command every N mm of drawing. Set to 0 for no refill (pure pen plotting). |
 | Default station ID | Refill station used for layers that have no explicit station assignment. |
 | Curve step (mm) | Bezier curve linearization resolution (default 0.5 mm). |
-| Fit to | Scale to fit a paper format: A5 · A4 · A3 · XL · Custom (WxH mm). |
+| Fit to | **Required.** Scale to fit a paper format: A6 · A5 · A4 · A3 · A2 · A1 · XL · Custom (WxH mm). You must choose a size before importing — the dialog starts on "-- Select size --" and will not import until a real format (or Custom) is picked. |
 | Custom size | WxH in mm, e.g. `210x297`. Active only when Fit to = Custom. |
 | Padding (mm) | Margin inside the target format when using Fit to. |
 | Keep aspect ratio | Prevents distortion when fitting to a format. |
@@ -259,6 +259,16 @@ already-loaded commands:
 6. Click **Stop** at any time to cancel. This immediately halts the plotter (including any motion already queued on the controller) and raises the pen, rather than just stopping new commands from being sent.
 
 Multipass: set **Passes** (1–10) to draw every stroke N times.
+
+While a plot is running, the jog/pen/edit controls (jog arrows and keyboard/numpad
+jogging, Pen Up/Down, Home, position fields, Optimize, Overlay, Load/Import/Save,
+Export/Replay and the raw G-code field) are disabled to prevent interfering with the
+job. Only **Confirm Layer**, **Pause/Resume**, **Stop** and the **Speed +/−/Reset**
+override remain active. The controls re-enable automatically when the plot finishes or
+is stopped.
+
+The Live View HUD shows the current feed-rate override as **Speed: N%**, alongside the
+head position, so you can see the effect of the Speed buttons at a glance.
 
 ### Jog controls
 
