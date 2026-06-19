@@ -50,6 +50,7 @@ public class PlotterPanel extends JPanel {
     private final JButton connectBtn = new JButton("Connect");
     private final JButton startBtn = new JButton("Start Plot");
     private final JButton confirmBtn = new JButton("Confirm Layer");
+    private final JButton pauseBtn = new JButton("Pause");
     private final JButton stopBtn = new JButton("Stop");
     private final JLabel statusLabel = new JLabel("Disconnected");
     private final JLabel speedLabel = new JLabel("100%");
@@ -63,6 +64,8 @@ public class PlotterPanel extends JPanel {
     private ProcessorOutput currentOutput;
     private volatile PlotService activeService;
     private final Semaphore confirmGate = new Semaphore(0);
+    private boolean paused;
+    private java.awt.KeyEventDispatcher jogKeyDispatcher;
 
     public PlotterPanel() {
         setLayout(new BorderLayout(4, 4));
@@ -74,7 +77,7 @@ public class PlotterPanel extends JPanel {
         console.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 12));
         JScrollPane consoleScroll = new JScrollPane(console);
         consoleScroll.setBorder(section("Console"));
-        consoleScroll.setPreferredSize(new Dimension(360, 200));
+        consoleScroll.setPreferredSize(new Dimension(260, 160));
 
         JPanel right = new JPanel();
         right.setLayout(new BoxLayout(right, BoxLayout.Y_AXIS));
@@ -92,12 +95,61 @@ public class PlotterPanel extends JPanel {
         right.add(Box.createVerticalStrut(6));
         right.add(consoleScroll);
 
+        right.setPreferredSize(new Dimension(300, right.getPreferredSize().height));
+
         JSplitPane split = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, visPanel, right);
-        split.setResizeWeight(0.7);
+        split.setResizeWeight(0.85);
         add(split, BorderLayout.CENTER);
+
+        startBtn.setBackground(new Color(46, 125, 50));
+        startBtn.setForeground(Color.WHITE);
+        startBtn.setOpaque(true);
+        stopBtn.setBackground(new Color(198, 40, 40));
+        stopBtn.setForeground(Color.WHITE);
+        stopBtn.setOpaque(true);
 
         applyConfigToVis();
         setPlottingState(false);
+        installJogKeyBindings();
+    }
+
+    @Override
+    public void addNotify() {
+        super.addNotify();
+        if (jogKeyDispatcher != null) {
+            KeyboardFocusManager.getCurrentKeyboardFocusManager().addKeyEventDispatcher(jogKeyDispatcher);
+        }
+    }
+
+    @Override
+    public void removeNotify() {
+        if (jogKeyDispatcher != null) {
+            KeyboardFocusManager.getCurrentKeyboardFocusManager().removeKeyEventDispatcher(jogKeyDispatcher);
+        }
+        super.removeNotify();
+    }
+
+    /**
+     * Lets the arrow keys jog X/Y from anywhere in the window, except while a text field or
+     * spinner editor has focus (so normal text-cursor navigation keeps working there).
+     */
+    private void installJogKeyBindings() {
+        jogKeyDispatcher = e -> {
+            if (e.getID() != java.awt.event.KeyEvent.KEY_PRESSED) {
+                return false;
+            }
+            Component focusOwner = KeyboardFocusManager.getCurrentKeyboardFocusManager().getFocusOwner();
+            if (focusOwner instanceof javax.swing.text.JTextComponent) {
+                return false;
+            }
+            switch (e.getKeyCode()) {
+                case java.awt.event.KeyEvent.VK_UP -> { jog(0, 1); return true; }
+                case java.awt.event.KeyEvent.VK_DOWN -> { jog(0, -1); return true; }
+                case java.awt.event.KeyEvent.VK_LEFT -> { jog(-1, 0); return true; }
+                case java.awt.event.KeyEvent.VK_RIGHT -> { jog(1, 0); return true; }
+                default -> { return false; }
+            }
+        };
     }
 
     private JPanel toolbar() {
@@ -234,12 +286,14 @@ public class PlotterPanel extends JPanel {
 
         startBtn.addActionListener(e -> onStartPlot());
         confirmBtn.addActionListener(e -> confirmGate.release());
+        pauseBtn.addActionListener(e -> onPauseToggle());
         stopBtn.addActionListener(e -> onStopPlot());
 
         panel.add(new JLabel("Passes"));
         panel.add(multipassSpinner);
         panel.add(startBtn);
         panel.add(confirmBtn);
+        panel.add(pauseBtn);
         panel.add(stopBtn);
 
         JButton exportBtn = new JButton("Export G-code...");
@@ -464,12 +518,36 @@ public class PlotterPanel extends JPanel {
             service.cancel();
         }
         confirmGate.release();
+        // Cancelling only stops further commands from being sent; the backend may already have
+        // queued motion in flight (e.g. GRBL's planner buffer), so halt it immediately too.
+        runOnBackend(PlotterBackend::haltMotion);
+    }
+
+    private void onPauseToggle() {
+        PlotService service = activeService;
+        if (service == null) {
+            return;
+        }
+        if (!paused) {
+            service.pause();
+            paused = true;
+            pauseBtn.setText("Resume");
+        } else {
+            service.resume();
+            paused = false;
+            pauseBtn.setText("Pause");
+        }
     }
 
     private void setPlottingState(boolean plotting) {
         startBtn.setEnabled(!plotting);
         confirmBtn.setEnabled(plotting);
+        pauseBtn.setEnabled(plotting);
         stopBtn.setEnabled(plotting);
+        if (!plotting) {
+            paused = false;
+            pauseBtn.setText("Pause");
+        }
     }
 
     private void jog(int dxDir, int dyDir) {

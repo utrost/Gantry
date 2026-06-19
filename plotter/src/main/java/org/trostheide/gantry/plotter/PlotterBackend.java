@@ -46,4 +46,11 @@ public interface PlotterBackend {
      */
     default void home() {
     }
+
+    /**
+     * Immediately halts any in-progress/queued motion, e.g. via a realtime
+     * soft-reset, bypassing the normal command queue. No-op if unsupported.
+     */
+    default void haltMotion() {
+    }
 }

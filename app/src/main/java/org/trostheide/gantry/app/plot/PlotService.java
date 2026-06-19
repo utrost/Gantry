@@ -42,6 +42,8 @@ public class PlotService {
     private BiConsumer<Double, Double> commandedPositionCallback = (x, y) -> { };
 
     private volatile boolean cancelled;
+    private volatile boolean paused;
+    private final Object pauseLock = new Object();
 
     public PlotService(PlotterBackend backend, PlotSettings settings) {
         this.backend = backend;
@@ -70,6 +72,47 @@ public class PlotService {
     /** Requests that the current/upcoming {@link #plot} call stop as soon as possible. */
     public void cancel() {
         cancelled = true;
+        synchronized (pauseLock) {
+            pauseLock.notifyAll();
+        }
+    }
+
+    /** Pauses plotting before the next command and lifts the pen. Resumable via {@link #resume()}. */
+    public void pause() {
+        synchronized (pauseLock) {
+            if (paused) {
+                return;
+            }
+            paused = true;
+        }
+        backend.penup();
+        logCallback.accept("--- Paused (pen up) ---");
+    }
+
+    /** Resumes a plot previously paused via {@link #pause()}. */
+    public void resume() {
+        synchronized (pauseLock) {
+            if (!paused) {
+                return;
+            }
+            paused = false;
+            pauseLock.notifyAll();
+        }
+        logCallback.accept("--- Resumed ---");
+    }
+
+    /** Blocks the calling (plot) thread while paused, returning immediately once resumed or cancelled. */
+    private void awaitResume() {
+        synchronized (pauseLock) {
+            while (paused && !cancelled) {
+                try {
+                    pauseLock.wait();
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    return;
+                }
+            }
+        }
     }
 
     /**
@@ -199,12 +242,20 @@ public class PlotService {
             if (cancelled) {
                 return;
             }
+            awaitResume();
+            if (cancelled) {
+                return;
+            }
             if (cmd instanceof MoveCommand move) {
                 double[] p = transformAndClamp(move.x, move.y, machineW, machineH, offsetX, offsetY, contentBounds, oobCount);
                 backend.moveto(p[0], p[1]);
                 reportPosition(p[0], p[1]);
             } else if (cmd instanceof DrawCommand draw) {
                 for (Point point : draw.points) {
+                    if (cancelled) {
+                        return;
+                    }
+                    awaitResume();
                     if (cancelled) {
                         return;
                     }

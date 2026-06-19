@@ -243,6 +243,34 @@ public class GcodeBackend implements PlotterBackend {
         lastWpos = new double[] { 0.0, 0.0 };
     }
 
+    /**
+     * Immediately halts motion via GRBL's realtime soft-reset ({@code 0x18}), which stops the
+     * steppers and discards the planner buffer (the source of the "still moves a bit after Stop"
+     * lag, since normal lines only wait for "ok"/acceptance into the buffer, not motion completion).
+     * Clears the resulting alarm with {@code $X} and lifts the pen.
+     */
+    @Override
+    public void haltMotion() {
+        SerialTransport t = transport;
+        if (t == null || !t.isOpen()) {
+            return;
+        }
+        ackQueue.clear();
+        rawQueue.clear();
+        synchronized (writeLock) {
+            try {
+                t.writeBytes(new byte[] { 0x18 });
+            } catch (IOException ignored) {
+                // realtime commands are fire-and-forget
+            }
+        }
+        sleepQuietly(500);
+        ackQueue.clear();
+        send("$X");
+        waitForOk(5);
+        penup();
+    }
+
     /** Returns the most recent work position reported by the poller, or null if disconnected. */
     @Override
     public double[] queryPosition() {
