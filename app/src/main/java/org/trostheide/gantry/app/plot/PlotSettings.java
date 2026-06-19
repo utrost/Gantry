@@ -24,6 +24,14 @@ public class PlotSettings {
     /** "top-left", "top-right", "bottom-left", "bottom-right", "center", or null to disable. */
     public String canvasAlign;
 
+    /**
+     * When non-null, this {x, y} offset (mm) is used verbatim instead of recomputing the
+     * alignment offset from content bounds. Lets the GUI plot exactly what the live preview
+     * shows, including interactive drag/numeric positioning, instead of re-aligning the
+     * (already-baked) content and silently undoing the placement.
+     */
+    public double[] alignmentOffsetOverride;
+
     /** True when the machine's physical origin is at the top-right. */
     public boolean originRight;
 

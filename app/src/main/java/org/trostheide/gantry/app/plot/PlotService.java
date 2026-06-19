@@ -131,7 +131,11 @@ public class PlotService {
 
         double offsetX = 0;
         double offsetY = 0;
-        if (settings.canvasAlign != null && contentBounds != null) {
+        if (settings.alignmentOffsetOverride != null) {
+            offsetX = settings.alignmentOffsetOverride[0];
+            offsetY = settings.alignmentOffsetOverride[1];
+            logCallback.accept(String.format("Alignment offset (from preview) -> X=%.2f, Y=%.2f", offsetX, offsetY));
+        } else if (settings.canvasAlign != null && contentBounds != null) {
             double[] offset = CoordinateTransform.calculateAlignmentOffset(
                     settings.canvasAlign, contentBounds, machineW, machineH,
                     settings.swapXY, settings.invertX, settings.invertY,

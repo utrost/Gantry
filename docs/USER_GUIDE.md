@@ -220,6 +220,12 @@ After import, the drawing appears in the visualisation panel.
 | **Rotate 90°** | Rotate the drawing 90° clockwise |
 | **Mirror** | Flip horizontally |
 | **Reset Position** | Return to the canvas-alignment position from Settings |
+| **X / Y (mm from origin) + Set** | Place the drawing precisely: the entered values become the position of the drawing's bounding-box corner nearest the machine origin. The fields also update live as you drag. |
+
+Whatever you see in the preview — drag, resize, rotate, mirror or the numeric
+position — is exactly what gets plotted and exported. The alignment offset shown
+in the live view is carried through to the plotter, so positioning is no longer
+overridden by the canvas-alignment re-centering at plot time.
 
 The visualisation shows:
 - Dark background with the machine bed outline

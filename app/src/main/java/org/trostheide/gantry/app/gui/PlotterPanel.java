@@ -59,6 +59,8 @@ public class PlotterPanel extends JPanel {
     private final JSpinner simplifyToleranceSpinner = new JSpinner(new SpinnerNumberModel(0.2, 0.0, 10.0, 0.1));
     private final JCheckBox reorderStrokesCheckBox = new JCheckBox("Reorder strokes (minimize travel)", true);
     private final JSpinner multipassSpinner = new JSpinner(new SpinnerNumberModel(1, 1, 10, 1));
+    private final JSpinner posXSpinner = new JSpinner(new SpinnerNumberModel(0.0, -2000.0, 2000.0, 1.0));
+    private final JSpinner posYSpinner = new JSpinner(new SpinnerNumberModel(0.0, -2000.0, 2000.0, 1.0));
 
     private PlotterBackend backend;
     private ProcessorOutput currentOutput;
@@ -241,7 +243,9 @@ public class PlotterPanel extends JPanel {
         panel.add(penButtons, gbc);
 
         gbc.gridx = 0; gbc.gridy = 5; gbc.gridwidth = 3;
-        JButton homeBtn = new JButton("Home (limit switches)");
+        JButton homeBtn = new JButton("⌂ Home (limit switches)");
+        homeBtn.setFont(homeBtn.getFont().deriveFont(Font.BOLD));
+        homeBtn.setToolTipText("Run the homing cycle against the limit switches");
         homeBtn.addActionListener(e -> onHome());
         panel.add(homeBtn, gbc);
 
@@ -290,8 +294,9 @@ public class PlotterPanel extends JPanel {
     }
 
     private JPanel overlaySection() {
-        JPanel panel = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 4));
-        panel.setBorder(section("Overlay"));
+        JPanel panel = new JPanel();
+        panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
+        panel.setBorder(section("Overlay / Position"));
 
         JButton resetBtn = new JButton("Reset Position");
         JButton rotateBtn = new JButton("Rotate 90°");
@@ -300,14 +305,53 @@ public class PlotterPanel extends JPanel {
         rotateBtn.addActionListener(e -> visPanel.rotateOverlay());
         mirrorBtn.addActionListener(e -> visPanel.toggleMirror());
 
-        panel.add(resetBtn);
-        panel.add(rotateBtn);
-        panel.add(mirrorBtn);
+        JPanel buttons = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 2));
+        buttons.add(resetBtn);
+        buttons.add(rotateBtn);
+        buttons.add(mirrorBtn);
+
+        JPanel posRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 2));
+        posRow.add(new JLabel("X"));
+        posXSpinner.setPreferredSize(new Dimension(70, posXSpinner.getPreferredSize().height));
+        posRow.add(posXSpinner);
+        posRow.add(new JLabel("Y (mm from origin)"));
+        posYSpinner.setPreferredSize(new Dimension(70, posYSpinner.getPreferredSize().height));
+        posRow.add(posYSpinner);
+        JButton setPosBtn = new JButton("Set");
+        setPosBtn.addActionListener(e -> applyPositionFromFields());
+        posRow.add(setPosBtn);
+
+        buttons.setAlignmentX(LEFT_ALIGNMENT);
+        posRow.setAlignmentX(LEFT_ALIGNMENT);
+        panel.add(buttons);
+        panel.add(posRow);
+
+        // Keep the numeric fields in sync as the drawing is dragged/positioned interactively.
+        visPanel.setOverlayChangeListener(this::refreshPositionFields);
         return panel;
     }
 
+    /** Moves the drawing so its origin-nearest corner sits at the X/Y entered in the fields. */
+    private void applyPositionFromFields() {
+        if (currentOutput == null) {
+            log("ERROR: Load or import commands first.");
+            return;
+        }
+        double x = ((Number) posXSpinner.getValue()).doubleValue();
+        double y = ((Number) posYSpinner.getValue()).doubleValue();
+        visPanel.setContentMotorMin(x, y);
+    }
+
+    /** Reflects the drawing's current origin-nearest corner position into the X/Y fields. */
+    private void refreshPositionFields() {
+        double[] pos = visPanel.getContentMotorMin();
+        posXSpinner.setValue(Math.round(pos[0] * 10.0) / 10.0);
+        posYSpinner.setValue(Math.round(pos[1] * 10.0) / 10.0);
+    }
+
     private JPanel plotSection() {
-        JPanel panel = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 4));
+        JPanel panel = new JPanel();
+        panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
         panel.setBorder(section("Plot"));
 
         startBtn.addActionListener(e -> onStartPlot());
@@ -315,20 +359,27 @@ public class PlotterPanel extends JPanel {
         pauseBtn.addActionListener(e -> onPauseToggle());
         stopBtn.addActionListener(e -> onStopPlot());
 
-        panel.add(new JLabel("Passes"));
-        panel.add(multipassSpinner);
-        panel.add(startBtn);
-        panel.add(confirmBtn);
-        panel.add(pauseBtn);
-        panel.add(stopBtn);
+        JPanel row1 = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 2));
+        row1.add(new JLabel("Passes"));
+        row1.add(multipassSpinner);
+        row1.add(startBtn);
+        row1.add(confirmBtn);
+        row1.add(pauseBtn);
+        row1.add(stopBtn);
 
+        JPanel row2 = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 2));
         JButton exportBtn = new JButton("Export G-code...");
         exportBtn.addActionListener(e -> onExportGcode());
-        panel.add(exportBtn);
+        row2.add(exportBtn);
 
         JButton replayBtn = new JButton("Replay G-code...");
         replayBtn.addActionListener(e -> onReplayGcode());
-        panel.add(replayBtn);
+        row2.add(replayBtn);
+
+        row1.setAlignmentX(LEFT_ALIGNMENT);
+        row2.setAlignmentX(LEFT_ALIGNMENT);
+        panel.add(row1);
+        panel.add(row2);
 
         return panel;
     }
@@ -376,6 +427,7 @@ public class PlotterPanel extends JPanel {
         try {
             currentOutput = CommandFile.load(file);
             visPanel.loadFromOutput(currentOutput);
+            refreshPositionFields();
             log("Loaded " + file.getName());
         } catch (IOException ex) {
             log("ERROR: Failed to load " + file.getName() + ": " + ex.getMessage());
@@ -400,6 +452,7 @@ public class PlotterPanel extends JPanel {
                     ? SvgImportStage.importSvg(file, dialogResult.toolboxConfig(), dialogResult.importOptions())
                     : SvgImportStage.importSvg(file, dialogResult.importOptions());
             visPanel.loadFromOutput(currentOutput);
+            refreshPositionFields();
             log(String.format("Imported %s: %d layer(s), %d command(s)",
                     file.getName(), currentOutput.layers().size(), currentOutput.metadata().totalCommands()));
         } catch (IOException ex) {
@@ -439,6 +492,7 @@ public class PlotterPanel extends JPanel {
         OptimizeStage.Stats after = OptimizeStage.computeStats(currentOutput);
 
         visPanel.loadFromOutput(currentOutput);
+        refreshPositionFields();
 
         double travelSavedPct = before.travelDistanceMm() <= 0 ? 0
                 : 100.0 * (before.travelDistanceMm() - after.travelDistanceMm()) / before.travelDistanceMm();
@@ -513,6 +567,9 @@ public class PlotterPanel extends JPanel {
         PlotSettings settings = config.toPlotSettings();
         settings.reportPosition = true;
         settings.realtimePosition = backend instanceof GcodeBackend;
+        // Plot exactly what the preview shows: use the offset the visualization is displaying
+        // (incl. any interactive drag/numeric positioning) rather than re-aligning baked content.
+        settings.alignmentOffsetOverride = new double[] { visPanel.getAlignOffsetX(), visPanel.getAlignOffsetY() };
 
         PlotService service = new PlotService(backend, settings);
         service.setLogCallback(this::log);
@@ -652,6 +709,7 @@ public class PlotterPanel extends JPanel {
 
         ProcessorOutput toExport = preparePlotOutput();
         PlotSettings settings = config.toPlotSettings();
+        settings.alignmentOffsetOverride = new double[] { visPanel.getAlignOffsetX(), visPanel.getAlignOffsetY() };
 
         new Thread(() -> {
             GcodeFileBackend fileBackend = new GcodeFileBackend(config.gcode, file);
@@ -692,7 +750,12 @@ public class PlotterPanel extends JPanel {
         }, "gcode-replay").start();
     }
 
-    /** Bakes the interactive overlay transform (drag/resize/rotate/mirror) into raw content coordinates. */
+    /**
+     * Returns a copy of {@code output} with the interactive overlay transform
+     * (drag/resize/rotate/mirror) baked into raw content coordinates. Does not mutate the
+     * input, so {@link #currentOutput} stays in its original (un-baked) frame and can be
+     * re-plotted or re-positioned without compounding the transform.
+     */
     private ProcessorOutput bakeOverlay(ProcessorOutput output) {
         double[] rawBounds = visPanel.getRawBounds();
         double cx = (rawBounds[0] + rawBounds[1]) / 2.0;
@@ -703,18 +766,27 @@ public class PlotterPanel extends JPanel {
         int rotation = visPanel.getOverlayRotation();
         boolean mirror = visPanel.isOverlayMirror();
 
+        List<Layer> bakedLayers = new ArrayList<>();
         for (Layer layer : output.layers()) {
+            List<Command> bakedCommands = new ArrayList<>();
             for (Command cmd : layer.commands()) {
                 if (cmd instanceof DrawCommand draw) {
-                    for (int i = 0; i < draw.points.size(); i++) {
-                        Point p = draw.points.get(i);
+                    List<Point> bakedPoints = new ArrayList<>(draw.points.size());
+                    for (Point p : draw.points) {
                         double[] np = CoordinateTransform.applyOverlayRaw(p.x(), p.y(), cx, cy, scale, offsetX, offsetY, rotation, mirror);
-                        draw.points.set(i, new Point(np[0], np[1]));
+                        bakedPoints.add(new Point(np[0], np[1]));
                     }
+                    bakedCommands.add(new DrawCommand(draw.id, bakedPoints));
+                } else if (cmd instanceof org.trostheide.gantry.model.command.MoveCommand move) {
+                    double[] np = CoordinateTransform.applyOverlayRaw(move.x, move.y, cx, cy, scale, offsetX, offsetY, rotation, mirror);
+                    bakedCommands.add(new org.trostheide.gantry.model.command.MoveCommand(move.id, np[0], np[1]));
+                } else {
+                    bakedCommands.add(cmd);
                 }
             }
+            bakedLayers.add(new Layer(layer.id(), layer.stationId(), bakedCommands));
         }
-        return output;
+        return new ProcessorOutput(output.metadata(), bakedLayers);
     }
 
     private void applyConfigToVis() {

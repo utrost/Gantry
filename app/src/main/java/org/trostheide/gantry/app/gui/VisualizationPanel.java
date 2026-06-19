@@ -511,6 +511,71 @@ public class VisualizationPanel extends JPanel {
         return motor;
     }
 
+    /**
+     * Returns the {x, y} motor-space (mm-from-origin) position of the content bounding box's
+     * corner nearest the machine origin, including the current overlay transform. This is the
+     * value surfaced to the numeric position fields.
+     */
+    public double[] getContentMotorMin() {
+        if (allPaths.isEmpty()) {
+            return new double[] { 0, 0 };
+        }
+        Point2D[] corners = {
+            new Point2D(rawMinX, rawMinY), new Point2D(rawMaxX, rawMinY),
+            new Point2D(rawMinX, rawMaxY), new Point2D(rawMaxX, rawMaxY)
+        };
+        double mMinX = Double.MAX_VALUE, mMinY = Double.MAX_VALUE;
+        for (Point2D c : corners) {
+            double[] m = transformPointToMotor(c);
+            mMinX = Math.min(mMinX, m[0]);
+            mMinY = Math.min(mMinY, m[1]);
+        }
+        return new double[] { mMinX, mMinY };
+    }
+
+    /**
+     * Positions the content so its origin-nearest bounding-box corner lands at the given
+     * motor coordinates (mm from origin), then re-clamps to the bed.
+     */
+    public void setContentMotorMin(double targetX, double targetY) {
+        if (allPaths.isEmpty()) {
+            return;
+        }
+        double[] cur = getContentMotorMin();
+        applyMotorShift(targetX - cur[0], targetY - cur[1]);
+        clampOverlayToBed();
+        repaint();
+        fireOverlayChange();
+    }
+
+    /**
+     * Adjusts the raw-space overlay offset to translate the content by the given motor-space
+     * delta (mm). Uses a finite-difference Jacobian because the raw→motor mapping involves
+     * swap/invert/rotate, so a motor delta is not simply a raw delta.
+     */
+    private void applyMotorShift(double shiftMmX, double shiftMmY) {
+        if (shiftMmX == 0 && shiftMmY == 0) {
+            return;
+        }
+        double cx = (rawMinX + rawMaxX) / 2.0;
+        double cy = (rawMinY + rawMaxY) / 2.0;
+        double[] baseMotor = transformPointToMotor(new Point2D(cx, cy));
+        double savedOX = overlayOffsetX, savedOY = overlayOffsetY;
+        overlayOffsetX += 1;
+        double[] dxMotor = transformPointToMotor(new Point2D(cx, cy));
+        overlayOffsetX = savedOX;
+        overlayOffsetY += 1;
+        double[] dyMotor = transformPointToMotor(new Point2D(cx, cy));
+        overlayOffsetY = savedOY;
+        double a = dxMotor[0] - baseMotor[0], b = dyMotor[0] - baseMotor[0];
+        double c2 = dxMotor[1] - baseMotor[1], d = dyMotor[1] - baseMotor[1];
+        double det = a * d - b * c2;
+        if (Math.abs(det) > 1e-10) {
+            overlayOffsetX += (shiftMmX * d - shiftMmY * b) / det;
+            overlayOffsetY += (a * shiftMmY - c2 * shiftMmX) / det;
+        }
+    }
+
     private void clampOverlayToBed() {
         if (allPaths.isEmpty()) return;
         Point2D[] corners = {
@@ -531,30 +596,7 @@ public class VisualizationPanel extends JPanel {
         else if (mMaxX > bedW) shiftMmX = bedW - mMaxX;
         if (mMinY < 0) shiftMmY = -mMinY;
         else if (mMaxY > bedH) shiftMmY = bedH - mMaxY;
-        if (shiftMmX != 0 || shiftMmY != 0) {
-            // Convert motor-space correction back to raw content space
-            // Use the same finite-difference approach but in reverse (motor->raw)
-            double cx = (rawMinX + rawMaxX) / 2.0;
-            double cy = (rawMinY + rawMaxY) / 2.0;
-            double[] baseMotor = transformPointToMotor(new Point2D(cx, cy));
-            // Temporarily adjust offset by +1 in each axis to measure the mapping
-            double savedOX = overlayOffsetX, savedOY = overlayOffsetY;
-            overlayOffsetX += 1;
-            double[] dxMotor = transformPointToMotor(new Point2D(cx, cy));
-            overlayOffsetX = savedOX;
-            overlayOffsetY += 1;
-            double[] dyMotor = transformPointToMotor(new Point2D(cx, cy));
-            overlayOffsetY = savedOY;
-            double a = dxMotor[0] - baseMotor[0], b = dyMotor[0] - baseMotor[0];
-            double c2 = dxMotor[1] - baseMotor[1], d = dyMotor[1] - baseMotor[1];
-            double det = a * d - b * c2;
-            if (Math.abs(det) > 1e-10) {
-                double rawDX = (shiftMmX * d - shiftMmY * b) / det;
-                double rawDY = (a * shiftMmY - c2 * shiftMmX) / det;
-                overlayOffsetX += rawDX;
-                overlayOffsetY += rawDY;
-            }
-        }
+        applyMotorShift(shiftMmX, shiftMmY);
     }
 
     // ----- Painting -----
