@@ -258,8 +258,9 @@ Multipass: set **Passes** (1–10) to draw every stroke N times.
 
 | Control | Action |
 |---|---|
-| ▲ ▼ ◄ ► | Jog by the step amount |
-| Arrow keys | Same as the ▲▼◄► buttons, usable from anywhere in the window except while a text field is focused |
+| ▲ ▼ ◄ ► | Jog by the step amount (large, touch-friendly buttons) |
+| Arrow keys / numpad arrows (8/2/4/6) | Same as the ▲▼◄► buttons, usable from anywhere in the window except while a text field is focused |
+| Shift + ▲ / Shift + ▼ | Pen Up / Pen Down |
 | Step spinner | Jog step size (0.1–200 mm) |
 | Pen Up / Pen Down | Raise / lower pen manually |
 | Home (limit switches) | Runs GRBL's homing cycle (`$H`) against the machine's physical limit switches at 0/0, then zeroes the work origin at that position. Asks for confirmation first, since the plotter will move on its own. Requires GRBL homing to be enabled and configured on the controller (`$22=1` and the related `$23`/`$24`/`$25` settings) — Gantry just triggers the cycle, it doesn't configure GRBL. |

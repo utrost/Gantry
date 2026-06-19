@@ -130,8 +130,9 @@ public class PlotterPanel extends JPanel {
     }
 
     /**
-     * Lets the arrow keys jog X/Y from anywhere in the window, except while a text field or
-     * spinner editor has focus (so normal text-cursor navigation keeps working there).
+     * Lets the arrow keys (and numpad 8/2/4/6 arrows) jog X/Y from anywhere in the window,
+     * Shift+Up/Down raise/lower the pen, except while a text field or spinner editor has focus
+     * (so normal text-cursor navigation keeps working there).
      */
     private void installJogKeyBindings() {
         jogKeyDispatcher = e -> {
@@ -142,11 +143,26 @@ public class PlotterPanel extends JPanel {
             if (focusOwner instanceof javax.swing.text.JTextComponent) {
                 return false;
             }
+            boolean shift = e.isShiftDown();
             switch (e.getKeyCode()) {
-                case java.awt.event.KeyEvent.VK_UP -> { jog(0, 1); return true; }
-                case java.awt.event.KeyEvent.VK_DOWN -> { jog(0, -1); return true; }
-                case java.awt.event.KeyEvent.VK_LEFT -> { jog(-1, 0); return true; }
-                case java.awt.event.KeyEvent.VK_RIGHT -> { jog(1, 0); return true; }
+                case java.awt.event.KeyEvent.VK_UP, java.awt.event.KeyEvent.VK_KP_UP, java.awt.event.KeyEvent.VK_NUMPAD8 -> {
+                    if (shift) {
+                        runOnBackend(PlotterBackend::penup);
+                    } else {
+                        jog(0, 1);
+                    }
+                    return true;
+                }
+                case java.awt.event.KeyEvent.VK_DOWN, java.awt.event.KeyEvent.VK_KP_DOWN, java.awt.event.KeyEvent.VK_NUMPAD2 -> {
+                    if (shift) {
+                        runOnBackend(PlotterBackend::pendown);
+                    } else {
+                        jog(0, -1);
+                    }
+                    return true;
+                }
+                case java.awt.event.KeyEvent.VK_LEFT, java.awt.event.KeyEvent.VK_KP_LEFT, java.awt.event.KeyEvent.VK_NUMPAD4 -> { jog(-1, 0); return true; }
+                case java.awt.event.KeyEvent.VK_RIGHT, java.awt.event.KeyEvent.VK_KP_RIGHT, java.awt.event.KeyEvent.VK_NUMPAD6 -> { jog(1, 0); return true; }
                 default -> { return false; }
             }
         };
@@ -179,16 +195,26 @@ public class PlotterPanel extends JPanel {
         return bar;
     }
 
+    private static final Dimension JOG_BUTTON_SIZE = new Dimension(72, 72);
+
+    private JButton jogButton(String label) {
+        JButton b = new JButton(label);
+        b.setFont(b.getFont().deriveFont(Font.BOLD, 28f));
+        b.setPreferredSize(JOG_BUTTON_SIZE);
+        b.setMargin(new Insets(0, 0, 0, 0));
+        return b;
+    }
+
     private JPanel jogSection() {
         JPanel panel = new JPanel(new GridBagLayout());
         panel.setBorder(section("Jog"));
         GridBagConstraints gbc = new GridBagConstraints();
-        gbc.insets = new Insets(2, 2, 2, 2);
+        gbc.insets = new Insets(3, 3, 3, 3);
 
-        JButton up = new JButton("▲");
-        JButton down = new JButton("▼");
-        JButton left = new JButton("◄");
-        JButton right = new JButton("►");
+        JButton up = jogButton("▲");
+        JButton down = jogButton("▼");
+        JButton left = jogButton("◄");
+        JButton right = jogButton("►");
         up.addActionListener(e -> jog(0, 1));
         down.addActionListener(e -> jog(0, -1));
         left.addActionListener(e -> jog(-1, 0));
