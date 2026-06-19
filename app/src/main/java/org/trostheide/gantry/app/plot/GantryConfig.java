@@ -39,6 +39,9 @@ public class GantryConfig {
 
     public Map<String, StationConfig> stations = new LinkedHashMap<>();
 
+    /** Last directory a file chooser (Import SVG, Load/Save Commands, Export/Replay G-code) was opened in. */
+    public String lastDirectory;
+
     /**
      * Derives {@link PlotSettings} from this config, applying the same machine-origin and
      * portrait-mode axis derivation as the legacy {@code driver.py}:

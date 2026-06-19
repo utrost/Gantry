@@ -85,8 +85,6 @@ public class PlotterPanel extends JPanel {
         right.setLayout(new BoxLayout(right, BoxLayout.Y_AXIS));
         right.add(jogSection());
         right.add(Box.createVerticalStrut(6));
-        right.add(penSpeedSection());
-        right.add(Box.createVerticalStrut(6));
         right.add(optimizeSection());
         right.add(Box.createVerticalStrut(6));
         right.add(overlaySection());
@@ -243,30 +241,27 @@ public class PlotterPanel extends JPanel {
         panel.add(penButtons, gbc);
 
         gbc.gridx = 0; gbc.gridy = 5; gbc.gridwidth = 3;
+        JPanel speedRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 0));
+        speedRow.add(new JLabel("Speed"));
+        JButton speedDown = new JButton("-");
+        JButton speedUp = new JButton("+");
+        JButton speedReset = new JButton("Reset");
+        speedDown.addActionListener(e -> runOnBackend(b -> b.adjustSpeed("down")));
+        speedUp.addActionListener(e -> runOnBackend(b -> b.adjustSpeed("up")));
+        speedReset.addActionListener(e -> runOnBackend(b -> b.adjustSpeed("reset")));
+        speedRow.add(speedDown);
+        speedRow.add(speedLabel);
+        speedRow.add(speedUp);
+        speedRow.add(speedReset);
+        panel.add(speedRow, gbc);
+
+        gbc.gridx = 0; gbc.gridy = 6; gbc.gridwidth = 3;
         JButton homeBtn = new JButton("⌂ Home (limit switches)");
         homeBtn.setFont(homeBtn.getFont().deriveFont(Font.BOLD));
         homeBtn.setToolTipText("Run the homing cycle against the limit switches");
         homeBtn.addActionListener(e -> onHome());
         panel.add(homeBtn, gbc);
 
-        return panel;
-    }
-
-    private JPanel penSpeedSection() {
-        JPanel panel = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 4));
-        panel.setBorder(section("Speed Override"));
-
-        JButton speedDown = new JButton("-");
-        JButton speedReset = new JButton("Reset");
-        JButton speedUp = new JButton("+");
-        speedDown.addActionListener(e -> runOnBackend(b -> b.adjustSpeed("down")));
-        speedUp.addActionListener(e -> runOnBackend(b -> b.adjustSpeed("up")));
-        speedReset.addActionListener(e -> runOnBackend(b -> b.adjustSpeed("reset")));
-
-        panel.add(speedDown);
-        panel.add(speedLabel);
-        panel.add(speedUp);
-        panel.add(speedReset);
         return panel;
     }
 
@@ -417,13 +412,40 @@ public class PlotterPanel extends JPanel {
 
     // --- Actions ---------------------------------------------------------
 
-    private void onLoadCommands() {
+    /** Creates a file chooser starting in the last directory a file was opened/saved in. */
+    private JFileChooser newFileChooser() {
         JFileChooser chooser = new JFileChooser();
+        if (config.lastDirectory != null) {
+            File dir = new File(config.lastDirectory);
+            if (dir.isDirectory()) {
+                chooser.setCurrentDirectory(dir);
+            }
+        }
+        return chooser;
+    }
+
+    /** Remembers {@code file}'s parent directory in the config so the next chooser starts there. */
+    private void rememberDirectory(File file) {
+        File parent = file.getParentFile();
+        if (parent == null) {
+            return;
+        }
+        config.lastDirectory = parent.getAbsolutePath();
+        try {
+            ConfigStore.save(config, configFile);
+        } catch (IOException ex) {
+            log("WARNING: Failed to save config: " + ex.getMessage());
+        }
+    }
+
+    private void onLoadCommands() {
+        JFileChooser chooser = newFileChooser();
         chooser.setFileFilter(new javax.swing.filechooser.FileNameExtensionFilter("Command files (*.json)", "json"));
         if (chooser.showOpenDialog(this) != JFileChooser.APPROVE_OPTION) {
             return;
         }
         File file = chooser.getSelectedFile();
+        rememberDirectory(file);
         try {
             currentOutput = CommandFile.load(file);
             visPanel.loadFromOutput(currentOutput);
@@ -435,12 +457,13 @@ public class PlotterPanel extends JPanel {
     }
 
     private void onImportSvg() {
-        JFileChooser chooser = new JFileChooser();
+        JFileChooser chooser = newFileChooser();
         chooser.setFileFilter(new javax.swing.filechooser.FileNameExtensionFilter("SVG files (*.svg)", "svg"));
         if (chooser.showOpenDialog(this) != JFileChooser.APPROVE_OPTION) {
             return;
         }
         File file = chooser.getSelectedFile();
+        rememberDirectory(file);
 
         SvgImportDialog.Result dialogResult = new SvgImportDialog(SwingUtilities.getWindowAncestor(this)).showDialog();
         if (dialogResult == null) {
@@ -465,12 +488,13 @@ public class PlotterPanel extends JPanel {
             log("ERROR: Nothing to save. Load or import commands first.");
             return;
         }
-        JFileChooser chooser = new JFileChooser();
+        JFileChooser chooser = newFileChooser();
         chooser.setFileFilter(new javax.swing.filechooser.FileNameExtensionFilter("Command files (*.json)", "json"));
         if (chooser.showSaveDialog(this) != JFileChooser.APPROVE_OPTION) {
             return;
         }
         File file = chooser.getSelectedFile();
+        rememberDirectory(file);
         try {
             ProcessorOutputIO.save(currentOutput, file);
             log("Saved " + file.getName());
@@ -700,12 +724,13 @@ public class PlotterPanel extends JPanel {
             log("ERROR: Load a commands file first.");
             return;
         }
-        JFileChooser chooser = new JFileChooser();
+        JFileChooser chooser = newFileChooser();
         chooser.setFileFilter(new javax.swing.filechooser.FileNameExtensionFilter("G-code files (*.gcode)", "gcode"));
         if (chooser.showSaveDialog(this) != JFileChooser.APPROVE_OPTION) {
             return;
         }
         File file = chooser.getSelectedFile();
+        rememberDirectory(file);
 
         ProcessorOutput toExport = preparePlotOutput();
         PlotSettings settings = config.toPlotSettings();
@@ -733,12 +758,13 @@ public class PlotterPanel extends JPanel {
             log("ERROR: Connect to a real G-code backend first (not available in mock mode).");
             return;
         }
-        JFileChooser chooser = new JFileChooser();
+        JFileChooser chooser = newFileChooser();
         chooser.setFileFilter(new javax.swing.filechooser.FileNameExtensionFilter("G-code files (*.gcode)", "gcode"));
         if (chooser.showOpenDialog(this) != JFileChooser.APPROVE_OPTION) {
             return;
         }
         File file = chooser.getSelectedFile();
+        rememberDirectory(file);
         new Thread(() -> {
             try {
                 log("Replaying " + file.getName() + "...");

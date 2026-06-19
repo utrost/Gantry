@@ -252,7 +252,7 @@ already-loaded commands:
 ## Plotting
 
 1. Connect to the plotter with **Connect**.
-2. Adjust speed if needed with **Speed +** / **Speed −** / **Reset**.
+2. Adjust speed if needed with **Speed +** / **Speed −** / **Reset** in the Jog section.
 3. Click **Start Plot**.
 4. For each layer, the plotter will pause and wait for you to click **Confirm Layer** before continuing (allows brush/pen changes).
 5. Click **Pause** at any time to halt motion and raise the pen; click **Resume** (same button) to continue from where it left off.
@@ -269,6 +269,7 @@ Multipass: set **Passes** (1–10) to draw every stroke N times.
 | Shift + ▲ / Shift + ▼ | Pen Up / Pen Down |
 | Step spinner | Jog step size (0.1–200 mm) |
 | Pen Up / Pen Down | Raise / lower pen manually |
+| Speed − / + / Reset | Decrease, increase, or reset the plotter's feed-rate override while jogging or plotting |
 | Home (limit switches) | Runs GRBL's homing cycle (`$H`) against the machine's physical limit switches at 0/0, then zeroes the work origin at that position. Asks for confirmation first, since the plotter will move on its own. Requires GRBL homing to be enabled and configured on the controller (`$22=1` and the related `$23`/`$24`/`$25` settings) — Gantry just triggers the cycle, it doesn't configure GRBL. |
 
 ### Raw G-code
@@ -288,6 +289,9 @@ Type any G-code command in the text field and press Enter to send it directly.
 
 - **Load Commands** — load a pre-generated `.json` command model.
 - **Save Commands** — save the current command model to `.json` for later.
+
+All file choosers (Import SVG, Load/Save Commands, Export/Replay G-code) remember the
+last folder you opened or saved a file in and reopen there next time, even across restarts.
 
 ---
 
