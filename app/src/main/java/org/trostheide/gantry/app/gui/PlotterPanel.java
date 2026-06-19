@@ -81,6 +81,8 @@ public class PlotterPanel extends JPanel {
     /** Controls that should be disabled while a plot is running (jog, pen, speed, edit actions). */
     private final List<JComponent> plotDisabledControls = new ArrayList<>();
 
+    private JSplitPane controlSplit;
+
     public PlotterPanel() {
         setLayout(new BorderLayout(4, 4));
         setBorder(new EmptyBorder(6, 6, 6, 6));
@@ -108,10 +110,23 @@ public class PlotterPanel extends JPanel {
         // Console absorbs any leftover vertical space; the fixed sections stay at their natural height.
         right.add(consoleScroll);
 
-        right.setPreferredSize(new Dimension(300, right.getPreferredSize().height));
+        int rightWidth = 300;
+        right.setPreferredSize(new Dimension(rightWidth, right.getPreferredSize().height));
+        right.setMaximumSize(new Dimension(rightWidth, Integer.MAX_VALUE));
 
-        JSplitPane split = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, visPanel, right);
-        split.setResizeWeight(0.85);
+        controlSplit = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, visPanel, right);
+        // Give all extra space to the canvas; keep the control column at its compact width.
+        controlSplit.setResizeWeight(1.0);
+        controlSplit.addComponentListener(new java.awt.event.ComponentAdapter() {
+            @Override
+            public void componentResized(java.awt.event.ComponentEvent e) {
+                int w = controlSplit.getWidth();
+                if (w > 0) {
+                    controlSplit.setDividerLocation(w - rightWidth - controlSplit.getDividerSize());
+                }
+            }
+        });
+        JSplitPane split = controlSplit;
         add(split, BorderLayout.CENTER);
 
         startBtn.setBackground(new Color(46, 125, 50));
@@ -396,23 +411,31 @@ public class PlotterPanel extends JPanel {
         confirmBtn.addActionListener(e -> confirmGate.release());
         pauseBtn.addActionListener(e -> onPauseToggle());
         stopBtn.addActionListener(e -> onStopPlot());
+        startBtn.setText("Start");
+        startBtn.setToolTipText("Start Plot");
+        confirmBtn.setText("Confirm");
+        confirmBtn.setToolTipText("Confirm Layer");
 
-        JPanel row1 = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 2));
+        JPanel row1 = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 2));
         row1.add(new JLabel("Passes"));
         row1.add(multipassSpinner);
         row1.add(startBtn);
-        row1.add(confirmBtn);
-        row1.add(pauseBtn);
         row1.add(stopBtn);
-        row1.add(disableDuringPlot(plotMoreButton()));
 
-        JPanel row3 = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 2));
+        JPanel row2 = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 2));
+        row2.add(confirmBtn);
+        row2.add(pauseBtn);
+        row2.add(disableDuringPlot(plotMoreButton()));
+
+        JPanel row3 = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 2));
         timeLabel.setToolTipText("Per-layer time estimate (hover after loading/importing commands)");
         row3.add(timeLabel);
 
         row1.setAlignmentX(LEFT_ALIGNMENT);
+        row2.setAlignmentX(LEFT_ALIGNMENT);
         row3.setAlignmentX(LEFT_ALIGNMENT);
         panel.add(row1);
+        panel.add(row2);
         panel.add(row3);
 
         return panel;
