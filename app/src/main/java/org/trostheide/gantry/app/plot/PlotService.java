@@ -40,6 +40,7 @@ public class PlotService {
     private LayerGate layerGate = LayerGate.IMMEDIATE;
     private Consumer<String> logCallback = line -> { };
     private BiConsumer<Double, Double> commandedPositionCallback = (x, y) -> { };
+    private Consumer<Layer> layerStartedCallback = layer -> { };
 
     private volatile boolean cancelled;
     private volatile boolean paused;
@@ -67,6 +68,11 @@ public class PlotService {
      */
     public void setCommandedPositionCallback(BiConsumer<Double, Double> callback) {
         this.commandedPositionCallback = callback != null ? callback : ((x, y) -> { });
+    }
+
+    /** Registers a callback fired right before each layer's commands start executing (after the layer gate). */
+    public void setLayerStartedCallback(Consumer<Layer> callback) {
+        this.layerStartedCallback = callback != null ? callback : (layer -> { });
     }
 
     /** Requests that the current/upcoming {@link #plot} call stop as soon as possible. */
@@ -161,6 +167,7 @@ public class PlotService {
             if (cancelled) {
                 return;
             }
+            layerStartedCallback.accept(layer);
             executeLayer(layer, machineW, machineH, offsetX, offsetY, contentBounds);
         }
     }

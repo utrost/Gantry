@@ -272,6 +272,18 @@ is stopped.
 The Live View HUD shows the current feed-rate override as **Speed: N%**, alongside the
 head position, so you can see the effect of the Speed buttons at a glance.
 
+### Time estimate
+
+As soon as commands are loaded, imported, or optimized, the Plot section shows
+**Est: M:SS** (or **H:MM:SS**) — the predicted total plot duration, computed from each
+stroke's draw/travel distance and the configured feed rates (Settings → Pen / speed),
+plus a fixed dip time per refill. Hover over it for a per-layer breakdown.
+
+Once a plot starts, the label switches to live tracking: **Elapsed: … / Est: …**, plus
+the current layer's own elapsed/estimated time once it starts drawing (layers spent
+waiting at **Confirm Layer** don't count against their estimate). It reverts to the
+pre-plot estimate when the plot finishes or is stopped.
+
 ### Jog controls
 
 | Control | Action |

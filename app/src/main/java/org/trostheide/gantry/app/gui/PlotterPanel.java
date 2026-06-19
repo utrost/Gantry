@@ -6,6 +6,7 @@ import org.trostheide.gantry.app.plot.GantryConfig;
 import org.trostheide.gantry.app.plot.PlotService;
 import org.trostheide.gantry.app.plot.PlotSettings;
 import org.trostheide.gantry.app.plot.StationConfig;
+import org.trostheide.gantry.app.plot.TimeEstimator;
 import org.trostheide.gantry.model.CoordinateTransform;
 import org.trostheide.gantry.model.Layer;
 import org.trostheide.gantry.model.Point;
@@ -61,12 +62,18 @@ public class PlotterPanel extends JPanel {
     private final JSpinner multipassSpinner = new JSpinner(new SpinnerNumberModel(1, 1, 10, 1));
     private final JSpinner posXSpinner = new JSpinner(new SpinnerNumberModel(0.0, -2000.0, 2000.0, 1.0));
     private final JSpinner posYSpinner = new JSpinner(new SpinnerNumberModel(0.0, -2000.0, 2000.0, 1.0));
+    private final JLabel timeLabel = new JLabel("Est: --:--");
 
     private PlotterBackend backend;
     private ProcessorOutput currentOutput;
     private volatile PlotService activeService;
     private final Semaphore confirmGate = new Semaphore(0);
     private boolean paused;
+    private TimeEstimator.PlotEstimate currentEstimate;
+    private javax.swing.Timer plotClockTimer;
+    private long plotStartMillis;
+    private long layerStartMillis;
+    private String currentLayerId;
     private volatile boolean plotting;
     private java.awt.KeyEventDispatcher jogKeyDispatcher;
 
@@ -384,12 +391,57 @@ public class PlotterPanel extends JPanel {
         replayBtn.addActionListener(e -> onReplayGcode());
         row2.add(replayBtn);
 
+        JPanel row3 = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 2));
+        timeLabel.setToolTipText("Per-layer time estimate (hover after loading/importing commands)");
+        row3.add(timeLabel);
+
         row1.setAlignmentX(LEFT_ALIGNMENT);
         row2.setAlignmentX(LEFT_ALIGNMENT);
+        row3.setAlignmentX(LEFT_ALIGNMENT);
         panel.add(row1);
         panel.add(row2);
+        panel.add(row3);
 
         return panel;
+    }
+
+    /** Recomputes and displays the pre-plot time estimate (total + per-layer, via tooltip). */
+    private void refreshTimeEstimate() {
+        if (currentOutput == null) {
+            currentEstimate = null;
+            timeLabel.setText("Est: --:--");
+            return;
+        }
+        currentEstimate = TimeEstimator.estimate(preparePlotOutput(), config.gcode, config.stations);
+        timeLabel.setText("Est: " + TimeEstimator.format(currentEstimate.totalSeconds()));
+        StringBuilder tooltip = new StringBuilder("<html>Per-layer estimate:<br>");
+        for (TimeEstimator.LayerEstimate le : currentEstimate.layers()) {
+            tooltip.append(le.layerId()).append(": ").append(TimeEstimator.format(le.estimatedSeconds())).append("<br>");
+        }
+        tooltip.append("Total: ").append(TimeEstimator.format(currentEstimate.totalSeconds())).append("</html>");
+        timeLabel.setToolTipText(tooltip.toString());
+    }
+
+    /** Updates {@link #timeLabel} with live elapsed/estimated time while a plot is running. */
+    private void updateTimeLabelDuringPlot() {
+        if (currentEstimate == null) {
+            return;
+        }
+        double elapsed = (System.currentTimeMillis() - plotStartMillis) / 1000.0;
+        StringBuilder text = new StringBuilder("Elapsed: ")
+                .append(TimeEstimator.format(elapsed))
+                .append(" / Est: ")
+                .append(TimeEstimator.format(currentEstimate.totalSeconds()));
+        if (currentLayerId != null) {
+            double layerElapsed = (System.currentTimeMillis() - layerStartMillis) / 1000.0;
+            double layerEstimate = currentEstimate.layers().stream()
+                    .filter(le -> le.layerId().equals(currentLayerId))
+                    .mapToDouble(TimeEstimator.LayerEstimate::estimatedSeconds)
+                    .findFirst().orElse(0);
+            text.append(" | ").append(currentLayerId).append(": ")
+                    .append(TimeEstimator.format(layerElapsed)).append(" / ").append(TimeEstimator.format(layerEstimate));
+        }
+        timeLabel.setText(text.toString());
     }
 
     private JPanel rawCommandSection() {
@@ -464,6 +516,7 @@ public class PlotterPanel extends JPanel {
             currentOutput = CommandFile.load(file);
             visPanel.loadFromOutput(currentOutput);
             refreshPositionFields();
+            refreshTimeEstimate();
             log("Loaded " + file.getName());
         } catch (IOException ex) {
             log("ERROR: Failed to load " + file.getName() + ": " + ex.getMessage());
@@ -490,6 +543,7 @@ public class PlotterPanel extends JPanel {
                     : SvgImportStage.importSvg(file, dialogResult.importOptions());
             visPanel.loadFromOutput(currentOutput);
             refreshPositionFields();
+            refreshTimeEstimate();
             log(String.format("Imported %s: %d layer(s), %d command(s)",
                     file.getName(), currentOutput.layers().size(), currentOutput.metadata().totalCommands()));
         } catch (IOException ex) {
@@ -531,6 +585,7 @@ public class PlotterPanel extends JPanel {
 
         visPanel.loadFromOutput(currentOutput);
         refreshPositionFields();
+        refreshTimeEstimate();
 
         double travelSavedPct = before.travelDistanceMm() <= 0 ? 0
                 : 100.0 * (before.travelDistanceMm() - after.travelDistanceMm()) / before.travelDistanceMm();
@@ -619,10 +674,19 @@ public class PlotterPanel extends JPanel {
             log("Layer '" + layer.id() + "' ready. Click Confirm Layer to start.");
             confirmGate.acquire();
         });
+        service.setLayerStartedCallback(layer -> SwingUtilities.invokeLater(() -> {
+            currentLayerId = layer.id();
+            layerStartMillis = System.currentTimeMillis();
+        }));
 
         confirmGate.drainPermits();
         activeService = service;
+        currentEstimate = TimeEstimator.estimate(toPlot, config.gcode, config.stations);
+        currentLayerId = null;
+        plotStartMillis = System.currentTimeMillis();
         setPlottingState(true);
+        plotClockTimer = new javax.swing.Timer(500, e -> updateTimeLabelDuringPlot());
+        plotClockTimer.start();
 
         ProcessorOutput finalOutput = toPlot;
         new Thread(() -> {
@@ -676,6 +740,12 @@ public class PlotterPanel extends JPanel {
         if (!plotting) {
             paused = false;
             pauseBtn.setText("Pause");
+            if (plotClockTimer != null) {
+                plotClockTimer.stop();
+                plotClockTimer = null;
+            }
+            currentLayerId = null;
+            refreshTimeEstimate();
         }
     }
 
