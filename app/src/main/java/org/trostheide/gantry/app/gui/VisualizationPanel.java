@@ -501,6 +501,13 @@ public class VisualizationPanel extends JPanel {
                 dataRotation, contentBoundsArray());
         motor[0] += alignOffsetX;
         motor[1] += alignOffsetY;
+        // Apply flipY in exactly the same place PlotService.transformAndClamp() does (after
+        // transform + alignment offset), so the previewed content lands in the same machine
+        // frame that actually gets plotted — and therefore in the same frame the live head
+        // position is reported in, keeping the cursor and the drawing in sync.
+        if (flipY) {
+            motor[1] = machineHeight - motor[1];
+        }
         return motor;
     }
 
