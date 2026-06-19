@@ -178,6 +178,8 @@ Click **Import SVG…** and choose an SVG file. A two-tab dialog opens.
 
 Inkscape layers (`inkscape:groupmode="layer"`) become separate `Layer1`, `Layer2`, … entries, each mapped to a refill station. SVGs without layers become a single "Default" layer.
 
+The importer flips the Y axis automatically: SVG uses a top-left origin with Y growing downward, while the plotter measures Y upward from the machine origin, so drawings are turned upright on import (they would otherwise appear upside down). The **Flip Y** setting remains available as a manual override for unusual hardware — leave it off for normal use.
+
 ### Process SVG tab (optional)
 
 Check **Run SVGToolBox processing** to run the SVGToolBox pre-processing pipeline

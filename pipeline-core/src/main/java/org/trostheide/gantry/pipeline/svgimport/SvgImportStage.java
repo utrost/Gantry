@@ -77,16 +77,15 @@ public final class SvgImportStage {
         List<LayerContext> layersToProcess = identifyLayers(doc, options.defaultStationId());
 
         AffineTransform globalTx = new AffineTransform();
-        Bounds preScannedBounds = null;
+        // Always scan the content bounds: the Y-flip below needs them on every import, and so do
+        // the fit/position/mirror transforms.
+        Bounds preScannedBounds = calculateGlobalBounds(layersToProcess);
+        boolean haveBounds = preScannedBounds.minX() != Double.MAX_VALUE;
 
-        if (hasTargetSize || hasPosition || options.mirror()) {
-            preScannedBounds = calculateGlobalBounds(layersToProcess);
-        }
-
-        if (hasTargetSize && preScannedBounds != null) {
+        if (hasTargetSize && haveBounds) {
             globalTx = calculateScaleTransform(preScannedBounds, options.targetWidth(), options.targetHeight(),
                     options.keepAspectRatio(), options.posX(), options.posY());
-        } else if (hasPosition && preScannedBounds != null) {
+        } else if (hasPosition && haveBounds) {
             globalTx.translate(options.posX() - preScannedBounds.minX(), options.posY() - preScannedBounds.minY());
         }
 
@@ -94,13 +93,24 @@ public final class SvgImportStage {
             double pivotX;
             if (hasTargetSize) {
                 pivotX = options.posX() + options.targetWidth() / 2.0;
-            } else if (preScannedBounds != null) {
+            } else if (haveBounds) {
                 pivotX = (preScannedBounds.minX() + preScannedBounds.maxX()) / 2.0;
             } else {
                 pivotX = 0;
             }
             AffineTransform mirrorTx = new AffineTransform(-1, 0, 0, 1, 2 * pivotX, 0);
             globalTx.preConcatenate(mirrorTx);
+        }
+
+        // SVG uses a Y-down coordinate system (origin top-left), but the plotter/visualization treat
+        // Y as growing upward from the machine origin — so raw SVG content imports upside down. Mirror
+        // Y about the content's own vertical center so drawings come in upright without needing the
+        // manual "Flip Y" override. Concatenated last so it applies first, in raw content space,
+        // before the scale/position/mirror transforms (and it preserves the content's Y extents).
+        if (haveBounds) {
+            AffineTransform flipY = new AffineTransform(1, 0, 0, -1, 0,
+                    preScannedBounds.minY() + preScannedBounds.maxY());
+            globalTx.concatenate(flipY);
         }
 
         List<Layer> resultLayers = new ArrayList<>();
