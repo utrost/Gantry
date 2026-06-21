@@ -54,6 +54,7 @@ public class PlotterPanel extends JPanel {
     private final JButton pauseBtn = new JButton("Pause");
     private final JButton stopBtn = new JButton("Stop");
     private final JLabel statusLabel = new JLabel("Disconnected");
+    private final JLabel guidanceLabel = new JLabel();
     private final JLabel speedLabel = new JLabel("100%");
     private final JSpinner jogStepSpinner = new JSpinner(new SpinnerNumberModel(10.0, 0.1, 200.0, 1.0));
     private final JTextField rawCommandField = new JTextField(16);
@@ -88,7 +89,11 @@ public class PlotterPanel extends JPanel {
         setLayout(new BorderLayout(4, 4));
         setBorder(new EmptyBorder(6, 6, 6, 6));
 
-        add(toolbar(), BorderLayout.NORTH);
+        JPanel north = new JPanel();
+        north.setLayout(new BoxLayout(north, BoxLayout.Y_AXIS));
+        north.add(toolbar());
+        north.add(guidanceBanner());
+        add(north, BorderLayout.NORTH);
 
         console.setEditable(false);
         console.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 12));
@@ -140,6 +145,38 @@ public class PlotterPanel extends JPanel {
         applyConfigToVis();
         setPlottingState(false);
         installJogKeyBindings();
+        refreshGuidance();
+    }
+
+    /** Builds the persistent step banner that tells the user what to do next. */
+    private JPanel guidanceBanner() {
+        JPanel banner = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 3));
+        banner.setBorder(new EmptyBorder(0, 4, 0, 4));
+        banner.setBackground(new Color(255, 249, 196));
+        banner.setOpaque(true);
+        guidanceLabel.setFont(guidanceLabel.getFont().deriveFont(Font.BOLD));
+        banner.add(guidanceLabel);
+        return banner;
+    }
+
+    /**
+     * Updates the step banner to reflect what the user should do next: connect, then
+     * load/import a drawing, then position it, then start, then confirm each layer.
+     */
+    private void refreshGuidance() {
+        String text;
+        if (backend == null) {
+            text = "Step 1: Click Connect to talk to the plotter.";
+        } else if (currentOutput == null) {
+            text = "Step 2: Load Commands or Import SVG to load a drawing.";
+        } else if (plotting) {
+            text = paused
+                    ? "Plot paused. Click Resume to continue, or Stop to cancel."
+                    : "Plotting... Confirm Layer when prompted, or Pause/Stop as needed.";
+        } else {
+            text = "Step 3: Check position/optimize as needed, then click Start.";
+        }
+        guidanceLabel.setText(text);
     }
 
     @Override
@@ -596,6 +633,7 @@ public class PlotterPanel extends JPanel {
             visPanel.setContentMotorMin(0, 0);
             refreshPositionFields();
             refreshTimeEstimate();
+            refreshGuidance();
             log("Loaded " + file.getName());
         } catch (IOException ex) {
             log("ERROR: Failed to load " + file.getName() + ": " + ex.getMessage());
@@ -624,6 +662,7 @@ public class PlotterPanel extends JPanel {
             visPanel.setContentMotorMin(0, 0);
             refreshPositionFields();
             refreshTimeEstimate();
+            refreshGuidance();
             log(String.format("Imported %s: %d layer(s), %d command(s)",
                     file.getName(), currentOutput.layers().size(), currentOutput.metadata().totalCommands()));
         } catch (IOException ex) {
@@ -726,6 +765,7 @@ public class PlotterPanel extends JPanel {
                         statusLabel.setText("Connection failed");
                         log("ERROR: Connection failed.");
                     }
+                    refreshGuidance();
                 });
             }, "backend-connect").start();
         } else {
@@ -736,6 +776,7 @@ public class PlotterPanel extends JPanel {
             setConnectionRequiredControlsEnabled(false);
             statusLabel.setText("Disconnected");
             new Thread(toClose::disconnect, "backend-disconnect").start();
+            refreshGuidance();
         }
     }
 
@@ -835,11 +876,12 @@ public class PlotterPanel extends JPanel {
             paused = false;
             pauseBtn.setText("Pause");
         }
+        refreshGuidance();
     }
 
     private void setPlottingState(boolean plotting) {
         this.plotting = plotting;
-        startBtn.setEnabled(!plotting);
+        startBtn.setEnabled(!plotting && backend != null);
         confirmBtn.setEnabled(plotting);
         pauseBtn.setEnabled(plotting);
         stopBtn.setEnabled(plotting);
@@ -857,6 +899,7 @@ public class PlotterPanel extends JPanel {
             currentLayerId = null;
             refreshTimeEstimate();
         }
+        refreshGuidance();
     }
 
     private void jog(int dxDir, int dyDir) {
