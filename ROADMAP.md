@@ -103,7 +103,7 @@ oracle until Phase 3.
 | **5. New features** ✅ | Multipass/pigment (`pipeline-core`, benefits pen *and* watercolor) · G-code file export + re-plot (`plotter`) · refill stays in `watercolor` | Each behind a tested toggle in the GUI |
 | **6. SVG ingestion & processing pipeline** ✅ | Port the SVG→command-model pipeline (`legacy/SVG2WaterColor`'s `ProcessorService`) into `pipeline-core`/`svgtoolbox-core`, plus the SVGToolBox SVG→SVG processors not yet covered by Phase 4; add "Process SVG"/"Draw SVG" GUI entry points and a headless CLI | An SVG file can be loaded in the GUI/CLI and produce a plottable command model with no external tooling; `legacy/` no longer the only path from SVG to plot |
 | **7. Cutover** ✅ | Delete `legacy/`; docs; single-artifact release | One JAR, no Python anywhere |
-| **8. Hardening & watercolor completion** 🚧 | Post-cutover audit fixes: plotting-safety (Stop/disconnect) ✅, watercolor completion (colour→station mapping) ✅, and remaining UX polish | Stop/disconnect always leave the machine in a safe state ✅; SVG colours drive station assignment ✅; errors are visible to the operator ✅; UX polish pending |
+| **8. Hardening & watercolor completion** 🚧 | Post-cutover audit fixes: plotting-safety (Stop/disconnect) ✅, watercolor completion (colour→station mapping) ✅, UX polish ✅; 🟢 cleanup pending | Stop/disconnect always leave the machine in a safe state ✅; SVG colours drive station assignment ✅; errors are visible to the operator ✅; UX polish ✅ |
 
 ### Phase 8 — in progress (post-cutover self-audit)
 
@@ -156,16 +156,20 @@ watercolor vision is structurally incomplete), 🟡 medium (UX), 🟢 low (clean
   mocks fall back to the normal pen-down. A station `zDown` of 0 means "unset" →
   use the global pen-down depth, so existing setups are unaffected.
 
-**🟡 UX polish — NOT STARTED**
-- Errors only go to the log console (easy to miss) — genuine failures should be
-  `JOptionPane` dialogs.
-- Long operations (import/optimize/process) run on the EDT with no busy
-  cursor/progress, freezing the UI.
-- `onLoadCommands` doesn't reset `lastImportedSvgFile`/`lastImportOptions`, so
-  *Edit ▸ Process SVG* after loading a `.json` silently reprocesses the
-  previously-imported SVG.
-- No overwrite confirmation on Save/Export; no menu mnemonics/accelerators; no
-  recent-files list; no undo for destructive transforms (Optimize/Process).
+**🟡 UX polish — DONE**
+- Genuine failures (load/import/save/export/reprocess) now raise an error
+  dialog via a shared `error()` helper as well as logging; workflow
+  preconditions use a friendly `info()` dialog.
+- Import and Process SVG run off the EDT through a `runBusy()` SwingWorker with
+  a wait cursor, so the UI no longer freezes during heavy transforms.
+- `onLoadCommands` now clears `lastImportedSvgFile`/`lastImportOptions` (and any
+  undo), fixing the stale-state bug where *Edit ▸ Process SVG* reprocessed a
+  previously-imported SVG after loading a `.json`.
+- Save/Export confirm before overwriting an existing file.
+- Menu mnemonics + accelerators (Ctrl+O/I/S/E/Q, Ctrl+Z); single-level **Undo**
+  for the destructive transforms (Optimize / Process SVG / Map Colors).
+- *Remaining (deferred, low value):* a recent-files list, and opening the User
+  Guide now uses the desktop handler with a path fallback.
 
 **🟢 Cleanup — NOT STARTED**
 - Stale Javadoc referencing the removed Python (`driver.py`, "mapped in Python

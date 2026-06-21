@@ -30,12 +30,15 @@ import javax.swing.border.EmptyBorder;
 import javax.swing.border.TitledBorder;
 import java.awt.*;
 import java.awt.event.ActionListener;
+import java.awt.event.KeyEvent;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Callable;
 import java.util.concurrent.Semaphore;
+import java.util.function.Consumer;
 
 /**
  * Self-contained plotter window: live visualization, jog/pen/speed controls, raw G-code console
@@ -73,6 +76,9 @@ public class PlotterPanel extends JPanel {
     private ProcessorOutput currentOutput;
     private File lastImportedSvgFile;
     private org.trostheide.gantry.pipeline.svgimport.SvgImportOptions lastImportOptions;
+    /** Single-level undo snapshot of {@link #currentOutput} before the last destructive transform. */
+    private ProcessorOutput undoSnapshot;
+    private JMenuItem undoMenuItem;
     private volatile PlotService activeService;
     private final Semaphore confirmGate = new Semaphore(0);
     private boolean paused;
@@ -311,27 +317,37 @@ public class PlotterPanel extends JPanel {
     public JMenuBar buildMenuBar() {
         JMenuBar menuBar = new JMenuBar();
 
+        int shortcut = Toolkit.getDefaultToolkit().getMenuShortcutKeyMaskEx();
+
         JMenu fileMenu = new JMenu("File");
-        fileMenu.add(menuItem("Load Commands...", e -> onLoadCommands(), true));
-        fileMenu.add(menuItem("Import SVG...", e -> onImportSvg(), true));
-        fileMenu.add(menuItem("Save Commands...", e -> onSaveCommands(), true));
+        fileMenu.setMnemonic(KeyEvent.VK_F);
+        fileMenu.add(accel(menuItem("Load Commands...", e -> onLoadCommands(), true), KeyEvent.VK_O, shortcut));
+        fileMenu.add(accel(menuItem("Import SVG...", e -> onImportSvg(), true), KeyEvent.VK_I, shortcut));
+        fileMenu.add(accel(menuItem("Save Commands...", e -> onSaveCommands(), true), KeyEvent.VK_S, shortcut));
         fileMenu.addSeparator();
-        fileMenu.add(menuItem("Export G-code...", e -> onExportGcode(), true));
+        fileMenu.add(accel(menuItem("Export G-code...", e -> onExportGcode(), true), KeyEvent.VK_E, shortcut));
         fileMenu.add(menuItem("Replay G-code...", e -> onReplayGcode(), true));
         fileMenu.addSeparator();
-        fileMenu.add(menuItem("Exit", e -> onExit(), false));
+        fileMenu.add(accel(menuItem("Exit", e -> onExit(), false), KeyEvent.VK_Q, shortcut));
         menuBar.add(fileMenu);
 
         JMenu editMenu = new JMenu("Edit");
+        editMenu.setMnemonic(KeyEvent.VK_E);
+        undoMenuItem = accel(menuItem("Undo", e -> onUndo(), true), KeyEvent.VK_Z, shortcut);
+        undoMenuItem.setEnabled(false);
+        editMenu.add(undoMenuItem);
+        editMenu.addSeparator();
         editMenu.add(menuItem("Process SVG...", e -> onEditProcessSvg(), true));
         editMenu.add(menuItem("Map Layer Colors to Stations", e -> onMapColorsToStations(), true));
         menuBar.add(editMenu);
 
         JMenu settingsMenu = new JMenu("Settings");
+        settingsMenu.setMnemonic(KeyEvent.VK_S);
         settingsMenu.add(menuItem("Preferences...", e -> onOpenSettings(), true));
         menuBar.add(settingsMenu);
 
         JMenu helpMenu = new JMenu("Help");
+        helpMenu.setMnemonic(KeyEvent.VK_H);
         helpMenu.add(menuItem("User Guide...", e -> onShowHelp(), false));
         helpMenu.add(menuItem("About Gantry...", e -> onShowAbout(), false));
         menuBar.add(helpMenu);
@@ -346,12 +362,27 @@ public class PlotterPanel extends JPanel {
         return disableDuringPlot ? disableDuringPlot(item) : item;
     }
 
+    /** Attaches a keyboard accelerator to a menu item and returns it. */
+    private static JMenuItem accel(JMenuItem item, int keyCode, int modifiers) {
+        item.setAccelerator(javax.swing.KeyStroke.getKeyStroke(keyCode, modifiers));
+        return item;
+    }
+
     private void onExit() {
         SwingUtilities.getWindowAncestor(this).dispose();
     }
 
     private void onShowHelp() {
         File guide = new File("docs/USER_GUIDE.md");
+        if (guide.exists() && Desktop.isDesktopSupported()
+                && Desktop.getDesktop().isSupported(Desktop.Action.OPEN)) {
+            try {
+                Desktop.getDesktop().open(guide);
+                return;
+            } catch (IOException ex) {
+                // fall back to showing the path below
+            }
+        }
         String message = guide.exists()
                 ? "See docs/USER_GUIDE.md for the full user guide:\n" + guide.getAbsolutePath()
                 : "User guide not found at docs/USER_GUIDE.md.";
@@ -708,6 +739,14 @@ public class PlotterPanel extends JPanel {
         rememberDirectory(file);
         try {
             currentOutput = CommandFile.load(file);
+            // A loaded command file has no source SVG, so Edit > Process SVG must not reprocess a
+            // previously-imported one. Clear the stale import state (and any cross-file undo).
+            lastImportedSvgFile = null;
+            lastImportOptions = null;
+            undoSnapshot = null;
+            if (undoMenuItem != null) {
+                undoMenuItem.setEnabled(false);
+            }
             visPanel.loadFromOutput(currentOutput);
             visPanel.setContentMotorMin(0, 0);
             refreshPositionFields();
@@ -715,7 +754,7 @@ public class PlotterPanel extends JPanel {
             refreshGuidance();
             log("Loaded " + file.getName());
         } catch (IOException ex) {
-            log("ERROR: Failed to load " + file.getName() + ": " + ex.getMessage());
+            error("Failed to load " + file.getName() + ": " + ex.getMessage());
         }
     }
 
@@ -733,13 +772,19 @@ public class PlotterPanel extends JPanel {
             return;
         }
 
-        try {
-            currentOutput = dialogResult.toolboxConfig() != null
+        runBusy("Import", () -> {
+            ProcessorOutput out = dialogResult.toolboxConfig() != null
                     ? SvgImportStage.importSvg(file, dialogResult.toolboxConfig(), dialogResult.importOptions())
                     : SvgImportStage.importSvg(file, dialogResult.importOptions());
+            return autoMapColors(out);
+        }, out -> {
+            currentOutput = out;
             lastImportedSvgFile = file;
             lastImportOptions = dialogResult.importOptions();
-            currentOutput = autoMapColors(currentOutput);
+            undoSnapshot = null;
+            if (undoMenuItem != null) {
+                undoMenuItem.setEnabled(false);
+            }
             visPanel.loadFromOutput(currentOutput);
             visPanel.setContentMotorMin(0, 0);
             refreshPositionFields();
@@ -747,9 +792,7 @@ public class PlotterPanel extends JPanel {
             refreshGuidance();
             log(String.format("Imported %s: %d layer(s), %d command(s)",
                     file.getName(), currentOutput.layers().size(), currentOutput.metadata().totalCommands()));
-        } catch (IOException ex) {
-            log("ERROR: Failed to import " + file.getName() + ": " + ex.getMessage());
-        }
+        });
     }
 
     /**
@@ -761,7 +804,7 @@ public class PlotterPanel extends JPanel {
      */
     private void onEditProcessSvg() {
         if (lastImportedSvgFile == null || lastImportOptions == null) {
-            log("ERROR: Import an SVG file first (Edit > Process SVG only applies to SVG imports).");
+            info("Import an SVG file first — Edit > Process SVG only applies to SVG imports.");
             return;
         }
         org.trostheide.gantry.svgtoolbox.Config config =
@@ -769,16 +812,17 @@ public class PlotterPanel extends JPanel {
         if (config == null) {
             return;
         }
-        try {
-            currentOutput = SvgImportStage.importSvg(lastImportedSvgFile, config, lastImportOptions);
+        File source = lastImportedSvgFile;
+        org.trostheide.gantry.pipeline.svgimport.SvgImportOptions options = lastImportOptions;
+        snapshotForUndo();
+        runBusy("Process SVG", () -> SvgImportStage.importSvg(source, config, options), out -> {
+            currentOutput = out;
             visPanel.loadPathsPreservingOverlay(currentOutput);
             refreshPositionFields();
             refreshTimeEstimate();
             refreshGuidance();
-            log("Reprocessed " + lastImportedSvgFile.getName());
-        } catch (IOException ex) {
-            log("ERROR: Failed to reprocess " + lastImportedSvgFile.getName() + ": " + ex.getMessage());
-        }
+            log("Reprocessed " + source.getName());
+        });
     }
 
     /**
@@ -788,14 +832,15 @@ public class PlotterPanel extends JPanel {
      */
     private void onMapColorsToStations() {
         if (currentOutput == null) {
-            log("ERROR: Load or import a drawing first.");
+            info("Load or import a drawing first.");
             return;
         }
         List<PaintStation> stations = paintStations();
         if (stations.isEmpty()) {
-            log("No stations have a colour configured. Set station colours in Settings > Refill Stations first.");
+            info("No stations have a colour configured. Set station colours in Settings > Refill Stations first.");
             return;
         }
+        snapshotForUndo();
         currentOutput = StationMapper.assignByColor(currentOutput, stations);
         visPanel.loadPathsPreservingOverlay(currentOutput);
         logColorMapping();
@@ -836,7 +881,7 @@ public class PlotterPanel extends JPanel {
 
     private void onSaveCommands() {
         if (currentOutput == null) {
-            log("ERROR: Nothing to save. Load or import commands first.");
+            info("Nothing to save. Load or import commands first.");
             return;
         }
         JFileChooser chooser = newFileChooser();
@@ -845,23 +890,27 @@ public class PlotterPanel extends JPanel {
             return;
         }
         File file = chooser.getSelectedFile();
+        if (!confirmOverwrite(file)) {
+            return;
+        }
         rememberDirectory(file);
         try {
             ProcessorOutputIO.save(currentOutput, file);
             log("Saved " + file.getName());
         } catch (IOException ex) {
-            log("ERROR: Failed to save " + file.getName() + ": " + ex.getMessage());
+            error("Failed to save " + file.getName() + ": " + ex.getMessage());
         }
     }
 
     private void onOptimize() {
         if (currentOutput == null) {
-            log("ERROR: Load a commands file first.");
+            info("Load a commands file first.");
             return;
         }
         double tolerance = ((Number) simplifyToleranceSpinner.getValue()).doubleValue();
         boolean reorder = reorderStrokesCheckBox.isSelected();
 
+        snapshotForUndo();
         OptimizeStage.Stats before = OptimizeStage.computeStats(currentOutput);
         currentOutput = OptimizeStage.optimize(currentOutput, tolerance, reorder);
         OptimizeStage.Stats after = OptimizeStage.computeStats(currentOutput);
@@ -1146,7 +1195,7 @@ public class PlotterPanel extends JPanel {
 
     private void onExportGcode() {
         if (currentOutput == null) {
-            log("ERROR: Load a commands file first.");
+            info("Load a commands file first.");
             return;
         }
         JFileChooser chooser = newFileChooser();
@@ -1155,6 +1204,9 @@ public class PlotterPanel extends JPanel {
             return;
         }
         File file = chooser.getSelectedFile();
+        if (!confirmOverwrite(file)) {
+            return;
+        }
         rememberDirectory(file);
 
         ProcessorOutput toExport = preparePlotOutput();
@@ -1173,7 +1225,7 @@ public class PlotterPanel extends JPanel {
                 }
                 log("Exported G-code to " + file.getName());
             } else {
-                log("ERROR: Failed to open " + file.getName() + " for writing.");
+                error("Failed to open " + file.getName() + " for writing.");
             }
         }, "gcode-export").start();
     }
@@ -1264,5 +1316,84 @@ public class PlotterPanel extends JPanel {
             console.append(line + "\n");
             console.setCaretPosition(console.getDocument().getLength());
         });
+    }
+
+    /** Logs a failure to the console and also surfaces it as an error dialog so it can't be missed. */
+    private void error(String message) {
+        log("ERROR: " + message);
+        SwingUtilities.invokeLater(() ->
+                JOptionPane.showMessageDialog(this, message, "Error", JOptionPane.ERROR_MESSAGE));
+    }
+
+    /** Logs an informational note and shows it as a dialog (for workflow guidance the user must act on). */
+    private void info(String message) {
+        log(message);
+        SwingUtilities.invokeLater(() ->
+                JOptionPane.showMessageDialog(this, message, "Gantry", JOptionPane.INFORMATION_MESSAGE));
+    }
+
+    /** Returns true if {@code file} may be written: it doesn't exist, or the user confirms overwrite. */
+    private boolean confirmOverwrite(File file) {
+        if (!file.exists()) {
+            return true;
+        }
+        return JOptionPane.showConfirmDialog(this,
+                file.getName() + " already exists. Overwrite it?", "Confirm overwrite",
+                JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE) == JOptionPane.YES_OPTION;
+    }
+
+    /**
+     * Runs a potentially slow command-model transform off the EDT with a wait cursor, then applies
+     * the result back on the EDT. Keeps the UI responsive during import/optimize/process and routes
+     * any failure to an error dialog.
+     */
+    private void runBusy(String description, Callable<ProcessorOutput> task, Consumer<ProcessorOutput> onSuccess) {
+        Window window = SwingUtilities.getWindowAncestor(this);
+        if (window != null) {
+            window.setCursor(Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR));
+        }
+        new javax.swing.SwingWorker<ProcessorOutput, Void>() {
+            @Override
+            protected ProcessorOutput doInBackground() throws Exception {
+                return task.call();
+            }
+
+            @Override
+            protected void done() {
+                if (window != null) {
+                    window.setCursor(Cursor.getDefaultCursor());
+                }
+                try {
+                    onSuccess.accept(get());
+                } catch (Exception ex) {
+                    Throwable cause = ex.getCause() != null ? ex.getCause() : ex;
+                    error(description + " failed: " + cause.getMessage());
+                }
+            }
+        }.execute();
+    }
+
+    /** Snapshots {@link #currentOutput} so the next destructive transform can be undone. */
+    private void snapshotForUndo() {
+        undoSnapshot = currentOutput;
+        if (undoMenuItem != null) {
+            undoMenuItem.setEnabled(true);
+        }
+    }
+
+    private void onUndo() {
+        if (undoSnapshot == null) {
+            return;
+        }
+        currentOutput = undoSnapshot;
+        undoSnapshot = null;
+        if (undoMenuItem != null) {
+            undoMenuItem.setEnabled(false);
+        }
+        visPanel.loadPathsPreservingOverlay(currentOutput);
+        refreshPositionFields();
+        refreshTimeEstimate();
+        refreshGuidance();
+        log("Undo: reverted the last transform.");
     }
 }
