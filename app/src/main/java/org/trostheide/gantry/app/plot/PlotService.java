@@ -11,6 +11,7 @@ import org.trostheide.gantry.model.command.RefillCommand;
 import org.trostheide.gantry.plotter.PlotterBackend;
 
 import java.util.List;
+import java.util.Map;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
@@ -154,6 +155,8 @@ public class PlotService {
 
         checkPreflightBounds(contentBounds, machineW, machineH, offsetX, offsetY);
 
+        StationConfig rinseStation = findRinseStation();
+
         try {
             int layerIndex = 0;
             for (Layer layer : layers) {
@@ -173,6 +176,10 @@ public class PlotService {
                 layerStartedCallback.accept(layer);
                 logCallback.accept(String.format("=== Layer '%s' (%d/%d): %d commands ===",
                         layer.id(), layerIndex, layers.size(), layer.commands().size()));
+                // Clean the brush at the rinse pot before each new colour (not before the first).
+                if (rinseStation != null && layerIndex > 1) {
+                    performRinse(rinseStation);
+                }
                 executeLayer(layer, machineW, machineH, offsetX, offsetY, contentBounds);
 
                 if (!cancelled) {
@@ -368,9 +375,10 @@ public class PlotService {
     }
 
     /**
-     * Moves to the station, dips (pendown 0.5s, penup), and for "dip_swirl" stations also
-     * swirls the brush +-2mm before lifting. Falls back to the "default_station" entry for
-     * unknown station IDs, and logs a warning if neither is configured.
+     * Moves to the station and dips: pen down for the station's configured dwell, then up. For
+     * "dip_swirl"/"rinse" stations the brush is then swirled in a circle of the station's
+     * configured radius before lifting. Falls back to the "default_station" entry for unknown
+     * station IDs, and logs a warning if neither is configured.
      */
     private void performRefill(String stationId) {
         StationConfig station = settings.stations.get(stationId);
@@ -384,21 +392,50 @@ public class PlotService {
         }
 
         logCallback.accept(String.format("--- Refilling at %s (%.1f mm / %.1f mm) ---", stationId, station.x(), station.y()));
+        dip(station);
+        logCallback.accept("--- Refill Complete ---");
+    }
 
+    /** Number of straight segments used to approximate one full swirl circle. */
+    private static final int SWIRL_SEGMENTS = 16;
+
+    /** Dips the brush in a station's pot and, for swirl/rinse stations, circles it to load/clean evenly. */
+    private void dip(StationConfig station) {
         backend.moveto(station.x(), station.y());
         backend.pendown();
-        sleepQuietly(500);
+        sleepQuietly(station.dwellMs());
         backend.penup();
 
-        if ("dip_swirl".equals(station.behavior())) {
+        String behavior = station.behavior();
+        if ("dip_swirl".equals(behavior) || "rinse".equals(behavior)) {
+            double r = station.swirlRadius();
             backend.pendown();
-            backend.lineto(station.x() + 2, station.y());
-            backend.lineto(station.x() - 2, station.y());
+            for (int i = 0; i <= SWIRL_SEGMENTS; i++) {
+                double angle = 2 * Math.PI * i / SWIRL_SEGMENTS;
+                backend.lineto(station.x() + r * Math.cos(angle), station.y() + r * Math.sin(angle));
+            }
             backend.moveto(station.x(), station.y());
             backend.penup();
         }
+    }
 
-        logCallback.accept("--- Refill Complete ---");
+    /** Finds the configured rinse/clean pot (a station whose behavior or id marks it as such), if any. */
+    private StationConfig findRinseStation() {
+        for (Map.Entry<String, StationConfig> e : settings.stations.entrySet()) {
+            StationConfig s = e.getValue();
+            if ("rinse".equals(s.behavior()) || "rinse".equalsIgnoreCase(e.getKey())
+                    || "water".equalsIgnoreCase(e.getKey())) {
+                return s;
+            }
+        }
+        return null;
+    }
+
+    /** Cleans the brush at the rinse station between colour layers. */
+    private void performRinse(StationConfig rinse) {
+        logCallback.accept(String.format("--- Rinsing brush (%.1f mm / %.1f mm) ---", rinse.x(), rinse.y()));
+        dip(rinse);
+        logCallback.accept("--- Rinse Complete ---");
     }
 
     private static void sleepQuietly(long millis) {

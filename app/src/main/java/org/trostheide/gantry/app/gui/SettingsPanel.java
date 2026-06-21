@@ -281,16 +281,18 @@ public class SettingsPanel extends JPanel {
         }
     }
 
-    /** Table model for the refill-station editor: name, x, y, zDown, behavior. */
+    /** Table model for the refill-station editor: name, x, y, zDown, behavior, colour, dwell, swirl. */
     private static class StationTableModel extends AbstractTableModel {
-        private static final String[] COLUMNS = {"Name", "X (mm)", "Y (mm)", "Z Down", "Behavior"};
+        private static final String[] COLUMNS =
+                {"Name", "X (mm)", "Y (mm)", "Z Down", "Behavior", "Color", "Dwell (ms)", "Swirl (mm)"};
         private final List<Object[]> rows = new ArrayList<>();
 
         void setStations(Map<String, StationConfig> stations) {
             rows.clear();
             for (Map.Entry<String, StationConfig> e : stations.entrySet()) {
                 StationConfig s = e.getValue();
-                rows.add(new Object[] { e.getKey(), s.x(), s.y(), s.zDown(), s.behavior() });
+                rows.add(new Object[] { e.getKey(), s.x(), s.y(), s.zDown(), s.behavior(),
+                        s.color() == null ? "" : s.color(), s.dwellMs(), s.swirlRadius() });
             }
             fireTableDataChanged();
         }
@@ -302,17 +304,22 @@ public class SettingsPanel extends JPanel {
                 if (name.isEmpty()) {
                     continue;
                 }
+                String color = String.valueOf(row[5]).trim();
                 result.put(name, new StationConfig(
                         ((Number) row[1]).doubleValue(),
                         ((Number) row[2]).doubleValue(),
                         ((Number) row[3]).intValue(),
-                        String.valueOf(row[4])));
+                        String.valueOf(row[4]),
+                        color.isEmpty() ? null : color,
+                        ((Number) row[6]).intValue(),
+                        ((Number) row[7]).doubleValue()));
             }
             return result;
         }
 
         void addRow() {
-            rows.add(new Object[] { "station" + (rows.size() + 1), 0.0, 0.0, 30, "simple_dip" });
+            rows.add(new Object[] { "station" + (rows.size() + 1), 0.0, 0.0, 30, "simple_dip",
+                    "", StationConfig.DEFAULT_DWELL_MS, StationConfig.DEFAULT_SWIRL_RADIUS });
             fireTableRowsInserted(rows.size() - 1, rows.size() - 1);
         }
 
@@ -339,8 +346,8 @@ public class SettingsPanel extends JPanel {
         @Override
         public Class<?> getColumnClass(int columnIndex) {
             return switch (columnIndex) {
-                case 1, 2 -> Double.class;
-                case 3 -> Integer.class;
+                case 1, 2, 7 -> Double.class;
+                case 3, 6 -> Integer.class;
                 default -> String.class;
             };
         }
@@ -359,7 +366,7 @@ public class SettingsPanel extends JPanel {
         public void setValueAt(Object value, int rowIndex, int columnIndex) {
             if (columnIndex == 4) {
                 String behavior = String.valueOf(value);
-                if (!behavior.equals("simple_dip") && !behavior.equals("dip_swirl")) {
+                if (!behavior.equals("simple_dip") && !behavior.equals("dip_swirl") && !behavior.equals("rinse")) {
                     behavior = "simple_dip";
                 }
                 rows.get(rowIndex)[columnIndex] = behavior;

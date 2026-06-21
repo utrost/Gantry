@@ -129,7 +129,7 @@ public final class SvgImportStage {
                     globalBoundsBuilder, globalTx, commandCounter, preScannedBounds);
 
             if (!layerCommands.isEmpty()) {
-                resultLayers.add(new Layer(ctx.layerName, ctx.stationId, layerCommands));
+                resultLayers.add(new Layer(ctx.layerName, ctx.stationId, ctx.color, layerCommands));
                 totalCommands += layerCommands.size();
             }
         }
@@ -163,7 +163,7 @@ public final class SvgImportStage {
 
     // --- Layer identification ---
 
-    private record LayerContext(String layerName, String stationId, Element rootNode) {
+    private record LayerContext(String layerName, String stationId, String color, Element rootNode) {
     }
 
     private static List<LayerContext> identifyLayers(Document doc, String defaultStationId) {
@@ -187,16 +187,126 @@ public final class SvgImportStage {
                     String stationId = genericId;
                     String layerName = (label != null && !label.isEmpty()) ? label + " (" + genericId + ")" : genericId;
 
-                    contexts.add(new LayerContext(layerName, stationId, g));
+                    contexts.add(new LayerContext(layerName, stationId, resolveLayerColor(g), g));
                 }
             }
         }
 
         if (contexts.isEmpty()) {
-            contexts.add(new LayerContext("Default", defaultStationId, root));
+            contexts.add(new LayerContext("Default", defaultStationId, resolveLayerColor(root), root));
         }
 
         return contexts;
+    }
+
+    /** The layer's representative colour: the first resolvable stroke/fill among its drawables. */
+    private static String resolveLayerColor(Element root) {
+        List<Node> drawables = new ArrayList<>();
+        collectDrawableElements(root, drawables);
+        for (Node node : drawables) {
+            if (node instanceof Element el) {
+                String color = resolveElementColor(el);
+                if (color != null) {
+                    return color;
+                }
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Resolves an element's paint colour, preferring {@code stroke} over {@code fill} and the
+     * {@code style="..."} attribute over presentation attributes, walking up ancestors so a colour
+     * set on the enclosing group is still found. Returns a normalised {@code #rrggbb} hex string,
+     * or {@code null} if there's no concrete colour (e.g. {@code none}).
+     */
+    private static String resolveElementColor(Element el) {
+        Node node = el;
+        while (node instanceof Element current) {
+            for (String prop : new String[] {"stroke", "fill"}) {
+                String fromStyle = styleProperty(current.getAttribute("style"), prop);
+                String normalized = normalizeColor(fromStyle);
+                if (normalized != null) {
+                    return normalized;
+                }
+                normalized = normalizeColor(current.getAttribute(prop));
+                if (normalized != null) {
+                    return normalized;
+                }
+            }
+            node = current.getParentNode();
+        }
+        return null;
+    }
+
+    /** Extracts {@code prop:value} from an SVG {@code style} attribute, or null if absent. */
+    private static String styleProperty(String style, String prop) {
+        if (style == null || style.isEmpty()) {
+            return null;
+        }
+        for (String decl : style.split(";")) {
+            int colon = decl.indexOf(':');
+            if (colon > 0 && decl.substring(0, colon).trim().equalsIgnoreCase(prop)) {
+                return decl.substring(colon + 1).trim();
+            }
+        }
+        return null;
+    }
+
+    private static final java.util.Map<String, String> NAMED_COLORS = java.util.Map.ofEntries(
+            java.util.Map.entry("black", "#000000"), java.util.Map.entry("white", "#ffffff"),
+            java.util.Map.entry("red", "#ff0000"), java.util.Map.entry("green", "#008000"),
+            java.util.Map.entry("blue", "#0000ff"), java.util.Map.entry("yellow", "#ffff00"),
+            java.util.Map.entry("cyan", "#00ffff"), java.util.Map.entry("magenta", "#ff00ff"),
+            java.util.Map.entry("gray", "#808080"), java.util.Map.entry("grey", "#808080"),
+            java.util.Map.entry("orange", "#ffa500"), java.util.Map.entry("purple", "#800080"),
+            java.util.Map.entry("brown", "#a52a2a"), java.util.Map.entry("pink", "#ffc0cb"));
+
+    /** Normalises an SVG colour value (hex, {@code rgb(...)} or a basic named colour) to {@code #rrggbb}. */
+    private static String normalizeColor(String value) {
+        if (value == null) {
+            return null;
+        }
+        String v = value.trim().toLowerCase(Locale.ROOT);
+        if (v.isEmpty() || v.equals("none") || v.equals("transparent") || v.equals("currentcolor")) {
+            return null;
+        }
+        if (v.startsWith("#")) {
+            String h = v.substring(1);
+            if (h.length() == 3) {
+                StringBuilder sb = new StringBuilder("#");
+                for (int i = 0; i < 3; i++) {
+                    sb.append(h.charAt(i)).append(h.charAt(i));
+                }
+                return sb.toString();
+            }
+            if (h.length() == 6 && h.chars().allMatch(c -> Character.digit(c, 16) >= 0)) {
+                return "#" + h;
+            }
+            return null;
+        }
+        if (v.startsWith("rgb(") && v.endsWith(")")) {
+            String[] parts = v.substring(4, v.length() - 1).split(",");
+            if (parts.length == 3) {
+                try {
+                    int r = clampByte(parts[0]);
+                    int g = clampByte(parts[1]);
+                    int b = clampByte(parts[2]);
+                    return String.format(Locale.ROOT, "#%02x%02x%02x", r, g, b);
+                } catch (NumberFormatException ignored) {
+                    return null;
+                }
+            }
+            return null;
+        }
+        return NAMED_COLORS.get(v);
+    }
+
+    private static int clampByte(String s) {
+        String t = s.trim();
+        double val = t.endsWith("%") ? Double.parseDouble(t.substring(0, t.length() - 1)) * 2.55
+                : Double.parseDouble(t);
+        return Math.max(0, Math.min(255, (int) Math.round(val)));
     }
 
     // --- Core generation ---

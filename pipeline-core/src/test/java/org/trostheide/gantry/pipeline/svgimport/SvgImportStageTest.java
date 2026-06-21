@@ -167,6 +167,28 @@ class SvgImportStageTest {
         }
 
         @Test
+        void layerColourIsReadFromStrokeStyleAndAttribute() throws Exception {
+            String svg = "<svg xmlns=\"http://www.w3.org/2000/svg\" "
+                    + "xmlns:inkscape=\"http://www.inkscape.org/namespaces/inkscape\" "
+                    + "width=\"100\" height=\"100\" viewBox=\"0 0 100 100\">"
+                    + "<g inkscape:groupmode=\"layer\" inkscape:label=\"Reds\">"
+                    + "<path d=\"M10 10 L20 20\" style=\"stroke:#ff0000;fill:none\"/></g>"
+                    + "<g inkscape:groupmode=\"layer\" inkscape:label=\"Blues\">"
+                    + "<path d=\"M30 30 L40 40\" stroke=\"rgb(0,0,255)\"/></g>"
+                    + "</svg>";
+            File temp = File.createTempFile("colours", ".svg");
+            temp.deleteOnExit();
+            java.nio.file.Files.writeString(temp.toPath(), svg);
+
+            ProcessorOutput result = SvgImportStage.importSvg(temp,
+                    new SvgImportOptions(0, "default_station", 0.5, 0, 0, true, 0, 0, false));
+
+            assertEquals(2, result.layers().size());
+            assertEquals("#ff0000", result.layers().get(0).color());
+            assertEquals("#0000ff", result.layers().get(1).color());
+        }
+
+        @Test
         void fitToFormatScalesAgainstContentNotPageBorderRect() throws Exception {
             // A full-page border rect (dropped on output) must not be counted as "content" when
             // sizing the autoscale-to-format transform, or real content gets shrunk as if it

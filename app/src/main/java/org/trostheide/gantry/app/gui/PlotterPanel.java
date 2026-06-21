@@ -22,6 +22,8 @@ import org.trostheide.gantry.plotter.GcodeFileBackend;
 import org.trostheide.gantry.plotter.GcodeFileReplay;
 import org.trostheide.gantry.plotter.MockPlotterBackend;
 import org.trostheide.gantry.plotter.PlotterBackend;
+import org.trostheide.gantry.watercolor.PaintStation;
+import org.trostheide.gantry.watercolor.StationMapper;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
@@ -322,6 +324,7 @@ public class PlotterPanel extends JPanel {
 
         JMenu editMenu = new JMenu("Edit");
         editMenu.add(menuItem("Process SVG...", e -> onEditProcessSvg(), true));
+        editMenu.add(menuItem("Map Layer Colors to Stations", e -> onMapColorsToStations(), true));
         menuBar.add(editMenu);
 
         JMenu settingsMenu = new JMenu("Settings");
@@ -736,6 +739,7 @@ public class PlotterPanel extends JPanel {
                     : SvgImportStage.importSvg(file, dialogResult.importOptions());
             lastImportedSvgFile = file;
             lastImportOptions = dialogResult.importOptions();
+            currentOutput = autoMapColors(currentOutput);
             visPanel.loadFromOutput(currentOutput);
             visPanel.setContentMotorMin(0, 0);
             refreshPositionFields();
@@ -774,6 +778,59 @@ public class PlotterPanel extends JPanel {
             log("Reprocessed " + lastImportedSvgFile.getName());
         } catch (IOException ex) {
             log("ERROR: Failed to reprocess " + lastImportedSvgFile.getName() + ": " + ex.getMessage());
+        }
+    }
+
+    /**
+     * Reassigns each layer to the paint pot whose configured colour best matches the layer's
+     * source colour (read from the SVG stroke/fill). Replaces fragile positional layer↔station
+     * naming with a colour-driven mapping, so the operator only has to fill pots by colour.
+     */
+    private void onMapColorsToStations() {
+        if (currentOutput == null) {
+            log("ERROR: Load or import a drawing first.");
+            return;
+        }
+        List<PaintStation> stations = paintStations();
+        if (stations.isEmpty()) {
+            log("No stations have a colour configured. Set station colours in Settings > Refill Stations first.");
+            return;
+        }
+        currentOutput = StationMapper.assignByColor(currentOutput, stations);
+        visPanel.loadPathsPreservingOverlay(currentOutput);
+        logColorMapping();
+        refreshTimeEstimate();
+        refreshGuidance();
+    }
+
+    /** Stations that have a paint colour configured, as colour-matching targets. */
+    private List<PaintStation> paintStations() {
+        List<PaintStation> list = new ArrayList<>();
+        for (Map.Entry<String, StationConfig> e : config.stations.entrySet()) {
+            String color = e.getValue().color();
+            if (color != null && !color.isBlank()) {
+                list.add(new PaintStation(e.getKey(), color));
+            }
+        }
+        return list;
+    }
+
+    /**
+     * Applies colour→station mapping automatically right after an import, but only if the operator
+     * has actually configured station colours; otherwise the drawing keeps its positional stations.
+     */
+    private ProcessorOutput autoMapColors(ProcessorOutput output) {
+        if (paintStations().isEmpty()) {
+            return output;
+        }
+        ProcessorOutput mapped = StationMapper.assignByColor(output, paintStations());
+        return mapped;
+    }
+
+    private void logColorMapping() {
+        for (Layer layer : currentOutput.layers()) {
+            log(String.format("  %s (%s) -> station %s",
+                    layer.id(), layer.color() == null ? "no colour" : layer.color(), layer.stationId()));
         }
     }
 
@@ -1178,7 +1235,7 @@ public class PlotterPanel extends JPanel {
                     bakedCommands.add(cmd);
                 }
             }
-            bakedLayers.add(new Layer(layer.id(), layer.stationId(), bakedCommands));
+            bakedLayers.add(new Layer(layer.id(), layer.stationId(), layer.color(), bakedCommands));
         }
         return new ProcessorOutput(output.metadata(), bakedLayers);
     }

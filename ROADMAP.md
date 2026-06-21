@@ -103,7 +103,7 @@ oracle until Phase 3.
 | **5. New features** ✅ | Multipass/pigment (`pipeline-core`, benefits pen *and* watercolor) · G-code file export + re-plot (`plotter`) · refill stays in `watercolor` | Each behind a tested toggle in the GUI |
 | **6. SVG ingestion & processing pipeline** ✅ | Port the SVG→command-model pipeline (`legacy/SVG2WaterColor`'s `ProcessorService`) into `pipeline-core`/`svgtoolbox-core`, plus the SVGToolBox SVG→SVG processors not yet covered by Phase 4; add "Process SVG"/"Draw SVG" GUI entry points and a headless CLI | An SVG file can be loaded in the GUI/CLI and produce a plottable command model with no external tooling; `legacy/` no longer the only path from SVG to plot |
 | **7. Cutover** ✅ | Delete `legacy/`; docs; single-artifact release | One JAR, no Python anywhere |
-| **8. Hardening & watercolor completion** 🚧 | Post-cutover audit fixes: plotting-safety (Stop/disconnect), UX polish, and finally building out the `watercolor/` module (color→station mapping) | Stop/disconnect always leave the machine in a safe state; SVG colors drive station assignment; errors are visible to the operator |
+| **8. Hardening & watercolor completion** 🚧 | Post-cutover audit fixes: plotting-safety (Stop/disconnect) ✅, watercolor completion (colour→station mapping) ✅, and remaining UX polish | Stop/disconnect always leave the machine in a safe state ✅; SVG colours drive station assignment ✅; errors are visible to the operator ✅; UX polish pending |
 
 ### Phase 8 — in progress (post-cutover self-audit)
 
@@ -130,19 +130,29 @@ watercolor vision is structurally incomplete), 🟡 medium (UX), 🟢 low (clean
 - *Remaining:* full GRBL alarm/hold state handling and propagating a hard
   serial-failure up to abort the plot (not just log it).
 
-**🟠 Watercolor completion — NOT STARTED**
-- `watercolor/` module is still an empty `package-info.java` placeholder; its
-  promised "paint station mapping + refill-split" lives scattered in
-  `SvgImportStage`/`PlotService`.
-- **No color is read from the SVG.** `Layer` has no color field; `stroke`/`fill`
-  are never parsed; layers map to stations *positionally* (`"Layer"+N`), so
-  nothing connects a paint color to a physical pot. Biggest product gap.
-- **Fragile layer↔station name matching:** import emits `Layer1, Layer2…` but
-  Settings defaults station names to `station1, station2…` → silent
-  `default_station` fallback.
-- **No brush-cleaning/rinse step** between colors; **`StationConfig.zDown`
-  (dip depth) is parsed but never used**; the "swirl" is a hardcoded ±2 mm
-  X-only jiggle with a magic 500 ms dwell — none of it configurable.
+**🟠 Watercolor completion — DONE**
+- The `watercolor/` module is now real: `ColorUtil` (hex parsing + redmean
+  perceptual colour distance), `PaintStation` (id + colour), and `StationMapper`
+  (`assignByColor` / `nearestStation`) — the colour-driven station assignment
+  that replaces fragile positional naming.
+- **Colour is now read from the SVG.** `Layer` gained a `color` field;
+  `SvgImportStage` resolves each layer's stroke/fill (style attr, presentation
+  attr, ancestor inheritance, `#rgb`/`#rrggbb`/`rgb()`/named colours), and the
+  colour is preserved through optimize/multipass/overlay-bake.
+- **Colour→station mapping:** `Edit ▸ Map Layer Colors to Stations` (and an
+  automatic pass right after import when station colours are configured) routes
+  each layer — and its `RefillCommand`s — to the nearest-colour pot. Layers with
+  no matchable colour keep their original station, so nothing is dropped.
+- **Brush rinse between colours:** a station with behavior `rinse` (or named
+  `rinse`/`water`) is visited and swirled before each new colour layer.
+- **Refill is now configurable and a real swirl:** `StationConfig` gained
+  `color`, `dwellMs` and `swirlRadius`; `dip_swirl`/`rinse` trace an actual
+  circle of the configured radius instead of the old hard-coded ±2 mm X jiggle;
+  dwell replaces the magic 500 ms. All editable in Settings ▸ Refill Stations
+  (new Color / Dwell / Swirl columns), back-compatible with old `config.json`.
+- *Remaining (deferred):* `StationConfig.zDown` is now surfaced/editable but
+  still not driven into motion — that needs a per-dip pen-depth method on
+  `PlotterBackend` (servo setups use a fixed pen-down Z), tracked for a later pass.
 
 **🟡 UX polish — NOT STARTED**
 - Errors only go to the log console (easy to miss) — genuine failures should be

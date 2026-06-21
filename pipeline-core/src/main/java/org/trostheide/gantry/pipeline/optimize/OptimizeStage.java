@@ -89,7 +89,7 @@ public final class OptimizeStage {
                 i++;
             }
         }
-        return new Layer(layer.id(), layer.stationId(), result);
+        return new Layer(layer.id(), layer.stationId(), layer.color(), result);
     }
 
     private static Point appendStrokes(List<Command> result, List<MoveCommand> moves, List<DrawCommand> draws,

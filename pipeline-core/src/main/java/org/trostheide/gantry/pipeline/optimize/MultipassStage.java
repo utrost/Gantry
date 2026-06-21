@@ -48,6 +48,6 @@ public final class MultipassStage {
                 i++;
             }
         }
-        return new Layer(layer.id(), layer.stationId(), result);
+        return new Layer(layer.id(), layer.stationId(), layer.color(), result);
     }
 }
