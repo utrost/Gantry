@@ -80,6 +80,7 @@ public class PlotterPanel extends JPanel {
 
     /** Controls that should be disabled while a plot is running (jog, pen, speed, edit actions). */
     private final List<JComponent> plotDisabledControls = new ArrayList<>();
+    private final List<JComponent> connectionRequiredControls = new ArrayList<>();
 
     private JSplitPane controlSplit;
 
@@ -219,6 +220,7 @@ public class PlotterPanel extends JPanel {
         bar.add(settingsBtn);
 
         connectBtn.addActionListener(e -> onConnectToggle());
+        setConnectButtonColor(true);
         bar.add(connectBtn);
 
         bar.add(Box.createHorizontalStrut(12));
@@ -239,6 +241,13 @@ public class PlotterPanel extends JPanel {
         return component;
     }
 
+    /** Registers controls that only make sense once a backend connection is established. */
+    private <T extends JComponent> T requireConnection(T component) {
+        connectionRequiredControls.add(component);
+        component.setEnabled(false);
+        return component;
+    }
+
     private static final Dimension JOG_BUTTON_SIZE = new Dimension(54, 54);
 
     private JButton jogButton(String label) {
@@ -255,10 +264,10 @@ public class PlotterPanel extends JPanel {
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.insets = new Insets(2, 2, 2, 2);
 
-        JButton up = disableDuringPlot(jogButton("▲"));
-        JButton down = disableDuringPlot(jogButton("▼"));
-        JButton left = disableDuringPlot(jogButton("◄"));
-        JButton right = disableDuringPlot(jogButton("►"));
+        JButton up = requireConnection(disableDuringPlot(jogButton("▲")));
+        JButton down = requireConnection(disableDuringPlot(jogButton("▼")));
+        JButton left = requireConnection(disableDuringPlot(jogButton("◄")));
+        JButton right = requireConnection(disableDuringPlot(jogButton("►")));
         up.addActionListener(e -> jog(0, 1));
         down.addActionListener(e -> jog(0, -1));
         left.addActionListener(e -> jog(-1, 0));
@@ -270,8 +279,8 @@ public class PlotterPanel extends JPanel {
         gbc.gridx = 1; gbc.gridy = 2; panel.add(down, gbc);
 
         // Step + pen controls tuck into the empty space to the right of the jog cross.
-        JButton penUpBtn = disableDuringPlot(new JButton("Pen Up"));
-        JButton penDownBtn = disableDuringPlot(new JButton("Pen Down"));
+        JButton penUpBtn = requireConnection(disableDuringPlot(new JButton("Pen Up")));
+        JButton penDownBtn = requireConnection(disableDuringPlot(new JButton("Pen Down")));
         penUpBtn.addActionListener(e -> runOnBackend(PlotterBackend::penup));
         penDownBtn.addActionListener(e -> runOnBackend(PlotterBackend::pendown));
 
@@ -302,9 +311,9 @@ public class PlotterPanel extends JPanel {
         gbc.gridx = 0; gbc.gridy = 3; gbc.gridwidth = 4;
         JPanel speedRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 0));
         speedRow.add(new JLabel("Speed"));
-        JButton speedDown = new JButton("-");
-        JButton speedUp = new JButton("+");
-        JButton speedReset = new JButton("Reset");
+        JButton speedDown = requireConnection(new JButton("-"));
+        JButton speedUp = requireConnection(new JButton("+"));
+        JButton speedReset = requireConnection(new JButton("Reset"));
         speedDown.addActionListener(e -> runOnBackend(b -> b.adjustSpeed("down")));
         speedUp.addActionListener(e -> runOnBackend(b -> b.adjustSpeed("up")));
         speedReset.addActionListener(e -> runOnBackend(b -> b.adjustSpeed("reset")));
@@ -316,7 +325,7 @@ public class PlotterPanel extends JPanel {
 
         gbc.gridx = 0; gbc.gridy = 4; gbc.gridwidth = 4;
         gbc.fill = GridBagConstraints.HORIZONTAL;
-        JButton homeBtn = disableDuringPlot(new JButton("⌂ Home (limit switches)"));
+        JButton homeBtn = requireConnection(disableDuringPlot(new JButton("⌂ Home (limit switches)")));
         homeBtn.setFont(homeBtn.getFont().deriveFont(Font.BOLD));
         homeBtn.setToolTipText("Run the homing cycle against the limit switches");
         homeBtn.addActionListener(e -> onHome());
@@ -407,6 +416,7 @@ public class PlotterPanel extends JPanel {
         panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
         panel.setBorder(section("Plot"));
 
+        requireConnection(startBtn);
         startBtn.addActionListener(e -> onStartPlot());
         confirmBtn.addActionListener(e -> confirmGate.release());
         pauseBtn.addActionListener(e -> onPauseToggle());
@@ -516,8 +526,8 @@ public class PlotterPanel extends JPanel {
         JPanel panel = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 4));
         panel.setBorder(section("Raw G-code"));
 
-        JButton sendBtn = disableDuringPlot(new JButton("Send"));
-        disableDuringPlot(rawCommandField);
+        JButton sendBtn = requireConnection(disableDuringPlot(new JButton("Send")));
+        requireConnection(disableDuringPlot(rawCommandField));
         ActionListener send = e -> {
             String cmd = rawCommandField.getText().trim();
             if (cmd.isEmpty()) {
@@ -583,6 +593,7 @@ public class PlotterPanel extends JPanel {
         try {
             currentOutput = CommandFile.load(file);
             visPanel.loadFromOutput(currentOutput);
+            visPanel.setContentMotorMin(0, 0);
             refreshPositionFields();
             refreshTimeEstimate();
             log("Loaded " + file.getName());
@@ -610,6 +621,7 @@ public class PlotterPanel extends JPanel {
                     ? SvgImportStage.importSvg(file, dialogResult.toolboxConfig(), dialogResult.importOptions())
                     : SvgImportStage.importSvg(file, dialogResult.importOptions());
             visPanel.loadFromOutput(currentOutput);
+            visPanel.setContentMotorMin(0, 0);
             refreshPositionFields();
             refreshTimeEstimate();
             log(String.format("Imported %s: %d layer(s), %d command(s)",
@@ -651,7 +663,7 @@ public class PlotterPanel extends JPanel {
         currentOutput = OptimizeStage.optimize(currentOutput, tolerance, reorder);
         OptimizeStage.Stats after = OptimizeStage.computeStats(currentOutput);
 
-        visPanel.loadFromOutput(currentOutput);
+        visPanel.loadPathsPreservingOverlay(currentOutput);
         refreshPositionFields();
         refreshTimeEstimate();
 
@@ -706,6 +718,8 @@ public class PlotterPanel extends JPanel {
                     if (ok) {
                         backend = newBackend;
                         connectBtn.setText("Disconnect");
+                        setConnectButtonColor(false);
+                        setConnectionRequiredControlsEnabled(true);
                         statusLabel.setText("Connected");
                         log("Connected.");
                     } else {
@@ -718,8 +732,29 @@ public class PlotterPanel extends JPanel {
             PlotterBackend toClose = backend;
             backend = null;
             connectBtn.setText("Connect");
+            setConnectButtonColor(true);
+            setConnectionRequiredControlsEnabled(false);
             statusLabel.setText("Disconnected");
             new Thread(toClose::disconnect, "backend-disconnect").start();
+        }
+    }
+
+    /** Tints the Connect button green when idle/disconnected, so it stands out as the first required step. */
+    private void setConnectButtonColor(boolean disconnected) {
+        if (disconnected) {
+            connectBtn.setBackground(new Color(46, 125, 50));
+            connectBtn.setForeground(Color.WHITE);
+            connectBtn.setOpaque(true);
+        } else {
+            connectBtn.setBackground(null);
+            connectBtn.setForeground(null);
+            connectBtn.setOpaque(false);
+        }
+    }
+
+    private void setConnectionRequiredControlsEnabled(boolean enabled) {
+        for (JComponent c : connectionRequiredControls) {
+            c.setEnabled(enabled);
         }
     }
 

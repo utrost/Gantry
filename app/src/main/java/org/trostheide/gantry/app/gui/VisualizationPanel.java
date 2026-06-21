@@ -301,6 +301,20 @@ public class VisualizationPanel extends JPanel {
 
     /** Loads every DRAW polyline from {@code output}, resetting the cursor and overlay transform. */
     public void loadFromOutput(ProcessorOutput output) {
+        overlayOffsetX = 0;
+        overlayOffsetY = 0;
+        overlayScale = 1.0;
+        overlayRotation = 0;
+        overlayMirror = false;
+        suppressAlignment = false;
+        loadPathsPreservingOverlay(output);
+    }
+
+    /**
+     * Reloads geometry from {@code output} (e.g. after an in-place optimize/reorder pass)
+     * without disturbing the user's current pan/scale/rotation/mirror placement.
+     */
+    public void loadPathsPreservingOverlay(ProcessorOutput output) {
         allPaths.clear();
         currentX = 0;
         currentY = 0;
@@ -309,12 +323,6 @@ public class VisualizationPanel extends JPanel {
         if (cursorAnimTimer != null) {
             cursorAnimTimer.stop();
         }
-        overlayOffsetX = 0;
-        overlayOffsetY = 0;
-        overlayScale = 1.0;
-        overlayRotation = 0;
-        overlayMirror = false;
-        suppressAlignment = false;
 
         for (Layer layer : output.layers()) {
             for (Command cmd : layer.commands()) {
