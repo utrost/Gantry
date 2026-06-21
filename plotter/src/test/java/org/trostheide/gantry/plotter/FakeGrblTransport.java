@@ -59,6 +59,7 @@ class FakeGrblTransport implements SerialTransport {
                 case (byte) 0x90 -> feedOverride = 100;
                 case (byte) 0x91 -> feedOverride = Math.min(200, feedOverride + 10);
                 case (byte) 0x92 -> feedOverride = Math.max(10, feedOverride - 10);
+                case (byte) 0x18 -> lineBuffer.setLength(0); // soft-reset discards any partial input line
                 case '?' -> toClient.add(statusReport());
                 default -> lineBuffer.append((char) (b & 0xFF));
             }

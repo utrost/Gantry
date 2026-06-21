@@ -154,28 +154,39 @@ public class PlotService {
 
         checkPreflightBounds(contentBounds, machineW, machineH, offsetX, offsetY);
 
-        int layerIndex = 0;
-        for (Layer layer : layers) {
-            layerIndex++;
-            if (cancelled) {
-                return;
-            }
-            try {
-                layerGate.await(layer);
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                return;
-            }
-            if (cancelled) {
-                return;
-            }
-            layerStartedCallback.accept(layer);
-            logCallback.accept(String.format("=== Layer '%s' (%d/%d): %d commands ===",
-                    layer.id(), layerIndex, layers.size(), layer.commands().size()));
-            executeLayer(layer, machineW, machineH, offsetX, offsetY, contentBounds);
+        try {
+            int layerIndex = 0;
+            for (Layer layer : layers) {
+                layerIndex++;
+                if (cancelled) {
+                    return;
+                }
+                try {
+                    layerGate.await(layer);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    return;
+                }
+                if (cancelled) {
+                    return;
+                }
+                layerStartedCallback.accept(layer);
+                logCallback.accept(String.format("=== Layer '%s' (%d/%d): %d commands ===",
+                        layer.id(), layerIndex, layers.size(), layer.commands().size()));
+                executeLayer(layer, machineW, machineH, offsetX, offsetY, contentBounds);
 
-            if (!cancelled) {
-                parkAtOrigin();
+                if (!cancelled) {
+                    parkAtOrigin();
+                }
+            }
+        } finally {
+            if (cancelled) {
+                // On Stop, always bring the head to a safe state: lift the pen so it doesn't sit
+                // on the paper bleeding ink while stopped. This runs on the plot thread itself, so
+                // it never races a backend-driven halt. (For GRBL, the GUI also fires a realtime
+                // soft-reset via haltMotion() to abort any buffered motion.)
+                backend.penup();
+                logCallback.accept("--- Plot stopped: pen lifted ---");
             }
         }
     }

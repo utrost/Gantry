@@ -178,6 +178,28 @@ class PlotServiceTest {
 
         service.plot(output(layer));
 
-        assertEquals(List.of(), backend.calls);
+        // Cancelling before any command still lifts the pen as a safe-state guarantee.
+        assertEquals(List.of("PENUP"), backend.calls);
+    }
+
+    @Test
+    void cancelMidDrawLiftsThePen() {
+        FakePlotterBackend backend = new FakePlotterBackend();
+        PlotSettings settings = new PlotSettings();
+        settings.machineWidth = 100.0;
+        settings.machineHeight = 100.0;
+        PlotService service = new PlotService(backend, settings);
+
+        // Cancel as soon as the layer starts drawing, simulating a Stop mid-plot.
+        service.setLayerStartedCallback(l -> service.cancel());
+
+        List<Command> commands = new ArrayList<>();
+        commands.add(new DrawCommand(1, List.of(new Point(5, 5), new Point(6, 6))));
+        Layer layer = new Layer("L1", "default_station", commands);
+
+        service.plot(output(layer));
+
+        // No draw should have happened, and the pen must end up lifted (not left on the paper).
+        assertEquals(List.of("PENUP"), backend.calls);
     }
 }

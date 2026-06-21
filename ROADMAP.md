@@ -103,6 +103,64 @@ oracle until Phase 3.
 | **5. New features** ✅ | Multipass/pigment (`pipeline-core`, benefits pen *and* watercolor) · G-code file export + re-plot (`plotter`) · refill stays in `watercolor` | Each behind a tested toggle in the GUI |
 | **6. SVG ingestion & processing pipeline** ✅ | Port the SVG→command-model pipeline (`legacy/SVG2WaterColor`'s `ProcessorService`) into `pipeline-core`/`svgtoolbox-core`, plus the SVGToolBox SVG→SVG processors not yet covered by Phase 4; add "Process SVG"/"Draw SVG" GUI entry points and a headless CLI | An SVG file can be loaded in the GUI/CLI and produce a plottable command model with no external tooling; `legacy/` no longer the only path from SVG to plot |
 | **7. Cutover** ✅ | Delete `legacy/`; docs; single-artifact release | One JAR, no Python anywhere |
+| **8. Hardening & watercolor completion** 🚧 | Post-cutover audit fixes: plotting-safety (Stop/disconnect), UX polish, and finally building out the `watercolor/` module (color→station mapping) | Stop/disconnect always leave the machine in a safe state; SVG colors drive station assignment; errors are visible to the operator |
+
+### Phase 8 — in progress (post-cutover self-audit)
+
+A three-track audit (GUI/UX, watercolor-feature completeness, backend
+robustness) of the shipped Phase-7 build surfaced the following. Items are
+tagged 🔴 critical (can damage hardware / ruin a print), 🟠 high (the
+watercolor vision is structurally incomplete), 🟡 medium (UX), 🟢 low (cleanup).
+
+**🔴 Plotting safety — STARTED (this is the first work item)**
+- **Stop left the pen down.** `PlotService.cancel()` only set a flag; `plot()`
+  returned early and skipped `parkAtOrigin()`/`penup()`. Now fixed: `plot()`
+  lifts the pen in a `finally` on cancel, independent of backend type.
+- **`haltMotion()` raced the plot thread** on the serial write lock
+  (`GcodeBackend`), clearing ack queues mid-`waitForOk` and interleaving
+  `$X`/`penup` with in-flight commands. Now fixed: an `aborting` flag
+  short-circuits the plot thread's stragglers, a sentinel wakes any in-flight
+  `waitForOk`, and recovery (`$X` + pen-up) runs single-threaded after the
+  realtime soft-reset.
+- **Mid-plot serial errors were swallowed** (`send()` ate `IOException`;
+  `waitForOk()` timeouts were a soft warning), so an unplug looked like a
+  successful plot. Now surfaced as ERROR, and backend diagnostics are teed into
+  the GUI log (previously only `System.out`, invisible in the app).
+- **Disconnect mid-plot** now confirms and cancels the active plot first.
+- *Remaining:* full GRBL alarm/hold state handling and propagating a hard
+  serial-failure up to abort the plot (not just log it).
+
+**🟠 Watercolor completion — NOT STARTED**
+- `watercolor/` module is still an empty `package-info.java` placeholder; its
+  promised "paint station mapping + refill-split" lives scattered in
+  `SvgImportStage`/`PlotService`.
+- **No color is read from the SVG.** `Layer` has no color field; `stroke`/`fill`
+  are never parsed; layers map to stations *positionally* (`"Layer"+N`), so
+  nothing connects a paint color to a physical pot. Biggest product gap.
+- **Fragile layer↔station name matching:** import emits `Layer1, Layer2…` but
+  Settings defaults station names to `station1, station2…` → silent
+  `default_station` fallback.
+- **No brush-cleaning/rinse step** between colors; **`StationConfig.zDown`
+  (dip depth) is parsed but never used**; the "swirl" is a hardcoded ±2 mm
+  X-only jiggle with a magic 500 ms dwell — none of it configurable.
+
+**🟡 UX polish — NOT STARTED**
+- Errors only go to the log console (easy to miss) — genuine failures should be
+  `JOptionPane` dialogs.
+- Long operations (import/optimize/process) run on the EDT with no busy
+  cursor/progress, freezing the UI.
+- `onLoadCommands` doesn't reset `lastImportedSvgFile`/`lastImportOptions`, so
+  *Edit ▸ Process SVG* after loading a `.json` silently reprocesses the
+  previously-imported SVG.
+- No overwrite confirmation on Save/Export; no menu mnemonics/accelerators; no
+  recent-files list; no undo for destructive transforms (Optimize/Process).
+
+**🟢 Cleanup — NOT STARTED**
+- Stale Javadoc referencing the removed Python (`driver.py`, "mapped in Python
+  config" in `RefillCommand`); duplicated paper-size/colour constants; dead
+  `setEnabledWhileEditing`; "User Guide" prints a path instead of opening it.
+
+
 
 ### Phase 6 — done
 

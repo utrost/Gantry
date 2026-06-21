@@ -35,6 +35,9 @@ public class GcodeBackend implements PlotterBackend {
     private volatile boolean running;
     private volatile boolean penIsDown;
     private volatile boolean collectRaw;
+    /** Set while {@link #haltMotion()} is aborting, so the plot thread's in-flight/straggler
+     * commands short-circuit instead of fighting the halt for the write lock and "ok" acks. */
+    private volatile boolean aborting;
 
     private final Object writeLock = new Object();
     private final BlockingQueue<String> ackQueue = new LinkedBlockingQueue<>();
@@ -261,8 +264,11 @@ public class GcodeBackend implements PlotterBackend {
         if (t == null || !t.isOpen()) {
             return;
         }
-        ackQueue.clear();
-        rawQueue.clear();
+        // Phase 1 — urgent: a single-byte realtime soft-reset aborts GRBL's planner buffer so
+        // motion stops *now*. This byte is safe to write even while the plot thread is mid-command;
+        // setting `aborting` makes that thread's remaining send()/waitForOk() calls no-ops so the
+        // two threads don't fight over the write lock or the ack queue.
+        aborting = true;
         synchronized (writeLock) {
             try {
                 t.writeBytes(new byte[] { 0x18 });
@@ -270,11 +276,19 @@ public class GcodeBackend implements PlotterBackend {
                 // realtime commands are fire-and-forget
             }
         }
-        sleepQuietly(500);
+        // After the soft-reset the "ok" the plot thread is blocked on will never arrive; push a
+        // sentinel so its waitForOk() returns promptly and it can observe cancellation and exit.
         ackQueue.clear();
-        send("$X");
+        ackQueue.offer("ok");
+        sleepQuietly(500);
+
+        // Phase 2 — recover on this single thread now that the plot thread has stood down.
+        ackQueue.clear();
+        rawQueue.clear();
+        aborting = false;
+        send("$X");      // clear the post-reset alarm state
         waitForOk(5);
-        penup();
+        penup();         // lift the pen so it isn't left resting on the paper
     }
 
     /** Returns the most recent work position reported by the poller, or null if disconnected. */
@@ -325,6 +339,11 @@ public class GcodeBackend implements PlotterBackend {
     // --- Internal serial plumbing ---------------------------------------
 
     private void send(String cmd) {
+        if (aborting) {
+            // Halt in progress: drop the plot thread's straggler commands rather than write them
+            // into a machine that's being soft-reset.
+            return;
+        }
         SerialTransport t = transport;
         if (t != null && t.isOpen()) {
             synchronized (writeLock) {
@@ -333,8 +352,11 @@ public class GcodeBackend implements PlotterBackend {
                     if (sentCommandCallback != null) {
                         sentCommandCallback.accept(cmd);
                     }
-                } catch (IOException ignored) {
-                    // dropped writes surface as a waitForOk() timeout
+                } catch (IOException e) {
+                    // A failed write almost always means the port vanished (cable unplugged, adapter
+                    // reset). Surface it instead of swallowing it, so the operator doesn't think a
+                    // plot finished cleanly when it actually died mid-stroke.
+                    System.out.println("ERROR: Serial write failed (lost connection to plotter?): " + e.getMessage());
                 }
             }
         }
@@ -345,7 +367,7 @@ public class GcodeBackend implements PlotterBackend {
     }
 
     private void waitForOk(long timeoutSeconds) {
-        if (transport == null) {
+        if (transport == null || aborting) {
             return;
         }
         String line;
@@ -356,7 +378,15 @@ public class GcodeBackend implements PlotterBackend {
             return;
         }
         if (line == null) {
-            System.out.println("WARNING: G-code response timeout");
+            // No ack within the timeout. Distinguish a genuine lost connection (port closed) from a
+            // slow machine, so a mid-plot disconnect reads as an ERROR rather than a soft warning
+            // that the plot loop quietly plows through.
+            SerialTransport t = transport;
+            if (t == null || !t.isOpen()) {
+                System.out.println("ERROR: Lost connection to plotter (serial port closed).");
+            } else {
+                System.out.println("WARNING: G-code response timeout");
+            }
             return;
         }
         if (line.toLowerCase(Locale.ROOT).startsWith("error")) {

@@ -174,6 +174,21 @@ class GcodeBackendTest {
         assertTrue(sent.contains("M280 P0 S60")); // penup before returning home
     }
 
+    @Test
+    void haltMotionClearsAlarmAndLiftsPen() {
+        GcodeBackend b = connected();
+        b.lineto(5.0, 5.0); // pen down
+
+        int beforeHalt = fake.sentCommands().size();
+        b.haltMotion();
+
+        List<String> afterHalt = List.copyOf(
+                fake.sentCommands().subList(beforeHalt, fake.sentCommands().size()));
+        // Recovery clears the post-soft-reset alarm, then lifts the pen as the final action.
+        assertTrue(afterHalt.contains("$X"), "expected $X alarm-clear, got " + afterHalt);
+        assertEquals("M280 P0 S60", afterHalt.get(afterHalt.size() - 1)); // penup is last
+    }
+
     /** Last command sent that isn't a "?" status poll response handler artifact. */
     private String lastNonStatus() {
         List<String> sent = fake.sentCommands();

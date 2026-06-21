@@ -149,7 +149,35 @@ public class PlotterPanel extends JPanel {
         applyConfigToVis();
         setPlottingState(false);
         installJogKeyBindings();
+        teeConsoleOutput();
         refreshGuidance();
+    }
+
+    /**
+     * Mirrors {@code System.out}/{@code System.err} into the GUI console. The plotter backend
+     * reports timeouts, GRBL errors and lost-connection diagnostics via {@code System.out}; before
+     * this, those only reached the terminal and were invisible to anyone running the app normally.
+     */
+    private void teeConsoleOutput() {
+        System.setOut(teeStream(System.out));
+        System.setErr(teeStream(System.err));
+    }
+
+    private java.io.PrintStream teeStream(java.io.PrintStream original) {
+        return new java.io.PrintStream(new java.io.OutputStream() {
+            private final StringBuilder line = new StringBuilder();
+
+            @Override
+            public void write(int b) {
+                original.write(b);
+                if (b == '\n') {
+                    log(line.toString());
+                    line.setLength(0);
+                } else if (b != '\r') {
+                    line.append((char) b);
+                }
+            }
+        }, true);
     }
 
     /** Builds the persistent, dismissible step banner that tells the user what to do next. */
@@ -848,6 +876,17 @@ public class PlotterPanel extends JPanel {
                 });
             }, "backend-connect").start();
         } else {
+            // Disconnecting mid-plot would orphan the plot thread and leave the machine moving with
+            // the pen down — confirm, then stop the plot cleanly before tearing down the backend.
+            if (plotting) {
+                int choice = JOptionPane.showConfirmDialog(this,
+                        "A plot is still running. Stop it and disconnect?",
+                        "Plot in progress", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
+                if (choice != JOptionPane.YES_OPTION) {
+                    return;
+                }
+                onStopPlot();
+            }
             PlotterBackend toClose = backend;
             backend = null;
             connectBtn.setText("Connect");
