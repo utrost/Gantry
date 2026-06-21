@@ -402,20 +402,33 @@ public class PlotService {
     /** Dips the brush in a station's pot and, for swirl/rinse stations, circles it to load/clean evenly. */
     private void dip(StationConfig station) {
         backend.moveto(station.x(), station.y());
-        backend.pendown();
+        dipPenDown(station);
         sleepQuietly(station.dwellMs());
         backend.penup();
 
         String behavior = station.behavior();
         if ("dip_swirl".equals(behavior) || "rinse".equals(behavior)) {
             double r = station.swirlRadius();
-            backend.pendown();
+            dipPenDown(station);
             for (int i = 0; i <= SWIRL_SEGMENTS; i++) {
                 double angle = 2 * Math.PI * i / SWIRL_SEGMENTS;
                 backend.lineto(station.x() + r * Math.cos(angle), station.y() + r * Math.sin(angle));
             }
             backend.moveto(station.x(), station.y());
             backend.penup();
+        }
+    }
+
+    /**
+     * Lowers the pen for a dip, honouring the station's {@code zDown} dip depth on machines with a
+     * real Z axis. A depth of 0 means "unset" — use the backend's normal pen-down depth instead, so
+     * servo pens and unconfigured stations behave exactly as before.
+     */
+    private void dipPenDown(StationConfig station) {
+        if (station.zDown() != 0) {
+            backend.pendown(station.zDown());
+        } else {
+            backend.pendown();
         }
     }
 

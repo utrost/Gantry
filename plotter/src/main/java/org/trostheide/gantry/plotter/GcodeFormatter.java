@@ -66,4 +66,16 @@ public final class GcodeFormatter {
             default -> null;
         };
     }
+
+    /**
+     * Like {@link #penDown(GcodeOptions)} but lowers a Z-axis pen to {@code zDown} mm instead of
+     * the configured default depth — used for per-station watercolor dips. Servo/M3 modes have no
+     * depth, so they fall back to the normal pen-down command.
+     */
+    public static String penDownAt(GcodeOptions options, double zDown) {
+        if ("zaxis".equals(options.penMode)) {
+            return String.format(Locale.ROOT, "G1 Z%.2f F%d", zDown, options.feedRateDraw);
+        }
+        return penDown(options);
+    }
 }

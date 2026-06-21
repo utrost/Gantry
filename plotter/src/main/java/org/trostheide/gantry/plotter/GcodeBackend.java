@@ -233,6 +233,17 @@ public class GcodeBackend implements PlotterBackend {
         sleepQuietly(150);
     }
 
+    @Override
+    public void pendown(double zDown) {
+        penIsDown = true;
+        String cmd = GcodeFormatter.penDownAt(options, zDown);
+        if (cmd != null) {
+            send(cmd);
+            waitForOk();
+        }
+        sleepQuietly(150);
+    }
+
     /**
      * Runs GRBL's homing cycle ({@code $H}) against the limit switches, then zeroes the work
      * origin at the resulting position so the plotter's logical (0,0) matches the switches.

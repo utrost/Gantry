@@ -104,6 +104,15 @@ public class GcodeFileBackend implements PlotterBackend {
     }
 
     @Override
+    public void pendown(double zDown) {
+        penIsDown = true;
+        String cmd = GcodeFormatter.penDownAt(options, zDown);
+        if (cmd != null) {
+            writeLine(cmd);
+        }
+    }
+
+    @Override
     public double[] queryPosition() {
         return new double[] { x, y };
     }

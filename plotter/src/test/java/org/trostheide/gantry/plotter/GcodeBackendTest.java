@@ -92,6 +92,25 @@ class GcodeBackendTest {
     }
 
     @Test
+    void pendownWithDepthLowersToStationZInZaxisMode() {
+        GcodeOptions options = new GcodeOptions();
+        options.penMode = "zaxis";
+        GcodeBackend b = newBackend(options);
+        b.connect();
+
+        b.pendown(-3.5); // a per-station dip depth
+        assertEquals("G1 Z-3.50 F1000", lastNonStatus());
+    }
+
+    @Test
+    void pendownWithDepthFallsBackToServoCommandWhenNoZAxis() {
+        GcodeBackend b = connected(); // default servo mode
+
+        b.pendown(-3.5);
+        assertEquals("M280 P0 S30", lastNonStatus()); // depth ignored; normal servo pen-down
+    }
+
+    @Test
     void penupAndPendownInM3M5ModeUseSpindleSpeed() {
         GcodeOptions options = new GcodeOptions();
         options.penMode = "m3m5";

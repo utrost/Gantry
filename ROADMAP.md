@@ -150,9 +150,11 @@ watercolor vision is structurally incomplete), 🟡 medium (UX), 🟢 low (clean
   circle of the configured radius instead of the old hard-coded ±2 mm X jiggle;
   dwell replaces the magic 500 ms. All editable in Settings ▸ Refill Stations
   (new Color / Dwell / Swirl columns), back-compatible with old `config.json`.
-- *Remaining (deferred):* `StationConfig.zDown` is now surfaced/editable but
-  still not driven into motion — that needs a per-dip pen-depth method on
-  `PlotterBackend` (servo setups use a fixed pen-down Z), tracked for a later pass.
+- **Per-station dip depth (`zDown`) now drives real Z motion.** `PlotterBackend`
+  gained `pendown(double zDown)`; on a Z-axis machine the dip/swirl lowers the
+  pen to the station's configured depth (`G1 Z<zDown>`), while servo/M3 pens and
+  mocks fall back to the normal pen-down. A station `zDown` of 0 means "unset" →
+  use the global pen-down depth, so existing setups are unaffected.
 
 **🟡 UX polish — NOT STARTED**
 - Errors only go to the log console (easy to miss) — genuine failures should be

@@ -126,6 +126,27 @@ class PlotServiceTest {
     }
 
     @Test
+    void dipUsesStationZDepthWhenConfigured() {
+        double[] depth = {Double.NaN};
+        FakePlotterBackend backend = new FakePlotterBackend() {
+            @Override
+            public void pendown(double z) {
+                depth[0] = z;
+                super.pendown();
+            }
+        };
+        PlotSettings settings = new PlotSettings();
+        settings.machineWidth = 100.0;
+        settings.machineHeight = 100.0;
+        settings.stations.put("red", new StationConfig(10, 20, 7, "simple_dip"));
+        PlotService service = new PlotService(backend, settings);
+
+        service.plot(output(new Layer("L1", "red", List.of(new RefillCommand(1, "red")))));
+
+        assertEquals(7.0, depth[0]); // the station's zDown drives the dip depth
+    }
+
+    @Test
     void rinseStationCleansBrushBetweenColorLayers() {
         FakePlotterBackend backend = new FakePlotterBackend();
         PlotSettings settings = new PlotSettings();

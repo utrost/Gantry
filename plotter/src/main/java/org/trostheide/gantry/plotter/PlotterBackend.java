@@ -26,6 +26,14 @@ public interface PlotterBackend {
 
     void pendown();
 
+    /**
+     * Lowers the pen to a specific Z depth (mm), for per-station watercolor dips on machines with
+     * a real Z axis. Backends without depth control (servo pens, mocks) fall back to {@link #pendown()}.
+     */
+    default void pendown(double zDown) {
+        pendown();
+    }
+
     /** Returns the last known {x, y} work position in mm, or null if unsupported. */
     default double[] queryPosition() {
         return null;
