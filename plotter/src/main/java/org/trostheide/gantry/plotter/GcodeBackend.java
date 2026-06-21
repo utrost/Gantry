@@ -391,10 +391,10 @@ public class GcodeBackend implements PlotterBackend {
                     ackQueue.add(line);
                 }
             } else if (line.startsWith("<")) {
+                // Status reports are pushed asynchronously by the background poller, unrelated to
+                // whatever command sendRaw() is currently waiting on -- never fold them into its
+                // response collection, or an unlucky poll tick pollutes the command's response list.
                 handleStatus(line);
-                if (collectRaw) {
-                    rawQueue.add(line);
-                }
             } else {
                 if (collectRaw) {
                     rawQueue.add(line);
