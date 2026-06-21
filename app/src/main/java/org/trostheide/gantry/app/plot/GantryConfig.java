@@ -44,7 +44,7 @@ public class GantryConfig {
 
     /**
      * Derives {@link PlotSettings} from this config, applying the same machine-origin and
-     * portrait-mode axis derivation as the legacy {@code driver.py}:
+     * portrait-mode axis derivation rules used throughout the plot pipeline:
      * <ul>
      *   <li>{@code invertX}/{@code originRight} default from "Right" in {@link #machineOrigin}</li>
      *   <li>{@code invertY} defaults from "Bottom" in {@link #machineOrigin}</li>

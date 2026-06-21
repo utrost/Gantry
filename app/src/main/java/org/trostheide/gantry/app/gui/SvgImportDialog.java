@@ -287,24 +287,7 @@ public final class SvgImportDialog extends JDialog {
     }
 
     private Rectangle2D parseToolboxCrop() {
-        String selection = (String) toolboxCropCombo.getSelectedItem();
-        switch (selection) {
-            case "A4":
-                return new Rectangle2D.Double(0, 0, 793.7, 1122.5);
-            case "Letter":
-                return new Rectangle2D.Double(0, 0, 816.0, 1056.0);
-            case "Custom":
-                try {
-                    String[] parts = toolboxCropCustomField.getText().trim().split("x");
-                    double w = Double.parseDouble(parts[0]);
-                    double h = Double.parseDouble(parts[1]);
-                    return new Rectangle2D.Double(0, 0, w, h);
-                } catch (Exception e) {
-                    throw new IllegalArgumentException("Custom crop must be 'WxH' in px, e.g. 793.7x1122.5.");
-                }
-            default:
-                return null;
-        }
+        return PaperSizes.resolve((String) toolboxCropCombo.getSelectedItem(), toolboxCropCustomField.getText());
     }
 
     private List<java.awt.Color> parseColors(String text) {

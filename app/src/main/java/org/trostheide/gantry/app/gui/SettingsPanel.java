@@ -265,22 +265,6 @@ public class SettingsPanel extends JPanel {
         return config;
     }
 
-    public void setEnabledWhileEditing(boolean enabled) {
-        setEnabled(enabled);
-        for (Component c : getComponents()) {
-            setEnabledDeep(c, enabled);
-        }
-    }
-
-    private static void setEnabledDeep(Component c, boolean enabled) {
-        c.setEnabled(enabled);
-        if (c instanceof Container container) {
-            for (Component child : container.getComponents()) {
-                setEnabledDeep(child, enabled);
-            }
-        }
-    }
-
     /** Table model for the refill-station editor: name, x, y, zDown, behavior, colour, dwell, swirl. */
     private static class StationTableModel extends AbstractTableModel {
         private static final String[] COLUMNS =

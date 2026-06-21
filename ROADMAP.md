@@ -171,10 +171,17 @@ watercolor vision is structurally incomplete), 🟡 medium (UX), 🟢 low (clean
 - *Remaining (deferred, low value):* a recent-files list, and opening the User
   Guide now uses the desktop handler with a path fallback.
 
-**🟢 Cleanup — NOT STARTED**
-- Stale Javadoc referencing the removed Python (`driver.py`, "mapped in Python
-  config" in `RefillCommand`); duplicated paper-size/colour constants; dead
-  `setEnabledWhileEditing`; "User Guide" prints a path instead of opening it.
+**🟢 Cleanup — DONE**
+- Removed stale Python-era Javadoc (`driver.py`, "mapped in Python config") from
+  `RefillCommand`, `GantryConfig`, and `PlotSettings`.
+- Extracted the duplicated A4/Letter paper-size constants out of
+  `SvgImportDialog`/`EditProcessDialog` into a shared `PaperSizes` helper.
+- Extracted the duplicated green/red button colours in `PlotterPanel` into
+  `ACTION_GREEN`/`ACTION_RED` constants.
+- Removed dead code: `SettingsPanel.setEnabledWhileEditing`/`setEnabledDeep`
+  (no callers).
+- "User Guide" now uses the desktop handler with a path fallback (done as
+  part of the UX-polish batch).
 
 
 

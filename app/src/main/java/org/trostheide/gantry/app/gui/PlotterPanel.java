@@ -47,6 +47,9 @@ import java.util.function.Consumer;
  */
 public class PlotterPanel extends JPanel {
 
+    private static final Color ACTION_GREEN = new Color(46, 125, 50);
+    private static final Color ACTION_RED = new Color(198, 40, 40);
+
     private final File configFile = new File("config.json");
     private GantryConfig config = ConfigStore.load(configFile);
 
@@ -147,10 +150,10 @@ public class PlotterPanel extends JPanel {
         JSplitPane split = controlSplit;
         add(split, BorderLayout.CENTER);
 
-        startBtn.setBackground(new Color(46, 125, 50));
+        startBtn.setBackground(ACTION_GREEN);
         startBtn.setForeground(Color.WHITE);
         startBtn.setOpaque(true);
-        stopBtn.setBackground(new Color(198, 40, 40));
+        stopBtn.setBackground(ACTION_RED);
         stopBtn.setForeground(Color.WHITE);
         stopBtn.setOpaque(true);
 
@@ -1010,15 +1013,9 @@ public class PlotterPanel extends JPanel {
      * connected so the next reversible action (disconnecting) stays clearly visible too.
      */
     private void setConnectButtonColor(boolean disconnected) {
-        if (disconnected) {
-            connectBtn.setBackground(new Color(46, 125, 50));
-            connectBtn.setForeground(Color.WHITE);
-            connectBtn.setOpaque(true);
-        } else {
-            connectBtn.setBackground(new Color(198, 40, 40));
-            connectBtn.setForeground(Color.WHITE);
-            connectBtn.setOpaque(true);
-        }
+        connectBtn.setBackground(disconnected ? ACTION_GREEN : ACTION_RED);
+        connectBtn.setForeground(Color.WHITE);
+        connectBtn.setOpaque(true);
     }
 
     private void setConnectionRequiredControlsEnabled(boolean enabled) {

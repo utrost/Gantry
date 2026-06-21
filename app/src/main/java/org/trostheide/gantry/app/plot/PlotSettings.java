@@ -5,8 +5,7 @@ import java.util.Map;
 
 /**
  * Plot-time configuration: machine geometry, coordinate transform flags,
- * canvas alignment and refill stations. Mirrors the CLI/config.json options
- * consumed by the legacy {@code driver.py}.
+ * canvas alignment and refill stations.
  */
 public class PlotSettings {
 
