@@ -53,6 +53,8 @@ mode (Settings → Mock backend checkbox) when a plotter is not available.
 - [ ] `mvn clean install` completes with `BUILD SUCCESS` and zero test failures.
 - [ ] `./scripts/start.sh` (or `start.cmd`) launches the Gantry GUI.
 - [ ] GUI shows: visualisation panel (dark background, bed outline, axis labels), right-side controls, console at the bottom.
+- [ ] Every section in the right-hand control column (Jog, Overlay / Position, Plot, Raw G-code) is flush against the column's left edge — none is centered or has a control clipped at the right edge (e.g. the **Stop** button is fully visible).
+- [ ] The step-guidance banner under the toolbar uses the dark slate-blue theme color (not a yellow/cream banner) and is readable against the rest of the dark UI.
 
 ### 2.2 Settings
 
@@ -112,10 +114,12 @@ Use an SVG with two Inkscape layers (`inkscape:groupmode="layer"`).
 
 ### 2.7 Optimise loaded commands
 
-- [ ] Import an SVG. Click **Optimize Loaded Commands**.
+- [ ] Import an SVG. Use **Edit > Optimize Loaded Commands...**.
+  - [ ] Dialog prompts for Tolerance / Reorder; clicking OK runs it.
   - [ ] Console confirms optimisation ran; command count may decrease slightly.
-- [ ] Set Simplify tolerance = 1.0, Reorder strokes = enabled. Optimise again.
+- [ ] Set Tolerance = 1.0, Reorder = enabled. Optimise again.
   - [ ] Console confirms; command count is ≤ before.
+- [ ] With no commands loaded, **Edit > Optimize Loaded Commands...** shows "Load a commands file first." instead of opening the dialog.
 
 ### 2.8 Jog controls
 

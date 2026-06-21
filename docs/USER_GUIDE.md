@@ -253,8 +253,8 @@ The visualisation shows:
 
 ## Optimising loaded commands
 
-Use the **Optimize Loaded Commands** button to apply path optimisation to
-already-loaded commands:
+Use **Edit > Optimize Loaded Commands...** to apply path optimisation to
+already-loaded commands. A small dialog prompts for:
 
 | Control | Description |
 |---|---|

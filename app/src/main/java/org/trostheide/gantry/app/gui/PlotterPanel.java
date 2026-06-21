@@ -120,8 +120,6 @@ public class PlotterPanel extends JPanel {
         right.setLayout(new BoxLayout(right, BoxLayout.Y_AXIS));
         right.add(capHeight(jogSection()));
         right.add(Box.createVerticalStrut(3));
-        right.add(capHeight(optimizeSection()));
-        right.add(Box.createVerticalStrut(3));
         right.add(capHeight(overlaySection()));
         right.add(Box.createVerticalStrut(3));
         right.add(capHeight(plotSection()));
@@ -191,13 +189,21 @@ public class PlotterPanel extends JPanel {
         }, true);
     }
 
+    /** Background/text/accent for the step banner — a muted slate-blue that fits the dark theme. */
+    private static final Color GUIDANCE_BG = new Color(45, 58, 72);
+    private static final Color GUIDANCE_ACCENT = new Color(80, 180, 255);
+    private static final Color GUIDANCE_TEXT = new Color(220, 228, 235);
+
     /** Builds the persistent, dismissible step banner that tells the user what to do next. */
     private JPanel guidanceBanner() {
         guidancePanel = new JPanel(new BorderLayout());
-        guidancePanel.setBorder(new EmptyBorder(0, 4, 0, 4));
-        guidancePanel.setBackground(new Color(255, 249, 196));
+        guidancePanel.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createMatteBorder(0, 3, 0, 0, GUIDANCE_ACCENT),
+                new EmptyBorder(3, 6, 3, 4)));
+        guidancePanel.setBackground(GUIDANCE_BG);
         guidancePanel.setOpaque(true);
         guidanceLabel.setFont(guidanceLabel.getFont().deriveFont(Font.BOLD));
+        guidanceLabel.setForeground(GUIDANCE_TEXT);
 
         JButton closeBtn = new JButton("×");
         closeBtn.setToolTipText("Hide this guidance banner");
@@ -205,6 +211,7 @@ public class PlotterPanel extends JPanel {
         closeBtn.setFocusPainted(false);
         closeBtn.setBorderPainted(false);
         closeBtn.setContentAreaFilled(false);
+        closeBtn.setForeground(GUIDANCE_TEXT);
         closeBtn.addActionListener(e -> {
             guidanceDismissed = true;
             guidancePanel.setVisible(false);
@@ -341,6 +348,7 @@ public class PlotterPanel extends JPanel {
         editMenu.add(undoMenuItem);
         editMenu.addSeparator();
         editMenu.add(menuItem("Process SVG...", e -> onEditProcessSvg(), true));
+        editMenu.add(menuItem("Optimize Loaded Commands...", e -> onOptimizeDialog(), true));
         editMenu.add(menuItem("Map Layer Colors to Stations", e -> onMapColorsToStations(), true));
         menuBar.add(editMenu);
 
@@ -397,10 +405,16 @@ public class PlotterPanel extends JPanel {
         JOptionPane.showMessageDialog(this, message, "About Gantry", JOptionPane.INFORMATION_MESSAGE);
     }
 
-    /** Caps a section's maximum height to its preferred height so BoxLayout won't stretch it vertically. */
+    /**
+     * Caps a section's maximum height to its preferred height so BoxLayout won't stretch it
+     * vertically, and pins it to the left so a panel narrower than the column (e.g. one with a
+     * FlowLayout/BoxLayout that doesn't fill the available width) doesn't get centered and have
+     * its right edge clipped by the column's fixed width.
+     */
     private static <T extends JComponent> T capHeight(T component) {
         Dimension pref = component.getPreferredSize();
         component.setMaximumSize(new Dimension(Integer.MAX_VALUE, pref.height));
+        component.setAlignmentX(java.awt.Component.LEFT_ALIGNMENT);
         return component;
     }
 
@@ -503,22 +517,28 @@ public class PlotterPanel extends JPanel {
         return panel;
     }
 
-    private JPanel optimizeSection() {
-        JPanel panel = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 2));
-        panel.setBorder(section("Optimize"));
-
+    /**
+     * Edit > Optimize Loaded Commands...: prompts for simplify tolerance / reorder, then runs
+     * {@link #onOptimize()}. Was previously a permanent panel in the command column; moved here
+     * since it's an occasional, destructive transform like Process SVG and Map Colors, not
+     * something needed at a glance.
+     */
+    private void onOptimizeDialog() {
+        if (currentOutput == null) {
+            info("Load a commands file first.");
+            return;
+        }
         simplifyToleranceSpinner.setToolTipText("Simplify tolerance (mm)");
-        panel.add(new JLabel("Tol."));
-        panel.add(simplifyToleranceSpinner);
-        reorderStrokesCheckBox.setToolTipText("Reorder strokes to minimize travel");
-        panel.add(reorderStrokesCheckBox);
+        JPanel form = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 2));
+        form.add(new JLabel("Tolerance"));
+        form.add(simplifyToleranceSpinner);
+        form.add(reorderStrokesCheckBox);
 
-        JButton optimizeBtn = disableDuringPlot(new JButton("Optimize"));
-        optimizeBtn.setToolTipText("Optimize Loaded Commands");
-        optimizeBtn.addActionListener(e -> onOptimize());
-        panel.add(optimizeBtn);
-
-        return panel;
+        int choice = JOptionPane.showConfirmDialog(this, form, "Optimize Loaded Commands",
+                JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
+        if (choice == JOptionPane.OK_OPTION) {
+            onOptimize();
+        }
     }
 
     private JPanel overlaySection() {
