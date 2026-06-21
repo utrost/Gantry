@@ -252,6 +252,29 @@ z-order-aware overlap/collision handling beyond simple draw order.
 - Multi-item undo and multi-item station/colour mapping are where the
   complexity actually lives; the canvas interaction (click-to-select,
   per-item drag handles) is mechanical by comparison.
+- **Undo model mismatch.** Today's undo is a single whole-document snapshot;
+  per-item add/remove/transform needs a real command/history stack, which is
+  a different data structure, not an extension of the current one.
+  *Mitigation:* ship v1 with a deliberately small undo scope (e.g. "undo
+  last add/remove only," no per-transform undo) rather than building a full
+  command stack up front; revisit if it proves insufficient in practice.
+- **Z-order affects plot/export order, not just visuals.** Out-of-scope
+  visual overlap handling doesn't remove the need for a defined plot
+  sequence — without explicit item z-order, plot/export order would be
+  whatever order items happen to sit in the list, which is surprising and
+  not user-controllable. *Mitigation:* the `SvgItem.zOrder` field already
+  scoped above should double as plot/export sequence, with the GUI
+  ordering controls (Bring to Front/Back) driving both the visual stack and
+  the plot order from one source of truth.
+- **Selection scope is ambiguous for existing whole-document actions.**
+  Optimize Loaded Commands, Process SVG, and Map Layer Colors to Stations
+  (all Edit-menu actions today) currently operate on "the" document; Phase 9
+  doesn't yet say whether they should apply only to the selected item or
+  stay whole-document/compose-time operations. *Mitigation:* default all
+  three to operating on the composed/flattened output (matching today's
+  behavior) unless/until a specific need for per-item processing is
+  identified — avoids scope creep into per-item SVGToolBox pipelines, which
+  is already explicitly out of scope above.
 
 ---
 
