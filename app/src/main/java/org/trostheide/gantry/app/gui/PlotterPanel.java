@@ -240,22 +240,6 @@ public class PlotterPanel extends JPanel {
     private JPanel toolbar() {
         JPanel bar = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 4));
 
-        JButton loadBtn = disableDuringPlot(new JButton("Load Commands..."));
-        loadBtn.addActionListener(e -> onLoadCommands());
-        bar.add(loadBtn);
-
-        JButton importSvgBtn = disableDuringPlot(new JButton("Import SVG..."));
-        importSvgBtn.addActionListener(e -> onImportSvg());
-        bar.add(importSvgBtn);
-
-        JButton saveBtn = disableDuringPlot(new JButton("Save Commands..."));
-        saveBtn.addActionListener(e -> onSaveCommands());
-        bar.add(saveBtn);
-
-        JButton settingsBtn = disableDuringPlot(new JButton("Settings..."));
-        settingsBtn.addActionListener(e -> onOpenSettings());
-        bar.add(settingsBtn);
-
         connectBtn.addActionListener(e -> onConnectToggle());
         setConnectButtonColor(true);
         bar.add(connectBtn);
@@ -263,6 +247,57 @@ public class PlotterPanel extends JPanel {
         bar.add(Box.createHorizontalStrut(12));
         bar.add(statusLabel);
         return bar;
+    }
+
+    /** Builds the classical File/Settings/Help menu bar, hosted by the top-level frame. */
+    public JMenuBar buildMenuBar() {
+        JMenuBar menuBar = new JMenuBar();
+
+        JMenu fileMenu = new JMenu("File");
+        fileMenu.add(menuItem("Load Commands...", e -> onLoadCommands(), true));
+        fileMenu.add(menuItem("Import SVG...", e -> onImportSvg(), true));
+        fileMenu.add(menuItem("Save Commands...", e -> onSaveCommands(), true));
+        fileMenu.addSeparator();
+        fileMenu.add(menuItem("Export G-code...", e -> onExportGcode(), true));
+        fileMenu.add(menuItem("Replay G-code...", e -> onReplayGcode(), true));
+        fileMenu.addSeparator();
+        fileMenu.add(menuItem("Exit", e -> onExit(), false));
+        menuBar.add(fileMenu);
+
+        JMenu settingsMenu = new JMenu("Settings");
+        settingsMenu.add(menuItem("Preferences...", e -> onOpenSettings(), true));
+        menuBar.add(settingsMenu);
+
+        JMenu helpMenu = new JMenu("Help");
+        helpMenu.add(menuItem("User Guide...", e -> onShowHelp(), false));
+        helpMenu.add(menuItem("About Gantry...", e -> onShowAbout(), false));
+        menuBar.add(helpMenu);
+
+        return menuBar;
+    }
+
+    /** Builds a menu item, optionally registering it to be disabled while a plot is running. */
+    private JMenuItem menuItem(String label, ActionListener listener, boolean disableDuringPlot) {
+        JMenuItem item = new JMenuItem(label);
+        item.addActionListener(listener);
+        return disableDuringPlot ? disableDuringPlot(item) : item;
+    }
+
+    private void onExit() {
+        SwingUtilities.getWindowAncestor(this).dispose();
+    }
+
+    private void onShowHelp() {
+        File guide = new File("docs/USER_GUIDE.md");
+        String message = guide.exists()
+                ? "See docs/USER_GUIDE.md for the full user guide:\n" + guide.getAbsolutePath()
+                : "User guide not found at docs/USER_GUIDE.md.";
+        JOptionPane.showMessageDialog(this, message, "User Guide", JOptionPane.INFORMATION_MESSAGE);
+    }
+
+    private void onShowAbout() {
+        String message = "Gantry\nVersion 1.0-SNAPSHOT\n\nA pen-plotter control and SVG-to-G-code pipeline.";
+        JOptionPane.showMessageDialog(this, message, "About Gantry", JOptionPane.INFORMATION_MESSAGE);
     }
 
     /** Caps a section's maximum height to its preferred height so BoxLayout won't stretch it vertically. */

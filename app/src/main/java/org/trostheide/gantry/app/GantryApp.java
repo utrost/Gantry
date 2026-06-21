@@ -17,7 +17,9 @@ public final class GantryApp {
         SwingUtilities.invokeLater(() -> {
             JFrame frame = new JFrame("Gantry");
             frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-            frame.setContentPane(new PlotterPanel());
+            PlotterPanel panel = new PlotterPanel();
+            frame.setJMenuBar(panel.buildMenuBar());
+            frame.setContentPane(panel);
             frame.setSize(1280, 820);
             frame.setLocationRelativeTo(null);
             frame.setVisible(true);
