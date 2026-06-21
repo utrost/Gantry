@@ -154,8 +154,11 @@ Used for watercolor painting. Each station has:
 |---|---|
 | Name | Station ID referenced in the command model (`Layer1`, `default_station`, …) |
 | X / Y | Station position in mm |
-| Z Down | Z dip depth (stored but currently uses global pendown position) |
-| Behavior | `simple_dip` — dip and lift · `dip_swirl` — dip + left/right wiggle |
+| Z Down | Per-station dip depth in mm. On `zaxis` machines the pen lowers to this depth at the station (servo/M3 pens fall back to the global pen-down position). |
+| Behavior | `simple_dip` — dip and lift · `dip_swirl` — dip + circular swirl · `rinse` — dip + swirl used to clean the brush between colours |
+| Color | Hex colour assigned to this station, used by **Map Colors to Stations** to route each drawing colour to its nearest station. |
+| Dwell (ms) | How long to pause at the station while dipping. |
+| Swirl (mm) | Radius of the circular swirl motion for `dip_swirl` / `rinse` behaviours. |
 
 ---
 
@@ -173,8 +176,8 @@ Click **Import SVG…** and choose an SVG file. A two-tab dialog opens.
 |---|---|
 | Max draw distance (mm) | Insert a REFILL command every N mm of drawing. Set to 0 for no refill (pure pen plotting). |
 | Default station ID | Refill station used for layers that have no explicit station assignment. |
-| Curve step (mm) | Bezier curve linearization resolution (default 0.5 mm). |
-| Fit to | **Required.** Scale to fit a paper format: A6 · A5 · A4 · A3 · A2 · A1 · XL · Custom (WxH mm). You must choose a size before importing — the dialog starts on "-- Select size --" and will not import until a real format (or Custom) is picked. |
+| Curve step (mm) | Bezier curve linearization resolution (default 0.1 mm — smaller = smoother curves, more points). |
+| Fit to | **Required.** Scale to fit a paper format: A6 · A5 · A4 · A3 · A2 · A1 · XL · Custom (WxH mm). You must choose a size before importing — the dialog starts on "-- Select size --". The **Import** button stays disabled (and grey) until a real format is picked (or Custom with a valid WxH), then turns **green** to show the import is ready to run. |
 | Custom size | WxH in mm, e.g. `210x297`. Active only when Fit to = Custom. |
 | Padding (mm) | Margin inside the target format when using Fit to. |
 | Keep aspect ratio | Prevents distortion when fitting to a format. |
@@ -228,6 +231,11 @@ After import, the drawing appears in the visualisation panel.
 | **Reset Position** | Return to the canvas-alignment position from Settings |
 | **X / Y (mm from origin) + Set** | Place the drawing precisely: the entered values become the position of the drawing's bounding-box corner nearest the machine origin. The fields also update live as you drag. |
 
+**Right-click the Live View** for a context menu with **Remove Drawing** (clears
+the canvas and discards the loaded drawing, so nothing is left to plot or export)
+plus the same **Reset Position / Rotate 90° / Mirror** actions, reachable directly
+on the canvas. The menu items are greyed out when no drawing is loaded.
+
 Whatever you see in the preview — drag, resize, rotate, mirror or the numeric
 position — is exactly what gets plotted and exported. The alignment offset shown
 in the live view is carried through to the plotter, so positioning is no longer
@@ -252,6 +260,26 @@ already-loaded commands:
 |---|---|
 | Simplify tolerance | RDP simplification of polylines (0 = off, default 0.2 mm) |
 | Reorder strokes | Greedy nearest-neighbour reordering to reduce travel |
+
+---
+
+## Watercolor painting (optional)
+
+For watercolor work, configure each paint pot as a refill station in
+**Settings → Refill stations**, giving each one a **Color** (the paint it holds),
+a dip **Behavior** (`simple_dip`, `dip_swirl`, or `rinse`), a **Z Down** dip depth,
+a **Dwell** time and a **Swirl** radius (see [Refill stations](#refill-stations)).
+
+Then, with a colour drawing loaded, use **Map Colors to Stations**: each drawing
+colour is routed to the station whose configured **Color** is closest to it (by
+perceptual RGB distance), so the brush picks up the right paint per layer. The
+station markers in the Live View are tinted with their assigned colours, and the
+mapping is logged to the Console. Stations set to `rinse` are used to clean the
+brush between colour changes.
+
+A station's dip depth (**Z Down**) drives a real Z move on `zaxis` machines, so a
+pot of paint can sit lower than the paper; servo / `m3m5` pens fall back to the
+global pen-down position.
 
 ---
 
@@ -361,7 +389,7 @@ Key flags:
 | `-o FILE` | Output commands JSON (required) |
 | `-d MM` | Max draw distance; 0 = no refill |
 | `-s ID` | Default station ID |
-| `-c MM` | Curve step (default 0.5) |
+| `-c MM` | Curve step (default 0.1) |
 | `-f FORMAT` | Fit to: A5, A4, A3, XL, or WxH mm |
 | `-p MM` | Padding for fit-to |
 | `-m` | Mirror horizontally |

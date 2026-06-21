@@ -63,6 +63,10 @@ mode (Settings → Mock backend checkbox) when a plotter is not available.
 ### 2.3 SVG import — basic
 
 1. Click **Import SVG…**, choose any SVG file.
+   - [ ] With **Fit to** on "-- Select size --", the **Import** button is disabled (grey).
+   - [ ] Pick **Fit to = A4** — the **Import** button enables and turns green.
+   - [ ] Pick **Fit to = Custom** with an invalid size (e.g. blank) — button disables again; enter `210x297` — it re-enables/greens.
+   - [ ] **Curve step** defaults to `0.1` mm.
 2. Import tab: set Max draw distance = 0 (no refill). Click **Import**.
    - [ ] Drawing appears in the visualisation panel.
    - [ ] Console shows: `Imported <filename>: N layer(s), M command(s)`.
@@ -102,6 +106,9 @@ Use an SVG with two Inkscape layers (`inkscape:groupmode="layer"`).
 - [ ] **Mirror** — drawing flips horizontally.
 - [ ] **Reset Position** — drawing snaps back to canvas-alignment position.
 - [ ] Canvas HUD (top-left overlay) updates to show current position/scale/rotation.
+- [ ] **Right-click the Live View** — context menu appears with Remove Drawing / Reset Position / Rotate 90° / Mirror.
+  - [ ] With no drawing loaded, all items are greyed out.
+  - [ ] **Remove Drawing** clears the canvas; Console logs `Removed the loaded drawing.`; a subsequent Start Plot / Export reports nothing loaded.
 
 ### 2.7 Optimise loaded commands
 

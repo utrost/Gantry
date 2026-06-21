@@ -44,7 +44,7 @@ public final class SvgImportCli {
         options.addOption(Option.builder("s").longOpt("station").hasArg()
                 .desc("Default refill station ID for layers with no explicit station (default 'default_station').").build());
         options.addOption(Option.builder("c").longOpt("curve-step").hasArg()
-                .desc("Curve linearization step (mm, default 0.5).").build());
+                .desc("Curve linearization step (mm, default 0.1).").build());
         options.addOption(Option.builder("f").longOpt("fit-to").hasArg()
                 .desc("Fit to paper format: A5, A4, A3, XL, or WxH (mm).").build());
         options.addOption(Option.builder("p").longOpt("padding").hasArg()
@@ -118,7 +118,7 @@ public final class SvgImportCli {
             }
 
             double maxDrawDistance = Double.parseDouble(cmd.getOptionValue("max-dist", "0"));
-            double curveStep = Double.parseDouble(cmd.getOptionValue("curve-step", "0.5"));
+            double curveStep = Double.parseDouble(cmd.getOptionValue("curve-step", "0.1"));
             if (curveStep <= 0.01) {
                 throw new IllegalArgumentException("Curve step too small.");
             }
