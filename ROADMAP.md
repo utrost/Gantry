@@ -103,7 +103,8 @@ oracle until Phase 3.
 | **5. New features** ✅ | Multipass/pigment (`pipeline-core`, benefits pen *and* watercolor) · G-code file export + re-plot (`plotter`) · refill stays in `watercolor` | Each behind a tested toggle in the GUI |
 | **6. SVG ingestion & processing pipeline** ✅ | Port the SVG→command-model pipeline (`legacy/SVG2WaterColor`'s `ProcessorService`) into `pipeline-core`/`svgtoolbox-core`, plus the SVGToolBox SVG→SVG processors not yet covered by Phase 4; add "Process SVG"/"Draw SVG" GUI entry points and a headless CLI | An SVG file can be loaded in the GUI/CLI and produce a plottable command model with no external tooling; `legacy/` no longer the only path from SVG to plot |
 | **7. Cutover** ✅ | Delete `legacy/`; docs; single-artifact release | One JAR, no Python anywhere |
-| **8. Hardening & watercolor completion** 🚧 | Post-cutover audit fixes: plotting-safety (Stop/disconnect) ✅, watercolor completion (colour→station mapping) ✅, UX polish ✅; 🟢 cleanup pending | Stop/disconnect always leave the machine in a safe state ✅; SVG colours drive station assignment ✅; errors are visible to the operator ✅; UX polish ✅ |
+| **8. Hardening & watercolor completion** ✅ | Post-cutover audit fixes: plotting-safety (Stop/disconnect) ✅, watercolor completion (colour→station mapping) ✅, UX polish ✅, cleanup ✅ | Stop/disconnect always leave the machine in a safe state ✅; SVG colours drive station assignment ✅; errors are visible to the operator ✅; UX polish ✅; cleanup ✅ |
+| **9. Multi-document canvas** 🚧 NOT STARTED | Replace the single-drawing canvas with a list of independently placed/edited SVG imports (`SvgItem`s), each with its own transform, selectable and removable on its own | Two+ SVGs can be imported, independently positioned/scaled/rotated/mirrored, individually removed, and combined into one plottable/exportable job |
 
 ### Phase 8 — in progress (post-cutover self-audit)
 
@@ -184,6 +185,75 @@ watercolor vision is structurally incomplete), 🟡 medium (UX), 🟢 low (clean
   part of the UX-polish batch).
 
 
+
+### Phase 9 — Multi-document canvas (not started)
+
+**Problem.** The canvas currently holds exactly one drawing. `PlotterPanel`
+has a single `currentOutput` (`ProcessorOutput`), and `VisualizationPanel`
+has a single overlay transform (`overlayOffsetX/Y`, `overlayScale`,
+`overlayRotation`, `overlayMirror`) applied to all of it. There's no way to
+import a second SVG without replacing the first, and no concept of
+selecting "which drawing" the Reset/Rotate/Mirror/Remove actions (added in
+Phase 8's UX-polish batch) apply to. Real layouts — a sticker sheet, several
+small motifs sharing a page, mixed-source artwork — need several
+independently placed SVGs in one job.
+
+**Goal.** Let the user import, position, edit and remove multiple SVGs on
+one canvas, each independently, and combine them into one plottable /
+exportable job — without disturbing the single-document workflow that
+exists today (it should keep working unchanged for the common case of one
+drawing).
+
+**Scope — data model (do this first, headless, fully unit-tested before any GUI work):**
+- A new `SvgItem` (working name) wrapping one imported `ProcessorOutput`
+  plus its own placement: offset, scale, rotation (0/90/180/270), mirror,
+  z-order, and a stable id. This is exactly today's per-panel overlay state,
+  pulled out into a per-item record/class so there can be more than one.
+- `PlotterPanel.currentOutput` (singular) becomes a `List<SvgItem>` plus a
+  "selected item" id. A `compose()`/`flatten()` step merges every item's
+  baked layers into one `ProcessorOutput` at plot/export time — reusing the
+  existing `bakeOverlay()` logic per-item instead of once globally.
+- Decide how layer/station ids are kept unique across items that started
+  life as independent imports (e.g. namespace `Layer.id` by item, or dedupe
+  at compose time) — this is the trickiest correctness question and should
+  be settled with tests before touching `VisualizationPanel`.
+- Saving/loading: either (a) extend the command-model JSON with an item
+  list (breaking format change, needs a migration/back-compat path like
+  `Layer`'s old constructor), or (b) keep single-document save/load as the
+  "flattened" export and add a separate multi-document project file. Needs
+  a decision before implementation — leaning (b) to avoid touching the
+  interchange format used by the CLI and external tooling.
+
+**Scope — GUI:**
+- `VisualizationPanel`: replace the single overlay transform with
+  per-`SvgItem` transforms; click-to-select an item (its bounding box/handles
+  draw only when selected); drag/resize/rotate/mirror act on the selected
+  item only.
+- Right-click context menu (added in Phase 8) gains "Bring to Front/Back" /
+  "Duplicate" alongside the existing Remove/Reset/Rotate/Mirror, now scoped
+  to the selected item instead of "the" drawing.
+- A simple item list/sidebar (or just relying on click-to-select on canvas)
+  so an item can be selected even when off-screen or stacked under another.
+- `Import SVG...` adds a new item instead of replacing the canvas; "Remove
+  Drawing" removes only the selected item, not the whole canvas.
+- Undo (single-level today) needs to cover add/remove/transform of
+  individual items, not just whole-document swaps.
+
+**Out of scope for this phase:** per-item SVGToolBox pre-processing
+(Process SVG stays a whole-document operation for now), and any kind of
+z-order-aware overlap/collision handling beyond simple draw order.
+
+**Risks:**
+- This touches the core canvas/transform code (`VisualizationPanel`,
+  `PlotterPanel`'s document state) more than any change since Phase 7
+  cutover — higher regression risk than the Phase 8 UX batch. Should land
+  as data-model-first, GUI-second, each independently tested, not as one
+  large patch.
+- Multi-item undo and multi-item station/colour mapping are where the
+  complexity actually lives; the canvas interaction (click-to-select,
+  per-item drag handles) is mechanical by comparison.
+
+---
 
 ### Phase 6 — done
 
