@@ -105,6 +105,7 @@ oracle until Phase 3.
 | **7. Cutover** ✅ | Delete `legacy/`; docs; single-artifact release | One JAR, no Python anywhere |
 | **8. Hardening & watercolor completion** ✅ | Post-cutover audit fixes: plotting-safety (Stop/disconnect) ✅, watercolor completion (colour→station mapping) ✅, UX polish ✅, cleanup ✅ | Stop/disconnect always leave the machine in a safe state ✅; SVG colours drive station assignment ✅; errors are visible to the operator ✅; UX polish ✅; cleanup ✅ |
 | **9. Multi-document canvas** 🚧 NOT STARTED | Replace the single-drawing canvas with a list of independently placed/edited SVG imports (`SvgItem`s), each with its own transform, selectable and removable on its own | Two+ SVGs can be imported, independently positioned/scaled/rotated/mirrored, individually removed, and combined into one plottable/exportable job |
+| **10. Per-area hatch styling** 🚧 NOT STARTED | Let different regions of the *same* SVG hatch differently: surface the existing per-colour override map in the GUI, then add per-element/per-group overrides for same-colour regions that need different patterns | A single SVG with two same-colour regions can be hatched with two different patterns/angles/gaps, set up entirely from the GUI, with CLI parity |
 
 ### Phase 8 — in progress (post-cutover self-audit)
 
@@ -275,6 +276,94 @@ z-order-aware overlap/collision handling beyond simple draw order.
   behavior) unless/until a specific need for per-item processing is
   identified — avoids scope creep into per-item SVGToolBox pipelines, which
   is already explicitly out of scope above.
+
+---
+
+### Phase 10 — Per-area hatch styling (not started)
+
+**Problem.** `HatchProcessor` already supports per-*colour* hatch overrides:
+`Config.overrides()` is a `Map<String, HatchStyle>` keyed by fill hex, and
+`getStyleFor()` falls back to `globalStyle` when no override matches. This
+is wired into the CLI (an untested `--style` flag, per `docs/TESTING.md`
+§3) but has no GUI surface at all — `ConfigBuilder`/`SvgImportDialog` only
+expose one global pattern/angle/gap. Worse, the override key is *colour*,
+not *element* or *region*: two shapes that happen to share a fill colour
+can never hatch differently today, even though that's a common real case
+(e.g. two same-colour leaves that should cross-hatch and linear-hatch
+differently for shading).
+
+**Goal.** Let a single imported SVG hatch different regions differently,
+end to end from the GUI, in two layers of capability:
+1. Per-colour overrides (mechanism already exists) — make them usable
+   without hand-writing CLI flags.
+2. Per-element/per-group overrides for regions that share a colour —
+   genuinely new capability, needed for the same-colour case.
+
+**Scope — Tier 1: surface existing per-colour overrides in the GUI.**
+- Add a colour→style table to the Process SVG dialog (or its own dialog):
+  rows are the distinct fill colours found in the loaded SVG (already
+  enumerable — `PaletteProcessor`/`VisibilityProcessor` already walk fills
+  for similar purposes), each row picks pattern/angle/gap or "use global."
+- `ConfigBuilder` already accepts `overrides(Map<String, HatchStyle>)` —
+  this is wiring, not new model work. `SvgToolboxPipelineTest` /
+  `HatchProcessorTest` already cover the processor; add a GUI-facing test
+  (e.g. a `ConfigBuilderTest` case asserting the table maps to the right
+  `Config.overrides()`).
+- CLI: keep `--style` as-is; add the missing test flagged in
+  `docs/TESTING.md` §3 ("Per-color hatch-override `--style` flag in CLI").
+- This tier is low-risk, additive, and unblocks real usage of an existing
+  but-dormant feature — good candidate to land first and independently.
+
+**Scope — Tier 2: per-element/per-group overrides (same-colour regions).**
+- New override key beyond colour. Two realistic options:
+  - **Group/layer id.** `LayerProcessor` already groups elements into
+    Inkscape-style `<g>` layers; let a hatch override target a layer id
+    instead of (or in addition to) a colour. Reuses an existing grouping
+    mechanism — lowest-effort option, but only works if the user has
+    already organised the SVG into layers/groups that line up with the
+    desired hatch regions.
+  - **Direct selection.** Click-to-select a shape on the canvas (natural
+    pairing with Phase 9's click-to-select work on `VisualizationPanel`)
+    and assign it a hatch style by element id. More general, but needs a
+    stable per-element id surviving from SVG parse through to
+    `HatchProcessor`, and canvas UI that doesn't exist yet for "select a
+    sub-shape" (Phase 9 only scopes selecting whole `SvgItem`s).
+  - Recommend starting with layer/group-id overrides (reuses existing
+    model, no new canvas interaction) and treating direct-shape selection
+    as a follow-on if layer/group granularity proves too coarse in
+    practice.
+- `Config.overrides()`'s key type would need to widen from "colour hex
+  string" to "colour hex OR group id," or split into a second map
+  (`groupOverrides()`) — needs a decision before implementation; a second
+  map is probably cleaner since the two key spaces (colour vs. id) don't
+  collide and `getStyleFor()` can just check group-id first, then colour,
+  then global.
+- `HatchProcessor.shouldSkipColor`/`getStyleFor` both currently key off
+  `target.getAttribute("fill")` read at hatch time — group-id lookup needs
+  the element's containing layer/group, which `LayerProcessor` already
+  computes earlier in the pipeline; the override lookup must run after
+  layering, not before (pipeline order matters here, same caution as
+  Phase 4's "per-layer station mapping" lesson).
+
+**Out of scope for this phase:** true sub-path masking (hatching part of
+a single path differently from another part of the *same* path) — this
+phase operates at element/group granularity, not within a single shape.
+
+**Risks:**
+- Tier 2's key-widening touches `Config`, `ConfigBuilder`, and
+  `HatchProcessor` — all have existing test coverage
+  (`ConfigBuilderTest`, `HatchProcessorTest`) that should keep passing
+  unchanged for the colour-only path; new tests should cover the
+  group-id path in isolation before wiring it into the GUI.
+- If Phase 9 (multi-document canvas) lands first, "per-element selection"
+  there is a natural reuse point for Tier 2's direct-selection option —
+  worth sequencing Tier 2 after Phase 9 rather than building two separate
+  selection mechanisms in parallel.
+- Tier 1 alone (GUI surface for existing colour overrides) delivers most
+  of the user-visible value for SVGs that already use colour to delineate
+  regions (the common case for hand-prepared plot art); Tier 2 should be
+  validated against a real use case before committing to the group-id
+  vs. direct-selection design choice.
 
 ---
 
