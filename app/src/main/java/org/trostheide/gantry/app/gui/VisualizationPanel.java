@@ -99,8 +99,30 @@ public class VisualizationPanel extends JPanel {
     // Listener for overlay changes (notifies the containing panel)
     private Runnable overlayChangeListener;
 
+    // Listener invoked when the user removes the drawing via the context menu, so the containing
+    // panel can drop its own loaded-output state (otherwise a plot/export would still use it).
+    private Runnable removeDrawingListener;
+
     public void setOverlayChangeListener(Runnable listener) {
         this.overlayChangeListener = listener;
+    }
+
+    public void setRemoveDrawingListener(Runnable listener) {
+        this.removeDrawingListener = listener;
+    }
+
+    /** Clears the loaded drawing and resets the overlay transform, leaving an empty bed. */
+    public void clearDrawing() {
+        allPaths.clear();
+        overlayOffsetX = 0;
+        overlayOffsetY = 0;
+        overlayScale = 1.0;
+        overlayRotation = 0;
+        overlayMirror = false;
+        suppressAlignment = false;
+        recalculateTransform();
+        repaint();
+        fireOverlayChange();
     }
 
     private void fireOverlayChange() {
@@ -248,9 +270,12 @@ public class VisualizationPanel extends JPanel {
         border.setTitleFont(border.getTitleFont().deriveFont(Font.BOLD, 12f));
         setBorder(border);
 
+        JPopupMenu contextMenu = buildContextMenu();
+
         MouseAdapter mouseHandler = new MouseAdapter() {
             @Override
             public void mousePressed(MouseEvent e) {
+                if (maybeShowPopup(e)) return;
                 if (allPaths.isEmpty()) return;
                 int handle = hitTestHandle(e.getX(), e.getY());
                 if (handle == HANDLE_NONE) return;
@@ -280,10 +305,21 @@ public class VisualizationPanel extends JPanel {
 
             @Override
             public void mouseReleased(MouseEvent e) {
+                if (maybeShowPopup(e)) return;
                 if (dragHandle != HANDLE_NONE) {
                     dragHandle = HANDLE_NONE;
                     fireOverlayChange();
                 }
+            }
+
+            private boolean maybeShowPopup(MouseEvent e) {
+                if (!e.isPopupTrigger()) return false;
+                boolean hasDrawing = !allPaths.isEmpty();
+                for (Component item : contextMenu.getComponents()) {
+                    item.setEnabled(hasDrawing);
+                }
+                contextMenu.show(VisualizationPanel.this, e.getX(), e.getY());
+                return true;
             }
 
             @Override
@@ -295,6 +331,36 @@ public class VisualizationPanel extends JPanel {
         };
         addMouseListener(mouseHandler);
         addMouseMotionListener(mouseHandler);
+    }
+
+    /**
+     * Right-click menu for the Live View: removing the drawing plus the overlay-placement
+     * actions (reset/rotate/mirror), kept here so they're reachable directly on the canvas.
+     */
+    private JPopupMenu buildContextMenu() {
+        JPopupMenu menu = new JPopupMenu();
+
+        JMenuItem remove = new JMenuItem("Remove Drawing");
+        remove.addActionListener(e -> {
+            clearDrawing();
+            if (removeDrawingListener != null) removeDrawingListener.run();
+        });
+        menu.add(remove);
+        menu.addSeparator();
+
+        JMenuItem reset = new JMenuItem("Reset Position");
+        reset.addActionListener(e -> resetOverlay());
+        menu.add(reset);
+
+        JMenuItem rotate = new JMenuItem("Rotate 90°");
+        rotate.addActionListener(e -> rotateOverlay());
+        menu.add(rotate);
+
+        JMenuItem mirror = new JMenuItem("Mirror");
+        mirror.addActionListener(e -> toggleMirror());
+        menu.add(mirror);
+
+        return menu;
     }
 
     // ----- Data Loading -----

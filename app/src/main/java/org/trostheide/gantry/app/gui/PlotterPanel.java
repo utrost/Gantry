@@ -559,6 +559,8 @@ public class PlotterPanel extends JPanel {
 
         // Keep the numeric fields in sync as the drawing is dragged/positioned interactively.
         visPanel.setOverlayChangeListener(this::refreshPositionFields);
+        // "Remove Drawing" in the canvas context menu drops the loaded output too.
+        visPanel.setRemoveDrawingListener(this::onRemoveDrawing);
         return panel;
     }
 
@@ -1368,6 +1370,28 @@ public class PlotterPanel extends JPanel {
                 }
             }
         }.execute();
+    }
+
+    /**
+     * Drops the loaded drawing (triggered from the canvas "Remove Drawing" context menu). The
+     * visualization has already cleared itself; here we discard the backing output and reset the
+     * dependent state so a subsequent plot/export has nothing stale to act on.
+     */
+    private void onRemoveDrawing() {
+        if (currentOutput == null) {
+            return;
+        }
+        currentOutput = null;
+        lastImportedSvgFile = null;
+        lastImportOptions = null;
+        undoSnapshot = null;
+        if (undoMenuItem != null) {
+            undoMenuItem.setEnabled(false);
+        }
+        refreshPositionFields();
+        refreshTimeEstimate();
+        refreshGuidance();
+        log("Removed the loaded drawing.");
     }
 
     /** Snapshots {@link #currentOutput} so the next destructive transform can be undone. */

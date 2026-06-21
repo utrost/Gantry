@@ -27,9 +27,9 @@ public record SvgImportOptions(
         double posY,
         boolean mirror) {
 
-    /** No refill, 0.5mm curve step, no scaling/positioning/mirroring. */
+    /** No refill, 0.1mm curve step, no scaling/positioning/mirroring. */
     public static SvgImportOptions defaults() {
-        return new SvgImportOptions(0, "default_station", 0.5, 0, 0, true, 0, 0, false);
+        return new SvgImportOptions(0, "default_station", 0.1, 0, 0, true, 0, 0, false);
     }
 
     /**

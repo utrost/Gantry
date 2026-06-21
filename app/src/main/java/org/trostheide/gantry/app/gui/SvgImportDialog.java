@@ -28,7 +28,7 @@ public final class SvgImportDialog extends JDialog {
 
     private final JSpinner maxDrawDistanceSpinner = new JSpinner(new SpinnerNumberModel(0.0, 0.0, 100000.0, 10.0));
     private final JTextField stationField = new JTextField("default_station", 14);
-    private final JSpinner curveStepSpinner = new JSpinner(new SpinnerNumberModel(0.5, 0.01, 10.0, 0.1));
+    private final JSpinner curveStepSpinner = new JSpinner(new SpinnerNumberModel(0.1, 0.01, 10.0, 0.1));
     /** Shown as the initial, non-committal selection so the user must consciously pick a size. */
     private static final String FIT_TO_PROMPT = "-- Select size --";
     private final JComboBox<String> fitToCombo = new JComboBox<>(
@@ -64,6 +64,10 @@ public final class SvgImportDialog extends JDialog {
 
     private Result result;
 
+    /** Turns green once a valid size is chosen, signalling the import is ready to run. */
+    private static final Color READY_GREEN = new Color(46, 125, 50);
+    private final JButton okBtn = new JButton("Import");
+
     public SvgImportDialog(Window owner) {
         super(owner, "Import SVG", ModalityType.APPLICATION_MODAL);
 
@@ -71,7 +75,6 @@ public final class SvgImportDialog extends JDialog {
         tabs.addTab("Import", buildImportPanel());
         tabs.addTab("Process SVG (optional)", buildToolboxPanel());
 
-        JButton okBtn = new JButton("Import");
         JButton cancelBtn = new JButton("Cancel");
         okBtn.addActionListener(e -> onOk());
         cancelBtn.addActionListener(e -> dispose());
@@ -84,8 +87,39 @@ public final class SvgImportDialog extends JDialog {
         add(tabs, BorderLayout.CENTER);
         add(buttons, BorderLayout.SOUTH);
         getRootPane().setDefaultButton(okBtn);
+
+        // The import can't proceed until a size is chosen, so start disabled and re-evaluate
+        // whenever the size selection or custom-size text changes.
+        fitToCombo.addActionListener(e -> updateImportButtonState());
+        customSizeField.getDocument().addDocumentListener(new javax.swing.event.DocumentListener() {
+            @Override public void insertUpdate(javax.swing.event.DocumentEvent e) { updateImportButtonState(); }
+            @Override public void removeUpdate(javax.swing.event.DocumentEvent e) { updateImportButtonState(); }
+            @Override public void changedUpdate(javax.swing.event.DocumentEvent e) { updateImportButtonState(); }
+        });
+        updateImportButtonState();
+
         pack();
         setLocationRelativeTo(owner);
+    }
+
+    /**
+     * Enables (and greens) the Import button only once a usable size is selected: a concrete
+     * preset, or "Custom" with a parseable WxH value. Otherwise it stays disabled and neutral.
+     */
+    private void updateImportButtonState() {
+        String selection = (String) fitToCombo.getSelectedItem();
+        boolean ready;
+        if (FIT_TO_PROMPT.equals(selection)) {
+            ready = false;
+        } else if ("Custom".equals(selection)) {
+            ready = PaperFormat.fromString(customSizeField.getText().trim()) != null;
+        } else {
+            ready = true;
+        }
+        okBtn.setEnabled(ready);
+        okBtn.setBackground(ready ? READY_GREEN : null);
+        okBtn.setForeground(ready ? Color.WHITE : null);
+        okBtn.setOpaque(ready);
     }
 
     private JPanel buildImportPanel() {
