@@ -55,6 +55,8 @@ public class PlotterPanel extends JPanel {
     private final JButton stopBtn = new JButton("Stop");
     private final JLabel statusLabel = new JLabel("Disconnected");
     private final JLabel guidanceLabel = new JLabel();
+    private JPanel guidancePanel;
+    private boolean guidanceDismissed;
     private final JLabel speedLabel = new JLabel("100%");
     private final JSpinner jogStepSpinner = new JSpinner(new SpinnerNumberModel(10.0, 0.1, 200.0, 1.0));
     private final JTextField rawCommandField = new JTextField(16);
@@ -148,20 +150,35 @@ public class PlotterPanel extends JPanel {
         refreshGuidance();
     }
 
-    /** Builds the persistent step banner that tells the user what to do next. */
+    /** Builds the persistent, dismissible step banner that tells the user what to do next. */
     private JPanel guidanceBanner() {
-        JPanel banner = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 3));
-        banner.setBorder(new EmptyBorder(0, 4, 0, 4));
-        banner.setBackground(new Color(255, 249, 196));
-        banner.setOpaque(true);
+        guidancePanel = new JPanel(new BorderLayout());
+        guidancePanel.setBorder(new EmptyBorder(0, 4, 0, 4));
+        guidancePanel.setBackground(new Color(255, 249, 196));
+        guidancePanel.setOpaque(true);
         guidanceLabel.setFont(guidanceLabel.getFont().deriveFont(Font.BOLD));
-        banner.add(guidanceLabel);
-        return banner;
+
+        JButton closeBtn = new JButton("×");
+        closeBtn.setToolTipText("Hide this guidance banner");
+        closeBtn.setMargin(new Insets(0, 4, 0, 4));
+        closeBtn.setFocusPainted(false);
+        closeBtn.setBorderPainted(false);
+        closeBtn.setContentAreaFilled(false);
+        closeBtn.addActionListener(e -> {
+            guidanceDismissed = true;
+            guidancePanel.setVisible(false);
+        });
+
+        guidancePanel.add(guidanceLabel, BorderLayout.CENTER);
+        guidancePanel.add(closeBtn, BorderLayout.EAST);
+        return guidancePanel;
     }
 
     /**
      * Updates the step banner to reflect what the user should do next: connect, then
-     * load/import a drawing, then position it, then start, then confirm each layer.
+     * load/import a drawing, then position it, then start, then confirm each layer. Stopping a
+     * plot un-dismisses the banner and resets it back to step guidance, in case the user wants
+     * the prompts again after deviating from the suggested flow.
      */
     private void refreshGuidance() {
         String text;
@@ -177,6 +194,15 @@ public class PlotterPanel extends JPanel {
             text = "Step 3: Check position/optimize as needed, then click Start.";
         }
         guidanceLabel.setText(text);
+        if (guidancePanel != null && !guidanceDismissed) {
+            guidancePanel.setVisible(true);
+        }
+    }
+
+    /** Un-dismisses and resets the guidance banner, e.g. after the user hits Stop. */
+    private void resetGuidance() {
+        guidanceDismissed = false;
+        refreshGuidance();
     }
 
     @Override
@@ -515,8 +541,6 @@ public class PlotterPanel extends JPanel {
         row2.add(confirmBtn);
         row2.add(Box.createHorizontalStrut(4));
         row2.add(pauseBtn);
-        row2.add(Box.createHorizontalStrut(4));
-        row2.add(disableDuringPlot(plotMoreButton()));
 
         JPanel row3 = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 2));
         timeLabel.setToolTipText("Per-layer time estimate (hover after loading/importing commands)");
@@ -530,23 +554,6 @@ public class PlotterPanel extends JPanel {
         panel.add(row3);
 
         return panel;
-    }
-
-    /** Builds the "More..." overflow button holding the less-frequently-used Export/Replay actions. */
-    private JButton plotMoreButton() {
-        JButton moreBtn = new JButton("More ▾");
-        JPopupMenu menu = new JPopupMenu();
-
-        JMenuItem exportItem = new JMenuItem("Export G-code...");
-        exportItem.addActionListener(e -> onExportGcode());
-        menu.add(exportItem);
-
-        JMenuItem replayItem = new JMenuItem("Replay G-code...");
-        replayItem.addActionListener(e -> onReplayGcode());
-        menu.add(replayItem);
-
-        moreBtn.addActionListener(e -> menu.show(moreBtn, 0, moreBtn.getHeight()));
-        return moreBtn;
     }
 
     /** Recomputes and displays the pre-plot time estimate (total + per-layer, via tooltip). */
@@ -815,16 +822,20 @@ public class PlotterPanel extends JPanel {
         }
     }
 
-    /** Tints the Connect button green when idle/disconnected, so it stands out as the first required step. */
+    /**
+     * Tints the Connect button to guide the user through the workflow: green ("Connect") when
+     * idle/disconnected so it stands out as the first required step, red ("Disconnect") once
+     * connected so the next reversible action (disconnecting) stays clearly visible too.
+     */
     private void setConnectButtonColor(boolean disconnected) {
         if (disconnected) {
             connectBtn.setBackground(new Color(46, 125, 50));
             connectBtn.setForeground(Color.WHITE);
             connectBtn.setOpaque(true);
         } else {
-            connectBtn.setBackground(null);
-            connectBtn.setForeground(null);
-            connectBtn.setOpaque(false);
+            connectBtn.setBackground(new Color(198, 40, 40));
+            connectBtn.setForeground(Color.WHITE);
+            connectBtn.setOpaque(true);
         }
     }
 
@@ -895,6 +906,7 @@ public class PlotterPanel extends JPanel {
         // Cancelling only stops further commands from being sent; the backend may already have
         // queued motion in flight (e.g. GRBL's planner buffer), so halt it immediately too.
         runOnBackend(PlotterBackend::haltMotion);
+        resetGuidance();
     }
 
     private void onPauseToggle() {
