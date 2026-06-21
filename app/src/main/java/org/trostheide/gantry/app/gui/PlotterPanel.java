@@ -69,6 +69,8 @@ public class PlotterPanel extends JPanel {
 
     private PlotterBackend backend;
     private ProcessorOutput currentOutput;
+    private File lastImportedSvgFile;
+    private org.trostheide.gantry.pipeline.svgimport.SvgImportOptions lastImportOptions;
     private volatile PlotService activeService;
     private final Semaphore confirmGate = new Semaphore(0);
     private boolean paused;
@@ -289,6 +291,10 @@ public class PlotterPanel extends JPanel {
         fileMenu.addSeparator();
         fileMenu.add(menuItem("Exit", e -> onExit(), false));
         menuBar.add(fileMenu);
+
+        JMenu editMenu = new JMenu("Edit");
+        editMenu.add(menuItem("Process SVG...", e -> onEditProcessSvg(), true));
+        menuBar.add(editMenu);
 
         JMenu settingsMenu = new JMenu("Settings");
         settingsMenu.add(menuItem("Preferences...", e -> onOpenSettings(), true));
@@ -700,6 +706,8 @@ public class PlotterPanel extends JPanel {
             currentOutput = dialogResult.toolboxConfig() != null
                     ? SvgImportStage.importSvg(file, dialogResult.toolboxConfig(), dialogResult.importOptions())
                     : SvgImportStage.importSvg(file, dialogResult.importOptions());
+            lastImportedSvgFile = file;
+            lastImportOptions = dialogResult.importOptions();
             visPanel.loadFromOutput(currentOutput);
             visPanel.setContentMotorMin(0, 0);
             refreshPositionFields();
@@ -709,6 +717,35 @@ public class PlotterPanel extends JPanel {
                     file.getName(), currentOutput.layers().size(), currentOutput.metadata().totalCommands()));
         } catch (IOException ex) {
             log("ERROR: Failed to import " + file.getName() + ": " + ex.getMessage());
+        }
+    }
+
+    /**
+     * Re-runs a subset of the SVGToolBox processors (Crop, Hatch, Palette, Rotate, Optimize)
+     * against the originally imported SVG file, replacing {@link #currentOutput}. Unlike the
+     * "Optimize" button (which only reorders/simplifies the already-imported paths), these
+     * processors operate on the SVG document itself, so they need to re-import from the source
+     * file using the same fit/position options chosen at import time.
+     */
+    private void onEditProcessSvg() {
+        if (lastImportedSvgFile == null || lastImportOptions == null) {
+            log("ERROR: Import an SVG file first (Edit > Process SVG only applies to SVG imports).");
+            return;
+        }
+        org.trostheide.gantry.svgtoolbox.Config config =
+                new EditProcessDialog(SwingUtilities.getWindowAncestor(this)).showDialog();
+        if (config == null) {
+            return;
+        }
+        try {
+            currentOutput = SvgImportStage.importSvg(lastImportedSvgFile, config, lastImportOptions);
+            visPanel.loadPathsPreservingOverlay(currentOutput);
+            refreshPositionFields();
+            refreshTimeEstimate();
+            refreshGuidance();
+            log("Reprocessed " + lastImportedSvgFile.getName());
+        } catch (IOException ex) {
+            log("ERROR: Failed to reprocess " + lastImportedSvgFile.getName() + ": " + ex.getMessage());
         }
     }
 
