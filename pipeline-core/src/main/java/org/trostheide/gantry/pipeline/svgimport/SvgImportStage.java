@@ -83,7 +83,8 @@ public final class SvgImportStage {
         boolean haveBounds = preScannedBounds.minX() != Double.MAX_VALUE;
 
         if (hasTargetSize && haveBounds) {
-            globalTx = calculateScaleTransform(preScannedBounds, options.targetWidth(), options.targetHeight(),
+            Bounds scaleBounds = calculateContentOnlyBounds(layersToProcess, preScannedBounds);
+            globalTx = calculateScaleTransform(scaleBounds, options.targetWidth(), options.targetHeight(),
                     options.keepAspectRatio(), options.posX(), options.posY());
         } else if (hasPosition && haveBounds) {
             globalTx.translate(options.posX() - preScannedBounds.minX(), options.posY() - preScannedBounds.minY());
@@ -520,6 +521,45 @@ public final class SvgImportStage {
             }
         }
         return builder.build();
+    }
+
+    /**
+     * Like {@link #calculateGlobalBounds}, but excludes a full-page background/border rectangle
+     * (detected against the raw bounds) from the result. Used to size autoscale-to-format
+     * transforms against the actual drawing rather than the page rect that gets dropped on output
+     * — otherwise the real content would be scaled as if it already filled the chosen paper size.
+     */
+    private static Bounds calculateContentOnlyBounds(List<LayerContext> contexts, Bounds rawBounds) {
+        BoundsBuilder builder = new BoundsBuilder();
+        PathParser parser = new PathParser();
+        AWTPathProducer producer = new AWTPathProducer();
+        parser.setPathHandler(producer);
+
+        for (LayerContext ctx : contexts) {
+            List<Node> drawables = new ArrayList<>();
+            collectDrawableElements(ctx.rootNode, drawables);
+            for (Node node : drawables) {
+                String d = getRawPathData(node);
+                if (d == null) {
+                    continue;
+                }
+                try {
+                    parser.parse(d);
+                    Shape shape = producer.getShape();
+                    shape = applyElementTransform(node, shape);
+                    if (isPageBorderRect(shape, rawBounds)) {
+                        continue;
+                    }
+                    Rectangle2D r2d = shape.getBounds2D();
+                    builder.add(r2d.getMinX(), r2d.getMinY());
+                    builder.add(r2d.getMaxX(), r2d.getMaxY());
+                } catch (Exception ignored) {
+                    // skip elements whose path data can't be parsed
+                }
+            }
+        }
+        Bounds contentOnly = builder.build();
+        return contentOnly.minX() == Double.MAX_VALUE ? rawBounds : contentOnly;
     }
 
     static AffineTransform calculateScaleTransform(Bounds contentBounds, double targetWidth, double targetHeight,

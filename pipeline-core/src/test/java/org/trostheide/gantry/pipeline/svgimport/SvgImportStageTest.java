@@ -167,6 +167,30 @@ class SvgImportStageTest {
         }
 
         @Test
+        void fitToFormatScalesAgainstContentNotPageBorderRect() throws Exception {
+            // A full-page border rect (dropped on output) must not be counted as "content" when
+            // sizing the autoscale-to-format transform, or real content gets shrunk as if it
+            // already filled the page.
+            String svg = "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"100\" height=\"100\" "
+                    + "viewBox=\"0 0 100 100\">"
+                    + "<rect x=\"0\" y=\"0\" width=\"100\" height=\"100\"/>"
+                    + "<path d=\"M40 40 L60 40 L60 60 L40 60 Z\"/>"
+                    + "</svg>";
+            File temp = File.createTempFile("pageborder", ".svg");
+            temp.deleteOnExit();
+            java.nio.file.Files.writeString(temp.toPath(), svg);
+
+            ProcessorOutput result = SvgImportStage.importSvg(temp,
+                    SvgImportOptions.fitToFormat(0, "default_station", 0.5, PaperFormat.A4, 0.0, false));
+
+            Bounds bounds = result.metadata().bounds();
+            double width = bounds.maxX() - bounds.minX();
+            // The 20x20 inner square should be scaled up to fill the A4 width (210mm), not shrunk
+            // down as if it were already page-sized.
+            assertTrue(width > 200, "expected content scaled to fill the page, width was " + width);
+        }
+
+        @Test
         void fitToA4KeepsBoundsWithinPage() throws Exception {
             ProcessorOutput result = SvgImportStage.importSvg(resource("test_simple.svg"),
                     SvgImportOptions.fitToFormat(500, "default_station", 0.5, PaperFormat.A4, 10.0, false));
