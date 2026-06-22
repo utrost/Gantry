@@ -17,6 +17,18 @@ import java.util.List;
  */
 public final class EditProcessDialog extends JDialog {
 
+    /**
+     * Last-applied settings, remembered for the lifetime of the app so reopening
+     * "Process SVG" to tweak one value doesn't reset every other field (e.g. the
+     * "Enable hatching" checkbox or the chosen pattern).
+     */
+    private static boolean lastHatchEnabled = false;
+    private static String lastHatchPattern = "linear";
+    private static double lastHatchAngle = 45.0;
+    private static double lastHatchGap = 5.0;
+    private static double lastRotate = 0.0;
+    private static boolean lastOptimize = false;
+
     private final JComboBox<String> cropCombo = new JComboBox<>(new String[] {"None", "A4", "Letter", "Custom"});
     private final JTextField cropCustomField = new JTextField("793.7x1122.5", 12);
 
@@ -70,6 +82,15 @@ public final class EditProcessDialog extends JDialog {
         gbc.gridwidth = 2;
         form.add(optimizeCheck, gbc);
         gbc.gridy++;
+
+        // Restore the last-applied settings so reopening to tweak one value
+        // doesn't wipe the rest (notably the "Enable hatching" checkbox).
+        hatchCheck.setSelected(lastHatchEnabled);
+        hatchPatternCombo.setSelectedItem(lastHatchPattern);
+        hatchAngleSpinner.setValue(lastHatchAngle);
+        hatchGapSpinner.setValue(lastHatchGap);
+        rotateSpinner.setValue(lastRotate);
+        optimizeCheck.setSelected(lastOptimize);
 
         cropCustomField.setEnabled(false);
         cropCombo.addActionListener(e -> cropCustomField.setEnabled("Custom".equals(cropCombo.getSelectedItem())));
@@ -138,6 +159,16 @@ public final class EditProcessDialog extends JDialog {
 
         double hatchAngle = ((Number) hatchAngleSpinner.getValue()).doubleValue();
         double hatchGap = ((Number) hatchGapSpinner.getValue()).doubleValue();
+        String hatchPattern = (String) hatchPatternCombo.getSelectedItem();
+        double rotate = ((Number) rotateSpinner.getValue()).doubleValue();
+
+        // Remember these for the next time the dialog is opened.
+        lastHatchEnabled = hatchCheck.isSelected();
+        lastHatchPattern = hatchPattern;
+        lastHatchAngle = hatchAngle;
+        lastHatchGap = hatchGap;
+        lastRotate = rotate;
+        lastOptimize = optimizeCheck.isSelected();
 
         result = new Config.Builder()
                 .inputPath("")
@@ -145,14 +176,14 @@ public final class EditProcessDialog extends JDialog {
                 .strokeWidth(0f)
                 .palette(palette)
                 .enableHatching(hatchCheck.isSelected())
-                .globalStyle(new HatchStyle(hatchAngle, hatchGap, "linear"))
+                .globalStyle(new HatchStyle(hatchAngle, hatchGap, hatchPattern))
                 .overrides(Collections.emptyMap())
                 .strokeWidthOverrides(Collections.emptyMap())
                 .hiddenLayers(Collections.emptyList())
                 .noHatchColors(Collections.emptyList())
                 .simplifyTolerance(0)
-                .hatchPattern((String) hatchPatternCombo.getSelectedItem())
-                .rotationDegrees(((Number) rotateSpinner.getValue()).doubleValue())
+                .hatchPattern(hatchPattern)
+                .rotationDegrees(rotate)
                 .printStats(false)
                 .cropBounds(cropBounds)
                 .optimizePaths(optimizeCheck.isSelected())

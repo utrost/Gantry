@@ -173,6 +173,14 @@ public final class SvgImportDialog extends JDialog {
         gbc.gridy++;
         gbc.gridwidth = 1;
 
+        // Hatching only runs as part of the SVGToolBox pipeline; reflect that in
+        // the UI so the master toggle matches what will actually happen.
+        hatchCheck.addActionListener(e -> {
+            if (hatchCheck.isSelected()) {
+                toolboxEnableCheck.setSelected(true);
+            }
+        });
+
         addRow(form, gbc, "Hatch pattern", hatchPatternCombo);
         addRow(form, gbc, "Hatch angle (deg)", hatchAngleSpinner);
         addRow(form, gbc, "Hatch gap", hatchGapSpinner);
@@ -257,8 +265,11 @@ public final class SvgImportDialog extends JDialog {
         SvgImportOptions importOptions =
                 SvgImportOptions.fitToFormat(maxDrawDistance, station, curveStep, format, padding, mirror, keepAspect);
 
+        // Enabling hatching implies running the SVGToolBox pipeline — otherwise
+        // the hatch settings would be silently dropped. Treat hatch-on as
+        // toolbox-on so importing actually applies the chosen hatching.
         Config toolboxConfig = null;
-        if (toolboxEnableCheck.isSelected()) {
+        if (toolboxEnableCheck.isSelected() || hatchCheck.isSelected()) {
             try {
                 toolboxConfig = buildToolboxConfig();
             } catch (IllegalArgumentException ex) {
