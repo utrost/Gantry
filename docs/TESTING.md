@@ -20,7 +20,7 @@ Expected output: `BUILD SUCCESS` with zero failures across all modules.
 | Module | Test classes | What is covered |
 |---|---|---|
 | `model` | `ProcessorOutputJsonTest`, `CoordinateTransformTest` | JSON round-trip of `ProcessorOutput`; coordinate transform (rotate/swap/invert/align) in all axis combinations |
-| `pipeline-core` | `SvgImportStageTest` (4 nested classes, ~11 tests) | SVG parsing and command-model extraction: simple SVG, layered SVG, fit-to-A4 scaling, refill insertion, refill-free mode, command ID sequence, transform/nested-transform baking, mirroring; `PaperFormat` parsing; `calculateFitToPageTransform` |
+| `pipeline-core` | `SvgImportStageTest` (4 nested classes, ~26 tests) | SVG parsing and command-model extraction: simple SVG, layered SVG, fit-to-A4 scaling, refill insertion, refill-free mode, command ID sequence, transform/nested-transform baking, mirroring; full-page background rect dropped when real content coexists; single-shape SVG (the rect *is* the content) is never dropped; `PaperFormat` parsing; `calculateFitToPageTransform` |
 | `pipeline-core` | `OptimizeStageTest`, `MultipassStageTest` | RDP simplify, greedy-NN reorder, multipass command expansion |
 | `plotter` | `GcodeBackendTest` | G-code formatting: init sequence, pen modes (servo/zaxis/m3m5), moveto, lineto, raw send |
 | `app` | `PlotServiceTest` | Full plot orchestration: layer sequencing, refill at layer boundary, cancel mid-plot, OOB clamping, per-waypoint position callbacks |
@@ -72,6 +72,7 @@ mode (Settings → Mock backend checkbox) when a plotter is not available.
 2. Import tab: set Max draw distance = 0 (no refill). Click **Import**.
    - [ ] Drawing appears in the visualisation panel.
    - [ ] Console shows: `Imported <filename>: N layer(s), M command(s)`.
+   - [ ] An SVG containing **only a single filled/stroked shape** (e.g. one `<rect>`) imports and is visible — it must not be silently discarded as a page-border rectangle.
 
 3. Import with Max draw distance = 50 mm.
    - [ ] Console count of commands is higher (refill commands added).

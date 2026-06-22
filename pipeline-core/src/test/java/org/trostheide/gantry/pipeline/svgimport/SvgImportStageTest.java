@@ -167,6 +167,29 @@ class SvgImportStageTest {
         }
 
         @Test
+        void singleShapeSvgIsNotDroppedAsPageBorder() throws Exception {
+            // A document whose only drawable is one rect must keep that rect: the
+            // page-border heuristic only makes sense when real content coexists
+            // with a separate background/frame rect, not when the rect IS the content.
+            String svg = "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"100\" height=\"100\" "
+                    + "viewBox=\"0 0 100 100\">"
+                    + "<rect x=\"0\" y=\"0\" width=\"100\" height=\"100\" fill=\"#ff0000\"/>"
+                    + "</svg>";
+            File temp = File.createTempFile("singlerect", ".svg");
+            temp.deleteOnExit();
+            java.nio.file.Files.writeString(temp.toPath(), svg);
+
+            ProcessorOutput result = SvgImportStage.importSvg(temp,
+                    new SvgImportOptions(0, "default_station", 0.5, 0, 0, true, 0, 0, false));
+
+            long drawCount = result.layers().stream()
+                    .flatMap(l -> l.commands().stream())
+                    .filter(c -> c instanceof org.trostheide.gantry.model.command.DrawCommand)
+                    .count();
+            assertTrue(drawCount > 0, "the rect is the only content and must not be dropped");
+        }
+
+        @Test
         void layerColourIsReadFromStrokeStyleAndAttribute() throws Exception {
             String svg = "<svg xmlns=\"http://www.w3.org/2000/svg\" "
                     + "xmlns:inkscape=\"http://www.inkscape.org/namespaces/inkscape\" "
