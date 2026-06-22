@@ -106,6 +106,7 @@ oracle until Phase 3.
 | **8. Hardening & watercolor completion** ✅ | Post-cutover audit fixes: plotting-safety (Stop/disconnect) ✅, watercolor completion (colour→station mapping) ✅, UX polish ✅, cleanup ✅ | Stop/disconnect always leave the machine in a safe state ✅; SVG colours drive station assignment ✅; errors are visible to the operator ✅; UX polish ✅; cleanup ✅ |
 | **9. Multi-document canvas** 🚧 NOT STARTED | Replace the single-drawing canvas with a list of independently placed/edited SVG imports (`SvgItem`s), each with its own transform, selectable and removable on its own | Two+ SVGs can be imported, independently positioned/scaled/rotated/mirrored, individually removed, and combined into one plottable/exportable job |
 | **10. Per-area hatch styling** 🚧 NOT STARTED | Let different regions of the *same* SVG hatch differently: surface the existing per-colour override map in the GUI, then add per-element/per-group overrides for same-colour regions that need different patterns | A single SVG with two same-colour regions can be hatched with two different patterns/angles/gaps, set up entirely from the GUI, with CLI parity |
+| **11. CLI/GUI parity** 🚧 NOT STARTED | Close the plot-affecting capability gaps between the headless CLI and the GUI in both directions: CLI gains G-code export, multipass, the post-import Optimize stage, and colour→station mapping; GUI gains the CLI-only per-colour hatch/stroke-width/no-hatch/min-area knobs (folded into Phase 10 Tier 1) | A batch CLI run can produce a plot-ready G-code file with multipass/station-mapping applied, with no GUI session involved; the GUI exposes every per-colour toolbox knob the CLI already has |
 
 ### Phase 8 — in progress (post-cutover self-audit)
 
@@ -364,6 +365,84 @@ phase operates at element/group granularity, not within a single shape.
   regions (the common case for hand-prepared plot art); Tier 2 should be
   validated against a real use case before committing to the group-id
   vs. direct-selection design choice.
+
+---
+
+### Phase 11 — CLI/GUI parity (not started)
+
+**Problem.** A feature-by-feature audit of `SvgImportCli.java` against the
+GUI (`SvgImportDialog`/`PlotterPanel`) found gaps in both directions:
+
+- **GUI can do that CLI can't:** the post-import Optimize stage (simplify
+  tolerance + stroke reorder, via `OptimizeStage`), multipass/passes
+  (`MultipassStage`), colour→station mapping (`StationMapper`, the core
+  watercolor feature), and G-code export. A CLI batch run today can only
+  ever produce command-model JSON — it cannot produce a plot-ready G-code
+  file, and it cannot apply multipass or station assignment at all.
+- **CLI can do that GUI can't:** per-colour hatch overrides (`--style
+  HEX:ANGLE:GAP:PATTERN`), no-hatch colour list (`--no-hatch`), minimum
+  hatch area (`--min-area`), and per-colour stroke width
+  (`--layer-width`). These all map directly onto fields `Config` /
+  `ConfigBuilder` already has; the CLI parses and wires them, the GUI
+  simply never built controls for them.
+
+**Goal.** Close the gaps that are genuinely missing functionality, on
+both sides — but only where headless/GUI parity actually makes sense.
+Plotting, jogging, replay, live visualisation, and connect/serial control
+are GUI-only by *design*, not by gap, and stay that way.
+
+**Scope — CLI gains (batch/headless plot production):**
+- `--gcode <path>`: run the existing `GcodeBackend` formatting logic
+  against the produced `ProcessorOutput` and write a `.gcode` file
+  alongside (or instead of) the JSON output. This is the highest-value
+  addition — it's the difference between "CLI produces an intermediate
+  file" and "CLI produces a plot-ready artifact."
+- `--passes N`: run `MultipassStage` before writing output, matching the
+  GUI's "Passes" spinner.
+- `--optimize-tolerance`, `--optimize-reorder`: run the post-import
+  `OptimizeStage` (distinct from the existing `--toolbox-simplify`, which
+  runs inside the SVGToolBox pipeline, not after import) before writing
+  output. Flag names need to make the distinction from the existing
+  toolbox-simplify flag obvious in `--help` text, since they sound similar
+  but run at different pipeline stages.
+- `--map-stations`: run `StationMapper.assignByColor` so layer→station
+  assignment happens without a GUI session, the same way the GUI's "Map
+  Layer Colors to Stations" menu action does.
+- Each of these is independent and can land/ship separately; no reason to
+  batch them into one patch.
+
+**Scope — GUI gains (already covered, cross-reference not duplicate):**
+- Per-colour hatch overrides, no-hatch colours, min hatch area, and
+  per-colour stroke width are **Phase 10 Tier 1** in all but name — that
+  phase's "surface the existing per-colour override map in the GUI" scope
+  already covers `--style`/`--no-hatch`/`--min-area`; add `--layer-width`
+  (per-colour stroke width) to Tier 1's scope rather than tracking it here
+  separately, since it's the same kind of colour-keyed `Config` map and
+  the same GUI table naturally extends to a second column for it.
+
+**Out of scope:** porting any plotting/serial/jog/replay/visualization
+capability to the CLI — these require a live machine session and have no
+headless analogue; CLI stays a batch SVG→artifact converter, not a
+plotting client.
+
+**Risks:**
+- `--gcode` needs a `PaperFormat`/machine-settings source for the CLI
+  (origin, axis orientation, pen mode, feed rates) that today only exists
+  in the GUI's persisted `Settings`. The CLI either needs its own
+  settings file/flags mirroring `SettingsPanel`'s fields, or to load the
+  same settings file the GUI writes — the latter is less flag-bloat but
+  couples the CLI to a GUI-written file existing first. Needs a decision
+  before `--gcode` can be implemented; this is the one genuinely new
+  piece of plumbing in this phase (everything else reuses an existing
+  stage/processor with no new dependencies).
+- `--optimize-tolerance`/`--optimize-reorder` vs. `--toolbox-simplify`
+  risk user confusion (two different "simplify" knobs at two different
+  pipeline stages) — needs clear `--help` text and a `docs/USER_GUIDE.md`
+  note distinguishing them, not just a code-level distinction.
+- Low regression risk overall: every CLI addition here calls an existing,
+  already-tested stage (`MultipassStage`, `OptimizeStage`, `StationMapper`,
+  `GcodeBackend`) — this phase is wiring, not new logic, aside from the
+  settings-source question above.
 
 ---
 
