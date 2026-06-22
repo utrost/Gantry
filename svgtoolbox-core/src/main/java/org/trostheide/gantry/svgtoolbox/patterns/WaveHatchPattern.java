@@ -52,8 +52,9 @@ public class WaveHatchPattern extends LinearHatchPattern {
             pi.next();
         }
 
-        double frequency = 2 * Math.PI / (gap * 2); // Wavelength = 2 * gap
-        double amplitude = gap / 3.0;
+        double wavelength = style.wavelength() > 0 ? style.wavelength() : gap * 2; // default: 2 * gap
+        double frequency = 2 * Math.PI / wavelength;
+        double amplitude = style.amplitude() > 0 ? style.amplitude() : gap / 3.0;
 
         for (double y = startY + gap; y < endY; y += gap) {
             List<Double> intersections = new ArrayList<>();

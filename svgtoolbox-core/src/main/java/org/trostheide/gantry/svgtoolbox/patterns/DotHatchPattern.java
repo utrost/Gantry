@@ -25,11 +25,10 @@ public class DotHatchPattern implements HatchPattern {
         Shape alignedShape = toAligned.createTransformedShape(shape);
         java.awt.geom.Rectangle2D bounds = alignedShape.getBounds2D();
 
-        double radius = config.strokeWidth() > 0 ? config.strokeWidth() : 1.0;
-        // Actually, stroke-width is for lines. for dots, we might want them slightly
-        // larger or same.
-        // Let's use `gap / 5` as dot radius, or just use a small fixed visual size.
-        // Or re-use stroke-width as radius?
+        // Explicit dot radius wins; otherwise fall back to stroke width (or 1.0).
+        double radius = style.dotRadius() > 0
+                ? style.dotRadius()
+                : (config.strokeWidth() > 0 ? config.strokeWidth() : 1.0);
 
         double startX = bounds.getMinX();
         double startY = bounds.getMinY();

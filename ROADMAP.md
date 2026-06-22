@@ -107,6 +107,7 @@ oracle until Phase 3.
 | **9. Multi-document canvas** 🚧 NOT STARTED | Replace the single-drawing canvas with a list of independently placed/edited SVG imports (`SvgItem`s), each with its own transform, selectable and removable on its own | Two+ SVGs can be imported, independently positioned/scaled/rotated/mirrored, individually removed, and combined into one plottable/exportable job |
 | **10. Per-area hatch styling** 🚧 NOT STARTED | Let different regions of the *same* SVG hatch differently: surface the existing per-colour override map in the GUI, then add per-element/per-group overrides for same-colour regions that need different patterns | A single SVG with two same-colour regions can be hatched with two different patterns/angles/gaps, set up entirely from the GUI, with CLI parity |
 | **11. CLI/GUI parity** 🚧 NOT STARTED | Close the plot-affecting capability gaps between the headless CLI and the GUI in both directions: CLI gains G-code export, multipass, the post-import Optimize stage, and colour→station mapping; GUI gains the CLI-only per-colour hatch/stroke-width/no-hatch/min-area knobs (folded into Phase 10 Tier 1) | A batch CLI run can produce a plot-ready G-code file with multipass/station-mapping applied, with no GUI session involved; the GUI exposes every per-colour toolbox knob the CLI already has |
+| **12. Per-pattern hatch parameters** ✅ | Give the non-linear hatch patterns their own tunable parameters instead of deriving everything from `gap`: wave/zigzag amplitude + wavelength, dot radius. Backward-compatible (0 = auto, keeps today's gap-derived defaults) | Wave amplitude, wave/zigzag wavelength, and dot radius are independently adjustable in both GUI dialogs and the CLI; leaving them at 0 reproduces the previous gap-derived behaviour exactly |
 
 ### Phase 8 — in progress (post-cutover self-audit)
 
@@ -443,6 +444,48 @@ plotting client.
   already-tested stage (`MultipassStage`, `OptimizeStage`, `StationMapper`,
   `GcodeBackend`) — this phase is wiring, not new logic, aside from the
   settings-source question above.
+
+---
+
+### Phase 12 — Per-pattern hatch parameters ✅
+
+**Problem.** Every hatch pattern was driven by just two knobs — `angle` and
+`gap` (`HatchStyle(angle, gap, patternName)`). The non-linear patterns
+derived their remaining shape parameters as fixed ratios of `gap`, with no
+way to tune them independently:
+- `WaveHatchPattern`: amplitude = `gap/3`, wavelength = `gap×2`.
+- `ZigZagHatchPattern`: amplitude = `gap/2`, wavelength = `gap`.
+- `DotHatchPattern`: dot radius reused the global stroke width, spacing =
+  `gap`.
+
+So you could not, e.g., make tall narrow waves or large sparse dots without
+also changing line spacing.
+
+**Goal.** Give wave/zigzag an independent amplitude and wavelength and give
+dot an independent radius, exposed in both GUI dialogs and the CLI, without
+changing behaviour for anyone who doesn't touch the new controls.
+
+**Design.**
+- Extend the `HatchStyle` record with three optional fields: `amplitude`,
+  `wavelength`, `dotRadius`. A value of `0` means "auto" — fall back to the
+  exact gap-derived default used before, so existing JSON/CLI/GUI flows are
+  byte-for-byte unchanged. A backward-compatible 3-arg constructor
+  (`angle, gap, patternName`) delegates with all three set to `0`, matching
+  the established record-evolution pattern (`Layer`'s legacy constructor).
+- Each pattern reads `style.xxx() > 0 ? style.xxx() : <old gap-derived
+  default>`, so the "auto" path is the previous formula verbatim.
+- GUI: both `SvgImportDialog` and `EditProcessDialog` gain "Amplitude
+  (0 = auto)", "Wavelength (0 = auto)", "Dot radius (0 = auto)" spinners,
+  following the existing "0 = off/none/auto" convention already used for
+  stroke-width override and simplify tolerance. `EditProcessDialog` also
+  remembers them across opens like the other hatch fields.
+- CLI: `--hatch-amplitude`, `--hatch-wavelength`, `--dot-radius` flags,
+  defaulting to `0` (auto).
+
+**Out of scope:** distinct amplitude/wavelength *semantics* per pattern
+(wave and zigzag share the two fields; their differing default ratios are
+preserved only on the auto path). Good enough — when set explicitly, both
+interpret amplitude/wavelength the obvious way.
 
 ---
 

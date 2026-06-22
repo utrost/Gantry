@@ -204,6 +204,9 @@ on the SVG before importing. The pipeline runs in this order:
 | Hatch pattern | `linear` · `cross` · `zigzag` · `wave` · `dot` · `none` · `empty` |
 | Hatch angle | Global hatch angle in degrees (default 45). |
 | Hatch gap | Distance between hatch lines (default 5). |
+| Amplitude | Wave/zigzag wave height (0 = auto, derived from gap). Ignored by other patterns. |
+| Wavelength | Wave/zigzag wave length (0 = auto, derived from gap). Ignored by other patterns. |
+| Dot radius | Dot pattern dot radius (0 = auto, uses the stroke width). Ignored by other patterns. |
 | Hidden layers | Remove shapes with these hex stroke colours. |
 | Simplify tolerance | Ramer–Douglas–Peucker tolerance on polygons/paths before hatching (0 = off). |
 | Rotate | Rotate the SVG canvas by this many degrees. |

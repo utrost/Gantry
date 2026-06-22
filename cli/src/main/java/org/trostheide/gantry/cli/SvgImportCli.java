@@ -66,6 +66,12 @@ public final class SvgImportCli {
                 .desc("Toolbox: global hatch angle (default 45).").build());
         options.addOption(Option.builder().longOpt("hatch-gap").hasArg()
                 .desc("Toolbox: global hatch gap (default 5).").build());
+        options.addOption(Option.builder().longOpt("hatch-amplitude").hasArg()
+                .desc("Toolbox: wave/zigzag amplitude (0 = auto, derived from gap).").build());
+        options.addOption(Option.builder().longOpt("hatch-wavelength").hasArg()
+                .desc("Toolbox: wave/zigzag wavelength (0 = auto, derived from gap).").build());
+        options.addOption(Option.builder().longOpt("dot-radius").hasArg()
+                .desc("Toolbox: dot pattern radius (0 = auto, uses stroke width).").build());
         options.addOption(Option.builder().longOpt("style").hasArg()
                 .desc("Toolbox: per-color hatch overrides HEX:ANGLE:GAP:PATTERN;...").build());
         options.addOption(Option.builder().longOpt("no-hatch").hasArg()
@@ -152,7 +158,11 @@ public final class SvgImportCli {
 
         double defAngle = cmd.hasOption("hatch-angle") ? Double.parseDouble(cmd.getOptionValue("hatch-angle")) : 45.0;
         double defGap = cmd.hasOption("hatch-gap") ? Double.parseDouble(cmd.getOptionValue("hatch-gap")) : 5.0;
-        HatchStyle globalStyle = new HatchStyle(defAngle, defGap, cmd.getOptionValue("pattern", "linear"));
+        double defAmplitude = Double.parseDouble(cmd.getOptionValue("hatch-amplitude", "0"));
+        double defWavelength = Double.parseDouble(cmd.getOptionValue("hatch-wavelength", "0"));
+        double defDotRadius = Double.parseDouble(cmd.getOptionValue("dot-radius", "0"));
+        HatchStyle globalStyle = new HatchStyle(defAngle, defGap, cmd.getOptionValue("pattern", "linear"),
+                defAmplitude, defWavelength, defDotRadius);
 
         Map<String, HatchStyle> overrides = new HashMap<>();
         if (cmd.hasOption("style")) {

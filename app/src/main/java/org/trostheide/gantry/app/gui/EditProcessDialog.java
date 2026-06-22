@@ -26,6 +26,9 @@ public final class EditProcessDialog extends JDialog {
     private static String lastHatchPattern = "linear";
     private static double lastHatchAngle = 45.0;
     private static double lastHatchGap = 5.0;
+    private static double lastHatchAmplitude = 0.0;
+    private static double lastHatchWavelength = 0.0;
+    private static double lastDotRadius = 0.0;
     private static double lastRotate = 0.0;
     private static boolean lastOptimize = false;
 
@@ -37,6 +40,9 @@ public final class EditProcessDialog extends JDialog {
             new JComboBox<>(new String[] {"linear", "cross", "zigzag", "wave", "dot", "none", "empty"});
     private final JSpinner hatchAngleSpinner = new JSpinner(new SpinnerNumberModel(45.0, -360.0, 360.0, 5.0));
     private final JSpinner hatchGapSpinner = new JSpinner(new SpinnerNumberModel(5.0, 0.1, 1000.0, 0.5));
+    private final JSpinner hatchAmplitudeSpinner = new JSpinner(new SpinnerNumberModel(0.0, 0.0, 1000.0, 0.5));
+    private final JSpinner hatchWavelengthSpinner = new JSpinner(new SpinnerNumberModel(0.0, 0.0, 1000.0, 0.5));
+    private final JSpinner dotRadiusSpinner = new JSpinner(new SpinnerNumberModel(0.0, 0.0, 1000.0, 0.1));
 
     private final JTextField paletteField = new JTextField(20);
 
@@ -70,6 +76,9 @@ public final class EditProcessDialog extends JDialog {
         addRow(form, gbc, "Hatch pattern", hatchPatternCombo);
         addRow(form, gbc, "Hatch angle (deg)", hatchAngleSpinner);
         addRow(form, gbc, "Hatch gap", hatchGapSpinner);
+        addRow(form, gbc, "Amplitude — wave/zigzag (0 = auto)", hatchAmplitudeSpinner);
+        addRow(form, gbc, "Wavelength — wave/zigzag (0 = auto)", hatchWavelengthSpinner);
+        addRow(form, gbc, "Dot radius — dot (0 = auto)", dotRadiusSpinner);
 
         addSection(form, gbc, "Palette");
         addRow(form, gbc, "Colors (hex, comma-separated)", paletteField);
@@ -89,6 +98,9 @@ public final class EditProcessDialog extends JDialog {
         hatchPatternCombo.setSelectedItem(lastHatchPattern);
         hatchAngleSpinner.setValue(lastHatchAngle);
         hatchGapSpinner.setValue(lastHatchGap);
+        hatchAmplitudeSpinner.setValue(lastHatchAmplitude);
+        hatchWavelengthSpinner.setValue(lastHatchWavelength);
+        dotRadiusSpinner.setValue(lastDotRadius);
         rotateSpinner.setValue(lastRotate);
         optimizeCheck.setSelected(lastOptimize);
 
@@ -159,6 +171,9 @@ public final class EditProcessDialog extends JDialog {
 
         double hatchAngle = ((Number) hatchAngleSpinner.getValue()).doubleValue();
         double hatchGap = ((Number) hatchGapSpinner.getValue()).doubleValue();
+        double hatchAmplitude = ((Number) hatchAmplitudeSpinner.getValue()).doubleValue();
+        double hatchWavelength = ((Number) hatchWavelengthSpinner.getValue()).doubleValue();
+        double dotRadius = ((Number) dotRadiusSpinner.getValue()).doubleValue();
         String hatchPattern = (String) hatchPatternCombo.getSelectedItem();
         double rotate = ((Number) rotateSpinner.getValue()).doubleValue();
 
@@ -167,6 +182,9 @@ public final class EditProcessDialog extends JDialog {
         lastHatchPattern = hatchPattern;
         lastHatchAngle = hatchAngle;
         lastHatchGap = hatchGap;
+        lastHatchAmplitude = hatchAmplitude;
+        lastHatchWavelength = hatchWavelength;
+        lastDotRadius = dotRadius;
         lastRotate = rotate;
         lastOptimize = optimizeCheck.isSelected();
 
@@ -176,7 +194,8 @@ public final class EditProcessDialog extends JDialog {
                 .strokeWidth(0f)
                 .palette(palette)
                 .enableHatching(hatchCheck.isSelected())
-                .globalStyle(new HatchStyle(hatchAngle, hatchGap, hatchPattern))
+                .globalStyle(new HatchStyle(hatchAngle, hatchGap, hatchPattern,
+                        hatchAmplitude, hatchWavelength, dotRadius))
                 .overrides(Collections.emptyMap())
                 .strokeWidthOverrides(Collections.emptyMap())
                 .hiddenLayers(Collections.emptyList())

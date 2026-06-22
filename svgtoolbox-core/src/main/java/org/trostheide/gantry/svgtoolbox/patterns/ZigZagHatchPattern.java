@@ -67,8 +67,8 @@ public class ZigZagHatchPattern extends LinearHatchPattern {
             pi.next();
         }
 
-        double wavelength = gap;
-        double amplitude = gap / 2.0;
+        double wavelength = style.wavelength() > 0 ? style.wavelength() : gap;
+        double amplitude = style.amplitude() > 0 ? style.amplitude() : gap / 2.0;
 
         for (double y = startY + gap; y < endY; y += gap) {
             List<Double> intersections = new ArrayList<>();

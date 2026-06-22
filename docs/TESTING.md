@@ -32,7 +32,7 @@ Expected output: `BUILD SUCCESS` with zero failures across all modules.
 | `svgtoolbox-core` | `PaletteProcessorTest` (5) | CIELAB quantisation: nearest colour, passthrough when no palette |
 | `svgtoolbox-core` | `CropProcessorTest` (5) | Clip outside crop bounds; keep within; null bounds no-op |
 | `svgtoolbox-core` | `LayerProcessorTest` (4) | Inkscape layer groups; resize canvas; multi-colour grouping |
-| `svgtoolbox-core` | `HatchProcessorTest` (4) | Linear/cross/zigzag/wave/dot patterns; area filter; no-hatch list |
+| `svgtoolbox-core` | `HatchProcessorTest` (5) | Linear/cross/zigzag/wave/dot patterns; area filter; no-hatch list; explicit-vs-auto dot radius |
 | `svgtoolbox-core` | `SimplifyProcessorTest` (2) | RDP on collinear points; tolerance threshold |
 | `svgtoolbox-core` | `LinesimplifyProcessorTest` (6) | RDP on path `d` attribute; tolerance; skip closed paths |
 | `svgtoolbox-core` | `LinemergeProcessorTest` (6) | Merge adjacent open paths within tolerance; reverse direction |
@@ -95,6 +95,11 @@ Use an SVG with two Inkscape layers (`inkscape:groupmode="layer"`).
 2. Check **Run SVGToolBox processing**.
 3. Set Hatch to enabled, pattern = cross, angle = 45, gap = 8. Click **Import**.
    - [ ] Hatching is visible in the visualisation.
+   - [ ] The chosen pattern is actually applied (e.g. pattern = `dot` produces dots, not lines) — not always linear.
+3a. Set pattern = `dot`, **Dot radius** = 3. Import.
+   - [ ] Dots are visibly larger than with Dot radius = 0 (auto).
+   - [ ] Set pattern = `wave`, **Amplitude** = 10 — waves are visibly taller than at Amplitude = 0 (auto).
+   - [ ] Leaving Amplitude / Wavelength / Dot radius at 0 reproduces the gap-derived defaults.
 4. Enable **Linesort** + **Reloop**. Import.
    - [ ] No error; console shows processing output lines (e.g. "Linesort: path order optimized").
 5. Enable **Print statistics**.

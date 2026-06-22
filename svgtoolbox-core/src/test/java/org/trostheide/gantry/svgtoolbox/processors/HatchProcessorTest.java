@@ -172,4 +172,38 @@ class HatchProcessorTest {
         NodeList lines = doc.getElementsByTagName("line");
         assertEquals(0, lines.getLength(), "Should NOT generate hatch lines for 'none'");
     }
+
+    @Test
+    void testExplicitDotRadiusOverridesAuto() throws Exception {
+        // dotRadius = 3 should win over the stroke-width-derived auto radius (1).
+        assertEquals(3.0, dotCircleRadius(3.0), 1e-6, "Explicit dot radius should be used");
+        // dotRadius = 0 means auto -> falls back to stroke width (1.0 in this setup).
+        assertEquals(1.0, dotCircleRadius(0.0), 1e-6, "Auto dot radius should fall back to stroke width");
+    }
+
+    /** Hatches a 100x100 square with the dot pattern and returns the radius of the first emitted circle. */
+    private double dotCircleRadius(double dotRadius) throws Exception {
+        Document doc = DocumentBuilderFactory.newInstance().newDocumentBuilder().newDocument();
+        Element root = doc.createElement("svg");
+        doc.appendChild(root);
+
+        Element rect = doc.createElement("rect");
+        rect.setAttribute("x", "0");
+        rect.setAttribute("y", "0");
+        rect.setAttribute("width", "100");
+        rect.setAttribute("height", "100");
+        rect.setAttribute("fill", "#FF0000");
+        root.appendChild(rect);
+
+        Config config = new Config(
+                "in", "out", 1.0f, Collections.emptyList(), true,
+                new HatchStyle(0.0, 10.0, "dot", 0.0, 0.0, dotRadius),
+                Collections.emptyMap(), Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), 1.0, 0.0, "dot", 45.0, 5.0, 0.0, false, null, false, false, 0.378, false, 1.89, false, false, false);
+
+        new HatchProcessor().process(doc, config);
+
+        NodeList circles = doc.getElementsByTagName("circle");
+        assertTrue(circles.getLength() > 0, "Dot pattern should emit circles");
+        return Double.parseDouble(((Element) circles.item(0)).getAttribute("r"));
+    }
 }

@@ -47,6 +47,9 @@ public final class SvgImportDialog extends JDialog {
             new JComboBox<>(new String[] {"linear", "cross", "zigzag", "wave", "dot", "none", "empty"});
     private final JSpinner hatchAngleSpinner = new JSpinner(new SpinnerNumberModel(45.0, -360.0, 360.0, 5.0));
     private final JSpinner hatchGapSpinner = new JSpinner(new SpinnerNumberModel(5.0, 0.1, 1000.0, 0.5));
+    private final JSpinner hatchAmplitudeSpinner = new JSpinner(new SpinnerNumberModel(0.0, 0.0, 1000.0, 0.5));
+    private final JSpinner hatchWavelengthSpinner = new JSpinner(new SpinnerNumberModel(0.0, 0.0, 1000.0, 0.5));
+    private final JSpinner dotRadiusSpinner = new JSpinner(new SpinnerNumberModel(0.0, 0.0, 1000.0, 0.1));
     private final JTextField hiddenLayersField = new JTextField(20);
     private final JSpinner simplifyToleranceSpinner = new JSpinner(new SpinnerNumberModel(0.0, 0.0, 100.0, 0.1));
     private final JSpinner rotateSpinner = new JSpinner(new SpinnerNumberModel(0.0, -360.0, 360.0, 90.0));
@@ -184,6 +187,9 @@ public final class SvgImportDialog extends JDialog {
         addRow(form, gbc, "Hatch pattern", hatchPatternCombo);
         addRow(form, gbc, "Hatch angle (deg)", hatchAngleSpinner);
         addRow(form, gbc, "Hatch gap", hatchGapSpinner);
+        addRow(form, gbc, "Amplitude — wave/zigzag (0 = auto)", hatchAmplitudeSpinner);
+        addRow(form, gbc, "Wavelength — wave/zigzag (0 = auto)", hatchWavelengthSpinner);
+        addRow(form, gbc, "Dot radius — dot (0 = auto)", dotRadiusSpinner);
         addRow(form, gbc, "Hidden layers (hex colors, comma-separated)", hiddenLayersField);
         addRow(form, gbc, "Simplify tolerance (0 = off)", simplifyToleranceSpinner);
         addRow(form, gbc, "Rotate (deg)", rotateSpinner);
@@ -300,8 +306,12 @@ public final class SvgImportDialog extends JDialog {
 
         double hatchAngle = ((Number) hatchAngleSpinner.getValue()).doubleValue();
         double hatchGap = ((Number) hatchGapSpinner.getValue()).doubleValue();
+        double hatchAmplitude = ((Number) hatchAmplitudeSpinner.getValue()).doubleValue();
+        double hatchWavelength = ((Number) hatchWavelengthSpinner.getValue()).doubleValue();
+        double dotRadius = ((Number) dotRadiusSpinner.getValue()).doubleValue();
         HatchStyle globalStyle = new HatchStyle(hatchAngle, hatchGap,
-                (String) hatchPatternCombo.getSelectedItem());
+                (String) hatchPatternCombo.getSelectedItem(),
+                hatchAmplitude, hatchWavelength, dotRadius);
 
         Rectangle2D cropBounds = parseToolboxCrop();
 
