@@ -152,7 +152,7 @@ public final class SvgImportCli {
 
         double defAngle = cmd.hasOption("hatch-angle") ? Double.parseDouble(cmd.getOptionValue("hatch-angle")) : 45.0;
         double defGap = cmd.hasOption("hatch-gap") ? Double.parseDouble(cmd.getOptionValue("hatch-gap")) : 5.0;
-        HatchStyle globalStyle = new HatchStyle(defAngle, defGap, "linear");
+        HatchStyle globalStyle = new HatchStyle(defAngle, defGap, cmd.getOptionValue("pattern", "linear"));
 
         Map<String, HatchStyle> overrides = new HashMap<>();
         if (cmd.hasOption("style")) {

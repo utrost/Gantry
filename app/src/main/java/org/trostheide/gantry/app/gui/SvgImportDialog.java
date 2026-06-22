@@ -289,7 +289,8 @@ public final class SvgImportDialog extends JDialog {
 
         double hatchAngle = ((Number) hatchAngleSpinner.getValue()).doubleValue();
         double hatchGap = ((Number) hatchGapSpinner.getValue()).doubleValue();
-        HatchStyle globalStyle = new HatchStyle(hatchAngle, hatchGap, "linear");
+        HatchStyle globalStyle = new HatchStyle(hatchAngle, hatchGap,
+                (String) hatchPatternCombo.getSelectedItem());
 
         Rectangle2D cropBounds = parseToolboxCrop();
 
