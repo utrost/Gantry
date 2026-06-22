@@ -81,9 +81,13 @@ public final class SvgImportStage {
         // the fit/position/mirror transforms.
         Bounds preScannedBounds = calculateGlobalBounds(layersToProcess);
         boolean haveBounds = preScannedBounds.minX() != Double.MAX_VALUE;
+        // A single shape can never be a "page border": that heuristic only makes sense when a
+        // background/frame rect coexists with separate real content. With one drawable in the
+        // whole document, that shape IS the content and must never be filtered out.
+        boolean skipPageBorderFilter = countDrawables(layersToProcess) <= 1;
 
         if (hasTargetSize && haveBounds) {
-            Bounds scaleBounds = calculateContentOnlyBounds(layersToProcess, preScannedBounds);
+            Bounds scaleBounds = calculateContentOnlyBounds(layersToProcess, preScannedBounds, skipPageBorderFilter);
             globalTx = calculateScaleTransform(scaleBounds, options.targetWidth(), options.targetHeight(),
                     options.keepAspectRatio(), options.posX(), options.posY());
         } else if (hasPosition && haveBounds) {
@@ -126,7 +130,7 @@ public final class SvgImportStage {
         for (LayerContext ctx : layersToProcess) {
             List<Command> layerCommands = generateCommandsForLayer(ctx.rootNode, ctx.stationId,
                     options.maxDrawDistance(), options.curveStep(), pathParser, pathProducer,
-                    globalBoundsBuilder, globalTx, commandCounter, preScannedBounds);
+                    globalBoundsBuilder, globalTx, commandCounter, preScannedBounds, skipPageBorderFilter);
 
             if (!layerCommands.isEmpty()) {
                 resultLayers.add(new Layer(ctx.layerName, ctx.stationId, ctx.color, layerCommands));
@@ -313,7 +317,7 @@ public final class SvgImportStage {
 
     private static List<Command> generateCommandsForLayer(Element layerRoot, String stationId, double maxDist,
             double curveStep, PathParser parser, AWTPathProducer producer, BoundsBuilder bounds,
-            AffineTransform globalTx, int[] commandCounter, Bounds contentBounds) {
+            AffineTransform globalTx, int[] commandCounter, Bounds contentBounds, boolean skipPageBorderFilter) {
         List<Command> cmds = new ArrayList<>();
         List<Node> drawables = new ArrayList<>();
         collectDrawableElements(layerRoot, drawables);
@@ -340,7 +344,7 @@ public final class SvgImportStage {
 
             // Skip a full-page background/border rectangle (e.g. an Inkscape page rect): it would
             // otherwise be plotted as the drawing's outer frame before the real content.
-            if (isPageBorderRect(shape, contentBounds)) {
+            if (!skipPageBorderFilter && isPageBorderRect(shape, contentBounds)) {
                 continue;
             }
 
@@ -639,7 +643,18 @@ public final class SvgImportStage {
      * transforms against the actual drawing rather than the page rect that gets dropped on output
      * — otherwise the real content would be scaled as if it already filled the chosen paper size.
      */
-    private static Bounds calculateContentOnlyBounds(List<LayerContext> contexts, Bounds rawBounds) {
+    private static int countDrawables(List<LayerContext> contexts) {
+        int count = 0;
+        for (LayerContext ctx : contexts) {
+            List<Node> drawables = new ArrayList<>();
+            collectDrawableElements(ctx.rootNode, drawables);
+            count += drawables.size();
+        }
+        return count;
+    }
+
+    private static Bounds calculateContentOnlyBounds(List<LayerContext> contexts, Bounds rawBounds,
+            boolean skipPageBorderFilter) {
         BoundsBuilder builder = new BoundsBuilder();
         PathParser parser = new PathParser();
         AWTPathProducer producer = new AWTPathProducer();
@@ -657,7 +672,7 @@ public final class SvgImportStage {
                     parser.parse(d);
                     Shape shape = producer.getShape();
                     shape = applyElementTransform(node, shape);
-                    if (isPageBorderRect(shape, rawBounds)) {
+                    if (!skipPageBorderFilter && isPageBorderRect(shape, rawBounds)) {
                         continue;
                     }
                     Rectangle2D r2d = shape.getBounds2D();
