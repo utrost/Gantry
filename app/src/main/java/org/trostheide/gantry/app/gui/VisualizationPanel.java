@@ -28,6 +28,14 @@ public class VisualizationPanel extends JPanel {
 
     private List<List<Point2D>> allPaths = new ArrayList<>();
 
+    /**
+     * Layer index (into the loaded {@code ProcessorOutput.layers()}) that produced each entry in
+     * {@link #allPaths}, kept in lockstep. Lets the panel highlight a single layer while ghosting
+     * the rest. {@link #layerFilter} of {@code -1} means "show all layers equally".
+     */
+    private final List<Integer> pathLayer = new ArrayList<>();
+    private int layerFilter = -1;
+
     // Current head position (Physical coords). currentX/Y is the *displayed*
     // position, which is eased toward targetX/Y so motion looks smooth even
     // when position updates arrive in discrete steps.
@@ -382,6 +390,7 @@ public class VisualizationPanel extends JPanel {
      */
     public void loadPathsPreservingOverlay(ProcessorOutput output) {
         allPaths.clear();
+        pathLayer.clear();
         currentX = 0;
         currentY = 0;
         targetX = 0;
@@ -390,8 +399,9 @@ public class VisualizationPanel extends JPanel {
             cursorAnimTimer.stop();
         }
 
-        for (Layer layer : output.layers()) {
-            for (Command cmd : layer.commands()) {
+        List<Layer> layers = output.layers();
+        for (int li = 0; li < layers.size(); li++) {
+            for (Command cmd : layers.get(li).commands()) {
                 if (cmd instanceof DrawCommand draw) {
                     List<Point2D> stroke = new ArrayList<>();
                     for (org.trostheide.gantry.model.Point p : draw.points) {
@@ -399,9 +409,14 @@ public class VisualizationPanel extends JPanel {
                     }
                     if (!stroke.isEmpty()) {
                         allPaths.add(stroke);
+                        pathLayer.add(li);
                     }
                 }
             }
+        }
+        // A reload may have changed the layer count; drop a now-invalid filter.
+        if (layerFilter >= layers.size()) {
+            layerFilter = -1;
         }
 
         recalculateTransform();
@@ -422,6 +437,17 @@ public class VisualizationPanel extends JPanel {
         if (!cursorAnimTimer.isRunning()) {
             cursorAnimTimer.start();
         }
+    }
+
+    /**
+     * Highlights a single layer in the preview, ghosting the rest. {@code layerIndex} is an index
+     * into the loaded output's layer list; {@code -1} restores the "all layers" view. The drawing's
+     * position on the bed is unchanged — only how each layer is shaded — so the operator can see
+     * exactly where the selected layer (i.e. the next pen) will draw relative to the whole piece.
+     */
+    public void setLayerFilter(int layerIndex) {
+        this.layerFilter = layerIndex;
+        repaint();
     }
 
     /** Updates the feed-rate override (percent) shown in the HUD. */
@@ -762,22 +788,35 @@ public class VisualizationPanel extends JPanel {
         }
 
         // --- Draw Paths ---
-        g2.setColor(new Color(130, 160, 255));
+        // With no layer filter every stroke is drawn in the normal colour. With a filter active the
+        // selected layer keeps the normal colour and the others are ghosted, so the operator can
+        // inspect where the next pen will draw without losing the surrounding context.
+        Color normalPath = new Color(130, 160, 255);
+        Color ghostPath = new Color(90, 100, 125);
         g2.setStroke(new BasicStroke((float) (1.0 / scale)));
 
-        for (List<Point2D> path : allPaths) {
-            if (path.isEmpty())
-                continue;
-            Path2D p2d = new Path2D.Double();
-
-            double[] p0 = transformPoint(path.get(0));
-            p2d.moveTo(p0[0], p0[1]);
-
-            for (int i = 1; i < path.size(); i++) {
-                double[] pi = transformPoint(path.get(i));
-                p2d.lineTo(pi[0], pi[1]);
+        // Draw ghosts first so the highlighted layer paints on top of them.
+        for (int pass = 0; pass < 2; pass++) {
+            boolean drawingSelected = (pass == 1);
+            g2.setColor(drawingSelected ? normalPath : ghostPath);
+            for (int i = 0; i < allPaths.size(); i++) {
+                List<Point2D> path = allPaths.get(i);
+                if (path.isEmpty()) {
+                    continue;
+                }
+                boolean selected = layerFilter < 0 || pathLayer.get(i) == layerFilter;
+                if (selected != drawingSelected) {
+                    continue;
+                }
+                Path2D p2d = new Path2D.Double();
+                double[] p0 = transformPoint(path.get(0));
+                p2d.moveTo(p0[0], p0[1]);
+                for (int j = 1; j < path.size(); j++) {
+                    double[] pj = transformPoint(path.get(j));
+                    p2d.lineTo(pj[0], pj[1]);
+                }
+                g2.draw(p2d);
             }
-            g2.draw(p2d);
         }
 
         // --- Draw Interactive Bounding Box ---

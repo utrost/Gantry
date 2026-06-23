@@ -90,6 +90,9 @@ Use an SVG with two Inkscape layers (`inkscape:groupmode="layer"`).
 
 - [ ] Console reports `2 layer(s)`.
 - [ ] Visualisation shows two separate colour groups.
+- [ ] In the Plot section, the **Layer** dropdown lists `All layers` plus one entry per layer (id + colour).
+- [ ] Selecting a single layer highlights it and **ghosts** the other layer (dim grey-blue); the drawing does not move on the bed. Time estimate (`Est:`) drops to reflect just that layer.
+- [ ] With a single layer selected, **Start Plot** (mock backend) plots only that layer; **Export G-code** exports only that layer. Switching back to `All layers` restores the full preview/estimate.
 
 ### 2.5 SVGToolBox pre-processing
 

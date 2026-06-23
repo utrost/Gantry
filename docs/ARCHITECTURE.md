@@ -355,14 +355,21 @@ Swing + FlatLaf dark theme. `GantryApp#main` sets up `FlatDarkLaf`, builds a
   a known **god-class** and the prime candidate for extracting a `PlotSession`
   controller (see ROADMAP). Menu actions: Import SVG, Process SVG
   (`EditProcessDialog`), Optimize Loaded Commands, Map Layer Colors to Stations,
-  Save/Load Commands, Export/Replay G-code.
+  Save/Load Commands, Export/Replay G-code. The Plot section's **Layer** dropdown
+  (`layerCombo`) selects a single layer to preview/plot/export: `selectedOutput()`
+  narrows `currentOutput` to that one `Layer` before `preparePlotOutput()` bakes
+  the overlay and applies multipass, so Start Plot / Export / the time estimate all
+  operate on just that layer (the per-pen workflow). `refreshLayerSelector()` rebuilds
+  the combo whenever `currentOutput` is replaced.
 - **`VisualizationPanel`** (~974 lines) — the live canvas: draws the bed, the
   drawing, the moving cursor, and the interactive positioning overlay
   (`overlayOffsetX/Y`, `overlayScale`, `overlayRotation`, `overlayMirror` — a
   **single global transform**, i.e. exactly one drawing today; multi-document is
   roadmap Phase 9). Drag/scale/rotate/mirror + a right-click context menu. Uses
   `CoordinateTransform.applyOverlayRaw` + `physicalToScreen` so preview matches
-  plotted output.
+  plotted output. Tracks each rendered stroke's source layer (`pathLayer`) so
+  `setLayerFilter(idx)` can highlight one layer and ghost the rest; alignment/bounds
+  stay computed over **all** paths so the highlighted layer keeps its true bed position.
 - **`SvgImportDialog`** — import options + the SVGToolBox toolbox controls (incl.
   hatch pattern/angle/gap and the per-pattern amplitude/wavelength/dot-radius
   spinners). Builds an `SvgImportOptions` and (if toolbox or hatch enabled) a

@@ -297,6 +297,24 @@ global pen-down position.
 
 Multipass: set **Passes** (1–10) to draw every stroke N times.
 
+### Plotting one layer at a time (per-pen workflow)
+
+The **Layer** dropdown in the Plot section lets you plot a single layer instead of
+the whole drawing — useful when each layer is a different pen or ink colour:
+
+1. Pick a layer from the dropdown (each entry shows the layer's id and source
+   colour). The Live View highlights that layer and **ghosts** the others (drawn in
+   a dim grey-blue) so you can see exactly where it sits on the page and confirm
+   you've loaded the right pen — without losing the context of the rest of the piece.
+2. The time estimate updates to reflect just the selected layer.
+3. Click **Start Plot** — only the highlighted layer is plotted (and exported, if you
+   use **Export G-code** while a single layer is selected). The drawing's position on
+   the bed is unchanged, so every layer lands in register with the others.
+4. When it finishes, swap the pen, pick the next layer, and plot again.
+
+Leave the dropdown on **All layers** to plot the whole drawing in one job (the
+default; you'll still be prompted to **Confirm Layer** between layers).
+
 While a plot is running, the jog/pen/edit controls (jog arrows and keyboard/numpad
 jogging, Pen Up/Down, Home, position fields, Optimize, Overlay, Load/Import/Save,
 Export/Replay and the raw G-code field) are disabled to prevent interfering with the

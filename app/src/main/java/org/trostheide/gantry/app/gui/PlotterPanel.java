@@ -74,6 +74,9 @@ public class PlotterPanel extends JPanel {
     private final JSpinner posXSpinner = new JSpinner(new SpinnerNumberModel(0.0, -2000.0, 2000.0, 1.0));
     private final JSpinner posYSpinner = new JSpinner(new SpinnerNumberModel(0.0, -2000.0, 2000.0, 1.0));
     private final JLabel timeLabel = new JLabel("Est: --:--");
+    private final JComboBox<String> layerCombo = new JComboBox<>();
+    /** Guards {@link #layerCombo}'s listener while we repopulate it programmatically. */
+    private boolean repopulatingLayers;
 
     private PlotterBackend backend;
     private ProcessorOutput currentOutput;
@@ -635,18 +638,79 @@ public class PlotterPanel extends JPanel {
         row2.add(Box.createHorizontalStrut(4));
         row2.add(pauseBtn);
 
-        JPanel row3 = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 2));
+        JPanel row3 = new JPanel();
+        row3.setLayout(new BoxLayout(row3, BoxLayout.X_AXIS));
+        row3.add(new JLabel("Layer"));
+        row3.add(Box.createHorizontalStrut(4));
+        layerCombo.addItem("All layers");
+        layerCombo.setToolTipText("Plot/preview a single layer (e.g. one pen colour) at a time; "
+                + "the rest are ghosted so you can inspect placement before starting.");
+        layerCombo.addActionListener(e -> onLayerSelectionChanged());
+        disableDuringPlot(layerCombo);
+        row3.add(layerCombo);
+
+        JPanel row4 = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 2));
         timeLabel.setToolTipText("Per-layer time estimate (hover after loading/importing commands)");
-        row3.add(timeLabel);
+        row4.add(timeLabel);
 
         row1.setAlignmentX(LEFT_ALIGNMENT);
         row2.setAlignmentX(LEFT_ALIGNMENT);
         row3.setAlignmentX(LEFT_ALIGNMENT);
+        row4.setAlignmentX(LEFT_ALIGNMENT);
         panel.add(row1);
         panel.add(row2);
         panel.add(row3);
+        panel.add(row4);
 
         return panel;
+    }
+
+    /**
+     * Rebuilds {@link #layerCombo} to list the current drawing's layers ("All layers" plus one entry
+     * per layer, labelled with its id and source colour). Keeps the current selection where possible.
+     * Called whenever {@link #currentOutput} is replaced.
+     */
+    private void refreshLayerSelector() {
+        repopulatingLayers = true;
+        try {
+            int previous = layerCombo.getSelectedIndex();
+            layerCombo.removeAllItems();
+            layerCombo.addItem("All layers");
+            if (currentOutput != null) {
+                for (Layer layer : currentOutput.layers()) {
+                    String colour = layer.color() == null || layer.color().isEmpty() ? "no colour" : layer.color();
+                    layerCombo.addItem(layer.id() + " — " + colour);
+                }
+            }
+            // Restore the prior selection only if it still maps to an existing layer.
+            if (previous >= 0 && previous < layerCombo.getItemCount()) {
+                layerCombo.setSelectedIndex(previous);
+            } else {
+                layerCombo.setSelectedIndex(0);
+            }
+        } finally {
+            repopulatingLayers = false;
+        }
+        // Apply whatever the (possibly reset) selection now is.
+        applyLayerFilter();
+    }
+
+    private void onLayerSelectionChanged() {
+        if (repopulatingLayers) {
+            return;
+        }
+        applyLayerFilter();
+        refreshTimeEstimate();
+    }
+
+    /** Pushes the combo's current selection to the visualization ({@code -1} = all layers). */
+    private void applyLayerFilter() {
+        visPanel.setLayerFilter(selectedLayerIndex());
+    }
+
+    /** Index of the chosen layer into {@code currentOutput.layers()}, or {@code -1} for "All layers". */
+    private int selectedLayerIndex() {
+        return layerCombo.getSelectedIndex() - 1;
     }
 
     /** Recomputes and displays the pre-plot time estimate (total + per-layer, via tooltip). */
@@ -774,6 +838,7 @@ public class PlotterPanel extends JPanel {
             }
             visPanel.loadFromOutput(currentOutput);
             visPanel.setContentMotorMin(0, 0);
+            refreshLayerSelector();
             refreshPositionFields();
             refreshTimeEstimate();
             refreshGuidance();
@@ -812,6 +877,7 @@ public class PlotterPanel extends JPanel {
             }
             visPanel.loadFromOutput(currentOutput);
             visPanel.setContentMotorMin(0, 0);
+            refreshLayerSelector();
             refreshPositionFields();
             refreshTimeEstimate();
             refreshGuidance();
@@ -843,6 +909,7 @@ public class PlotterPanel extends JPanel {
         runBusy("Process SVG", () -> SvgImportStage.importSvg(source, config, options), out -> {
             currentOutput = out;
             visPanel.loadPathsPreservingOverlay(currentOutput);
+            refreshLayerSelector();
             refreshPositionFields();
             refreshTimeEstimate();
             refreshGuidance();
@@ -868,6 +935,7 @@ public class PlotterPanel extends JPanel {
         snapshotForUndo();
         currentOutput = StationMapper.assignByColor(currentOutput, stations);
         visPanel.loadPathsPreservingOverlay(currentOutput);
+        refreshLayerSelector();
         logColorMapping();
         refreshTimeEstimate();
         refreshGuidance();
@@ -941,6 +1009,7 @@ public class PlotterPanel extends JPanel {
         OptimizeStage.Stats after = OptimizeStage.computeStats(currentOutput);
 
         visPanel.loadPathsPreservingOverlay(currentOutput);
+        refreshLayerSelector();
         refreshPositionFields();
         refreshTimeEstimate();
 
@@ -1201,9 +1270,23 @@ public class PlotterPanel extends JPanel {
         new Thread(() -> action.accept(b), "backend-action").start();
     }
 
-    /** Applies overlay baking and the configured multipass count to {@link #currentOutput} for plotting/export. */
+    /**
+     * The output that will actually be plotted/exported: {@link #currentOutput}, narrowed to the
+     * single layer chosen in {@link #layerCombo} when one is selected. This is what lets the operator
+     * plot one pen's worth of strokes, swap the pen, then plot the next layer.
+     */
+    private ProcessorOutput selectedOutput() {
+        int idx = selectedLayerIndex();
+        if (currentOutput == null || idx < 0 || idx >= currentOutput.layers().size()) {
+            return currentOutput;
+        }
+        Layer only = currentOutput.layers().get(idx);
+        return new ProcessorOutput(currentOutput.metadata(), List.of(only));
+    }
+
+    /** Applies overlay baking and the configured multipass count to the selected output for plotting/export. */
     private ProcessorOutput preparePlotOutput() {
-        ProcessorOutput result = currentOutput;
+        ProcessorOutput result = selectedOutput();
         if (visPanel.hasOverlayTransform()) {
             result = bakeOverlay(result);
         }
@@ -1408,6 +1491,7 @@ public class PlotterPanel extends JPanel {
         if (undoMenuItem != null) {
             undoMenuItem.setEnabled(false);
         }
+        refreshLayerSelector();
         refreshPositionFields();
         refreshTimeEstimate();
         refreshGuidance();
@@ -1432,6 +1516,7 @@ public class PlotterPanel extends JPanel {
             undoMenuItem.setEnabled(false);
         }
         visPanel.loadPathsPreservingOverlay(currentOutput);
+        refreshLayerSelector();
         refreshPositionFields();
         refreshTimeEstimate();
         refreshGuidance();
