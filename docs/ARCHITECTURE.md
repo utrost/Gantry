@@ -201,6 +201,17 @@ Visibility → StyleNormalizer → Rotate → StrokeWidth → Palette
   → [PathOptimize]   (only if config.optimizePaths())
 ```
 
+`LayerProcessor` re-buckets shapes into colour-keyed Inkscape layer groups
+(it runs **after** `Hatch`, so hatch line groups are what it actually sees).
+It skips shapes that already live under an existing layer group — checked by
+walking the **full ancestor chain**, not just the immediate parent, because
+hatch output wraps each shape's lines in an extra per-shape `<g>` that sits
+between the shape and its original layer. Checking only the immediate parent
+would treat hatched content as "unorganized" and re-bucket it purely by
+colour across the whole document, merging distinct original Inkscape layers
+that happen to share a colour (e.g. two layers both hatched in black) into
+one — this was a real bug, fixed via `LayerProcessor#isInsideExistingLayer`.
+
 `process(doc, config, progress?)` runs them in order, optionally reporting
 progress via `ProgressCallback`, and prints stats (`SvgStatistics`) if
 `config.printStats()`.
@@ -363,8 +374,16 @@ Swing + FlatLaf dark theme. `GantryApp#main` sets up `FlatDarkLaf`, builds a
   optimize settings across opens via `static last*` fields.
 - **`SettingsPanel`** — machine/serial/pen/feed/station configuration; persisted
   via `plot/ConfigStore` (+ `GantryConfig`, `StationConfig`, `PlotSettings`,
-  `PlotService`-facing settings). `TimeEstimator` estimates plot duration;
-  `CommandFile` handles command-JSON load/save plumbing.
+  `PlotService`-facing settings). `TimeEstimator` estimates plot duration —
+  per layer it sums `travelDist/feedRateTravel + drawDist/feedRateDraw` plus
+  fixed overheads: `REFILL_SECONDS` (0.5s) per `RefillCommand`, matching
+  `PlotService.performRefill`'s dwell, and `PEN_DOWN_SECONDS` (0.15s) per
+  `DrawCommand`, matching `GcodeBackend.pendown()`'s settle sleep (charged
+  once per pen-down regardless of `penMode` — servo and Z-axis moves both
+  pay it). On hatch-dense drawings with many short strokes, the pen-down
+  overhead can dominate the distance-based terms, so it must not be dropped
+  when re-deriving this formula. `CommandFile` handles command-JSON load/save
+  plumbing.
 
 The GUI runs long operations off the EDT (a `runBusy(...)` helper) and the plot on
 its own thread, marshaling UI updates back via Swing.

@@ -132,6 +132,66 @@ class LayerProcessorTest {
     }
 
     @Test
+    void testPreservesPreExistingLayersEvenWhenSameColorAndNested() throws Exception {
+        // Simulates two Inkscape layers whose hatch output happens to share a colour,
+        // with each hatch line wrapped in an extra per-shape <g> (as HatchProcessor does) so
+        // the line's immediate parent is NOT the layer group itself, only an ancestor of it.
+        // Regression test: these must stay in their original two layers, not get re-bucketed
+        // into one shared "Color #000000" layer.
+        Document doc = DocumentBuilderFactory.newInstance().newDocumentBuilder().newDocument();
+        Element root = doc.createElement("svg");
+        root.setAttribute("width", "100");
+        root.setAttribute("height", "100");
+        doc.appendChild(root);
+
+        Element layer1 = doc.createElement("g");
+        layer1.setAttributeNS(INKSCAPE_NS, "inkscape:groupmode", "layer");
+        layer1.setAttributeNS(INKSCAPE_NS, "inkscape:label", "layer_1");
+        root.appendChild(layer1);
+        Element hatchGroup1 = doc.createElement("g");
+        layer1.appendChild(hatchGroup1);
+        Element line1 = doc.createElement("line");
+        line1.setAttribute("stroke", "#000000");
+        line1.setAttribute("x1", "0");
+        line1.setAttribute("y1", "0");
+        line1.setAttribute("x2", "10");
+        line1.setAttribute("y2", "10");
+        hatchGroup1.appendChild(line1);
+
+        Element layer2 = doc.createElement("g");
+        layer2.setAttributeNS(INKSCAPE_NS, "inkscape:groupmode", "layer");
+        layer2.setAttributeNS(INKSCAPE_NS, "inkscape:label", "layer_2");
+        root.appendChild(layer2);
+        Element hatchGroup2 = doc.createElement("g");
+        layer2.appendChild(hatchGroup2);
+        Element line2 = doc.createElement("line");
+        line2.setAttribute("stroke", "#000000");
+        line2.setAttribute("x1", "40");
+        line2.setAttribute("y1", "40");
+        line2.setAttribute("x2", "50");
+        line2.setAttribute("y2", "50");
+        hatchGroup2.appendChild(line2);
+
+        Config config = new Config.Builder()
+                .inputPath("in").outputPath("out")
+                .build();
+
+        new LayerProcessor().process(doc, config);
+
+        NodeList groups = root.getElementsByTagName("g");
+        int layerCount = 0;
+        for (int i = 0; i < groups.getLength(); i++) {
+            Element g = (Element) groups.item(i);
+            if ("layer".equals(g.getAttributeNS(INKSCAPE_NS, "groupmode"))) {
+                layerCount++;
+            }
+        }
+        assertEquals(2, layerCount, "Pre-existing layers must be preserved, not merged by colour");
+        assertTrue(layer1.isSameNode(line1.getParentNode().getParentNode()), "line1 must stay under layer_1");
+        assertTrue(layer2.isSameNode(line2.getParentNode().getParentNode()), "line2 must stay under layer_2");
+    }
+
+    @Test
     void testSkipsShapesWithNoColor() throws Exception {
         Document doc = DocumentBuilderFactory.newInstance().newDocumentBuilder().newDocument();
         Element root = doc.createElement("svg");

@@ -14,16 +14,24 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Estimates plot duration from travel/draw distances and the configured feed rates, plus a fixed
- * overhead per refill dip. Distances are measured directly on the (already transformed/baked)
- * command points: the rotate/swap/invert/flip transform applied at plot time is distance-preserving
- * (rotations and reflections only), so summing raw Euclidean distances here matches what the
- * machine will actually travel.
+ * Estimates plot duration from travel/draw distances and the configured feed rates, plus fixed
+ * overhead per refill dip and per pen-down (Z/servo lift transition). Distances are measured
+ * directly on the (already transformed/baked) command points: the rotate/swap/invert/flip
+ * transform applied at plot time is distance-preserving (rotations and reflections only), so
+ * summing raw Euclidean distances here matches what the machine will actually travel.
  */
 public final class TimeEstimator {
 
     /** Fixed dip time (matches {@code PlotService.performRefill}'s 500ms dwell). */
     private static final double REFILL_SECONDS = 0.5;
+
+    /**
+     * Fixed settle time after every pen-down (matches {@code GcodeBackend.pendown}'s 150ms
+     * sleep, issued once per {@link DrawCommand} since each one starts with a fresh pen-down).
+     * This is independent of {@code penMode}: servo and Z-axis moves both incur this dwell, and
+     * it dominates the total on hatch-dense drawings where strokes are short and numerous.
+     */
+    private static final double PEN_DOWN_SECONDS = 0.15;
 
     private TimeEstimator() {
     }
@@ -47,6 +55,7 @@ public final class TimeEstimator {
             double drawDist = 0;
             double travelDist = 0;
             int refillCount = 0;
+            int penDownCount = 0;
 
             for (Command cmd : layer.commands()) {
                 if (cmd instanceof MoveCommand move) {
@@ -54,6 +63,9 @@ public final class TimeEstimator {
                     travelDist += distance(cursor, target);
                     cursor = target;
                 } else if (cmd instanceof DrawCommand draw) {
+                    if (!draw.points.isEmpty()) {
+                        penDownCount++;
+                    }
                     for (int i = 0; i + 1 < draw.points.size(); i++) {
                         drawDist += distance(draw.points.get(i), draw.points.get(i + 1));
                     }
@@ -73,7 +85,8 @@ public final class TimeEstimator {
 
             double seconds = (travelDist / gcode.feedRateTravel) * 60.0
                     + (drawDist / gcode.feedRateDraw) * 60.0
-                    + refillCount * REFILL_SECONDS;
+                    + refillCount * REFILL_SECONDS
+                    + penDownCount * PEN_DOWN_SECONDS;
             total += seconds;
             layerEstimates.add(new LayerEstimate(layer.id(), drawDist, travelDist, refillCount, seconds));
         }

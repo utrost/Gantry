@@ -24,6 +24,7 @@ Expected output: `BUILD SUCCESS` with zero failures across all modules.
 | `pipeline-core` | `OptimizeStageTest`, `MultipassStageTest` | RDP simplify, greedy-NN reorder, multipass command expansion |
 | `plotter` | `GcodeBackendTest` | G-code formatting: init sequence, pen modes (servo/zaxis/m3m5), moveto, lineto, raw send |
 | `app` | `PlotServiceTest` | Full plot orchestration: layer sequencing, refill at layer boundary, cancel mid-plot, OOB clamping, per-waypoint position callbacks |
+| `app` | `TimeEstimatorTest` (6) | Travel/draw distances use their respective feed rates; refill travel + fixed dip overhead; unknown station falls back to default; pen-down settle overhead charged once per `DrawCommand`; multi-layer totals; `H:MM:SS` formatting |
 | `svgtoolbox-core` | `ConfigBuilderTest` | Config builder defaults and overrides |
 | `svgtoolbox-core` | `VisibilityProcessorTest` (4) | Remove hidden layers by colour |
 | `svgtoolbox-core` | `StyleNormalizerProcessorTest` (2) | Move inline `style` attributes to presentation attributes |
@@ -31,7 +32,7 @@ Expected output: `BUILD SUCCESS` with zero failures across all modules.
 | `svgtoolbox-core` | `StrokeWidthProcessorTest` (1) | Force stroke width on all elements |
 | `svgtoolbox-core` | `PaletteProcessorTest` (5) | CIELAB quantisation: nearest colour, passthrough when no palette |
 | `svgtoolbox-core` | `CropProcessorTest` (5) | Clip outside crop bounds; keep within; null bounds no-op |
-| `svgtoolbox-core` | `LayerProcessorTest` (4) | Inkscape layer groups; resize canvas; multi-colour grouping |
+| `svgtoolbox-core` | `LayerProcessorTest` (5) | Inkscape layer groups; resize canvas; multi-colour grouping; pre-existing layers nested under a hatch wrapper `<g>` are preserved, not re-bucketed by colour |
 | `svgtoolbox-core` | `HatchProcessorTest` (5) | Linear/cross/zigzag/wave/dot patterns; area filter; no-hatch list; explicit-vs-auto dot radius |
 | `svgtoolbox-core` | `SimplifyProcessorTest` (2) | RDP on collinear points; tolerance threshold |
 | `svgtoolbox-core` | `LinesimplifyProcessorTest` (6) | RDP on path `d` attribute; tolerance; skip closed paths |

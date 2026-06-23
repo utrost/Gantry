@@ -41,9 +41,25 @@ class TimeEstimatorTest {
         TimeEstimator.LayerEstimate le = est.layers().get(0);
         assertEquals(100.0, le.travelDistanceMm(), 1e-9);
         assertEquals(50.0, le.drawDistanceMm(), 1e-9);
-        // 100mm travel @ 100mm/s = 1s, 50mm draw @ 50mm/s = 1s
-        assertEquals(2.0, le.estimatedSeconds(), 1e-6);
-        assertEquals(2.0, est.totalSeconds(), 1e-6);
+        // 100mm travel @ 100mm/s = 1s, 50mm draw @ 50mm/s = 1s, +1 pen-down @ 0.15s
+        assertEquals(2.15, le.estimatedSeconds(), 1e-6);
+        assertEquals(2.15, est.totalSeconds(), 1e-6);
+    }
+
+    @Test
+    void penDownOverheadIsChargedOncePerDrawCommand() {
+        GcodeOptions gcode = new GcodeOptions();
+        gcode.feedRateDraw = 6000; // 100 mm/s, so distance-driven time is negligible/zero here
+
+        // Two separate strokes (e.g. two hatch lines), each its own DrawCommand/pen-down cycle.
+        Layer layer = new Layer("L1", "default_station", List.of(
+                new DrawCommand(1, List.of(new Point(0, 0), new Point(0, 0))),
+                new DrawCommand(2, List.of(new Point(0, 0), new Point(0, 0)))));
+
+        TimeEstimator.PlotEstimate est = TimeEstimator.estimate(output(layer), gcode, Map.of());
+
+        // 2 pen-downs @ 0.15s each, zero-length strokes contribute no draw distance.
+        assertEquals(0.30, est.layers().get(0).estimatedSeconds(), 1e-6);
     }
 
     @Test

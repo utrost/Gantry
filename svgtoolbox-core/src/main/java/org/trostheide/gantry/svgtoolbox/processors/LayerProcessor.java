@@ -34,8 +34,7 @@ public class LayerProcessor implements Processor {
         // 2. Move shapes to layers
         int movedCount = 0;
         for (Element shape : allShapes) {
-            if (shape.getParentNode() instanceof Element &&
-                    "layer".equals(((Element) shape.getParentNode()).getAttributeNS(INKSCAPE_NS, "groupmode"))) {
+            if (isInsideExistingLayer(shape)) {
                 continue;
             }
 
@@ -127,6 +126,26 @@ public class LayerProcessor implements Processor {
         } else {
             System.out.println("WARNING: Could not calculate bounds. Content might be empty.");
         }
+    }
+
+    /**
+     * Whether {@code shape} already lives inside an Inkscape layer group, at any ancestor
+     * depth (not just its immediate parent). Hatching wraps shapes in an extra per-shape
+     * {@code <g>} (e.g. for the hatch-line group), so the original layer can be one or more
+     * levels above the shape's direct parent; checking only the immediate parent would
+     * otherwise treat hatched content as "unorganized" and re-bucket it by colour across the
+     * whole document, merging distinct original layers that happen to share a colour.
+     */
+    private boolean isInsideExistingLayer(Element shape) {
+        Node parent = shape.getParentNode();
+        while (parent instanceof Element) {
+            Element pEl = (Element) parent;
+            if ("layer".equals(pEl.getAttributeNS(INKSCAPE_NS, "groupmode"))) {
+                return true;
+            }
+            parent = pEl.getParentNode();
+        }
+        return false;
     }
 
     private void collectShapes(Element parent, List<Element> collector) {
