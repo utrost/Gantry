@@ -190,6 +190,54 @@ class SvgImportStageTest {
         }
 
         @Test
+        void plainGroupsWithoutInkscapeAttributeAreTreatedAsSeparateLayers() throws Exception {
+            // Many non-Inkscape SVG exporters (e.g. plotter-art generators) group content into
+            // top-level <g id="..."> elements per pen/colour without ever setting Inkscape's
+            // inkscape:groupmode="layer" attribute. These must still be split into separate
+            // layers rather than collapsed into one "Default" layer.
+            String svg = "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"100\" height=\"100\" "
+                    + "viewBox=\"0 0 100 100\">"
+                    + "<g id=\"layer_1\" stroke=\"black\" fill=\"none\">"
+                    + "<line x1=\"0\" y1=\"0\" x2=\"10\" y2=\"10\"/>"
+                    + "</g>"
+                    + "<g id=\"layer_2\" stroke=\"#E31A1C\" fill=\"none\">"
+                    + "<line x1=\"20\" y1=\"20\" x2=\"30\" y2=\"30\"/>"
+                    + "</g>"
+                    + "</svg>";
+            File temp = File.createTempFile("plaingroups", ".svg");
+            temp.deleteOnExit();
+            java.nio.file.Files.writeString(temp.toPath(), svg);
+
+            ProcessorOutput result = SvgImportStage.importSvg(temp,
+                    new SvgImportOptions(0, "default_station", 0.5, 0, 0, true, 0, 0, false));
+
+            assertEquals(2, result.layers().size(), "the two top-level groups must become two layers");
+            assertTrue(result.layers().stream().allMatch(l -> !l.commands().isEmpty()),
+                    "each layer must keep its own drawable content");
+        }
+
+        @Test
+        void singlePlainGroupStaysAsOneLayer() throws Exception {
+            // With only one top-level group (nothing to actually separate), the document must
+            // still collapse to the usual single "Default" layer rather than gaining a spurious
+            // one-layer "split".
+            String svg = "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"100\" height=\"100\" "
+                    + "viewBox=\"0 0 100 100\">"
+                    + "<g id=\"layer_1\" stroke=\"black\" fill=\"none\">"
+                    + "<line x1=\"0\" y1=\"0\" x2=\"10\" y2=\"10\"/>"
+                    + "</g>"
+                    + "</svg>";
+            File temp = File.createTempFile("singleplaingroup", ".svg");
+            temp.deleteOnExit();
+            java.nio.file.Files.writeString(temp.toPath(), svg);
+
+            ProcessorOutput result = SvgImportStage.importSvg(temp,
+                    new SvgImportOptions(0, "default_station", 0.5, 0, 0, true, 0, 0, false));
+
+            assertEquals(1, result.layers().size(), "a single top-level group must not be split");
+        }
+
+        @Test
         void layerColourIsReadFromStrokeStyleAndAttribute() throws Exception {
             String svg = "<svg xmlns=\"http://www.w3.org/2000/svg\" "
                     + "xmlns:inkscape=\"http://www.inkscape.org/namespaces/inkscape\" "

@@ -145,8 +145,14 @@ Public entry points (`SvgImportStage#importSvg`, overloaded):
 
 Pipeline inside `importSvg(Document, …)`:
 1. **`identifyLayers`** — find Inkscape layers (`<g inkscape:groupmode="layer">`),
-   each becoming a `LayerContext(layerName, stationId, color, rootNode)`. No
-   layers ⇒ one synthetic fallback layer using `options.defaultStationId`.
+   each becoming a `LayerContext(layerName, stationId, color, rootNode)`. If none
+   are found, falls back to `identifyPlainGroupLayers`: each top-level `<g>` that
+   contains at least one drawable becomes its own layer, covering non-Inkscape
+   exporters that group content into plain `<g id="layer_N">` elements without
+   the Inkscape namespace attribute. That fallback only splits when there are
+   ≥2 such candidate groups, so a single top-level group still collapses to one
+   layer. No layers at all (from either tier) ⇒ one synthetic fallback layer
+   using `options.defaultStationId`.
    Layer colour is read by `resolveLayerColor` → `resolveElementColor` →
    `normalizeColor` (handles hex, `rgb(...)`, and a `NAMED_COLORS` table).
 2. **Bounds scan** — `calculateGlobalBounds` over all layers. A `skipPageBorderFilter`

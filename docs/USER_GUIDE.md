@@ -183,7 +183,7 @@ Click **Import SVG…** and choose an SVG file. A two-tab dialog opens.
 | Keep aspect ratio | Prevents distortion when fitting to a format. |
 | Mirror | Flip the drawing horizontally before importing. |
 
-Inkscape layers (`inkscape:groupmode="layer"`) become separate `Layer1`, `Layer2`, … entries, each mapped to a refill station. SVGs without layers become a single "Default" layer.
+Inkscape layers (`inkscape:groupmode="layer"`) become separate `Layer1`, `Layer2`, … entries, each mapped to a refill station. If a file has no Inkscape layers but groups its content into two or more top-level `<g>` elements (common with non-Inkscape SVG exporters), each such group is also treated as its own layer. SVGs with neither become a single "Default" layer.
 
 The importer flips the Y axis automatically: SVG uses a top-left origin with Y growing downward, while the plotter measures Y upward from the machine origin, so drawings are turned upright on import (they would otherwise appear upside down). The **Flip Y** setting remains available as a manual override for unusual hardware — leave it off for normal use.
 

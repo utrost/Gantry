@@ -170,6 +170,15 @@ public final class SvgImportStage {
     private record LayerContext(String layerName, String stationId, String color, Element rootNode) {
     }
 
+    /**
+     * Identifies one {@link LayerContext} per logical layer. Inkscape's
+     * {@code <g inkscape:groupmode="layer">} convention is the primary signal; if none are
+     * present, falls back to treating each top-level {@code <g>} with its own drawable content
+     * as a separate layer (the convention used by many non-Inkscape SVG exporters, e.g. plotter
+     * art generators that just emit one {@code <g id="layer_N">} per pen colour). A single
+     * top-level group, or none at all, still collapses to one "Default" layer as before — this
+     * fallback only kicks in when there are multiple candidate groups to actually separate.
+     */
     private static List<LayerContext> identifyLayers(Document doc, String defaultStationId) {
         List<LayerContext> contexts = new ArrayList<>();
         Element root = doc.getDocumentElement();
@@ -197,9 +206,52 @@ public final class SvgImportStage {
         }
 
         if (contexts.isEmpty()) {
+            contexts.addAll(identifyPlainGroupLayers(root, defaultStationId));
+        }
+
+        if (contexts.isEmpty()) {
             contexts.add(new LayerContext("Default", defaultStationId, resolveLayerColor(root), root));
         }
 
+        return contexts;
+    }
+
+    /**
+     * Fallback for SVGs that group content into separate top-level {@code <g>} elements without
+     * Inkscape's layer attribute. Each top-level {@code <g>} that contains at least one drawable
+     * is treated as its own layer (named from its {@code id}/{@code inkscape:label} where
+     * present, else generically); a document with fewer than two such groups returns empty so
+     * the caller falls back to a single "Default" layer instead of splitting content that was
+     * never meant to be separated.
+     */
+    private static List<LayerContext> identifyPlainGroupLayers(Element root, String defaultStationId) {
+        List<Element> candidates = new ArrayList<>();
+        NodeList children = root.getChildNodes();
+        for (int i = 0; i < children.getLength(); i++) {
+            Node n = children.item(i);
+            if (n.getNodeType() == Node.ELEMENT_NODE && n.getNodeName().equals("g")) {
+                Element g = (Element) n;
+                List<Node> drawables = new ArrayList<>();
+                collectDrawableElements(g, drawables);
+                if (!drawables.isEmpty()) {
+                    candidates.add(g);
+                }
+            }
+        }
+
+        List<LayerContext> contexts = new ArrayList<>();
+        if (candidates.size() < 2) {
+            return contexts;
+        }
+        for (Element g : candidates) {
+            String genericId = "Layer" + (contexts.size() + 1);
+            String label = g.getAttribute("inkscape:label");
+            if (label.isEmpty()) {
+                label = g.getAttribute("id");
+            }
+            String layerName = (label != null && !label.isEmpty()) ? label + " (" + genericId + ")" : genericId;
+            contexts.add(new LayerContext(layerName, genericId, resolveLayerColor(g), g));
+        }
         return contexts;
     }
 
