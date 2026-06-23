@@ -370,6 +370,10 @@ Swing + FlatLaf dark theme. `GantryApp#main` sets up `FlatDarkLaf`, builds a
   plotted output. Tracks each rendered stroke's source layer (`pathLayer`) so
   `setLayerFilter(idx)` can highlight one layer and ghost the rest; alignment/bounds
   stay computed over **all** paths so the highlighted layer keeps its true bed position.
+  Each layer is drawn in its own colour (`layerColors`, resolved by `displayColorFor`
+  from the layer's source `#rrggbb`, brightened against the dark canvas via
+  `ensureReadable` and falling back to `FALLBACK_PALETTE` for unknown/near-black
+  colours); `setColorByLayer(false)` reverts to a single uniform colour.
 - **`SvgImportDialog`** — import options + the SVGToolBox toolbox controls (incl.
   hatch pattern/angle/gap and the per-pattern amplitude/wavelength/dot-radius
   spinners). Builds an `SvgImportOptions` and (if toolbox or hatch enabled) a

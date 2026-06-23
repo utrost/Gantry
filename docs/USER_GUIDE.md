@@ -315,6 +315,14 @@ the whole drawing — useful when each layer is a different pen or ink colour:
 Leave the dropdown on **All layers** to plot the whole drawing in one job (the
 default; you'll still be prompted to **Confirm Layer** between layers).
 
+**Colour layers:** with the **Colour layers** checkbox ticked (default), each layer
+is drawn in its own colour — taken from the layer's source colour, brightened if
+needed so dark colours (e.g. black line art) stay visible on the dark canvas, and
+falling back to a distinct hue when a layer has no colour or two layers would look
+alike. This makes it easy to tell layers/pens apart at a glance. Untick it to draw
+every layer in one uniform colour. When a single layer is selected in the dropdown,
+the ghosted layers are shown as dimmed versions of their own colours.
+
 While a plot is running, the jog/pen/edit controls (jog arrows and keyboard/numpad
 jogging, Pen Up/Down, Home, position fields, Optimize, Overlay, Load/Import/Save,
 Export/Replay and the raw G-code field) are disabled to prevent interfering with the

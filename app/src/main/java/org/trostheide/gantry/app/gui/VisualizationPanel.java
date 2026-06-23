@@ -36,6 +36,28 @@ public class VisualizationPanel extends JPanel {
     private final List<Integer> pathLayer = new ArrayList<>();
     private int layerFilter = -1;
 
+    /**
+     * Display colour for each layer (indexed by layer position), derived from the layer's source
+     * {@code #rrggbb} and brightened where needed so it stays readable against the dark canvas. A
+     * layer with no known colour gets a distinct hue from {@link #FALLBACK_PALETTE} so layers stay
+     * visually separable. Kept in lockstep with the loaded output's layer list.
+     */
+    private final List<Color> layerColors = new ArrayList<>();
+    private boolean colorByLayer = true;
+
+    /** The canvas background; layer colours are floored against this so nothing vanishes into it. */
+    private static final Color CANVAS_BG = new Color(35, 35, 40);
+
+    /** Default highlight colour used when per-layer colouring is off or a layer has no colour. */
+    private static final Color DEFAULT_PATH = new Color(130, 160, 255);
+
+    /** Distinct hues for layers whose source colour is unknown (or would be unreadable). */
+    private static final Color[] FALLBACK_PALETTE = {
+            new Color(130, 160, 255), new Color(255, 140, 120), new Color(120, 220, 150),
+            new Color(230, 200, 110), new Color(210, 130, 230), new Color(120, 220, 220),
+            new Color(240, 150, 190), new Color(170, 200, 120)
+    };
+
     // Current head position (Physical coords). currentX/Y is the *displayed*
     // position, which is eased toward targetX/Y so motion looks smooth even
     // when position updates arrive in discrete steps.
@@ -399,8 +421,10 @@ public class VisualizationPanel extends JPanel {
             cursorAnimTimer.stop();
         }
 
+        layerColors.clear();
         List<Layer> layers = output.layers();
         for (int li = 0; li < layers.size(); li++) {
+            layerColors.add(displayColorFor(layers.get(li).color(), li));
             for (Command cmd : layers.get(li).commands()) {
                 if (cmd instanceof DrawCommand draw) {
                     List<Point2D> stroke = new ArrayList<>();
@@ -448,6 +472,95 @@ public class VisualizationPanel extends JPanel {
     public void setLayerFilter(int layerIndex) {
         this.layerFilter = layerIndex;
         repaint();
+    }
+
+    /** Toggles per-layer colouring of the preview. When off, every layer draws in one colour. */
+    public void setColorByLayer(boolean enabled) {
+        this.colorByLayer = enabled;
+        repaint();
+    }
+
+    /** The colour a given layer index is drawn in (used e.g. for legend swatches). */
+    public Color colorForLayer(int layerIndex) {
+        if (!colorByLayer || layerIndex < 0 || layerIndex >= layerColors.size()) {
+            return DEFAULT_PATH;
+        }
+        return layerColors.get(layerIndex);
+    }
+
+    /**
+     * Resolves a layer's display colour: its source {@code #rrggbb} if parseable and bright enough,
+     * otherwise a distinct hue from {@link #FALLBACK_PALETTE}. A parseable-but-dark colour (e.g. pure
+     * black, common for line art) is brightened toward readability rather than left to vanish into
+     * the dark canvas.
+     */
+    private Color displayColorFor(String hex, int index) {
+        Color parsed = parseHex(hex);
+        if (parsed == null) {
+            return FALLBACK_PALETTE[index % FALLBACK_PALETTE.length];
+        }
+        return ensureReadable(parsed, index);
+    }
+
+    private static Color parseHex(String hex) {
+        if (hex == null) {
+            return null;
+        }
+        String s = hex.trim();
+        if (s.startsWith("#")) {
+            s = s.substring(1);
+        }
+        if (s.length() == 3) {
+            // Expand shorthand #abc -> #aabbcc.
+            StringBuilder sb = new StringBuilder();
+            for (int i = 0; i < 3; i++) {
+                sb.append(s.charAt(i)).append(s.charAt(i));
+            }
+            s = sb.toString();
+        }
+        if (s.length() != 6) {
+            return null;
+        }
+        try {
+            return new Color(Integer.parseInt(s.substring(0, 2), 16),
+                    Integer.parseInt(s.substring(2, 4), 16),
+                    Integer.parseInt(s.substring(4, 6), 16));
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
+    /**
+     * Keeps a layer colour distinguishable from the dark background: if perceived brightness is below
+     * a floor, the colour is lightened toward white. A near-greyscale dark colour (e.g. black) would
+     * brighten to grey and blur together with other dark layers, so those fall back to a palette hue.
+     */
+    private Color ensureReadable(Color c, int index) {
+        double brightness = (0.299 * c.getRed() + 0.587 * c.getGreen() + 0.114 * c.getBlue());
+        if (brightness >= 70) {
+            return c;
+        }
+        int chroma = Math.max(c.getRed(), Math.max(c.getGreen(), c.getBlue()))
+                - Math.min(c.getRed(), Math.min(c.getGreen(), c.getBlue()));
+        if (chroma < 24) {
+            // Effectively greyscale and dark: a distinct hue reads far better than grey-on-grey.
+            return FALLBACK_PALETTE[index % FALLBACK_PALETTE.length];
+        }
+        // Coloured but dark: lift toward white while keeping the hue.
+        double lift = 0.55;
+        return new Color(
+                (int) Math.round(c.getRed() + (255 - c.getRed()) * lift),
+                (int) Math.round(c.getGreen() + (255 - c.getGreen()) * lift),
+                (int) Math.round(c.getBlue() + (255 - c.getBlue()) * lift));
+    }
+
+    /** A dimmed version of {@code c} for ghosting non-selected layers (blended toward the canvas). */
+    private static Color ghost(Color c) {
+        double keep = 0.30;
+        return new Color(
+                (int) Math.round(c.getRed() * keep + CANVAS_BG.getRed() * (1 - keep)),
+                (int) Math.round(c.getGreen() * keep + CANVAS_BG.getGreen() * (1 - keep)),
+                (int) Math.round(c.getBlue() * keep + CANVAS_BG.getBlue() * (1 - keep)));
     }
 
     /** Updates the feed-rate override (percent) shown in the HUD. */
@@ -788,26 +901,27 @@ public class VisualizationPanel extends JPanel {
         }
 
         // --- Draw Paths ---
-        // With no layer filter every stroke is drawn in the normal colour. With a filter active the
-        // selected layer keeps the normal colour and the others are ghosted, so the operator can
-        // inspect where the next pen will draw without losing the surrounding context.
-        Color normalPath = new Color(130, 160, 255);
-        Color ghostPath = new Color(90, 100, 125);
+        // Each layer is drawn in its own colour (so layers/pens are visually separable). With a
+        // layer filter active, the selected layer keeps its full colour and the others are ghosted
+        // (dimmed toward the background), so the operator can inspect where the next pen will draw
+        // without losing the surrounding context.
         g2.setStroke(new BasicStroke((float) (1.0 / scale)));
 
         // Draw ghosts first so the highlighted layer paints on top of them.
         for (int pass = 0; pass < 2; pass++) {
             boolean drawingSelected = (pass == 1);
-            g2.setColor(drawingSelected ? normalPath : ghostPath);
             for (int i = 0; i < allPaths.size(); i++) {
                 List<Point2D> path = allPaths.get(i);
                 if (path.isEmpty()) {
                     continue;
                 }
-                boolean selected = layerFilter < 0 || pathLayer.get(i) == layerFilter;
+                int li = pathLayer.get(i);
+                boolean selected = layerFilter < 0 || li == layerFilter;
                 if (selected != drawingSelected) {
                     continue;
                 }
+                Color base = colorByLayer ? colorForLayer(li) : DEFAULT_PATH;
+                g2.setColor(selected ? base : ghost(base));
                 Path2D p2d = new Path2D.Double();
                 double[] p0 = transformPoint(path.get(0));
                 p2d.moveTo(p0[0], p0[1]);

@@ -75,6 +75,7 @@ public class PlotterPanel extends JPanel {
     private final JSpinner posYSpinner = new JSpinner(new SpinnerNumberModel(0.0, -2000.0, 2000.0, 1.0));
     private final JLabel timeLabel = new JLabel("Est: --:--");
     private final JComboBox<String> layerCombo = new JComboBox<>();
+    private final JCheckBox colorByLayerCheck = new JCheckBox("Colour layers", true);
     /** Guards {@link #layerCombo}'s listener while we repopulate it programmatically. */
     private boolean repopulatingLayers;
 
@@ -652,6 +653,11 @@ public class PlotterPanel extends JPanel {
         JPanel row4 = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 2));
         timeLabel.setToolTipText("Per-layer time estimate (hover after loading/importing commands)");
         row4.add(timeLabel);
+        colorByLayerCheck.setToolTipText("Draw each layer in its own colour (from the layer's source "
+                + "colour) so layers/pens are easy to tell apart. Off = one uniform colour.");
+        colorByLayerCheck.addActionListener(e -> visPanel.setColorByLayer(colorByLayerCheck.isSelected()));
+        disableDuringPlot(colorByLayerCheck);
+        row4.add(colorByLayerCheck);
 
         row1.setAlignmentX(LEFT_ALIGNMENT);
         row2.setAlignmentX(LEFT_ALIGNMENT);
