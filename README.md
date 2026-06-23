@@ -15,6 +15,10 @@ See [docs/USER_GUIDE.md](docs/USER_GUIDE.md) for operating instructions and
 [docs/TESTING.md](docs/TESTING.md) for the test suite and manual acceptance
 checklist.
 
+See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for a detailed technical
+reference of the module graph, data model, pipeline, threading model, and
+extension points (written to be consumed by an LLM or a new contributor).
+
 ## Modules
 
 | Module | Purpose |
