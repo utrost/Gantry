@@ -74,9 +74,11 @@ public class PlotterPanel extends JPanel {
     private final JSpinner posXSpinner = new JSpinner(new SpinnerNumberModel(0.0, -2000.0, 2000.0, 1.0));
     private final JSpinner posYSpinner = new JSpinner(new SpinnerNumberModel(0.0, -2000.0, 2000.0, 1.0));
     private final JLabel timeLabel = new JLabel("Est: --:--");
-    private final JComboBox<String> layerCombo = new JComboBox<>();
+    /** One checkbox per layer (built on load); a ticked box means the layer is shown and plotted. */
+    private final JPanel layerListPanel = new JPanel();
+    private final List<JCheckBox> layerChecks = new ArrayList<>();
     private final JCheckBox colorByLayerCheck = new JCheckBox("Colour layers", true);
-    /** Guards {@link #layerCombo}'s listener while we repopulate it programmatically. */
+    /** Guards the layer checkboxes' listeners while we rebuild them programmatically. */
     private boolean repopulatingLayers;
 
     private PlotterBackend backend;
@@ -639,16 +641,32 @@ public class PlotterPanel extends JPanel {
         row2.add(Box.createHorizontalStrut(4));
         row2.add(pauseBtn);
 
+        // Layer header: label + All/None quick toggles.
         JPanel row3 = new JPanel();
         row3.setLayout(new BoxLayout(row3, BoxLayout.X_AXIS));
-        row3.add(new JLabel("Layer"));
+        row3.add(new JLabel("Layers"));
         row3.add(Box.createHorizontalStrut(4));
-        layerCombo.addItem("All layers");
-        layerCombo.setToolTipText("Plot/preview a single layer (e.g. one pen colour) at a time; "
-                + "the rest are ghosted so you can inspect placement before starting.");
-        layerCombo.addActionListener(e -> onLayerSelectionChanged());
-        disableDuringPlot(layerCombo);
-        row3.add(layerCombo);
+        JButton allBtn = new JButton("All");
+        JButton noneBtn = new JButton("None");
+        allBtn.setToolTipText("Select every layer");
+        noneBtn.setToolTipText("Deselect every layer");
+        allBtn.addActionListener(e -> setAllLayersChecked(true));
+        noneBtn.addActionListener(e -> setAllLayersChecked(false));
+        disableDuringPlot(allBtn);
+        disableDuringPlot(noneBtn);
+        row3.add(allBtn);
+        row3.add(Box.createHorizontalStrut(2));
+        row3.add(noneBtn);
+
+        // The checkboxes themselves (one per layer), in a height-bounded scroll pane so a drawing
+        // with many layers doesn't push the rest of the controls off-screen.
+        layerListPanel.setLayout(new BoxLayout(layerListPanel, BoxLayout.Y_AXIS));
+        JScrollPane layerScroll = new JScrollPane(layerListPanel);
+        layerScroll.setToolTipText("Tick the layers to show and plot (e.g. one pen colour at a time); "
+                + "unticked layers are ghosted in the preview and skipped when plotting/exporting.");
+        layerScroll.setPreferredSize(new Dimension(180, 84));
+        layerScroll.setMaximumSize(new Dimension(Integer.MAX_VALUE, 84));
+        layerScroll.setAlignmentX(LEFT_ALIGNMENT);
 
         JPanel row4 = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 2));
         timeLabel.setToolTipText("Per-layer time estimate (hover after loading/importing commands)");
@@ -666,38 +684,42 @@ public class PlotterPanel extends JPanel {
         panel.add(row1);
         panel.add(row2);
         panel.add(row3);
+        panel.add(layerScroll);
         panel.add(row4);
 
         return panel;
     }
 
     /**
-     * Rebuilds {@link #layerCombo} to list the current drawing's layers ("All layers" plus one entry
-     * per layer, labelled with its id and source colour). Keeps the current selection where possible.
-     * Called whenever {@link #currentOutput} is replaced.
+     * Rebuilds the layer checklist to match the current drawing: one checkbox per layer, labelled
+     * with its id and source colour and tinted with the layer's preview colour so the list doubles
+     * as a legend. All layers start ticked. Called whenever {@link #currentOutput} is replaced.
      */
     private void refreshLayerSelector() {
         repopulatingLayers = true;
         try {
-            int previous = layerCombo.getSelectedIndex();
-            layerCombo.removeAllItems();
-            layerCombo.addItem("All layers");
+            layerChecks.clear();
+            layerListPanel.removeAll();
             if (currentOutput != null) {
-                for (Layer layer : currentOutput.layers()) {
+                List<Layer> layers = currentOutput.layers();
+                for (int i = 0; i < layers.size(); i++) {
+                    Layer layer = layers.get(i);
                     String colour = layer.color() == null || layer.color().isEmpty() ? "no colour" : layer.color();
-                    layerCombo.addItem(layer.id() + " — " + colour);
+                    JCheckBox box = new JCheckBox(layer.id() + " — " + colour, true);
+                    box.setForeground(visPanel.colorForLayer(i));
+                    box.setAlignmentX(LEFT_ALIGNMENT);
+                    box.addActionListener(e -> onLayerSelectionChanged());
+                    box.setEnabled(!plotting);
+                    layerChecks.add(box);
+                    layerListPanel.add(box);
                 }
-            }
-            // Restore the prior selection only if it still maps to an existing layer.
-            if (previous >= 0 && previous < layerCombo.getItemCount()) {
-                layerCombo.setSelectedIndex(previous);
-            } else {
-                layerCombo.setSelectedIndex(0);
             }
         } finally {
             repopulatingLayers = false;
         }
-        // Apply whatever the (possibly reset) selection now is.
+        layerListPanel.revalidate();
+        layerListPanel.repaint();
+        // Push the (all-ticked) selection to the preview.
         applyLayerFilter();
     }
 
@@ -709,14 +731,33 @@ public class PlotterPanel extends JPanel {
         refreshTimeEstimate();
     }
 
-    /** Pushes the combo's current selection to the visualization ({@code -1} = all layers). */
-    private void applyLayerFilter() {
-        visPanel.setLayerFilter(selectedLayerIndex());
+    /** Ticks or unticks every layer checkbox, then applies the change once. */
+    private void setAllLayersChecked(boolean checked) {
+        repopulatingLayers = true;
+        try {
+            for (JCheckBox box : layerChecks) {
+                box.setSelected(checked);
+            }
+        } finally {
+            repopulatingLayers = false;
+        }
+        onLayerSelectionChanged();
     }
 
-    /** Index of the chosen layer into {@code currentOutput.layers()}, or {@code -1} for "All layers". */
-    private int selectedLayerIndex() {
-        return layerCombo.getSelectedIndex() - 1;
+    /** Pushes the currently ticked layers to the visualization. */
+    private void applyLayerFilter() {
+        visPanel.setSelectedLayers(selectedLayerIndices());
+    }
+
+    /** Indices (into {@code currentOutput.layers()}) of the ticked layers. */
+    private List<Integer> selectedLayerIndices() {
+        List<Integer> indices = new ArrayList<>();
+        for (int i = 0; i < layerChecks.size(); i++) {
+            if (layerChecks.get(i).isSelected()) {
+                indices.add(i);
+            }
+        }
+        return indices;
     }
 
     /** Recomputes and displays the pre-plot time estimate (total + per-layer, via tooltip). */
@@ -1130,6 +1171,10 @@ public class PlotterPanel extends JPanel {
             log("ERROR: Connect to the plotter first.");
             return;
         }
+        if (selectedLayerIndices().isEmpty()) {
+            log("ERROR: No layers selected. Tick at least one layer to plot.");
+            return;
+        }
 
         ProcessorOutput toPlot = preparePlotOutput();
 
@@ -1212,6 +1257,11 @@ public class PlotterPanel extends JPanel {
         for (JComponent c : plotDisabledControls) {
             c.setEnabled(!plotting);
         }
+        // The per-layer checkboxes are rebuilt on every load, so they aren't in the list above;
+        // toggle them here so the layer selection can't change mid-plot.
+        for (JCheckBox box : layerChecks) {
+            box.setEnabled(!plotting);
+        }
         if (!plotting) {
             paused = false;
             pauseBtn.setText("Pause");
@@ -1278,16 +1328,22 @@ public class PlotterPanel extends JPanel {
 
     /**
      * The output that will actually be plotted/exported: {@link #currentOutput}, narrowed to the
-     * single layer chosen in {@link #layerCombo} when one is selected. This is what lets the operator
-     * plot one pen's worth of strokes, swap the pen, then plot the next layer.
+     * layers ticked in the layer checklist. This is what lets the operator plot a chosen subset of
+     * layers (e.g. one pen's worth of strokes), swap the pen, then plot the next.
      */
     private ProcessorOutput selectedOutput() {
-        int idx = selectedLayerIndex();
-        if (currentOutput == null || idx < 0 || idx >= currentOutput.layers().size()) {
+        if (currentOutput == null) {
+            return null;
+        }
+        List<Integer> selected = selectedLayerIndices();
+        if (selected.size() == currentOutput.layers().size()) {
             return currentOutput;
         }
-        Layer only = currentOutput.layers().get(idx);
-        return new ProcessorOutput(currentOutput.metadata(), List.of(only));
+        List<Layer> kept = new ArrayList<>();
+        for (int idx : selected) {
+            kept.add(currentOutput.layers().get(idx));
+        }
+        return new ProcessorOutput(currentOutput.metadata(), kept);
     }
 
     /** Applies overlay baking and the configured multipass count to the selected output for plotting/export. */
@@ -1304,6 +1360,10 @@ public class PlotterPanel extends JPanel {
     private void onExportGcode() {
         if (currentOutput == null) {
             info("Load a commands file first.");
+            return;
+        }
+        if (selectedLayerIndices().isEmpty()) {
+            info("No layers selected. Tick at least one layer to export.");
             return;
         }
         JFileChooser chooser = newFileChooser();

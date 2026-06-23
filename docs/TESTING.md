@@ -90,9 +90,10 @@ Use an SVG with two Inkscape layers (`inkscape:groupmode="layer"`).
 
 - [ ] Console reports `2 layer(s)`.
 - [ ] Visualisation shows two separate colour groups.
-- [ ] In the Plot section, the **Layer** dropdown lists `All layers` plus one entry per layer (id + colour).
-- [ ] Selecting a single layer highlights it and **ghosts** the other layer (dim grey-blue); the drawing does not move on the bed. Time estimate (`Est:`) drops to reflect just that layer.
-- [ ] With a single layer selected, **Start Plot** (mock backend) plots only that layer; **Export G-code** exports only that layer. Switching back to `All layers` restores the full preview/estimate.
+- [ ] In the Plot section, the **Layers** checklist shows one tickbox per layer (id + colour), each tinted with the layer's preview colour; all start ticked.
+- [ ] Unticking a layer **ghosts** it (dim) while the ticked layers stay full colour; the drawing does not move on the bed. Time estimate (`Est:`) drops to reflect only the ticked layers. **All** / **None** buttons toggle every layer at once.
+- [ ] With a subset of layers ticked, **Start Plot** (mock backend) plots only the ticked layers; **Export G-code** exports only the ticked layers. Re-ticking all layers restores the full preview/estimate.
+- [ ] With **no** layers ticked, Start Plot / Export do nothing and the console reports that no layers are selected.
 - [ ] With **Colour layers** ticked (default), each layer renders in a distinct colour; untick it and all layers render in one uniform colour. A black/very dark layer is still clearly visible (brightened, not lost into the dark background).
 
 ### 2.5 SVGToolBox pre-processing

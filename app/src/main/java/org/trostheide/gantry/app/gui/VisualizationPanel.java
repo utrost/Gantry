@@ -14,7 +14,10 @@ import java.awt.geom.AffineTransform;
 import java.awt.geom.Path2D;
 import java.awt.geom.Rectangle2D;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * Visualization Panel - Digital Twin of the Physical Plotter.
@@ -30,11 +33,17 @@ public class VisualizationPanel extends JPanel {
 
     /**
      * Layer index (into the loaded {@code ProcessorOutput.layers()}) that produced each entry in
-     * {@link #allPaths}, kept in lockstep. Lets the panel highlight a single layer while ghosting
-     * the rest. {@link #layerFilter} of {@code -1} means "show all layers equally".
+     * {@link #allPaths}, kept in lockstep. Lets the panel draw the selected layers in full colour
+     * while ghosting the rest.
      */
     private final List<Integer> pathLayer = new ArrayList<>();
-    private int layerFilter = -1;
+
+    /**
+     * Indices of the layers currently selected for display. Selected layers draw in full colour;
+     * unselected layers are ghosted (dimmed) for context. Defaults to "all layers" on load; the
+     * controller ({@code PlotterPanel}) replaces it whenever the user (de)selects layers.
+     */
+    private final Set<Integer> selectedLayers = new HashSet<>();
 
     /**
      * Display colour for each layer (indexed by layer position), derived from the layer's source
@@ -438,9 +447,10 @@ public class VisualizationPanel extends JPanel {
                 }
             }
         }
-        // A reload may have changed the layer count; drop a now-invalid filter.
-        if (layerFilter >= layers.size()) {
-            layerFilter = -1;
+        // Default to showing every layer; the controller pushes the real selection right after.
+        selectedLayers.clear();
+        for (int li = 0; li < layers.size(); li++) {
+            selectedLayers.add(li);
         }
 
         recalculateTransform();
@@ -469,8 +479,16 @@ public class VisualizationPanel extends JPanel {
      * position on the bed is unchanged — only how each layer is shaded — so the operator can see
      * exactly where the selected layer (i.e. the next pen) will draw relative to the whole piece.
      */
-    public void setLayerFilter(int layerIndex) {
-        this.layerFilter = layerIndex;
+    /**
+     * Sets which layers are shown in full colour. Layers not in {@code selected} are ghosted (drawn
+     * dimmed) for context. Passing every layer index shows the whole drawing normally; passing a
+     * subset highlights just those layers (e.g. the pens about to be used).
+     */
+    public void setSelectedLayers(Collection<Integer> selected) {
+        selectedLayers.clear();
+        if (selected != null) {
+            selectedLayers.addAll(selected);
+        }
         repaint();
     }
 
@@ -901,13 +919,12 @@ public class VisualizationPanel extends JPanel {
         }
 
         // --- Draw Paths ---
-        // Each layer is drawn in its own colour (so layers/pens are visually separable). With a
-        // layer filter active, the selected layer keeps its full colour and the others are ghosted
-        // (dimmed toward the background), so the operator can inspect where the next pen will draw
-        // without losing the surrounding context.
+        // Each layer is drawn in its own colour (so layers/pens are visually separable). Unselected
+        // layers are ghosted (dimmed toward the background), so the operator can focus on a chosen
+        // subset of layers without losing the surrounding context.
         g2.setStroke(new BasicStroke((float) (1.0 / scale)));
 
-        // Draw ghosts first so the highlighted layer paints on top of them.
+        // Draw ghosts first so the selected layers paint on top of them.
         for (int pass = 0; pass < 2; pass++) {
             boolean drawingSelected = (pass == 1);
             for (int i = 0; i < allPaths.size(); i++) {
@@ -916,7 +933,7 @@ public class VisualizationPanel extends JPanel {
                     continue;
                 }
                 int li = pathLayer.get(i);
-                boolean selected = layerFilter < 0 || li == layerFilter;
+                boolean selected = selectedLayers.contains(li);
                 if (selected != drawingSelected) {
                     continue;
                 }
