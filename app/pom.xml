@@ -45,9 +45,31 @@
             <groupId>com.fasterxml.jackson.datatype</groupId>
             <artifactId>jackson-datatype-jsr310</artifactId>
         </dependency>
+        <dependency>
+            <groupId>org.commonmark</groupId>
+            <artifactId>commonmark</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.commonmark</groupId>
+            <artifactId>commonmark-ext-gfm-tables</artifactId>
+        </dependency>
     </dependencies>
 
     <build>
+        <resources>
+            <resource>
+                <directory>src/main/resources</directory>
+            </resource>
+            <!-- Bundles the root docs/USER_GUIDE.md into the jar (at /docs/USER_GUIDE.md) so
+                 Help > User Guide can render it in-app regardless of working directory. -->
+            <resource>
+                <directory>${project.basedir}/../docs</directory>
+                <includes>
+                    <include>USER_GUIDE.md</include>
+                </includes>
+                <targetPath>docs</targetPath>
+            </resource>
+        </resources>
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>

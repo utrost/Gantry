@@ -415,20 +415,7 @@ public class PlotterPanel extends JPanel {
     }
 
     private void onShowHelp() {
-        File guide = new File("docs/USER_GUIDE.md");
-        if (guide.exists() && Desktop.isDesktopSupported()
-                && Desktop.getDesktop().isSupported(Desktop.Action.OPEN)) {
-            try {
-                Desktop.getDesktop().open(guide);
-                return;
-            } catch (IOException ex) {
-                // fall back to showing the path below
-            }
-        }
-        String message = guide.exists()
-                ? "See docs/USER_GUIDE.md for the full user guide:\n" + guide.getAbsolutePath()
-                : "User guide not found at docs/USER_GUIDE.md.";
-        JOptionPane.showMessageDialog(this, message, "User Guide", JOptionPane.INFORMATION_MESSAGE);
+        new HelpDialog(SwingUtilities.getWindowAncestor(this)).setVisible(true);
     }
 
     private void onShowAbout() {
