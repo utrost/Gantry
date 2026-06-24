@@ -268,33 +268,22 @@ The visualisation shows:
 Once an SVG is imported you can re-run the SVGToolBox pipeline against the
 *original file* — without re-importing from scratch — via **Edit > Process
 SVG...**. This is the "creative tweak" loop: change the hatching, recolour to a
-palette, crop or rotate, click **Apply**, and see the result. Your settings are
-remembered for the session, so reopening the dialog to adjust one value doesn't
-reset the rest.
+palette, crop or rotate, click **Apply**, and see the result.
 
-It deliberately exposes only a **subset** of the import-time options — the ones
-that change *what is drawn*:
+This dialog exposes **exactly the same option set** as the import dialog's
+"Process SVG" tab (see the table above) — stroke width, palette, hidden layers,
+the full hatch options, simplify tolerance, rotate, crop, and the optimize block
+(Optimize path order, Linesimplify, Linemerge, Linesort, Linesort 2-opt,
+Reloop). The two share one underlying control panel, so they can never drift
+apart. Field values are remembered for the session **and carried across both
+dialogs**, so reopening either one to adjust a single value doesn't reset the
+rest.
 
-| Section | Controls |
-|---|---|
-| Crop | Crop to A4 / Letter / Custom |
-| Hatch | Enable hatching, pattern, angle, gap, amplitude, wavelength, dot radius |
-| Palette | Quantize colours to a hex list |
-| Rotate | Rotate the canvas |
-| Optimize | Optimize path order |
-
-The options that are **not** repeated here — stroke-width override, hidden
-layers, the pre-hatch simplify tolerance, and the line-geometry processors
-(Linesimplify, Linemerge, Linesort, Reloop) — are either structural choices best
-made once at import time, or geometry clean-up that is better done *after* import
-at the command level via **Edit > Optimize Loaded Commands...** (simplify,
-reorder and merge), which works on the loaded drawing regardless of how it was
-imported. In other words: the two dialogs aren't meant to be identical — the
-import dialog is the full one-shot pipeline, while Edit > Process SVG is the
-quick visual re-tweak and Edit > Optimize Loaded Commands is the post-import
-geometry pass. (Both dialogs do build the same SVGToolBox `Config` under the
-hood, so there is no technical barrier to exposing more of the options in the
-Edit dialog later if that proves useful.)
+> Note: the optimize block here runs at the SVG-DOM level. The same kinds of
+> geometry clean-up are also available *after* import, at the command level, via
+> **Edit > Optimize Loaded Commands...** (simplify, reorder, merge) — that one
+> works on the loaded drawing regardless of how it was imported. Use whichever
+> fits your workflow; there's no need to run both.
 
 ---
 

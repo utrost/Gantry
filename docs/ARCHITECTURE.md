@@ -389,15 +389,22 @@ Swing + FlatLaf dark theme. `GantryApp#main` sets up `FlatDarkLaf`, builds a
   from the layer's source `#rrggbb`, brightened against the dark canvas via
   `ensureReadable` and falling back to `FALLBACK_PALETTE` for unknown/near-black
   colours); `setColorByLayer(false)` reverts to a single uniform colour.
-- **`SvgImportDialog`** — import options + the SVGToolBox toolbox controls (incl.
-  hatch pattern/angle/gap and the per-pattern amplitude/wavelength/dot-radius
-  spinners). Builds an `SvgImportOptions` and (if toolbox or hatch enabled) a
-  `Config`. **Note:** enabling hatching implies running the toolbox pipeline (a
-  listener ticks the master toggle, and `onOk` builds the config when either is
-  on).
-- **`EditProcessDialog`** — "Edit > Process SVG": re-runs a subset of toolbox
-  processors against the originally imported file. Remembers its hatch/rotate/
-  optimize settings across opens via `static last*` fields.
+- **`ToolboxOptionsPanel`** — the single shared editor for the full SVGToolBox
+  option set (style / hatch / geometry / optimize), embedded verbatim by both
+  `SvgImportDialog` and `EditProcessDialog` so the two can't drift apart.
+  `buildConfig()` produces the `Config` (throwing `IllegalArgumentException` on
+  bad stroke width / palette / crop), and a private static `State` snapshot
+  persists every field across reopens and across both dialogs.
+- **`SvgImportDialog`** — import options (size/padding/mirror) plus, in its
+  "Process SVG" tab, a `ToolboxOptionsPanel` under a master "Run SVGToolBox
+  processing" toggle. Builds an `SvgImportOptions` and (if toolbox or hatch
+  enabled) a `Config` via the panel. **Note:** enabling hatching implies running
+  the toolbox pipeline (a listener ticks the master toggle, and `onOk` builds the
+  config when either is on).
+- **`EditProcessDialog`** — "Edit > Process SVG": re-runs the toolbox pipeline
+  against the originally imported file. Its whole body is a `ToolboxOptionsPanel`,
+  so it now exposes the same options as the import tab (it previously offered only
+  a Crop/Hatch/Palette/Rotate/Optimize subset).
 - **`SettingsPanel`** — machine/serial/pen/feed/station configuration; persisted
   via `plot/ConfigStore` (+ `GantryConfig`, `StationConfig`, `PlotSettings`,
   `PlotService`-facing settings). `TimeEstimator` estimates plot duration —

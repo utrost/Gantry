@@ -1,111 +1,25 @@
 package org.trostheide.gantry.app.gui;
 
 import org.trostheide.gantry.svgtoolbox.Config;
-import org.trostheide.gantry.svgtoolbox.HatchStyle;
 
 import javax.swing.*;
 import java.awt.*;
-import java.awt.geom.Rectangle2D;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
 
 /**
- * Modal dialog for "Edit &gt; Process SVG...": re-runs a subset of the SVGToolBox processors
- * (Crop, Hatch, Palette, Rotate, Optimize) against the originally imported SVG file, so the user
- * can tweak these without re-importing from scratch.
+ * Modal dialog for "Edit &gt; Process SVG...": re-runs the SVGToolBox processors against the
+ * originally imported SVG file, so the user can tweak them without re-importing from scratch.
+ *
+ * <p>The body is the shared {@link ToolboxOptionsPanel}, so this dialog exposes exactly the same
+ * option set as the import dialog's "Process SVG" tab (they used to diverge). Field values are
+ * remembered by that panel across reopens and across both dialogs.
  */
 public final class EditProcessDialog extends JDialog {
 
-    /**
-     * Last-applied settings, remembered for the lifetime of the app so reopening
-     * "Process SVG" to tweak one value doesn't reset every other field (e.g. the
-     * "Enable hatching" checkbox or the chosen pattern).
-     */
-    private static boolean lastHatchEnabled = false;
-    private static String lastHatchPattern = "linear";
-    private static double lastHatchAngle = 45.0;
-    private static double lastHatchGap = 5.0;
-    private static double lastHatchAmplitude = 0.0;
-    private static double lastHatchWavelength = 0.0;
-    private static double lastDotRadius = 0.0;
-    private static double lastRotate = 0.0;
-    private static boolean lastOptimize = false;
-
-    private final JComboBox<String> cropCombo = new JComboBox<>(new String[] {"None", "A4", "Letter", "Custom"});
-    private final JTextField cropCustomField = new JTextField("793.7x1122.5", 12);
-
-    private final JCheckBox hatchCheck = new JCheckBox("Enable hatching");
-    private final JComboBox<String> hatchPatternCombo =
-            new JComboBox<>(new String[] {"linear", "cross", "zigzag", "wave", "dot", "none", "empty"});
-    private final JSpinner hatchAngleSpinner = new JSpinner(new SpinnerNumberModel(45.0, -360.0, 360.0, 5.0));
-    private final JSpinner hatchGapSpinner = new JSpinner(new SpinnerNumberModel(5.0, 0.1, 1000.0, 0.5));
-    private final JSpinner hatchAmplitudeSpinner = new JSpinner(new SpinnerNumberModel(0.0, 0.0, 1000.0, 0.5));
-    private final JSpinner hatchWavelengthSpinner = new JSpinner(new SpinnerNumberModel(0.0, 0.0, 1000.0, 0.5));
-    private final JSpinner dotRadiusSpinner = new JSpinner(new SpinnerNumberModel(0.0, 0.0, 1000.0, 0.1));
-
-    private final JTextField paletteField = new JTextField(20);
-
-    private final JSpinner rotateSpinner = new JSpinner(new SpinnerNumberModel(0.0, -360.0, 360.0, 90.0));
-
-    private final JCheckBox optimizeCheck = new JCheckBox("Optimize path order");
-
+    private final ToolboxOptionsPanel optionsPanel = new ToolboxOptionsPanel();
     private Config result;
 
     public EditProcessDialog(Window owner) {
         super(owner, "Process SVG", ModalityType.APPLICATION_MODAL);
-
-        JPanel form = new JPanel(new GridBagLayout());
-        form.setBorder(BorderFactory.createEmptyBorder(8, 8, 8, 8));
-        GridBagConstraints gbc = new GridBagConstraints();
-        gbc.insets = new Insets(3, 3, 3, 3);
-        gbc.fill = GridBagConstraints.HORIZONTAL;
-        gbc.gridx = 0;
-        gbc.gridy = 0;
-
-        addSection(form, gbc, "Crop");
-        addRow(form, gbc, "Crop to", cropCombo);
-        addRow(form, gbc, "Custom crop (WxH px)", cropCustomField);
-
-        addSection(form, gbc, "Hatch");
-        gbc.gridx = 0;
-        gbc.gridwidth = 2;
-        form.add(hatchCheck, gbc);
-        gbc.gridy++;
-        gbc.gridwidth = 1;
-        addRow(form, gbc, "Hatch pattern", hatchPatternCombo);
-        addRow(form, gbc, "Hatch angle (deg)", hatchAngleSpinner);
-        addRow(form, gbc, "Hatch gap", hatchGapSpinner);
-        addRow(form, gbc, "Amplitude — wave/zigzag (0 = auto)", hatchAmplitudeSpinner);
-        addRow(form, gbc, "Wavelength — wave/zigzag (0 = auto)", hatchWavelengthSpinner);
-        addRow(form, gbc, "Dot radius — dot (0 = auto)", dotRadiusSpinner);
-
-        addSection(form, gbc, "Palette");
-        addRow(form, gbc, "Colors (hex, comma-separated)", paletteField);
-
-        addSection(form, gbc, "Rotate");
-        addRow(form, gbc, "Rotate (deg)", rotateSpinner);
-
-        addSection(form, gbc, "Optimize");
-        gbc.gridx = 0;
-        gbc.gridwidth = 2;
-        form.add(optimizeCheck, gbc);
-        gbc.gridy++;
-
-        // Restore the last-applied settings so reopening to tweak one value
-        // doesn't wipe the rest (notably the "Enable hatching" checkbox).
-        hatchCheck.setSelected(lastHatchEnabled);
-        hatchPatternCombo.setSelectedItem(lastHatchPattern);
-        hatchAngleSpinner.setValue(lastHatchAngle);
-        hatchGapSpinner.setValue(lastHatchGap);
-        hatchAmplitudeSpinner.setValue(lastHatchAmplitude);
-        hatchWavelengthSpinner.setValue(lastHatchWavelength);
-        dotRadiusSpinner.setValue(lastDotRadius);
-        rotateSpinner.setValue(lastRotate);
-        optimizeCheck.setSelected(lastOptimize);
-
-        cropCustomField.setEnabled(false);
-        cropCombo.addActionListener(e -> cropCustomField.setEnabled("Custom".equals(cropCombo.getSelectedItem())));
 
         JButton okBtn = new JButton("Apply");
         JButton cancelBtn = new JButton("Cancel");
@@ -116,122 +30,26 @@ public final class EditProcessDialog extends JDialog {
         buttons.add(okBtn);
         buttons.add(cancelBtn);
 
+        JPanel padded = new JPanel(new BorderLayout());
+        padded.setBorder(BorderFactory.createEmptyBorder(8, 8, 8, 8));
+        padded.add(optionsPanel, BorderLayout.NORTH);
+
         setLayout(new BorderLayout());
-        add(new JScrollPane(form), BorderLayout.CENTER);
+        add(new JScrollPane(padded), BorderLayout.CENTER);
         add(buttons, BorderLayout.SOUTH);
         getRootPane().setDefaultButton(okBtn);
-        setSize(420, 560);
+        setSize(460, 640);
         setLocationRelativeTo(owner);
     }
 
-    private static JLabel section(String title) {
-        JLabel label = new JLabel(title);
-        label.setFont(label.getFont().deriveFont(Font.BOLD));
-        return label;
-    }
-
-    private void addSection(JPanel form, GridBagConstraints gbc, String title) {
-        if (gbc.gridy > 0) {
-            gbc.insets = new Insets(14, 3, 3, 3);
-        }
-        gbc.gridx = 0;
-        gbc.gridwidth = 2;
-        form.add(section(title), gbc);
-        gbc.gridy++;
-        gbc.insets = new Insets(3, 3, 3, 3);
-    }
-
-    private void addRow(JPanel form, GridBagConstraints gbc, String label, JComponent field) {
-        gbc.gridx = 0;
-        gbc.gridwidth = 1;
-        gbc.weightx = 0;
-        form.add(new JLabel(label), gbc);
-        gbc.gridx = 1;
-        gbc.weightx = 1;
-        form.add(field, gbc);
-        gbc.gridy++;
-    }
-
     private void onOk() {
-        Rectangle2D cropBounds;
         try {
-            cropBounds = parseCrop();
+            result = optionsPanel.buildConfig();
         } catch (IllegalArgumentException ex) {
-            JOptionPane.showMessageDialog(this, ex.getMessage(), "Invalid crop", JOptionPane.ERROR_MESSAGE);
+            JOptionPane.showMessageDialog(this, ex.getMessage(), "Invalid option", JOptionPane.ERROR_MESSAGE);
             return;
         }
-
-        List<Color> palette;
-        try {
-            palette = parseColors(paletteField.getText());
-        } catch (IllegalArgumentException ex) {
-            JOptionPane.showMessageDialog(this, ex.getMessage(), "Invalid palette", JOptionPane.ERROR_MESSAGE);
-            return;
-        }
-
-        double hatchAngle = ((Number) hatchAngleSpinner.getValue()).doubleValue();
-        double hatchGap = ((Number) hatchGapSpinner.getValue()).doubleValue();
-        double hatchAmplitude = ((Number) hatchAmplitudeSpinner.getValue()).doubleValue();
-        double hatchWavelength = ((Number) hatchWavelengthSpinner.getValue()).doubleValue();
-        double dotRadius = ((Number) dotRadiusSpinner.getValue()).doubleValue();
-        String hatchPattern = (String) hatchPatternCombo.getSelectedItem();
-        double rotate = ((Number) rotateSpinner.getValue()).doubleValue();
-
-        // Remember these for the next time the dialog is opened.
-        lastHatchEnabled = hatchCheck.isSelected();
-        lastHatchPattern = hatchPattern;
-        lastHatchAngle = hatchAngle;
-        lastHatchGap = hatchGap;
-        lastHatchAmplitude = hatchAmplitude;
-        lastHatchWavelength = hatchWavelength;
-        lastDotRadius = dotRadius;
-        lastRotate = rotate;
-        lastOptimize = optimizeCheck.isSelected();
-
-        result = new Config.Builder()
-                .inputPath("")
-                .outputPath("")
-                .strokeWidth(0f)
-                .palette(palette)
-                .enableHatching(hatchCheck.isSelected())
-                .globalStyle(new HatchStyle(hatchAngle, hatchGap, hatchPattern,
-                        hatchAmplitude, hatchWavelength, dotRadius))
-                .overrides(Collections.emptyMap())
-                .strokeWidthOverrides(Collections.emptyMap())
-                .hiddenLayers(Collections.emptyList())
-                .noHatchColors(Collections.emptyList())
-                .simplifyTolerance(0)
-                .hatchPattern(hatchPattern)
-                .rotationDegrees(rotate)
-                .printStats(false)
-                .cropBounds(cropBounds)
-                .optimizePaths(optimizeCheck.isSelected())
-                .linesimplify(false)
-                .linemerge(false)
-                .linesort(false)
-                .reloop(false)
-                .build();
         dispose();
-    }
-
-    private Rectangle2D parseCrop() {
-        return PaperSizes.resolve((String) cropCombo.getSelectedItem(), cropCustomField.getText());
-    }
-
-    private List<Color> parseColors(String text) {
-        String trimmed = text.trim();
-        if (trimmed.isEmpty()) {
-            return new ArrayList<>();
-        }
-        List<Color> colors = new ArrayList<>();
-        for (String part : trimmed.split(",")) {
-            try {
-                colors.add(Color.decode(part.trim()));
-            } catch (NumberFormatException e) {
-                throw new IllegalArgumentException("Invalid palette color: " + part.trim());
-            }
-        }
-        return colors;
     }
 
     /** Shows the dialog and returns the chosen config, or {@code null} if cancelled. */
