@@ -220,6 +220,14 @@ on the SVG before importing. The pipeline runs in this order:
 | Reloop closed paths | Rotate the start point of closed paths to minimise pen-lift distance. |
 | Print statistics | Print element count and total path length to the console after processing. |
 
+These fall into three groups: **style** (stroke width, palette, hidden layers),
+**fill** (the hatch options), and **geometry/optimization** (simplify, crop,
+rotate, and the bottom block: Optimize path order, Linesimplify, Linemerge,
+Linesort, Linesort 2-opt, Reloop). The geometry/optimization block here runs at
+the SVG-DOM level *during import*; the same kinds of clean-up are also available
+*after* import at the command level via **Edit > Optimize Loaded Commands...**.
+Use whichever fits your workflow — there's no need to enable both.
+
 ---
 
 ## Positioning on the canvas
@@ -252,6 +260,41 @@ The visualisation shows:
 - Blue dots for refill stations (named)
 - Dashed bounding box with resize handles
 - HUD: current position, scale, rotation, alignment
+
+---
+
+## Re-processing an imported SVG (Edit > Process SVG)
+
+Once an SVG is imported you can re-run the SVGToolBox pipeline against the
+*original file* — without re-importing from scratch — via **Edit > Process
+SVG...**. This is the "creative tweak" loop: change the hatching, recolour to a
+palette, crop or rotate, click **Apply**, and see the result. Your settings are
+remembered for the session, so reopening the dialog to adjust one value doesn't
+reset the rest.
+
+It deliberately exposes only a **subset** of the import-time options — the ones
+that change *what is drawn*:
+
+| Section | Controls |
+|---|---|
+| Crop | Crop to A4 / Letter / Custom |
+| Hatch | Enable hatching, pattern, angle, gap, amplitude, wavelength, dot radius |
+| Palette | Quantize colours to a hex list |
+| Rotate | Rotate the canvas |
+| Optimize | Optimize path order |
+
+The options that are **not** repeated here — stroke-width override, hidden
+layers, the pre-hatch simplify tolerance, and the line-geometry processors
+(Linesimplify, Linemerge, Linesort, Reloop) — are either structural choices best
+made once at import time, or geometry clean-up that is better done *after* import
+at the command level via **Edit > Optimize Loaded Commands...** (simplify,
+reorder and merge), which works on the loaded drawing regardless of how it was
+imported. In other words: the two dialogs aren't meant to be identical — the
+import dialog is the full one-shot pipeline, while Edit > Process SVG is the
+quick visual re-tweak and Edit > Optimize Loaded Commands is the post-import
+geometry pass. (Both dialogs do build the same SVGToolBox `Config` under the
+hood, so there is no technical barrier to exposing more of the options in the
+Edit dialog later if that proves useful.)
 
 ---
 
