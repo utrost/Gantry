@@ -127,7 +127,7 @@ Use an SVG with two Inkscape layers (`inkscape:groupmode="layer"`).
 
 ### 2.7 Optimise loaded commands
 
-- [ ] Import an SVG. Use **Edit > Optimize Loaded Commands...**.
+- [ ] Import an SVG. Use **Edit > Optimize Commands (JSON)...**.
   - [ ] Dialog prompts for Tolerance / Reorder / Merge; clicking OK runs it.
   - [ ] Console confirms optimisation ran (now also reports `strokes X -> Y`); command count may decrease slightly.
 - [ ] Set Tolerance = 1.0, Reorder = enabled. Optimise again.
@@ -135,7 +135,7 @@ Use an SVG with two Inkscape layers (`inkscape:groupmode="layer"`).
 - [ ] Import an SVG made of many short touching segments (e.g. a generator that emits one `<line>` per edge). Set **Merge = 0.2**, optimise.
   - [ ] Console's `strokes X -> Y` shows a large drop (touching segments welded into continuous lines).
   - [ ] Set **Merge = 0** and re-optimise a fresh import — stroke count is unchanged (welding disabled).
-- [ ] With no commands loaded, **Edit > Optimize Loaded Commands...** shows "Load a commands file first." instead of opening the dialog.
+- [ ] With no commands loaded, **Edit > Optimize Commands (JSON)...** shows "Open a Commands (JSON) file or Import SVG first." instead of opening the dialog.
 
 ### 2.8 Jog controls
 
@@ -176,8 +176,8 @@ Use an SVG with two Inkscape layers (`inkscape:groupmode="layer"`).
 
 ### 2.11 Save and load command JSON
 
-- [ ] Import an SVG. Click **Save Commands** — save as `test.json`.
-- [ ] Click **Load Commands**, select `test.json`.
+- [ ] Import an SVG. Click **Save Commands (JSON)** — save as `test.json`.
+- [ ] Click **Open Commands (JSON)**, select `test.json`.
   - [ ] Drawing reappears in visualisation with the same layer and command count.
 
 ### 2.12 CLI headless conversion
@@ -192,7 +192,7 @@ java -jar cli/target/cli-1.0-SNAPSHOT.jar \
 
 - [ ] Command exits 0.
 - [ ] Console: `Wrote N layer(s), M command(s) to /tmp/out.json`.
-- [ ] `out.json` is valid JSON loadable by the GUI (Load Commands).
+- [ ] `out.json` is valid JSON loadable by the GUI (Open Commands (JSON)).
 
 ```bash
 java -jar cli/target/cli-1.0-SNAPSHOT.jar \

@@ -240,7 +240,7 @@ public class PlotterPanel extends JPanel {
         if (backend == null) {
             text = "Step 1: Click Connect to talk to the plotter.";
         } else if (currentOutput == null) {
-            text = "Step 2: Load Commands or Import SVG to load a drawing.";
+            text = "Step 2: Open Commands (JSON) or Import SVG to load a drawing.";
         } else if (plotting) {
             text = paused
                     ? "Plot paused. Click Resume to continue, or Stop to cancel."
@@ -338,12 +338,26 @@ public class PlotterPanel extends JPanel {
 
         JMenu fileMenu = new JMenu("File");
         fileMenu.setMnemonic(KeyEvent.VK_F);
-        fileMenu.add(accel(menuItem("Load Commands...", e -> onLoadCommands(), true), KeyEvent.VK_O, shortcut));
-        fileMenu.add(accel(menuItem("Import SVG...", e -> onImportSvg(), true), KeyEvent.VK_I, shortcut));
-        fileMenu.add(accel(menuItem("Save Commands...", e -> onSaveCommands(), true), KeyEvent.VK_S, shortcut));
+        fileMenu.add(accel(tip(menuItem("Open Commands (JSON)...", e -> onLoadCommands(), true),
+                "Open a saved Gantry command file (.json) — the editable drawing model "
+                        + "(layers, moves, draws, refills). Not an SVG and not G-code."),
+                KeyEvent.VK_O, shortcut));
+        fileMenu.add(accel(tip(menuItem("Import SVG (artwork)...", e -> onImportSvg(), true),
+                "Read a vector drawing (.svg) and convert it into the editable command model. "
+                        + "This is where artwork enters Gantry."),
+                KeyEvent.VK_I, shortcut));
+        fileMenu.add(accel(tip(menuItem("Save Commands (JSON)...", e -> onSaveCommands(), true),
+                "Save the current drawing as a Gantry command file (.json) so you can reopen and "
+                        + "keep editing it later. This is Gantry's working format, not G-code."),
+                KeyEvent.VK_S, shortcut));
         fileMenu.addSeparator();
-        fileMenu.add(accel(menuItem("Export G-code...", e -> onExportGcode(), true), KeyEvent.VK_E, shortcut));
-        fileMenu.add(menuItem("Replay G-code...", e -> onReplayGcode(), true));
+        fileMenu.add(accel(tip(menuItem("Export G-code (for plotter)...", e -> onExportGcode(), true),
+                "Write machine instructions (.gcode) for the plotter from the current drawing. "
+                        + "One-way output — G-code can't be reopened for editing."),
+                KeyEvent.VK_E, shortcut));
+        fileMenu.add(tip(menuItem("Replay G-code...", e -> onReplayGcode(), true),
+                "Stream an existing G-code file (.gcode) straight to the plotter, bypassing the "
+                        + "command model."));
         fileMenu.addSeparator();
         fileMenu.add(accel(menuItem("Exit", e -> onExit(), false), KeyEvent.VK_Q, shortcut));
         menuBar.add(fileMenu);
@@ -354,8 +368,12 @@ public class PlotterPanel extends JPanel {
         undoMenuItem.setEnabled(false);
         editMenu.add(undoMenuItem);
         editMenu.addSeparator();
-        editMenu.add(menuItem("Process SVG...", e -> onEditProcessSvg(), true));
-        editMenu.add(menuItem("Optimize Loaded Commands...", e -> onOptimizeDialog(), true));
+        editMenu.add(tip(menuItem("Re-process Source SVG...", e -> onEditProcessSvg(), true),
+                "Re-run the SVGToolBox processors against the SVG you imported, replacing the current "
+                        + "drawing. Only available after Import SVG (a loaded .json command file has no source SVG)."));
+        editMenu.add(tip(menuItem("Optimize Commands (JSON)...", e -> onOptimizeDialog(), true),
+                "Clean up the current drawing in place — simplify, reorder, and weld touching strokes. "
+                        + "Edits the command model; does not touch any SVG or G-code file."));
         editMenu.add(menuItem("Map Layer Colors to Stations", e -> onMapColorsToStations(), true));
         menuBar.add(editMenu);
 
@@ -378,6 +396,12 @@ public class PlotterPanel extends JPanel {
         JMenuItem item = new JMenuItem(label);
         item.addActionListener(listener);
         return disableDuringPlot ? disableDuringPlot(item) : item;
+    }
+
+    /** Attaches a hover tooltip to a menu item and returns it, so format/flow help is one mouse-over away. */
+    private static JMenuItem tip(JMenuItem item, String tooltip) {
+        item.setToolTipText(tooltip);
+        return item;
     }
 
     /** Attaches a keyboard accelerator to a menu item and returns it. */
@@ -532,7 +556,7 @@ public class PlotterPanel extends JPanel {
      */
     private void onOptimizeDialog() {
         if (currentOutput == null) {
-            info("Load a commands file first.");
+            info("Open a Commands (JSON) file or Import SVG first.");
             return;
         }
         simplifyToleranceSpinner.setToolTipText("Simplify tolerance (mm)");
@@ -545,7 +569,7 @@ public class PlotterPanel extends JPanel {
         form.add(new JLabel("Merge"));
         form.add(mergeToleranceSpinner);
 
-        int choice = JOptionPane.showConfirmDialog(this, form, "Optimize Loaded Commands",
+        int choice = JOptionPane.showConfirmDialog(this, form, "Optimize Commands (JSON)",
                 JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
         if (choice == JOptionPane.OK_OPTION) {
             onOptimize();
@@ -872,7 +896,7 @@ public class PlotterPanel extends JPanel {
 
     private void onLoadCommands() {
         JFileChooser chooser = newFileChooser();
-        chooser.setFileFilter(new javax.swing.filechooser.FileNameExtensionFilter("Command files (*.json)", "json"));
+        chooser.setFileFilter(new javax.swing.filechooser.FileNameExtensionFilter("Gantry commands — JSON (*.json)", "json"));
         if (chooser.showOpenDialog(this) != JFileChooser.APPROVE_OPTION) {
             return;
         }
@@ -880,7 +904,7 @@ public class PlotterPanel extends JPanel {
         rememberDirectory(file);
         try {
             currentOutput = CommandFile.load(file);
-            // A loaded command file has no source SVG, so Edit > Process SVG must not reprocess a
+            // A loaded command file has no source SVG, so Edit > Re-process Source SVG must not reprocess a
             // previously-imported one. Clear the stale import state (and any cross-file undo).
             lastImportedSvgFile = null;
             lastImportOptions = null;
@@ -902,7 +926,7 @@ public class PlotterPanel extends JPanel {
 
     private void onImportSvg() {
         JFileChooser chooser = newFileChooser();
-        chooser.setFileFilter(new javax.swing.filechooser.FileNameExtensionFilter("SVG files (*.svg)", "svg"));
+        chooser.setFileFilter(new javax.swing.filechooser.FileNameExtensionFilter("Vector artwork — SVG (*.svg)", "svg"));
         if (chooser.showOpenDialog(this) != JFileChooser.APPROVE_OPTION) {
             return;
         }
@@ -947,7 +971,7 @@ public class PlotterPanel extends JPanel {
      */
     private void onEditProcessSvg() {
         if (lastImportedSvgFile == null || lastImportOptions == null) {
-            info("Import an SVG file first — Edit > Process SVG only applies to SVG imports.");
+            info("Import an SVG file first — Edit > Re-process Source SVG only applies to SVG imports.");
             return;
         }
         org.trostheide.gantry.svgtoolbox.Config config =
@@ -1030,7 +1054,7 @@ public class PlotterPanel extends JPanel {
             return;
         }
         JFileChooser chooser = newFileChooser();
-        chooser.setFileFilter(new javax.swing.filechooser.FileNameExtensionFilter("Command files (*.json)", "json"));
+        chooser.setFileFilter(new javax.swing.filechooser.FileNameExtensionFilter("Gantry commands — JSON (*.json)", "json"));
         if (chooser.showSaveDialog(this) != JFileChooser.APPROVE_OPTION) {
             return;
         }
@@ -1049,7 +1073,7 @@ public class PlotterPanel extends JPanel {
 
     private void onOptimize() {
         if (currentOutput == null) {
-            info("Load a commands file first.");
+            info("Open a Commands (JSON) file or Import SVG first.");
             return;
         }
         double tolerance = ((Number) simplifyToleranceSpinner.getValue()).doubleValue();
@@ -1366,7 +1390,7 @@ public class PlotterPanel extends JPanel {
 
     private void onExportGcode() {
         if (currentOutput == null) {
-            info("Load a commands file first.");
+            info("Open a Commands (JSON) file or Import SVG first.");
             return;
         }
         if (selectedLayerIndices().isEmpty()) {
@@ -1374,7 +1398,7 @@ public class PlotterPanel extends JPanel {
             return;
         }
         JFileChooser chooser = newFileChooser();
-        chooser.setFileFilter(new javax.swing.filechooser.FileNameExtensionFilter("G-code files (*.gcode)", "gcode"));
+        chooser.setFileFilter(new javax.swing.filechooser.FileNameExtensionFilter("Plotter G-code (*.gcode)", "gcode"));
         if (chooser.showSaveDialog(this) != JFileChooser.APPROVE_OPTION) {
             return;
         }
@@ -1411,7 +1435,7 @@ public class PlotterPanel extends JPanel {
             return;
         }
         JFileChooser chooser = newFileChooser();
-        chooser.setFileFilter(new javax.swing.filechooser.FileNameExtensionFilter("G-code files (*.gcode)", "gcode"));
+        chooser.setFileFilter(new javax.swing.filechooser.FileNameExtensionFilter("Plotter G-code (*.gcode)", "gcode"));
         if (chooser.showOpenDialog(this) != JFileChooser.APPROVE_OPTION) {
             return;
         }

@@ -110,6 +110,22 @@ SVG file
 Alternatively, generate the command JSON headlessly with the CLI and load it
 into the GUI for positioning and plotting.
 
+### The three file formats
+
+Gantry deals with three different kinds of file, and every menu item now names
+which one it works on so you always know what you're handling:
+
+| Format | What it is | How Gantry uses it |
+|---|---|---|
+| **SVG** (`.svg`) | Vector *artwork* — the drawing you start from | **File > Import SVG (artwork)…** reads it and converts it into the command model. This is the only way artwork *enters* Gantry. **Edit > Re-process Source SVG…** re-runs the conversion against the same file. |
+| **Commands — JSON** (`.json`) | Gantry's own editable *working format*: layers, moves, draws and refills | **File > Open / Save Commands (JSON)…** loads and saves it; **Edit > Optimize Commands (JSON)…** edits it in place. This is the format you keep working on between sessions. |
+| **G-code** (`.gcode`) | Machine instructions for the *plotter* | **File > Export G-code (for plotter)…** writes it; **File > Replay G-code…** streams an existing one straight to the machine. One-way output — G-code can't be reopened for editing. |
+
+Rule of thumb: **SVG comes in, JSON is what you edit, G-code goes out.** Importing
+an SVG and opening a JSON command file both land you at the same place (a drawing
+ready to position and plot); they just start from a different format. Hovering any
+File/Edit menu item shows a tooltip reminding you which format it touches.
+
 ---
 
 ## Settings
@@ -225,7 +241,7 @@ These fall into three groups: **style** (stroke width, palette, hidden layers),
 rotate, and the bottom block: Optimize path order, Linesimplify, Linemerge,
 Linesort, Linesort 2-opt, Reloop). The geometry/optimization block here runs at
 the SVG-DOM level *during import*; the same kinds of clean-up are also available
-*after* import at the command level via **Edit > Optimize Loaded Commands...**.
+*after* import at the command level via **Edit > Optimize Commands (JSON)...**.
 Use whichever fits your workflow — there's no need to enable both.
 
 ---
@@ -263,11 +279,11 @@ The visualisation shows:
 
 ---
 
-## Re-processing an imported SVG (Edit > Process SVG)
+## Re-processing an imported SVG (Edit > Re-process Source SVG)
 
 Once an SVG is imported you can re-run the SVGToolBox pipeline against the
-*original file* — without re-importing from scratch — via **Edit > Process
-SVG...**. This is the "creative tweak" loop: change the hatching, recolour to a
+*original file* — without re-importing from scratch — via **Edit > Re-process
+Source SVG...**. This is the "creative tweak" loop: change the hatching, recolour to a
 palette, crop or rotate, click **Apply**, and see the result.
 
 This dialog exposes **exactly the same option set** as the import dialog's
@@ -281,16 +297,17 @@ rest.
 
 > Note: the optimize block here runs at the SVG-DOM level. The same kinds of
 > geometry clean-up are also available *after* import, at the command level, via
-> **Edit > Optimize Loaded Commands...** (simplify, reorder, merge) — that one
+> **Edit > Optimize Commands (JSON)...** (simplify, reorder, merge) — that one
 > works on the loaded drawing regardless of how it was imported. Use whichever
 > fits your workflow; there's no need to run both.
 
 ---
 
-## Optimising loaded commands
+## Optimising the command model (Edit > Optimize Commands (JSON))
 
-Use **Edit > Optimize Loaded Commands...** to apply path optimisation to
-already-loaded commands. A small dialog prompts for:
+Use **Edit > Optimize Commands (JSON)...** to apply path optimisation to the
+current drawing (the command model — works the same whether it came from an SVG
+import or an opened `.json` file). A small dialog prompts for:
 
 | Control | Description |
 |---|---|
@@ -424,17 +441,17 @@ Type any G-code command in the text field and press Enter to send it directly.
 
 ## Exporting and replaying G-code
 
-- **Export G-code** — save the current command model as a `.gcode` file without executing it.
-- **Replay G-code** — load and stream a previously exported `.gcode` file to the plotter.
+- **Export G-code (for plotter)** — save the current command model as a `.gcode` file without executing it.
+- **Replay G-code** — load and stream an existing `.gcode` file straight to the plotter (bypasses the command model).
 
 ---
 
-## Loading / saving command JSON
+## Opening / saving the command model (JSON)
 
-- **Load Commands** — load a pre-generated `.json` command model.
-- **Save Commands** — save the current command model to `.json` for later.
+- **Open Commands (JSON)** — open a previously saved `.json` command model and pick up editing where you left off.
+- **Save Commands (JSON)** — save the current command model to `.json` for later. This is Gantry's working format, *not* G-code.
 
-All file choosers (Import SVG, Load/Save Commands, Export/Replay G-code) remember the
+All file choosers (Import SVG, Open/Save Commands, Export/Replay G-code) remember the
 last folder you opened or saved a file in and reopen there next time, even across restarts.
 
 ---

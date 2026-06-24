@@ -365,9 +365,12 @@ Swing + FlatLaf dark theme. `GantryApp#main` sets up `FlatDarkLaf`, builds a
   `capHeight(...)` which also left-aligns to avoid BoxLayout center-clipping), the
   console, the menu bar, and wires user actions to the pipeline/PlotService. It is
   a known **god-class** and the prime candidate for extracting a `PlotSession`
-  controller (see ROADMAP). Menu actions: Import SVG, Process SVG
-  (`EditProcessDialog`), Optimize Loaded Commands, Map Layer Colors to Stations,
-  Save/Load Commands, Export/Replay G-code. The Plot section's **Layers** checklist
+  controller (see ROADMAP). Menu actions: Import SVG (artwork), Re-process Source
+  SVG (`EditProcessDialog`), Optimize Commands (JSON), Map Layer Colors to Stations,
+  Open/Save Commands (JSON), Export/Replay G-code. Every File/Edit menu item names
+  its file format (SVG / JSON / G-code) in the label and has a tooltip (`tip()`
+  helper) explaining which of the three formats it reads or writes, so the three
+  distinct formats stay legible to the user. The Plot section's **Layers** checklist
   (`layerChecks`, one `JCheckBox` per layer, rebuilt by `refreshLayerSelector()`
   whenever `currentOutput` is replaced) selects any subset of layers to
   preview/plot/export: `selectedOutput()` narrows `currentOutput` to the ticked
@@ -401,7 +404,7 @@ Swing + FlatLaf dark theme. `GantryApp#main` sets up `FlatDarkLaf`, builds a
   enabled) a `Config` via the panel. **Note:** enabling hatching implies running
   the toolbox pipeline (a listener ticks the master toggle, and `onOk` builds the
   config when either is on).
-- **`EditProcessDialog`** — "Edit > Process SVG": re-runs the toolbox pipeline
+- **`EditProcessDialog`** — "Edit > Re-process Source SVG": re-runs the toolbox pipeline
   against the originally imported file. Its whole body is a `ToolboxOptionsPanel`,
   so it now exposes the same options as the import tab (it previously offered only
   a Crop/Hatch/Palette/Rotate/Optimize subset).
