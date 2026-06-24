@@ -21,10 +21,10 @@ Expected output: `BUILD SUCCESS` with zero failures across all modules.
 |---|---|---|
 | `model` | `ProcessorOutputJsonTest`, `CoordinateTransformTest` | JSON round-trip of `ProcessorOutput`; coordinate transform (rotate/swap/invert/align) in all axis combinations |
 | `pipeline-core` | `SvgImportStageTest` (4 nested classes, 28 tests) | SVG parsing and command-model extraction: simple SVG, layered SVG, fit-to-A4 scaling, refill insertion, refill-free mode, command ID sequence, transform/nested-transform baking, mirroring; full-page background rect dropped when real content coexists; single-shape SVG (the rect *is* the content) is never dropped; `PaperFormat` parsing; `calculateFitToPageTransform`; plain (non-Inkscape) top-level `<g>` groups are split into separate layers when ≥2 contain drawables, but a lone group still collapses to one "Default" layer |
-| `pipeline-core` | `OptimizeStageTest`, `MultipassStageTest` | RDP simplify, greedy-NN reorder, multipass command expansion |
+| `pipeline-core` | `OptimizeStageTest` (7), `MultipassStageTest` | RDP simplify, greedy-NN reorder, multipass command expansion; stroke welding (touching segments merge into one polyline, reverse-when-only-end-touches, disjoint stay separate, zero tolerance disables) |
 | `plotter` | `GcodeBackendTest` | G-code formatting: init sequence, pen modes (servo/zaxis/m3m5), moveto, lineto, raw send |
 | `app` | `PlotServiceTest` | Full plot orchestration: layer sequencing, refill at layer boundary, cancel mid-plot, OOB clamping, per-waypoint position callbacks |
-| `app` | `TimeEstimatorTest` (6) | Travel/draw distances use their respective feed rates; refill travel + fixed dip overhead; unknown station falls back to default; pen-down settle overhead charged once per `DrawCommand`; multi-layer totals; `H:MM:SS` formatting |
+| `app` | `TimeEstimatorTest` (7) | Travel/draw distances use their respective feed rates; refill travel + fixed dip overhead; unknown station falls back to default; pen-down settle overhead charged once per `DrawCommand` and driven by the configurable `penDownDelayMillis` (0 removes it); multi-layer totals; `H:MM:SS` formatting |
 | `svgtoolbox-core` | `ConfigBuilderTest` | Config builder defaults and overrides |
 | `svgtoolbox-core` | `VisibilityProcessorTest` (4) | Remove hidden layers by colour |
 | `svgtoolbox-core` | `StyleNormalizerProcessorTest` (2) | Move inline `style` attributes to presentation attributes |
@@ -59,8 +59,9 @@ mode (Settings → Mock backend checkbox) when a plotter is not available.
 
 ### 2.2 Settings
 
-- [ ] Open Settings. Verify all fields are present (serial port, baud, machine width/height, origin, orientation, alignment, data rotation, pen mode, feed rates, station table).
+- [ ] Open Settings. Verify all fields are present (serial port, baud, machine width/height, origin, orientation, alignment, data rotation, pen mode, feed rates, **Pen Down Delay (ms)**, station table).
 - [ ] Change machine width to 400 and height to 300. Save. Reopen — values are persisted.
+- [ ] Set **Pen Down Delay (ms)** to 0, Save, reopen — persisted. (On hardware: lines start clean with no ink dot; raise it only if a slow pen skips the first millimetre.) The time estimate shrinks when the delay is lowered.
 - [ ] Enable Mock backend. Verify Connect button no longer requires a serial port.
 
 ### 2.3 SVG import — basic
@@ -127,10 +128,13 @@ Use an SVG with two Inkscape layers (`inkscape:groupmode="layer"`).
 ### 2.7 Optimise loaded commands
 
 - [ ] Import an SVG. Use **Edit > Optimize Loaded Commands...**.
-  - [ ] Dialog prompts for Tolerance / Reorder; clicking OK runs it.
-  - [ ] Console confirms optimisation ran; command count may decrease slightly.
+  - [ ] Dialog prompts for Tolerance / Reorder / Merge; clicking OK runs it.
+  - [ ] Console confirms optimisation ran (now also reports `strokes X -> Y`); command count may decrease slightly.
 - [ ] Set Tolerance = 1.0, Reorder = enabled. Optimise again.
   - [ ] Console confirms; command count is ≤ before.
+- [ ] Import an SVG made of many short touching segments (e.g. a generator that emits one `<line>` per edge). Set **Merge = 0.2**, optimise.
+  - [ ] Console's `strokes X -> Y` shows a large drop (touching segments welded into continuous lines).
+  - [ ] Set **Merge = 0** and re-optimise a fresh import — stroke count is unchanged (welding disabled).
 - [ ] With no commands loaded, **Edit > Optimize Loaded Commands...** shows "Load a commands file first." instead of opening the dialog.
 
 ### 2.8 Jog controls

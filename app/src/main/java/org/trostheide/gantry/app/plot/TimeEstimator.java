@@ -25,14 +25,6 @@ public final class TimeEstimator {
     /** Fixed dip time (matches {@code PlotService.performRefill}'s 500ms dwell). */
     private static final double REFILL_SECONDS = 0.5;
 
-    /**
-     * Fixed settle time after every pen-down (matches {@code GcodeBackend.pendown}'s 150ms
-     * sleep, issued once per {@link DrawCommand} since each one starts with a fresh pen-down).
-     * This is independent of {@code penMode}: servo and Z-axis moves both incur this dwell, and
-     * it dominates the total on hatch-dense drawings where strokes are short and numerous.
-     */
-    private static final double PEN_DOWN_SECONDS = 0.15;
-
     private TimeEstimator() {
     }
 
@@ -47,6 +39,12 @@ public final class TimeEstimator {
 
     /** Estimates {@code output}'s plot duration using {@code gcode}'s feed rates and {@code stations}' positions. */
     public static PlotEstimate estimate(ProcessorOutput output, GcodeOptions gcode, Map<String, StationConfig> stations) {
+        // Settle time after every pen-down (matches GcodeBackend.pendown's dwell), charged once
+        // per DrawCommand since each one starts with a fresh pen-down. Independent of penMode:
+        // servo and Z-axis moves both incur this dwell, and it dominates the total on hatch-dense
+        // drawings where strokes are short and numerous.
+        double penDownSeconds = Math.max(0, gcode.penDownDelayMillis) / 1000.0;
+
         List<LayerEstimate> layerEstimates = new ArrayList<>();
         double total = 0;
         Point cursor = new Point(0, 0);
@@ -86,7 +84,7 @@ public final class TimeEstimator {
             double seconds = (travelDist / gcode.feedRateTravel) * 60.0
                     + (drawDist / gcode.feedRateDraw) * 60.0
                     + refillCount * REFILL_SECONDS
-                    + penDownCount * PEN_DOWN_SECONDS;
+                    + penDownCount * penDownSeconds;
             total += seconds;
             layerEstimates.add(new LayerEstimate(layer.id(), drawDist, travelDist, refillCount, seconds));
         }

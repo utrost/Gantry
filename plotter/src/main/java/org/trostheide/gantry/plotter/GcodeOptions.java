@@ -26,4 +26,13 @@ public class GcodeOptions {
 
     /** Delay after opening the port to let GRBL finish booting, in milliseconds. */
     public int bootDelayMillis = 2000;
+
+    /**
+     * Dwell after each pen-down, in milliseconds, to let a (possibly slow) servo/Z move finish
+     * lowering before drawing starts. Kept short by default: a long dwell leaves a wet pen
+     * sitting motionless on the paper, which pools ink into a visible dot at the start of every
+     * line. Raise it only if a slow pen mechanism still skips the first millimetre; set 0 for a
+     * fast pen.
+     */
+    public int penDownDelayMillis = 80;
 }

@@ -60,6 +60,74 @@ class OptimizeStageTest {
     }
 
     @Test
+    void mergeWeldsStrokesThatTouchEndToEndIntoOnePolyline() {
+        // Three segments authored separately but forming one continuous line:
+        // (0,0)->(1,0)->(2,0)->(3,0). Each is its own MOVE+DRAW (a redundant pen-up between them).
+        Layer layer = new Layer("L1", "default_station", List.of(
+                new MoveCommand(1, 0, 0),
+                new DrawCommand(2, List.of(new Point(0, 0), new Point(1, 0))),
+                new MoveCommand(3, 1, 0),
+                new DrawCommand(4, List.of(new Point(1, 0), new Point(2, 0))),
+                new MoveCommand(5, 2, 0),
+                new DrawCommand(6, List.of(new Point(2, 0), new Point(3, 0)))));
+
+        ProcessorOutput optimized = OptimizeStage.optimize(output(layer), 0, false, 0.01);
+
+        List<Command> commands = optimized.layers().get(0).commands();
+        assertEquals(2, commands.size(), "three touching strokes should weld to one MOVE + one DRAW");
+        assertTrue(commands.get(0) instanceof MoveCommand);
+        DrawCommand draw = (DrawCommand) commands.get(1);
+        assertEquals(List.of(new Point(0, 0), new Point(1, 0), new Point(2, 0), new Point(3, 0)), draw.points);
+    }
+
+    @Test
+    void mergeReversesASegmentWhenOnlyItsEndTouches() {
+        // Second segment is authored end-first: (2,0)->(1,0). It still continues the first
+        // segment and must be reversed so the welded polyline runs (0,0)->(1,0)->(2,0).
+        Layer layer = new Layer("L1", "default_station", List.of(
+                new MoveCommand(1, 0, 0),
+                new DrawCommand(2, List.of(new Point(0, 0), new Point(1, 0))),
+                new MoveCommand(3, 2, 0),
+                new DrawCommand(4, List.of(new Point(2, 0), new Point(1, 0)))));
+
+        ProcessorOutput optimized = OptimizeStage.optimize(output(layer), 0, false, 0.01);
+
+        List<Command> commands = optimized.layers().get(0).commands();
+        assertEquals(2, commands.size());
+        DrawCommand draw = (DrawCommand) commands.get(1);
+        assertEquals(List.of(new Point(0, 0), new Point(1, 0), new Point(2, 0)), draw.points);
+    }
+
+    @Test
+    void mergeLeavesDisjointStrokesSeparate() {
+        // Two strokes that don't touch must remain two strokes (no spurious welding).
+        Layer layer = new Layer("L1", "default_station", List.of(
+                new MoveCommand(1, 0, 0),
+                new DrawCommand(2, List.of(new Point(0, 0), new Point(1, 0))),
+                new MoveCommand(3, 50, 0),
+                new DrawCommand(4, List.of(new Point(50, 0), new Point(51, 0)))));
+
+        ProcessorOutput optimized = OptimizeStage.optimize(output(layer), 0, false, 0.01);
+
+        OptimizeStage.Stats stats = OptimizeStage.computeStats(optimized);
+        assertEquals(2, stats.strokeCount());
+    }
+
+    @Test
+    void zeroMergeToleranceLeavesStrokesUntouched() {
+        Layer layer = new Layer("L1", "default_station", List.of(
+                new MoveCommand(1, 0, 0),
+                new DrawCommand(2, List.of(new Point(0, 0), new Point(1, 0))),
+                new MoveCommand(3, 1, 0),
+                new DrawCommand(4, List.of(new Point(1, 0), new Point(2, 0)))));
+
+        ProcessorOutput optimized = OptimizeStage.optimize(output(layer), 0, false, 0.0);
+
+        OptimizeStage.Stats stats = OptimizeStage.computeStats(optimized);
+        assertEquals(2, stats.strokeCount(), "merge disabled: touching strokes stay separate");
+    }
+
+    @Test
     void preservesStationIdAndRefillPositions() {
         Layer layer = new Layer("L1", "station-a", List.of(
                 new RefillCommand(1, "station-a"),

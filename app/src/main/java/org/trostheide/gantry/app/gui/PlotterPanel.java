@@ -70,6 +70,7 @@ public class PlotterPanel extends JPanel {
     private final JTextField rawCommandField = new JTextField(16);
     private final JSpinner simplifyToleranceSpinner = new JSpinner(new SpinnerNumberModel(0.2, 0.0, 10.0, 0.1));
     private final JCheckBox reorderStrokesCheckBox = new JCheckBox("Reorder", true);
+    private final JSpinner mergeToleranceSpinner = new JSpinner(new SpinnerNumberModel(0.2, 0.0, 10.0, 0.1));
     private final JSpinner multipassSpinner = new JSpinner(new SpinnerNumberModel(1, 1, 10, 1));
     private final JSpinner posXSpinner = new JSpinner(new SpinnerNumberModel(0.0, -2000.0, 2000.0, 1.0));
     private final JSpinner posYSpinner = new JSpinner(new SpinnerNumberModel(0.0, -2000.0, 2000.0, 1.0));
@@ -535,10 +536,14 @@ public class PlotterPanel extends JPanel {
             return;
         }
         simplifyToleranceSpinner.setToolTipText("Simplify tolerance (mm)");
+        mergeToleranceSpinner.setToolTipText("Merge tolerance (mm): weld strokes that touch "
+                + "end-to-end into one continuous line. 0 disables merging.");
         JPanel form = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 2));
         form.add(new JLabel("Tolerance"));
         form.add(simplifyToleranceSpinner);
         form.add(reorderStrokesCheckBox);
+        form.add(new JLabel("Merge"));
+        form.add(mergeToleranceSpinner);
 
         int choice = JOptionPane.showConfirmDialog(this, form, "Optimize Loaded Commands",
                 JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
@@ -1049,10 +1054,11 @@ public class PlotterPanel extends JPanel {
         }
         double tolerance = ((Number) simplifyToleranceSpinner.getValue()).doubleValue();
         boolean reorder = reorderStrokesCheckBox.isSelected();
+        double mergeTolerance = ((Number) mergeToleranceSpinner.getValue()).doubleValue();
 
         snapshotForUndo();
         OptimizeStage.Stats before = OptimizeStage.computeStats(currentOutput);
-        currentOutput = OptimizeStage.optimize(currentOutput, tolerance, reorder);
+        currentOutput = OptimizeStage.optimize(currentOutput, tolerance, reorder, mergeTolerance);
         OptimizeStage.Stats after = OptimizeStage.computeStats(currentOutput);
 
         visPanel.loadPathsPreservingOverlay(currentOutput);
@@ -1063,9 +1069,10 @@ public class PlotterPanel extends JPanel {
         double travelSavedPct = before.travelDistanceMm() <= 0 ? 0
                 : 100.0 * (before.travelDistanceMm() - after.travelDistanceMm()) / before.travelDistanceMm();
         log(String.format(
-                "Optimized: travel %.1fmm -> %.1fmm (%.1f%% saved), points %d -> %d",
+                "Optimized: travel %.1fmm -> %.1fmm (%.1f%% saved), points %d -> %d, strokes %d -> %d",
                 before.travelDistanceMm(), after.travelDistanceMm(), travelSavedPct,
-                before.pointCount(), after.pointCount()));
+                before.pointCount(), after.pointCount(),
+                before.strokeCount(), after.strokeCount()));
     }
 
     private void onOpenSettings() {

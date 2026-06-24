@@ -230,7 +230,7 @@ public class GcodeBackend implements PlotterBackend {
             send(cmd);
             waitForOk();
         }
-        sleepQuietly(150);
+        sleepQuietly(options.penDownDelayMillis);
     }
 
     @Override
@@ -241,7 +241,7 @@ public class GcodeBackend implements PlotterBackend {
             send(cmd);
             waitForOk();
         }
-        sleepQuietly(150);
+        sleepQuietly(options.penDownDelayMillis);
     }
 
     /**

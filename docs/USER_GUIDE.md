@@ -145,6 +145,7 @@ Open with the **Settings** button. Changes take effect after clicking **Save**.
 | Z up / down | Z-axis positions (mm) for pen-up / pen-down when using `zaxis` mode |
 | Draw feed rate | Mm/min while drawing (default 1000) |
 | Travel feed rate | Mm/min while moving without drawing (default 3000) |
+| Pen down delay (ms) | Dwell after lowering the pen before drawing starts (default 80). If your lines begin with a small ink blob/dot — the pen sitting still on the paper while ink bleeds — lower this (try 40, or 0 for a fast pen). Raise it only if a slow pen mechanism skips the first millimetre of a line. |
 
 ### Refill stations
 
@@ -263,6 +264,11 @@ already-loaded commands. A small dialog prompts for:
 |---|---|
 | Simplify tolerance | RDP simplification of polylines (0 = off, default 0.2 mm) |
 | Reorder strokes | Greedy nearest-neighbour reordering to reduce travel |
+| Merge | Weld strokes that touch end-to-end into one continuous line (0 = off, default 0.2 mm). Many SVGs (especially from non-Inkscape generators) split a single visible line into lots of short segments; without merging, the pen lifts and re-lowers between every one — wasted motion, and an ink dot at each segment's start. Merging draws them as one smooth stroke. The console reports `strokes X -> Y` so you can see how many were welded. |
+
+> Tip: Merge pairs with the **Pen down delay** setting — fewer pen-downs means
+> fewer start-of-line ink dots. Merge removes most of them structurally; lower
+> the pen-down delay to clean up whatever remains.
 
 ---
 

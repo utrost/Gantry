@@ -255,11 +255,17 @@ the line-* tolerances, etc.
 
 All pure `ProcessorOutput → ProcessorOutput` (or `Layer → Layer`):
 
-- **`OptimizeStage#optimize(output, simplifyTolerance, reorderStrokes)`** — per
-  layer: RDP-simplifies polylines (`RamerDouglasPeucker`) and optionally reorders
-  strokes greedily (nearest-neighbour, via `PathOptimizer`) to cut pen-up travel.
-  `computeStats(output)` returns `Stats(travelDistanceMm, pointCount,
-  strokeCount)` for before/after reporting. Preserves layer id/station/color.
+- **`OptimizeStage#optimize(output, simplifyTolerance, reorderStrokes[, mergeTolerance])`**
+  — per layer: RDP-simplifies polylines (`RamerDouglasPeucker`), optionally reorders
+  strokes greedily (nearest-neighbour, via `PathOptimizer`) to cut pen-up travel, and
+  (when `mergeTolerance > 0`) **welds** consecutive strokes whose endpoints touch into a
+  single continuous polyline — reversing a segment when only its far end matches. Welding
+  runs over the chosen order, so reordering first lets more neighbours line up. This both
+  removes redundant pen-up/travel/pen-down cycles between segments that an SVG expressed as
+  separate `<line>`/`<path>` elements, and (because every pen-down briefly dwells, see §8)
+  eliminates the ink dot a wet pen leaves at each segment start. The 3-arg overload disables
+  welding (`mergeTolerance = 0`). `computeStats(output)` returns `Stats(travelDistanceMm,
+  pointCount, strokeCount)` for before/after reporting. Preserves layer id/station/color.
 - **`MultipassStage#apply(output, passes)`** — duplicates each layer's draw
   commands `passes` times (pigment/ink build-up). Identity at `passes <= 1`.
 - **`PathOptimizer`** — greedy nearest-neighbour stroke ordering.
@@ -397,13 +403,17 @@ Swing + FlatLaf dark theme. `GantryApp#main` sets up `FlatDarkLaf`, builds a
   `PlotService`-facing settings). `TimeEstimator` estimates plot duration —
   per layer it sums `travelDist/feedRateTravel + drawDist/feedRateDraw` plus
   fixed overheads: `REFILL_SECONDS` (0.5s) per `RefillCommand`, matching
-  `PlotService.performRefill`'s dwell, and `PEN_DOWN_SECONDS` (0.15s) per
-  `DrawCommand`, matching `GcodeBackend.pendown()`'s settle sleep (charged
+  `PlotService.performRefill`'s dwell, and `gcode.penDownDelayMillis / 1000`
+  per `DrawCommand`, matching `GcodeBackend.pendown()`'s settle sleep (charged
   once per pen-down regardless of `penMode` — servo and Z-axis moves both
   pay it). On hatch-dense drawings with many short strokes, the pen-down
   overhead can dominate the distance-based terms, so it must not be dropped
-  when re-deriving this formula. `CommandFile` handles command-JSON load/save
-  plumbing.
+  when re-deriving this formula. The dwell is configurable via
+  `GcodeOptions.penDownDelayMillis` (default 80ms, settable to 0): it lets a
+  slow servo/Z finish lowering before drawing, but kept short because a long
+  dwell leaves a wet pen pooling an ink dot at each line's start — the
+  `OptimizeStage` weld pass (§6) is the structural fix, this is the per-pen
+  tuning knob. `CommandFile` handles command-JSON load/save plumbing.
 
 The GUI runs long operations off the EDT (a `runBusy(...)` helper) and the plot on
 its own thread, marshaling UI updates back via Swing.

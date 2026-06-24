@@ -50,6 +50,7 @@ public class SettingsPanel extends JPanel {
     private final JSpinner zDownSpinner = new JSpinner(new SpinnerNumberModel(0.0, -50.0, 50.0, 0.5));
     private final JSpinner drawSpeedSpinner = new JSpinner(new SpinnerNumberModel(1000, 1, 20000, 100));
     private final JSpinner travelSpeedSpinner = new JSpinner(new SpinnerNumberModel(3000, 1, 20000, 100));
+    private final JSpinner penDownDelaySpinner = new JSpinner(new SpinnerNumberModel(80, 0, 2000, 10));
 
     private final StationTableModel stationTableModel = new StationTableModel();
     private final JTable stationTable = new JTable(stationTableModel);
@@ -146,6 +147,9 @@ public class SettingsPanel extends JPanel {
         addRow(panel, gbc, "Z Down (mm)", zDownSpinner);
         addRow(panel, gbc, "Draw Feed Rate", drawSpeedSpinner);
         addRow(panel, gbc, "Travel Feed Rate", travelSpeedSpinner);
+        penDownDelaySpinner.setToolTipText("Dwell after pen-down (ms). Lower this if lines start "
+                + "with an ink blob; raise it only if a slow pen skips the first millimetre.");
+        addRow(panel, gbc, "Pen Down Delay (ms)", penDownDelaySpinner);
 
         return panel;
     }
@@ -227,6 +231,7 @@ public class SettingsPanel extends JPanel {
         zDownSpinner.setValue(config.gcode.zDown);
         drawSpeedSpinner.setValue(config.gcode.feedRateDraw);
         travelSpeedSpinner.setValue(config.gcode.feedRateTravel);
+        penDownDelaySpinner.setValue(config.gcode.penDownDelayMillis);
 
         stationTableModel.setStations(config.stations);
     }
@@ -260,6 +265,7 @@ public class SettingsPanel extends JPanel {
         config.gcode.zDown = (Double) zDownSpinner.getValue();
         config.gcode.feedRateDraw = (Integer) drawSpeedSpinner.getValue();
         config.gcode.feedRateTravel = (Integer) travelSpeedSpinner.getValue();
+        config.gcode.penDownDelayMillis = (Integer) penDownDelaySpinner.getValue();
 
         config.stations = stationTableModel.toStations();
         return config;

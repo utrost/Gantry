@@ -30,6 +30,7 @@ class TimeEstimatorTest {
         GcodeOptions gcode = new GcodeOptions();
         gcode.feedRateTravel = 6000; // 100 mm/s
         gcode.feedRateDraw = 3000;  // 50 mm/s
+        gcode.penDownDelayMillis = 150; // pin the dwell so the expected total is independent of the default
 
         Layer layer = new Layer("L1", "default_station", List.of(
                 new MoveCommand(1, 100, 0),
@@ -50,6 +51,7 @@ class TimeEstimatorTest {
     void penDownOverheadIsChargedOncePerDrawCommand() {
         GcodeOptions gcode = new GcodeOptions();
         gcode.feedRateDraw = 6000; // 100 mm/s, so distance-driven time is negligible/zero here
+        gcode.penDownDelayMillis = 150; // pin the dwell so the expected total is independent of the default
 
         // Two separate strokes (e.g. two hatch lines), each its own DrawCommand/pen-down cycle.
         Layer layer = new Layer("L1", "default_station", List.of(
@@ -60,6 +62,21 @@ class TimeEstimatorTest {
 
         // 2 pen-downs @ 0.15s each, zero-length strokes contribute no draw distance.
         assertEquals(0.30, est.layers().get(0).estimatedSeconds(), 1e-6);
+    }
+
+    @Test
+    void penDownDelayIsConfigurableAndZeroRemovesTheOverhead() {
+        GcodeOptions gcode = new GcodeOptions();
+        gcode.feedRateDraw = 6000;
+        gcode.penDownDelayMillis = 0; // fast pen: no settle dwell at all
+
+        Layer layer = new Layer("L1", "default_station", List.of(
+                new DrawCommand(1, List.of(new Point(0, 0), new Point(0, 0))),
+                new DrawCommand(2, List.of(new Point(0, 0), new Point(0, 0)))));
+
+        TimeEstimator.PlotEstimate est = TimeEstimator.estimate(output(layer), gcode, Map.of());
+
+        assertEquals(0.0, est.layers().get(0).estimatedSeconds(), 1e-6);
     }
 
     @Test
