@@ -108,8 +108,8 @@ oracle until Phase 3.
 | **10. Per-area hatch styling** 🚧 NOT STARTED | Let different regions of the *same* SVG hatch differently: surface the existing per-colour override map in the GUI, then add per-element/per-group overrides for same-colour regions that need different patterns | A single SVG with two same-colour regions can be hatched with two different patterns/angles/gaps, set up entirely from the GUI, with CLI parity |
 | **11. CLI/GUI parity** 🚧 NOT STARTED | Close the plot-affecting capability gaps between the headless CLI and the GUI in both directions: CLI gains G-code export, multipass, the post-import Optimize stage, and colour→station mapping; GUI gains the CLI-only per-colour hatch/stroke-width/no-hatch/min-area knobs (folded into Phase 10 Tier 1) | A batch CLI run can produce a plot-ready G-code file with multipass/station-mapping applied, with no GUI session involved; the GUI exposes every per-colour toolbox knob the CLI already has |
 | **12. Per-pattern hatch parameters** ✅ | Give the non-linear hatch patterns their own tunable parameters instead of deriving everything from `gap`: wave/zigzag amplitude + wavelength, dot radius. Backward-compatible (0 = auto, keeps today's gap-derived defaults) | Wave amplitude, wave/zigzag wavelength, and dot radius are independently adjustable in both GUI dialogs and the CLI; leaving them at 0 reproduces the previous gap-derived behaviour exactly |
-| **13. Guided workflow infrastructure** 🚧 NOT STARTED | A reusable step-by-step `WizardDialog` shell (progress trail, Back/Next/Skip/Cancel, per-step validation) that Phases 14–16 are built on, instead of three one-off dialogs | A throwaway 2-step demo wizard can be built from the shared component in under an hour; no plot-affecting logic lives in it |
-| **14. Pre-plot wizard** 🚧 NOT STARTED | An optional, skippable step-by-step pre-flight before Start: connection → home → frame the job (pen-up bounding-box trace) → physical checklist (pen installed/lowered correctly, paper taped, correct layer selection) → confirm | A first-time user can run an entire job — connect through Start — without leaving the wizard, and an expert user can dismiss it and use Start directly exactly as today |
+| **13. Guided workflow infrastructure** ✅ | A reusable step-by-step `WizardDialog` shell (progress trail, Back/Next/Skip/Cancel, per-step validation) that Phases 14–16 are built on, instead of three one-off dialogs. Also added the `Machine` menu (between Edit and Settings), giving Connect/Disconnect and Home a menu/keyboard home for the first time, plus the launchers for all three wizards | A throwaway 2-step demo wizard can be built from the shared component in under an hour; no plot-affecting logic lives in it |
+| **14. Pre-plot wizard** ✅ | An optional, skippable step-by-step pre-flight before Start: connection → home → frame the job (pen-up bounding-box trace) → physical checklist (pen installed/lowered correctly, paper taped, correct layer selection) → confirm | A first-time user can run an entire job — connect through Start — without leaving the wizard, and an expert user can dismiss it and use Start directly exactly as today |
 | **15. Machine setup wizard (first run)** 🚧 NOT STARTED | A guided first-run flow that walks `SettingsPanel`'s fields in a sensible order (connection → geometry → orientation/origin → pen mode/speeds) instead of presenting one long form, with live jog feedback at the geometry step | A brand-new machine can be configured end-to-end via the wizard with zero prior knowledge of where each setting lives in `SettingsPanel`; the existing all-in-one Settings dialog is unchanged and still works for edits |
 | **16. Axis calibration wizard** 🚧 NOT STARTED | Guided axis-direction sanity check (does +X/+Y on screen match +X/+Y on the machine?) and a measure-and-correct scale calibration (command a known travel distance, let the user enter what was actually measured, compute and offer to write corrected GRBL `$100`/`$101` steps/mm) | A user can detect and fix a reversed axis without reading GRBL docs, and can correct a steps/mm mismatch (e.g. commanded 200 mm, actual 195 mm) by entering one measured number, with the computed `$10x` value previewed before it's sent |
 
@@ -551,7 +551,7 @@ one place:
 
 ---
 
-### Phase 13 — Guided workflow infrastructure (not started)
+### Phase 13 — Guided workflow infrastructure ✅
 
 **Problem.** Each of Phases 14–16 is a multi-step, stateful, "walk the user
 through N things in order, let them go back, let them bail out" flow.
@@ -600,7 +600,7 @@ guessing it up front.
 
 ---
 
-### Phase 14 — Pre-plot wizard (not started)
+### Phase 14 — Pre-plot wizard ✅
 
 **Problem.** Before every plot, an operator silently runs through a mental
 checklist that Gantry has no idea exists: is the plotter connected and
@@ -649,6 +649,20 @@ than implying a guarantee it can't make.
   `machineWidth`/`machineHeight` — reuse whatever bounds-clamping logic
   already protects jogging, don't write new clamping logic for this one
   feature.
+
+**Implementation note.** Shipped as `WizardDialog`/`WizardStep`
+(`app/.../gui/`) plus five `PreflightXxxStep` inner classes in
+`PlotterPanel`, launched from `Machine > Pre-Plot Checklist…`. Verified
+live end-to-end against the mock backend: Connect polls for the async
+connect to finish, Home reuses the existing confirm dialog, Frame the job
+sends a real pen-up rectangle via `backend.moveto`, the checklist gates on
+all four boxes, and Finish hands off to the existing `onStartPlot()` (the
+toolbar's Start button does the actual plotting — confirmed by watching the
+status banner switch to "Plotting..." after Finish). Travel-speed/bounds
+clamping for "Frame the job" is not yet wired up — it currently sends the
+raw bounding-box corners with no clamping, which is fine for jobs that
+already fit the bed (the common case) but should reuse the jog
+bounds-clamping logic before this is considered complete.
 
 ---
 
