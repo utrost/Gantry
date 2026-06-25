@@ -20,15 +20,23 @@ It converts SVG files into G-code and streams it to a GRBL-based plotter over se
 ./scripts/start.sh        # or start.cmd on Windows
 ```
 
-The GUI opens. For a first run, go to **Settings** and configure your machine
-before doing anything else — see **First start** below.
+The GUI opens. On a brand-new install (no `config.json` yet) it offers to run
+the guided **Setup Wizard** right away — take it, or configure manually via
+**Settings** — see **First start** below either way.
 
 ---
 
 ## First start
 
-Do this once per machine, before importing or plotting anything. Open
-**Settings**, work through the sections top to bottom, then **Save**.
+Do this once per machine, before importing or plotting anything.
+
+The easiest way is **Machine > Setup Wizard...** (also offered automatically
+on first launch, and from a button inside **Settings**): it walks through
+Connection, Machine geometry/origin/orientation, and Pen/speed step by step,
+using the same fields described below, then saves on **Finish**.
+
+Equivalently, open **Settings** directly and work through the sections top to
+bottom, then **Save**:
 
 ### 1. Connection
 
@@ -94,6 +102,23 @@ around.
 Once jogging feels right and the bed dimensions/origin are correct, you're
 ready to import an SVG.
 
+If a commanded jog distance doesn't match what the carriage actually moved
+(steps/mm is off), use **Machine > Calibrate Axes...** — see
+[Machine menu](#machine-menu) below — rather than fudging Width/Height to
+compensate.
+
+---
+
+## Machine menu
+
+| Item | What it does |
+|---|---|
+| **Connect** / **Disconnect** | Opens or closes the serial connection to the plotter (same as the **Connect** button). |
+| **Home** | Runs the homing cycle against the limit switches (`$H`) — same as **Home (limit switches)** in the Jog section. |
+| **Pre-Plot Checklist...** | A guided wizard covering connect → home → frame-the-job (traces the current drawing's bounding box on the bed so you can confirm it fits and the pen tracks correctly) → a final physical-checks page (paper taped down, pen loaded, bed clear). Can also be launched from the **Pre-flight...** button next to **Start Plot**, and runs automatically before **Start Plot** when the Settings toggle below is on. |
+| **Setup Wizard...** | The guided first-time setup described in [First start](#first-start) — Connection, Machine geometry/origin/orientation, Pen/speed, in order, re-using the exact same fields as **Settings**. Safe to re-run any time to revisit those settings step by step. |
+| **Calibrate Axes...** | Checks jog direction (jogs +X/+Y and lets you flip **Extra Invert X/Y** if the carriage moved the wrong way), then calibrates X and Y steps/mm: jog a commanded distance, measure what actually moved with a ruler, enter both, and the wizard computes a corrected `$100`/`$101` value and writes it to the controller on request. Requires a real or mock connection; each axis's scale step is optional, so direction-only or X-only/Y-only runs are fine. |
+
 ---
 
 ## Workflow
@@ -139,6 +164,7 @@ Open with the **Settings** button. Changes take effect after clicking **Save**.
 | Serial port | A dropdown of detected ports (click **Refresh** to rescan), or type one manually. On Windows this is `COM3`, `COM4`, etc. (check Device Manager → Ports (COM & LPT) if unsure); on Linux/macOS it's a device path such as `/dev/ttyUSB0` or `/dev/ttyACM0`. The field is editable so a port not yet plugged in can still be typed in. |
 | Baud rate | Default 115200 |
 | Mock backend | Simulates the plotter without a serial connection — useful for testing |
+| Run Pre-Plot Checklist before Start | When on (default), clicking **Start Plot** opens the **Pre-Plot Checklist** wizard (see [Machine menu](#machine-menu)) instead of plotting immediately. Turn off to skip straight to plotting. |
 
 ### Machine geometry
 
@@ -345,7 +371,9 @@ global pen-down position.
 
 1. Connect to the plotter with **Connect**.
 2. Adjust speed if needed with **Speed +** / **Speed −** / **Reset** in the Jog section.
-3. Click **Start Plot**.
+3. Click **Start Plot** (or the **Pre-flight...** button to run the checklist on demand without
+   starting). By default **Start Plot** opens the **Pre-Plot Checklist** wizard first — see
+   [Machine menu](#machine-menu); disable that in Settings to skip straight to plotting.
 4. For each layer, the plotter will pause and wait for you to click **Confirm Layer** before continuing (allows brush/pen changes). When a layer finishes, the head automatically raises the pen and returns to the origin (0, 0), so it's parked clear for a pen swap while you confirm the next layer.
 5. Click **Pause** at any time to halt motion and raise the pen; click **Resume** (same button) to continue from where it left off.
 6. Click **Stop** at any time to cancel. This immediately halts the plotter (including any motion already queued on the controller) and raises the pen, rather than just stopping new commands from being sent.
