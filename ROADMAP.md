@@ -520,6 +520,35 @@ machine should be able to ignore every wizard and use Connect/Home/Start
 exactly as today. These are guard rails, not a replacement for the existing
 controls.
 
+**GUI/UX — where these live.** Surfaced by frequency, not all crammed into
+one place:
+- **A new top-level `Machine` menu**, between `Edit` and `Settings`. Today
+  `Connect` and `Home` exist *only* as canvas buttons with no menu/keyboard
+  path at all — `Machine` fixes that and becomes the one discoverable home
+  for every physical-plotter action: `Connect`/`Disconnect`, `Home`, then
+  `Setup Wizard…`, `Calibrate Axes…`, and `Pre-Plot Checklist…`. This menu
+  is itself a Phase 13 deliverable, since it's the shared entry point all
+  three wizards hang off.
+- **Pre-plot wizard (14)** also gets a `Pre-flight…` button right beside
+  Start/Pause/Stop, since it's the only one of the three run on *every*
+  job — it earns main-screen real estate; the other two don't. A Settings
+  toggle ("Run pre-plot checklist before plotting," default on for fresh
+  installs) optionally routes the existing `Start` button through it, so
+  beginners get guard rails by default while `Start` still plots directly
+  for anyone who turns the toggle off — never a second code path, the
+  wizard calls the exact same `PlotService` methods.
+- **Setup wizard (15)** and **Calibrate wizard (16)** are once-per-machine/
+  diagnostic, not every-job, so they don't get permanent canvas buttons —
+  they live in the `Machine` menu and as launcher buttons at the top of
+  `SettingsPanel` ("Run Setup Wizard…" / "Calibrate Axes…"), since anyone
+  who opened Settings to fix geometry is exactly who wants the guided path
+  to the same fields. Setup additionally gets a non-blocking first-run
+  prompt ("New machine? Run the Setup Wizard.") when `config.json` is
+  missing or all-default, so the people who most need it don't have to go
+  hunting for a menu item.
+- Expert paths are never removed: Connect/Home/Start/Settings keep working
+  exactly as they do today, with or without any wizard ever being opened.
+
 ---
 
 ### Phase 13 — Guided workflow infrastructure (not started)
@@ -550,6 +579,12 @@ validators; the shell just sequences them.
 - No persistence, no hardware calls, no plot-domain logic in this layer —
   keep it generic so it's trivially unit-testable without a serial port or
   Swing event thread tricks beyond what `WizardDialogTest` needs.
+- **New top-level `Machine` menu** in `PlotterPanel.buildMenuBar()`, between
+  `Edit` and `Settings` — the shared entry point all three wizards hang off.
+  Moves `Connect`/`Disconnect` and `Home` in as proper menu items (today
+  they exist only as canvas buttons with no menu/keyboard path), and adds
+  `Setup Wizard…`, `Calibrate Axes…`, and `Pre-Plot Checklist…` items that
+  launch the wizards built in Phases 14–16.
 
 **Exit criteria.** A throwaway 2-step demo wizard (e.g. "type your name" →
 "confirm") can be assembled from the shared component in under an hour, with
