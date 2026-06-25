@@ -108,6 +108,10 @@ oracle until Phase 3.
 | **10. Per-area hatch styling** 🚧 NOT STARTED | Let different regions of the *same* SVG hatch differently: surface the existing per-colour override map in the GUI, then add per-element/per-group overrides for same-colour regions that need different patterns | A single SVG with two same-colour regions can be hatched with two different patterns/angles/gaps, set up entirely from the GUI, with CLI parity |
 | **11. CLI/GUI parity** 🚧 NOT STARTED | Close the plot-affecting capability gaps between the headless CLI and the GUI in both directions: CLI gains G-code export, multipass, the post-import Optimize stage, and colour→station mapping; GUI gains the CLI-only per-colour hatch/stroke-width/no-hatch/min-area knobs (folded into Phase 10 Tier 1) | A batch CLI run can produce a plot-ready G-code file with multipass/station-mapping applied, with no GUI session involved; the GUI exposes every per-colour toolbox knob the CLI already has |
 | **12. Per-pattern hatch parameters** ✅ | Give the non-linear hatch patterns their own tunable parameters instead of deriving everything from `gap`: wave/zigzag amplitude + wavelength, dot radius. Backward-compatible (0 = auto, keeps today's gap-derived defaults) | Wave amplitude, wave/zigzag wavelength, and dot radius are independently adjustable in both GUI dialogs and the CLI; leaving them at 0 reproduces the previous gap-derived behaviour exactly |
+| **13. Guided workflow infrastructure** 🚧 NOT STARTED | A reusable step-by-step `WizardDialog` shell (progress trail, Back/Next/Skip/Cancel, per-step validation) that Phases 14–16 are built on, instead of three one-off dialogs | A throwaway 2-step demo wizard can be built from the shared component in under an hour; no plot-affecting logic lives in it |
+| **14. Pre-plot wizard** 🚧 NOT STARTED | An optional, skippable step-by-step pre-flight before Start: connection → home → frame the job (pen-up bounding-box trace) → physical checklist (pen installed/lowered correctly, paper taped, correct layer selection) → confirm | A first-time user can run an entire job — connect through Start — without leaving the wizard, and an expert user can dismiss it and use Start directly exactly as today |
+| **15. Machine setup wizard (first run)** 🚧 NOT STARTED | A guided first-run flow that walks `SettingsPanel`'s fields in a sensible order (connection → geometry → orientation/origin → pen mode/speeds) instead of presenting one long form, with live jog feedback at the geometry step | A brand-new machine can be configured end-to-end via the wizard with zero prior knowledge of where each setting lives in `SettingsPanel`; the existing all-in-one Settings dialog is unchanged and still works for edits |
+| **16. Axis calibration wizard** 🚧 NOT STARTED | Guided axis-direction sanity check (does +X/+Y on screen match +X/+Y on the machine?) and a measure-and-correct scale calibration (command a known travel distance, let the user enter what was actually measured, compute and offer to write corrected GRBL `$100`/`$101` steps/mm) | A user can detect and fix a reversed axis without reading GRBL docs, and can correct a steps/mm mismatch (e.g. commanded 200 mm, actual 195 mm) by entering one measured number, with the computed `$10x` value previewed before it's sent |
 
 ### Phase 8 — in progress (post-cutover self-audit)
 
@@ -486,6 +490,247 @@ changing behaviour for anyone who doesn't touch the new controls.
 (wave and zigzag share the two fields; their differing default ratios are
 preserved only on the auto path). Good enough — when set explicitly, both
 interpret amplitude/wavelength the obvious way.
+
+---
+
+### Phases 13–16 — Guided workflows (not started)
+
+**Why this group exists.** Phases 0–12 are all about *preparing geometry*
+correctly. None of them help with the surrounding physical process: is the
+right pen in the holder, is the paper actually taped where the machine
+thinks it is, does "+X on screen" actually mean "+X on the table," is the
+machine's steps/mm even correct out of the box? Today that's all tribal
+knowledge the operator has to carry in their head, every time, with the only
+machine-side help being a static three-line banner (`PlotterPanel`'s "Step
+1/2/3" guidance text) and a single `$H` homing command — no checklist, no
+guided setup, no calibration aid. Three different audiences need three
+different guided flows, so this lands as one shared infrastructure phase plus
+three independent wizards built on it:
+
+- **A first-time owner** setting up a brand-new machine (Phase 15).
+- **Anyone, occasionally** — when an axis seems backwards or a measured
+  distance doesn't match the commanded one (Phase 16).
+- **Every operator, every job** — the pre-flight before clicking Start
+  (Phase 14), which is the direct evolution of the "frame the job" idea
+  discussed earlier: framing is one *step* inside this wizard, not a
+  standalone feature.
+
+All three are explicitly **optional** — an expert operator who knows their
+machine should be able to ignore every wizard and use Connect/Home/Start
+exactly as today. These are guard rails, not a replacement for the existing
+controls.
+
+---
+
+### Phase 13 — Guided workflow infrastructure (not started)
+
+**Problem.** Each of Phases 14–16 is a multi-step, stateful, "walk the user
+through N things in order, let them go back, let them bail out" flow.
+Building three of those as independent one-off `JDialog`s would mean writing
+the same Back/Next/progress-trail/cancel-confirmation plumbing three times
+(`SvgImportDialog`/`EditProcessDialog`'s tab pattern doesn't fit — those are
+flat tabs with no ordering or step validation, not a sequence).
+
+**Goal.** One small, reusable `WizardDialog` (or similarly named) component
+that owns step navigation, a progress trail ("Step 2 of 5"), Back/Next/
+Skip/Cancel, and per-step validation (can't advance until the step's
+precondition is met) — with zero plotting/hardware knowledge of its own.
+Each concrete wizard (14/15/16) supplies a list of step panels plus
+validators; the shell just sequences them.
+
+**Scope:**
+- `WizardDialog` (shell): renders the current step's panel, a left-side or
+  top progress trail, and Back/Next/Skip/Cancel wired to a `WizardStep`
+  interface (`JComponent panel()`, `boolean canAdvance()`, `void onEnter()`/
+  `onLeave()` hooks for steps that need to kick off an action — e.g. "send
+  $H and wait" — when shown).
+- A step can mark itself **optional** (shows Skip) or **gating** (Next
+  disabled until `canAdvance()` is true — e.g. "click Connect" or "enter the
+  measured distance").
+- No persistence, no hardware calls, no plot-domain logic in this layer —
+  keep it generic so it's trivially unit-testable without a serial port or
+  Swing event thread tricks beyond what `WizardDialogTest` needs.
+
+**Exit criteria.** A throwaway 2-step demo wizard (e.g. "type your name" →
+"confirm") can be assembled from the shared component in under an hour, with
+a test covering: Next disabled until `canAdvance()`, Skip bypasses a step
+marked optional, Cancel closes without side effects, Back returns to a
+step's previously-entered state.
+
+**Risks:** over-engineering a generic framework before a second concrete use
+case exists to validate the abstraction. *Mitigation:* build this phase
+*alongside* Phase 14 (the first concrete consumer), not in isolation —
+let the pre-plot wizard's real needs shape the interface instead of
+guessing it up front.
+
+---
+
+### Phase 14 — Pre-plot wizard (not started)
+
+**Problem.** Before every plot, an operator silently runs through a mental
+checklist that Gantry has no idea exists: is the plotter connected and
+homed, is the right pen physically in the holder and lowered/raised
+correctly for the configured pen mode, is the paper taped down where the
+machine thinks the origin is, is the layer selection actually what's
+intended for this run? Today, getting any of these wrong just produces a
+ruined plot — there's no machine-assisted way to verify any of them, and
+"frame the job" (tracing the bounding box pen-up before committing) doesn't
+exist at all.
+
+**Goal.** An optional, fully skippable step-by-step flow that takes an
+operator from "plotter connected" to "plot started" with verification at
+each physical handoff point, built on Phase 13's `WizardDialog`.
+
+**Scope — steps (in order, each individually skippable):**
+1. **Connect** — gating step; if already connected, auto-advances.
+2. **Home** — runs the existing `backend.home()` (`GcodeBackend.java:254`);
+   gating on success, surfaces the existing error path if homing fails.
+3. **Frame the job** — pen-up move around the bounding box of the composed
+   output (reusing `visPanel.getRawBounds()` and the existing
+   `CoordinateTransform`), repeatable ("Trace again") so the operator can
+   re-check after adjusting paper; optional/skippable, since not every job
+   needs the physical check (e.g. a re-run of a job already verified once).
+4. **Physical checklist** — a plain checklist panel, *not* machine-verified
+   (Gantry has no sensor for any of this): "Correct pen installed for the
+   configured pen mode," "Pen lowered/raised correctly" (text adapts to the
+   configured `penMode` — servo angle vs. Z-axis lift — so the prompt
+   matches what the operator should actually see happen), "Paper taped down
+   at the framed area," "Correct layers selected" (echoes the current
+   Layers checklist state from `PlotterPanel` so it's a confirmation, not a
+   duplicate control).
+5. **Confirm & start** — summary of layers/passes/estimated time (reusing
+   `TimeEstimator`), then calls the existing `Start` action.
+
+**Out of scope:** anything that requires new hardware sensing (e.g.
+detecting whether the pen is *actually* lowered) — the checklist step is
+explicitly operator-attested, not machine-verified, and should say so rather
+than implying a guarantee it can't make.
+
+**Risks:**
+- Must not become a second code path for connect/home/start — every step
+  should call the *exact same* `PlotService`/`PlotterPanel` methods the
+  non-wizard buttons call, so behaviour (and bugs) stay in one place.
+- "Frame the job" needs a safe travel speed and to stay within
+  `machineWidth`/`machineHeight` — reuse whatever bounds-clamping logic
+  already protects jogging, don't write new clamping logic for this one
+  feature.
+
+---
+
+### Phase 15 — Machine setup wizard (first run) (not started)
+
+**Problem.** `SettingsPanel` (`SettingsPanel.java:17-369`) is a single long
+scrollable form covering connection, machine geometry, orientation, pen
+mode/speeds, and refill stations — accurate and complete, but it assumes the
+user already knows what every field means and in what order to fill them
+in. There is no first-run flow at all: a brand-new install just opens
+straight to the main window with default `config.json` values, and a
+new machine owner has to discover Settings and work out the right order
+themselves (the `docs/USER_GUIDE.md` "First start" section currently carries
+that burden in prose).
+
+**Goal.** A guided first-run flow, built on Phase 13, that walks the same
+underlying `GantryConfig`/`GcodeOptions` fields `SettingsPanel` already
+edits, in a deliberate order, with live feedback where it helps (e.g. jog
+buttons right there at the geometry step so width/height can be sanity
+checked against real machine movement, not just typed in blind).
+
+**Scope — steps (in order):**
+1. **Connection** — port, baud, mock-backend toggle; same fields as
+   `SettingsPanel`'s Connection section, gating on a successful test
+   connect.
+2. **Machine geometry** — width/height, with inline jog buttons (reusing
+   `PlotterPanel`'s existing jog action) so the operator can move to a
+   physical edge and confirm the entered dimension matches reality, instead
+   of the wizard *asserting* a number it can't verify on its own.
+3. **Origin & orientation** — machine origin corner, landscape/portrait,
+   axis invert/swap — presented with a live preview of "this is where (0,0)
+   will be and which way +X/+Y point" (reusing `VisualizationPanel`'s
+   existing bed-outline rendering, not a new preview widget).
+4. **Pen mode & speeds** — servo vs. Z-axis vs. M3/M5, the mode-specific
+   sub-fields, draw/travel feed rates, pen-down delay.
+5. **Done** — writes the same `config.json` via the existing `ConfigStore`;
+   from here on `SettingsPanel` remains the tool for *editing* any of this
+   later. The wizard is an onboarding path, not a replacement UI.
+
+**Out of scope:** refill-station setup (Settings' Refill Stations table) —
+that's watercolor-specific and already has its own dedicated UI; folding it
+into a generic "first run" flow would force every plain pen-plotter owner
+through watercolor questions that don't apply to them.
+
+**Risks:** duplicating `SettingsPanel`'s field logic instead of reusing it.
+*Mitigation:* each wizard step should embed the *same* sub-panel
+`SettingsPanel` uses for that section (extracting them into shared
+components if they're not already separable) rather than re-implementing
+spinners/combos a second time — same lesson as Phase 6's
+`ToolboxOptionsPanel` extraction.
+
+---
+
+### Phase 16 — Axis calibration wizard (not started)
+
+**Problem.** Gantry has no machine-direction sanity check beyond trusting
+the `invertX`/`invertY`/`swapXY` settings the operator typed in, and no
+concept of physical scale calibration at all — `GcodeOptions` has no
+steps-per-mm field, and `GcodeBackend` never reads or writes GRBL's `$$`
+settings (confirmed: no `$100`/`$101`/`$102` read or write path exists
+today). If a machine's steps/mm is slightly off out of the box (a commanded
+200 mm move actually measuring 195 mm), or an axis is wired backwards, the
+only way to find out today is a ruined plot.
+
+**Goal.** Two guided, independent checks an operator can run without
+reading GRBL documentation:
+1. **Direction check** — confirm "+X on screen" matches "+X on the table"
+   (and same for Y), surfacing a one-click fix into the existing
+   `invertX`/`invertY`/`swapXY` settings rather than requiring the operator
+   to edit GRBL settings directly.
+2. **Scale calibration** — command a known travel distance, let the
+   operator measure the actual physical distance with a ruler and enter it,
+   compute the corrected steps/mm, and preview the resulting `$100=`/
+   `$101=` value before sending it to the controller.
+
+**Scope — direction check:**
+- Jog a small, fixed distance (e.g. 20 mm) on one axis at a time; ask "did
+  the pen move toward you or away?" (plain-language, not "+X or -X," since
+  that's exactly the confusion this step exists to resolve).
+- If the answer doesn't match the configured `invertX`/`Y`, offer to flip
+  the corresponding setting in `GantryConfig` directly — this is pure
+  software-side correction (today's existing inversion flags), no GRBL
+  write involved, so it's low-risk and reuses an existing mechanism.
+
+**Scope — scale calibration:**
+- Command a deliberately large, known move (e.g. 200 mm) at a safe travel
+  speed; prompt the operator to measure the actual distance moved with a
+  ruler/tape and type in what they measured.
+- Compute `correctedStepsPerMm = currentStepsPerMm × (commandedMm /
+  measuredMm)`. This needs `GcodeBackend` to gain the ability to (a) read
+  the controller's current `$100`/`$101` via `$$` (parse the response,
+  which it has never had to do before — new parsing logic, not just a new
+  command) and (b) send a `$100=<value>` write — both genuinely new
+  plumbing, not wiring onto something that already exists.
+- Preview the computed value and require an explicit confirm before
+  writing it to the controller — a wrong write here silently changes how
+  every future move is scaled, so this should never be a silent autocorrect.
+- Repeat per axis (X and Y independently, since belt stretch/pulley
+  mismatches are rarely identical on both).
+
+**Out of scope:** Z-axis steps/mm calibration (servo-mode and most Z-lift
+setups don't need it the way X/Y travel does); skew/orthogonality
+calibration (are X and Y perfectly perpendicular) — a real but much rarer
+problem, and a different, harder calibration entirely.
+
+**Risks:**
+- This is the riskiest of the three wizards because it's the only one that
+  *writes to the controller's persistent settings* (`$100=`/`$101=` survive
+  power cycles) rather than just to Gantry's own `config.json` — a mistake
+  here outlives the Gantry session. *Mitigation:* always show the current
+  value, the computed new value, and require explicit confirmation; log the
+  old value so an operator can manually revert via `$100=<old value>` if the
+  computed correction was wrong (e.g. mismeasurement).
+- Needs new GRBL-response parsing (`$$` settings dump) that nothing in
+  `GcodeBackend` does today — should land with its own focused unit tests
+  against canned GRBL `$$` output before any wizard UI is built on top of it,
+  same sequencing lesson as Phase 9's "data-model-first, GUI-second."
 
 ---
 
