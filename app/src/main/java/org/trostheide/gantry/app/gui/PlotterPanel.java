@@ -679,7 +679,17 @@ public class PlotterPanel extends JPanel {
             log("ERROR: No drawing loaded.");
             return;
         }
-        double[] bounds = visPanel.getRawBounds();
+        // Frame exactly what Start would plot: same layer selection, same transform/alignment, and
+        // the same soft-clamp-to-bed that the plot pipeline applies, so the trace can never command
+        // the head outside the machine even if the drawing overhangs the bed.
+        ProcessorOutput toFrame = preparePlotOutput();
+        PlotSettings settings = config.toPlotSettings();
+        settings.alignmentOffsetOverride = new double[] { visPanel.getAlignOffsetX(), visPanel.getAlignOffsetY() };
+        double[] bounds = new PlotService(backend, settings).computeFrameBounds(toFrame);
+        if (bounds == null) {
+            log("ERROR: Nothing to frame (no drawable points in the selected layers).");
+            return;
+        }
         double minX = bounds[0], maxX = bounds[1], minY = bounds[2], maxY = bounds[3];
         runOnBackend(b -> {
             b.penup();
@@ -688,7 +698,7 @@ public class PlotterPanel extends JPanel {
             b.moveto(maxX, maxY);
             b.moveto(minX, maxY);
             b.moveto(minX, minY);
-            log("Framed job bounds: (" + minX + ", " + minY + ") to (" + maxX + ", " + maxY + ")");
+            log(String.format("Framed job bounds: (%.1f, %.1f) to (%.1f, %.1f)", minX, minY, maxX, maxY));
         });
     }
 

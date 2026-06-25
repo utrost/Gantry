@@ -658,11 +658,14 @@ connect to finish, Home reuses the existing confirm dialog, Frame the job
 sends a real pen-up rectangle via `backend.moveto`, the checklist gates on
 all four boxes, and Finish hands off to the existing `onStartPlot()` (the
 toolbar's Start button does the actual plotting — confirmed by watching the
-status banner switch to "Plotting..." after Finish). Travel-speed/bounds
-clamping for "Frame the job" is not yet wired up — it currently sends the
-raw bounding-box corners with no clamping, which is fine for jobs that
-already fit the bed (the common case) but should reuse the jog
-bounds-clamping logic before this is considered complete.
+status banner switch to "Plotting..." after Finish). "Frame the job" now
+runs the selected layers through the same transform/alignment pipeline the
+plot uses (`PlotService.computeFrameBounds`, sharing the corner-transform
+helper with the existing pre-flight bounds check) and soft-clamps each
+corner to the bed, so the trace can never command the head outside the
+machine even when the drawing overhangs — verified against a deliberately
+overhanging A4-fit job, where the raw corners (Y up to 233.5 on a 200mm
+bed) were clamped to a rectangle fully inside the bed.
 
 A `Pre-flight…` button now sits beside `Start`/`Stop` in the main Plot
 section (every-job real estate, as this GUI/UX note originally called

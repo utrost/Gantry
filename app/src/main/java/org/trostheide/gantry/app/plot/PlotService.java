@@ -235,11 +235,48 @@ public class PlotService {
         return hasPoints ? new double[] { minX, maxX, minY, maxY } : null;
     }
 
-    /** Transforms+offsets+flips the four content corners and warns if any fall outside the machine bed. */
-    private void checkPreflightBounds(double[] contentBounds, double machineW, double machineH,
-            double offsetX, double offsetY) {
+    /**
+     * Computes the axis-aligned machine-space bounding box of {@code output} after the full
+     * transform/offset/flip pipeline, soft-clamped to the bed — i.e. the rectangle the head will
+     * actually sweep. The alignment offset is derived exactly as {@link #plot} derives it (the
+     * preview override if set, otherwise the configured canvas alignment). Used by the GUI's
+     * "frame the job" pre-flight trace so it walks the same clamped corners the plot will use,
+     * never commanding the head outside the bed.
+     *
+     * @return {minX, maxX, minY, maxY} in machine coordinates, or null if the output has no points.
+     */
+    public double[] computeFrameBounds(ProcessorOutput output) {
+        double machineW = settings.resolveMachineWidth();
+        double machineH = settings.resolveMachineHeight();
+        double[] contentBounds = computeContentBounds(output.layers());
         if (contentBounds == null) {
-            return;
+            return null;
+        }
+        double offsetX = 0;
+        double offsetY = 0;
+        if (settings.alignmentOffsetOverride != null) {
+            offsetX = settings.alignmentOffsetOverride[0];
+            offsetY = settings.alignmentOffsetOverride[1];
+        } else if (settings.canvasAlign != null) {
+            double[] offset = CoordinateTransform.calculateAlignmentOffset(
+                    settings.canvasAlign, contentBounds, machineW, machineH,
+                    settings.swapXY, settings.invertX, settings.invertY,
+                    settings.dataRotation, settings.originRight,
+                    settings.paddingX, settings.paddingY);
+            offsetX = offset[0];
+            offsetY = offset[1];
+        }
+        return plotBounds(contentBounds, machineW, machineH, offsetX, offsetY, true);
+    }
+
+    /**
+     * Transforms+offsets+flips the four content corners into machine space; optionally soft-clamps
+     * each to the bed. Returns {minX, maxX, minY, maxY}, or null if {@code contentBounds} is null.
+     */
+    private double[] plotBounds(double[] contentBounds, double machineW, double machineH,
+            double offsetX, double offsetY, boolean clamp) {
+        if (contentBounds == null) {
+            return null;
         }
         double minX = contentBounds[0], maxX = contentBounds[1];
         double minY = contentBounds[2], maxY = contentBounds[3];
@@ -254,11 +291,26 @@ public class PlotService {
             if (settings.flipY) {
                 ty = machineH - ty;
             }
+            if (clamp) {
+                tx = Math.max(0.0, Math.min(tx, machineW));
+                ty = Math.max(0.0, Math.min(ty, machineH));
+            }
             plotMinX = Math.min(plotMinX, tx);
             plotMaxX = Math.max(plotMaxX, tx);
             plotMinY = Math.min(plotMinY, ty);
             plotMaxY = Math.max(plotMaxY, ty);
         }
+        return new double[] { plotMinX, plotMaxX, plotMinY, plotMaxY };
+    }
+
+    /** Transforms+offsets+flips the four content corners and warns if any fall outside the machine bed. */
+    private void checkPreflightBounds(double[] contentBounds, double machineW, double machineH,
+            double offsetX, double offsetY) {
+        double[] b = plotBounds(contentBounds, machineW, machineH, offsetX, offsetY, false);
+        if (b == null) {
+            return;
+        }
+        double plotMinX = b[0], plotMaxX = b[1], plotMinY = b[2], plotMaxY = b[3];
 
         logCallback.accept(String.format(
                 "Plot bounds -> X: %.1f to %.1f, Y: %.1f to %.1f", plotMinX, plotMaxX, plotMinY, plotMaxY));
