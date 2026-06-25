@@ -51,6 +51,9 @@ public class PlotterPanel extends JPanel {
     private static final Color ACTION_RED = new Color(198, 40, 40);
 
     private final File configFile = new File("config.json");
+    // Captured before the config loads: a missing config.json means this is a fresh install, which
+    // triggers a one-time offer to run the guided Setup Wizard.
+    private final boolean firstRun = !configFile.exists();
     private GantryConfig config = ConfigStore.load(configFile);
 
     private final VisualizationPanel visPanel = new VisualizationPanel();
@@ -169,6 +172,23 @@ public class PlotterPanel extends JPanel {
         installJogKeyBindings();
         teeConsoleOutput();
         refreshGuidance();
+        maybeOfferFirstRunSetup();
+    }
+
+    /** On a fresh install (no config.json yet), offer to run the guided Setup Wizard once. */
+    private void maybeOfferFirstRunSetup() {
+        if (!firstRun) {
+            return;
+        }
+        SwingUtilities.invokeLater(() -> {
+            int choice = JOptionPane.showConfirmDialog(this,
+                    "It looks like this is the first run (no saved settings yet).\n"
+                            + "Would you like to run the guided Machine Setup wizard now?",
+                    "Welcome to Gantry", JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE);
+            if (choice == JOptionPane.YES_OPTION) {
+                onSetupWizard();
+            }
+        });
     }
 
     /**
@@ -703,15 +723,63 @@ public class PlotterPanel extends JPanel {
     }
 
     /**
-     * Machine setup wizard (roadmap Phase 15). Not yet implemented — first-time geometry/origin/
-     * pen-mode setup will reuse {@link SettingsPanel}'s existing fields rather than duplicating
-     * them; tracked as its own phase since it needs that panel split into reusable sub-steps.
+     * Machine setup wizard (roadmap Phase 15). Walks the {@link SettingsPanel} fields in a sensible
+     * first-run order — connection → geometry → pen/speed — by re-parenting the real section panels
+     * into wizard steps (so there is exactly one set of settings widgets, no duplication). On Finish
+     * it commits, persists and applies the config exactly like {@code Settings > Preferences…}.
      */
     private void onSetupWizard() {
-        JOptionPane.showMessageDialog(this,
-                "The guided Setup Wizard is planned (see ROADMAP.md Phase 15) but not built yet.\n"
-                        + "Use Settings > Preferences... for now.",
-                "Setup Wizard", JOptionPane.INFORMATION_MESSAGE);
+        SettingsPanel settings = new SettingsPanel();
+        settings.loadConfig(config);
+
+        List<WizardStep> steps = new ArrayList<>();
+        steps.add(new PanelStep("Welcome", wrapStep(
+                "<html><h3>Machine setup</h3>This wizard walks the machine settings in the order "
+                        + "you'd set up a new plotter: <b>connection</b>, then <b>bed geometry &amp; "
+                        + "origin</b>, then <b>pen &amp; speeds</b>. You can also reach all of these "
+                        + "any time via <i>Settings &gt; Preferences…</i>.<br><br>Tip: once connected, "
+                        + "use the Jog pad on the main window to confirm the geometry/origin match the "
+                        + "machine before plotting.</html>")));
+        steps.add(new PanelStep("Connection", wrapStep(settings.connectionPanel())));
+        steps.add(new PanelStep("Geometry & origin", wrapStep(settings.geometryPanel())));
+        steps.add(new PanelStep("Pen & speeds", wrapStep(settings.penPanel())));
+        steps.add(new PanelStep("Done", wrapStep(
+                "<html><h3>All set</h3>Click <b>Finish</b> to save these settings and apply them. "
+                        + "Refill stations weren't touched here — edit those under "
+                        + "<i>Settings &gt; Preferences…</i> if you use them.</html>")));
+
+        WizardDialog wizard = new WizardDialog(SwingUtilities.getWindowAncestor(this),
+                "Machine Setup", steps);
+        wizard.setVisible(true);
+        if (wizard.finishedSuccessfully()) {
+            config = settings.toConfig();
+            try {
+                ConfigStore.save(config, configFile);
+            } catch (IOException ex) {
+                log("WARNING: Failed to save config: " + ex.getMessage());
+            }
+            applyConfigToVis();
+            log("Machine setup saved and applied.");
+        }
+    }
+
+    /** Wraps a settings section (or an HTML blurb) in a padded, scrollable wizard-step panel. */
+    private static JComponent wrapStep(JComponent content) {
+        JPanel panel = new JPanel(new BorderLayout());
+        panel.setBorder(BorderFactory.createEmptyBorder(8, 8, 8, 8));
+        panel.add(content, BorderLayout.NORTH);
+        JScrollPane scroll = new JScrollPane(panel);
+        scroll.setBorder(BorderFactory.createEmptyBorder());
+        return scroll;
+    }
+
+    private static JComponent wrapStep(String html) {
+        // Constrain the HTML body width so the prose wraps to the dialog instead of forcing a
+        // horizontal scrollbar (a bare <html> JLabel lays out at its single-line preferred width).
+        String constrained = html.replaceFirst("(?i)<html>", "<html><body style='width:430px'>");
+        JLabel label = new JLabel(constrained);
+        label.setVerticalAlignment(SwingConstants.TOP);
+        return wrapStep(label);
     }
 
     /**
@@ -1402,9 +1470,31 @@ public class PlotterPanel extends JPanel {
     private void onOpenSettings() {
         SettingsPanel settingsPanel = new SettingsPanel();
         settingsPanel.loadConfig(config);
-        int result = JOptionPane.showConfirmDialog(this, new JScrollPane(settingsPanel), "Settings",
-                JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
-        if (result != JOptionPane.OK_OPTION) {
+
+        // "Run Setup Wizard…" closes this all-at-once dialog and hands off to the guided wizard,
+        // which keeps its own settings copy and applies its own result on Finish — so there's never
+        // two live copies of the same fields fighting to save.
+        boolean[] launchWizard = {false};
+        JButton wizardBtn = new JButton("Run Setup Wizard...");
+        wizardBtn.setToolTipText("Walk these settings step by step in setup order instead of all at once.");
+        JPanel header = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
+        header.add(wizardBtn);
+        JPanel wrapper = new JPanel(new BorderLayout(0, 6));
+        wrapper.add(header, BorderLayout.NORTH);
+        wrapper.add(settingsPanel, BorderLayout.CENTER);
+
+        JOptionPane pane = new JOptionPane(new JScrollPane(wrapper), JOptionPane.PLAIN_MESSAGE,
+                JOptionPane.OK_CANCEL_OPTION);
+        JDialog dialog = pane.createDialog(this, "Settings");
+        wizardBtn.addActionListener(e -> { launchWizard[0] = true; dialog.dispose(); });
+        dialog.setVisible(true);
+        dialog.dispose();
+
+        if (launchWizard[0]) {
+            onSetupWizard();
+            return;
+        }
+        if (!Integer.valueOf(JOptionPane.OK_OPTION).equals(pane.getValue())) {
             return;
         }
         config = settingsPanel.toConfig();

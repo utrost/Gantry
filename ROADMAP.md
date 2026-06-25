@@ -110,7 +110,7 @@ oracle until Phase 3.
 | **12. Per-pattern hatch parameters** ✅ | Give the non-linear hatch patterns their own tunable parameters instead of deriving everything from `gap`: wave/zigzag amplitude + wavelength, dot radius. Backward-compatible (0 = auto, keeps today's gap-derived defaults) | Wave amplitude, wave/zigzag wavelength, and dot radius are independently adjustable in both GUI dialogs and the CLI; leaving them at 0 reproduces the previous gap-derived behaviour exactly |
 | **13. Guided workflow infrastructure** ✅ | A reusable step-by-step `WizardDialog` shell (progress trail, Back/Next/Skip/Cancel, per-step validation) that Phases 14–16 are built on, instead of three one-off dialogs. Also added the `Machine` menu (between Edit and Settings), giving Connect/Disconnect and Home a menu/keyboard home for the first time, plus the launchers for all three wizards | A throwaway 2-step demo wizard can be built from the shared component in under an hour; no plot-affecting logic lives in it |
 | **14. Pre-plot wizard** ✅ | An optional, skippable step-by-step pre-flight before Start: connection → home → frame the job (pen-up bounding-box trace) → physical checklist (pen installed/lowered correctly, paper taped, correct layer selection) → confirm | A first-time user can run an entire job — connect through Start — without leaving the wizard, and an expert user can dismiss it and use Start directly exactly as today |
-| **15. Machine setup wizard (first run)** 🚧 NOT STARTED | A guided first-run flow that walks `SettingsPanel`'s fields in a sensible order (connection → geometry → orientation/origin → pen mode/speeds) instead of presenting one long form, with live jog feedback at the geometry step | A brand-new machine can be configured end-to-end via the wizard with zero prior knowledge of where each setting lives in `SettingsPanel`; the existing all-in-one Settings dialog is unchanged and still works for edits |
+| **15. Machine setup wizard (first run)** ✅ | A guided first-run flow that walks `SettingsPanel`'s fields in a sensible order (connection → geometry → orientation/origin → pen mode/speeds) instead of presenting one long form. Shipped by re-parenting the *real* `SettingsPanel` section panels into wizard steps (no duplicated widgets), with a first-run auto-prompt and a "Run Setup Wizard…" launcher in the Settings dialog | A brand-new machine can be configured end-to-end via the wizard with zero prior knowledge of where each setting lives in `SettingsPanel`; the existing all-in-one Settings dialog is unchanged and still works for edits |
 | **16. Axis calibration wizard** 🚧 NOT STARTED | Guided axis-direction sanity check (does +X/+Y on screen match +X/+Y on the machine?) and a measure-and-correct scale calibration (command a known travel distance, let the user enter what was actually measured, compute and offer to write corrected GRBL `$100`/`$101` steps/mm) | A user can detect and fix a reversed axis without reading GRBL docs, and can correct a steps/mm mismatch (e.g. commanded 200 mm, actual 195 mm) by entering one measured number, with the computed `$10x` value previewed before it's sent |
 
 ### Phase 8 — in progress (post-cutover self-audit)
@@ -676,7 +676,7 @@ Start behaviour from before this phase.
 
 ---
 
-### Phase 15 — Machine setup wizard (first run) (not started)
+### Phase 15 — Machine setup wizard (first run) ✅
 
 **Problem.** `SettingsPanel` (`SettingsPanel.java:17-369`) is a single long
 scrollable form covering connection, machine geometry, orientation, pen
@@ -723,6 +723,27 @@ through watercolor questions that don't apply to them.
 components if they're not already separable) rather than re-implementing
 spinners/combos a second time — same lesson as Phase 6's
 `ToolboxOptionsPanel` extraction.
+
+**Implementation note.** Built exactly to the mitigation above:
+`SettingsPanel` now keeps its four section panels as fields with
+package-private accessors (`connectionPanel()`/`geometryPanel()`/
+`penPanel()`), and `onSetupWizard()` re-parents those *same* live panels
+into `PanelStep`s of a `WizardDialog` (Welcome → Connection → Geometry &
+origin → Pen & speeds → Done). There is exactly one set of settings
+widgets; on Finish the wizard calls the same `toConfig()`/`ConfigStore.save`
+/`applyConfigToVis()` path as the all-in-one dialog. A first-run
+auto-prompt (fires when `config.json` is absent) offers the wizard on a
+fresh install, and a "Run Setup Wizard…" button at the top of
+`Settings > Preferences…` hands off to it (closing the all-at-once dialog
+first so the two never fight to save). Verified live end-to-end against the
+mock backend: each step shows the real fields, changing Machine Width to
+350 in the Geometry step and clicking Finish updated the saved
+`config.json` and the live "Bed: 350x200" status banner. Not yet wired: the
+*inline jog buttons* at the geometry step and the *live origin/orientation
+preview* the scope describes — the wizard currently points the operator at
+the main-window Jog pad and live bed outline instead of embedding copies;
+embedding those is a worthwhile follow-up but not required for the
+core onboarding flow.
 
 ---
 

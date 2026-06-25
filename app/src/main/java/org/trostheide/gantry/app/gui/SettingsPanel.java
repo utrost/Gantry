@@ -56,22 +56,38 @@ public class SettingsPanel extends JPanel {
     private final StationTableModel stationTableModel = new StationTableModel();
     private final JTable stationTable = new JTable(stationTableModel);
 
+    // The section panels are kept as fields (not just added inline) so the guided Setup Wizard can
+    // re-parent the real fields into its step cards instead of duplicating every spinner/combo.
+    private final JPanel connectionPanel = connectionSection();
+    private final JPanel geometryPanel = geometrySection();
+    private final JPanel penPanel = penSection();
+    private final JPanel stationsPanel = stationsSection();
+
     public SettingsPanel() {
         setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
         setBorder(new EmptyBorder(8, 8, 8, 8));
 
-        add(connectionSection());
+        add(connectionPanel);
         add(Box.createVerticalStrut(8));
-        add(geometrySection());
+        add(geometryPanel);
         add(Box.createVerticalStrut(8));
-        add(penSection());
+        add(penPanel);
         add(Box.createVerticalStrut(8));
-        add(stationsSection());
+        add(stationsPanel);
 
         serialPortCombo.setEditable(true);
         refreshPortsButton.addActionListener(e -> refreshSerialPorts());
         refreshSerialPorts();
     }
+
+    /** The "Connection" section panel, for the Setup Wizard to host as its own step. */
+    JPanel connectionPanel() { return connectionPanel; }
+
+    /** The "Machine Geometry" section panel, for the Setup Wizard to host as its own step. */
+    JPanel geometryPanel() { return geometryPanel; }
+
+    /** The "Pen / Speed" section panel, for the Setup Wizard to host as its own step. */
+    JPanel penPanel() { return penPanel; }
 
     /** Repopulates the serial port combo box with currently detected ports (jSerialComm). */
     private void refreshSerialPorts() {
