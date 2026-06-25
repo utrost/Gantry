@@ -77,6 +77,8 @@ final class HelpDialog extends JDialog {
         JEditorPane editorPane = new JEditorPane();
         editorPane.setEditable(false);
         editorPane.setEditorKit(styledEditorKit());
+        // Fill the whole viewport white so the light page doesn't sit on a dark-theme background.
+        editorPane.setBackground(Color.WHITE);
         editorPane.setText(wrapHtml(html));
         editorPane.setCaretPosition(0);
         editorPane.addHyperlinkListener(this::onHyperlink);
@@ -262,7 +264,12 @@ final class HelpDialog extends JDialog {
     private static HTMLEditorKit styledEditorKit() {
         HTMLEditorKit kit = new HTMLEditorKit();
         StyleSheet css = kit.getStyleSheet();
-        css.addRule("body { font-family: sans-serif; font-size: 13pt; margin: 12px 18px; }");
+        // Render as a self-contained light page (white background, dark text) rather than
+        // inheriting the look-and-feel's colours: the rest of these rules assume a light page
+        // (light code backgrounds, gray borders), and under a dark theme the inherited light
+        // foreground would otherwise leave dark-theme text unreadable on those light backgrounds.
+        css.addRule("body { font-family: sans-serif; font-size: 13pt; margin: 12px 18px;"
+                + " color: #1a1a1a; background-color: #ffffff; }");
         css.addRule("h1 { font-size: 20pt; border-bottom: 1px solid #999; padding-bottom: 4px; }");
         css.addRule("h2 { font-size: 16pt; margin-top: 22px; border-bottom: 1px solid #ccc; padding-bottom: 2px; }");
         css.addRule("h3 { font-size: 14pt; margin-top: 16px; }");
