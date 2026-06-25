@@ -57,6 +57,7 @@ public class PlotterPanel extends JPanel {
     private final JTextArea console = new JTextArea();
 
     private final JButton connectBtn = new JButton("Connect");
+    private JMenuItem connectMenuItem;
     private final JButton startBtn = new JButton("Start Plot");
     private final JButton confirmBtn = new JButton("Confirm Layer");
     private final JButton pauseBtn = new JButton("Pause");
@@ -377,6 +378,23 @@ public class PlotterPanel extends JPanel {
         editMenu.add(menuItem("Map Layer Colors to Stations", e -> onMapColorsToStations(), true));
         menuBar.add(editMenu);
 
+        JMenu machineMenu = new JMenu("Machine");
+        machineMenu.setMnemonic(KeyEvent.VK_M);
+        connectMenuItem = tip(menuItem("Connect", e -> onConnectToggle(), false),
+                "Open or close the serial connection to the plotter.");
+        machineMenu.add(connectMenuItem);
+        machineMenu.add(tip(menuItem("Home", e -> onHome(), true),
+                "Run the homing cycle against the limit switches."));
+        machineMenu.addSeparator();
+        machineMenu.add(tip(menuItem("Pre-Plot Checklist...", e -> onPreflightWizard(), true),
+                "Walk through connect / home / frame-the-job / pen-and-paper checks before starting a plot."));
+        machineMenu.add(tip(menuItem("Setup Wizard...", e -> onSetupWizard(), false),
+                "Guided first-time setup: machine size, origin, orientation, pen mode and speeds."));
+        machineMenu.add(tip(menuItem("Calibrate Axes...", e -> onCalibrateAxesWizard(), false),
+                "Check that the axes move the right direction, and correct steps/mm if a commanded "
+                        + "move doesn't match the measured distance."));
+        menuBar.add(machineMenu);
+
         JMenu settingsMenu = new JMenu("Settings");
         settingsMenu.setMnemonic(KeyEvent.VK_S);
         settingsMenu.add(menuItem("Preferences...", e -> onOpenSettings(), true));
@@ -421,6 +439,279 @@ public class PlotterPanel extends JPanel {
     private void onShowAbout() {
         String message = "Gantry\nVersion 1.0-SNAPSHOT\n\nA pen-plotter control and SVG-to-G-code pipeline.";
         JOptionPane.showMessageDialog(this, message, "About Gantry", JOptionPane.INFORMATION_MESSAGE);
+    }
+
+    /**
+     * Pre-plot wizard (roadmap Phase 14): an optional, repeatable walk through the steps that
+     * matter before every job — connect, home, trace the job's outline pen-up so the operator can
+     * check paper placement, confirm pen/paper/layers by eye, then start. Every step calls the
+     * exact same {@link PlotService}/backend methods the non-wizard buttons use; nothing here is a
+     * second code path.
+     */
+    private void onPreflightWizard() {
+        if (currentOutput == null) {
+            JOptionPane.showMessageDialog(this, "Load or import a drawing first.",
+                    "Pre-Plot Checklist", JOptionPane.INFORMATION_MESSAGE);
+            return;
+        }
+        List<WizardStep> steps = new ArrayList<>();
+        PreflightConnectStep connectStep = new PreflightConnectStep();
+        steps.add(connectStep);
+        steps.add(new PreflightHomeStep());
+        steps.add(new PreflightFrameStep());
+        PreflightChecklistStep checklistStep = new PreflightChecklistStep();
+        steps.add(checklistStep);
+        steps.add(new PreflightConfirmStep());
+        WizardDialog wizard = new WizardDialog(SwingUtilities.getWindowAncestor(this),
+                "Pre-Plot Checklist", steps);
+        connectStep.attachOwner(wizard);
+        checklistStep.attachOwner(wizard);
+        wizard.setVisible(true);
+        if (wizard.finishedSuccessfully()) {
+            onStartPlot();
+        }
+    }
+
+    /** Step: connect to the plotter, or auto-advance if already connected. */
+    private final class PreflightConnectStep implements WizardStep {
+        private final JPanel panel;
+        private final JLabel status = new JLabel();
+        private WizardDialog owner;
+        private javax.swing.Timer poll;
+
+        PreflightConnectStep() {
+            panel = new JPanel(new BorderLayout(0, 10));
+            panel.setBorder(BorderFactory.createEmptyBorder(16, 16, 16, 16));
+            panel.add(new JLabel("<html>Connect to the plotter before continuing.</html>"), BorderLayout.NORTH);
+            JButton connect = new JButton("Connect");
+            connect.addActionListener(e -> {
+                onConnectToggle();
+                refresh();
+            });
+            JPanel row = new JPanel(new FlowLayout(FlowLayout.LEFT));
+            row.add(connect);
+            row.add(status);
+            panel.add(row, BorderLayout.CENTER);
+        }
+
+        void attachOwner(WizardDialog dialog) {
+            this.owner = dialog;
+        }
+
+        private void refresh() {
+            status.setText(backend != null ? "Connected." : "Not connected.");
+            if (owner != null) {
+                owner.updateNextEnabled();
+            }
+        }
+
+        @Override public String title() {
+            return "Connect";
+        }
+
+        @Override public JComponent panel() {
+            return panel;
+        }
+
+        @Override public boolean canAdvance() {
+            return backend != null;
+        }
+
+        @Override public void onEnter() {
+            refresh();
+            // Connecting happens on a background thread (see onConnectToggle), so poll briefly to
+            // pick up the moment it finishes instead of leaving Next stuck disabled until some
+            // unrelated click happens to call refresh() again.
+            poll = new javax.swing.Timer(300, e -> refresh());
+            poll.start();
+        }
+
+        @Override public void onLeave() {
+            if (poll != null) {
+                poll.stop();
+                poll = null;
+            }
+        }
+    }
+
+    /** Step: run the homing cycle (existing {@code $H} + zero-origin flow). */
+    private final class PreflightHomeStep implements WizardStep {
+        private final JPanel panel;
+        private final JLabel status = new JLabel("Not homed yet.");
+
+        PreflightHomeStep() {
+            panel = new JPanel(new BorderLayout(0, 10));
+            panel.setBorder(BorderFactory.createEmptyBorder(16, 16, 16, 16));
+            panel.add(new JLabel("<html>Run the homing cycle so the machine knows where it is.</html>"),
+                    BorderLayout.NORTH);
+            JButton home = new JButton("Home");
+            home.addActionListener(e -> {
+                onHome();
+                status.setText("Homing requested - check the console for completion.");
+            });
+            JPanel row = new JPanel(new FlowLayout(FlowLayout.LEFT));
+            row.add(home);
+            row.add(status);
+            panel.add(row, BorderLayout.CENTER);
+        }
+
+        @Override public String title() {
+            return "Home";
+        }
+
+        @Override public JComponent panel() {
+            return panel;
+        }
+
+        @Override public boolean isOptional() {
+            return true;
+        }
+    }
+
+    /** Step: trace the job's bounding box pen-up so the operator can check paper placement. */
+    private final class PreflightFrameStep implements WizardStep {
+        private final JPanel panel;
+        private final JLabel status = new JLabel(" ");
+
+        PreflightFrameStep() {
+            panel = new JPanel(new BorderLayout(0, 10));
+            panel.setBorder(BorderFactory.createEmptyBorder(16, 16, 16, 16));
+            panel.add(new JLabel("<html>Trace the job's outline with the pen up, to check it lines up "
+                    + "with the taped-down paper. Repeat as many times as you like.</html>"), BorderLayout.NORTH);
+            JButton frame = new JButton("Frame the job");
+            frame.addActionListener(e -> {
+                frameJob();
+                status.setText("Tracing outline...");
+            });
+            JPanel row = new JPanel(new FlowLayout(FlowLayout.LEFT));
+            row.add(frame);
+            row.add(status);
+            panel.add(row, BorderLayout.CENTER);
+        }
+
+        @Override public String title() {
+            return "Frame the job";
+        }
+
+        @Override public JComponent panel() {
+            return panel;
+        }
+
+        @Override public boolean isOptional() {
+            return true;
+        }
+    }
+
+    /** Step: operator-attested physical checks (not machine-verified). */
+    private final class PreflightChecklistStep implements WizardStep {
+        private final JPanel panel;
+        private final List<JCheckBox> checks = new ArrayList<>();
+        private WizardDialog owner;
+
+        PreflightChecklistStep() {
+            panel = new JPanel();
+            panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
+            panel.setBorder(BorderFactory.createEmptyBorder(16, 16, 16, 16));
+            String penDesc = switch (config.gcode.penMode) {
+                case "zaxis" -> "Z-axis pen holder";
+                case "m3m5" -> "spindle-driven pen holder";
+                default -> "servo pen lift";
+            };
+            for (String label : List.of(
+                    "Correct pen installed for the configured " + penDesc,
+                    "Pen lifts and lowers correctly (jog it once if unsure)",
+                    "Paper is taped down flat at the framed area",
+                    "Correct layers/stations are selected for this job")) {
+                JCheckBox box = new JCheckBox(label);
+                box.addActionListener(e -> { if (owner != null) owner.updateNextEnabled(); });
+                checks.add(box);
+                panel.add(box);
+                panel.add(Box.createVerticalStrut(6));
+            }
+        }
+
+        void attachOwner(WizardDialog dialog) {
+            this.owner = dialog;
+        }
+
+        @Override public String title() {
+            return "Physical checklist";
+        }
+
+        @Override public JComponent panel() {
+            return panel;
+        }
+
+        @Override public boolean canAdvance() {
+            return checks.stream().allMatch(JCheckBox::isSelected);
+        }
+    }
+
+    /** Step: summary + time estimate, then Finish hands off to the existing Start action. */
+    private final class PreflightConfirmStep implements WizardStep {
+        private final JPanel panel;
+        private final JLabel summary = new JLabel();
+
+        PreflightConfirmStep() {
+            panel = new JPanel(new BorderLayout());
+            panel.setBorder(BorderFactory.createEmptyBorder(16, 16, 16, 16));
+            panel.add(summary, BorderLayout.NORTH);
+        }
+
+        @Override public String title() {
+            return "Confirm & start";
+        }
+
+        @Override public JComponent panel() {
+            return panel;
+        }
+
+        @Override public void onEnter() {
+            summary.setText("<html>Everything checks out. Click Finish to start plotting "
+                    + "(this triggers the same Start Plot action as the main toolbar button).</html>");
+        }
+    }
+
+    /** Sends a pen-up rectangle around the job's current bounds, reusing the existing baked overlay. */
+    private void frameJob() {
+        if (currentOutput == null) {
+            log("ERROR: No drawing loaded.");
+            return;
+        }
+        double[] bounds = visPanel.getRawBounds();
+        double minX = bounds[0], maxX = bounds[1], minY = bounds[2], maxY = bounds[3];
+        runOnBackend(b -> {
+            b.penup();
+            b.moveto(minX, minY);
+            b.moveto(maxX, minY);
+            b.moveto(maxX, maxY);
+            b.moveto(minX, maxY);
+            b.moveto(minX, minY);
+            log("Framed job bounds: (" + minX + ", " + minY + ") to (" + maxX + ", " + maxY + ")");
+        });
+    }
+
+    /**
+     * Machine setup wizard (roadmap Phase 15). Not yet implemented — first-time geometry/origin/
+     * pen-mode setup will reuse {@link SettingsPanel}'s existing fields rather than duplicating
+     * them; tracked as its own phase since it needs that panel split into reusable sub-steps.
+     */
+    private void onSetupWizard() {
+        JOptionPane.showMessageDialog(this,
+                "The guided Setup Wizard is planned (see ROADMAP.md Phase 15) but not built yet.\n"
+                        + "Use Settings > Preferences... for now.",
+                "Setup Wizard", JOptionPane.INFORMATION_MESSAGE);
+    }
+
+    /**
+     * Axis calibration wizard (roadmap Phase 16). Not yet implemented — the scale-calibration half
+     * needs new {@link GcodeBackend} plumbing to read/write GRBL's {@code $100}/{@code $101}
+     * settings, which doesn't exist yet; tracked as its own phase with dedicated tests.
+     */
+    private void onCalibrateAxesWizard() {
+        JOptionPane.showMessageDialog(this,
+                "The guided Axis Calibration wizard is planned (see ROADMAP.md Phase 16) but not built yet.",
+                "Calibrate Axes", JOptionPane.INFORMATION_MESSAGE);
     }
 
     /**
@@ -1129,6 +1420,9 @@ public class PlotterPanel extends JPanel {
                     if (ok) {
                         backend = newBackend;
                         connectBtn.setText("Disconnect");
+                        if (connectMenuItem != null) {
+                            connectMenuItem.setText("Disconnect");
+                        }
                         setConnectButtonColor(false);
                         setConnectionRequiredControlsEnabled(true);
                         statusLabel.setText("Connected");
@@ -1155,6 +1449,9 @@ public class PlotterPanel extends JPanel {
             PlotterBackend toClose = backend;
             backend = null;
             connectBtn.setText("Connect");
+            if (connectMenuItem != null) {
+                connectMenuItem.setText("Connect");
+            }
             setConnectButtonColor(true);
             setConnectionRequiredControlsEnabled(false);
             statusLabel.setText("Disconnected");
