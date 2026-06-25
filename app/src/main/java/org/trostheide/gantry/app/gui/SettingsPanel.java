@@ -28,6 +28,7 @@ public class SettingsPanel extends JPanel {
     private final JButton refreshPortsButton = new JButton("Refresh");
     private final JSpinner baudRateSpinner = new JSpinner(new SpinnerNumberModel(115200, 9600, 250000, 100));
     private final JCheckBox mockCheckBox = new JCheckBox("Mock backend (no serial port)");
+    private final JCheckBox preflightCheckBox = new JCheckBox("Run Pre-Plot Checklist before Start");
 
     private final JSpinner machineWidthSpinner = new JSpinner(new SpinnerNumberModel(300.0, 1.0, 5000.0, 1.0));
     private final JSpinner machineHeightSpinner = new JSpinner(new SpinnerNumberModel(200.0, 1.0, 5000.0, 1.0));
@@ -105,6 +106,9 @@ public class SettingsPanel extends JPanel {
 
         gbc.gridx = 0; gbc.gridy++; gbc.gridwidth = 2;
         panel.add(mockCheckBox, gbc);
+
+        gbc.gridx = 0; gbc.gridy++; gbc.gridwidth = 2;
+        panel.add(preflightCheckBox, gbc);
 
         return panel;
     }
@@ -209,6 +213,7 @@ public class SettingsPanel extends JPanel {
         serialPortCombo.getEditor().setItem(config.gcode.serialPort);
         baudRateSpinner.setValue(config.gcode.baudRate);
         mockCheckBox.setSelected(config.mock);
+        preflightCheckBox.setSelected(config.preflightBeforeStart);
 
         machineWidthSpinner.setValue(config.gcode.machineWidth);
         machineHeightSpinner.setValue(config.gcode.machineHeight);
@@ -242,6 +247,7 @@ public class SettingsPanel extends JPanel {
         config.gcode.serialPort = extractPortName((String) serialPortCombo.getEditor().getItem());
         config.gcode.baudRate = (Integer) baudRateSpinner.getValue();
         config.mock = mockCheckBox.isSelected();
+        config.preflightBeforeStart = preflightCheckBox.isSelected();
 
         config.gcode.machineWidth = (Double) machineWidthSpinner.getValue();
         config.gcode.machineHeight = (Double) machineHeightSpinner.getValue();

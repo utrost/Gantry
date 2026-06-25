@@ -664,6 +664,13 @@ raw bounding-box corners with no clamping, which is fine for jobs that
 already fit the bed (the common case) but should reuse the jog
 bounds-clamping logic before this is considered complete.
 
+A `Pre-flight…` button now sits beside `Start`/`Stop` in the main Plot
+section (every-job real estate, as this GUI/UX note originally called
+for), and a new "Run Pre-Plot Checklist before Start" setting (default
+on, in Settings > Connection) routes the existing `Start` button through
+the wizard automatically; turning it off restores the direct one-click
+Start behaviour from before this phase.
+
 ---
 
 ### Phase 15 — Machine setup wizard (first run) (not started)

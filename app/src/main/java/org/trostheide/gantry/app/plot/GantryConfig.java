@@ -42,6 +42,9 @@ public class GantryConfig {
     /** Last directory a file chooser (Import SVG, Load/Save Commands, Export/Replay G-code) was opened in. */
     public String lastDirectory;
 
+    /** If true, clicking Start routes through the Pre-Plot Checklist wizard instead of plotting directly. */
+    public boolean preflightBeforeStart = true;
+
     /**
      * Derives {@link PlotSettings} from this config, applying the same machine-origin and
      * portrait-mode axis derivation rules used throughout the plot pipeline:

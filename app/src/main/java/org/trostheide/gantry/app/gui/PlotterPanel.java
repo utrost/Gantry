@@ -59,6 +59,7 @@ public class PlotterPanel extends JPanel {
     private final JButton connectBtn = new JButton("Connect");
     private JMenuItem connectMenuItem;
     private final JButton startBtn = new JButton("Start Plot");
+    private final JButton preflightBtn = new JButton("Pre-flight...");
     private final JButton confirmBtn = new JButton("Confirm Layer");
     private final JButton pauseBtn = new JButton("Pause");
     private final JButton stopBtn = new JButton("Stop");
@@ -921,7 +922,13 @@ public class PlotterPanel extends JPanel {
         panel.setBorder(section("Plot"));
 
         requireConnection(startBtn);
-        startBtn.addActionListener(e -> onStartPlot());
+        startBtn.addActionListener(e -> {
+            if (config.preflightBeforeStart) {
+                onPreflightWizard();
+            } else {
+                onStartPlot();
+            }
+        });
         confirmBtn.addActionListener(e -> confirmGate.release());
         pauseBtn.addActionListener(e -> onPauseToggle());
         stopBtn.addActionListener(e -> onStopPlot());
@@ -930,6 +937,9 @@ public class PlotterPanel extends JPanel {
         confirmBtn.setText("Confirm");
         confirmBtn.setToolTipText("Confirm Layer");
 
+        preflightBtn.setToolTipText("Walk through the Pre-Plot Checklist (connect, home, frame, physical checks) before plotting.");
+        preflightBtn.addActionListener(e -> onPreflightWizard());
+
         // Non-wrapping horizontal rows: a FlowLayout would wrap onto a second line once the
         // control column is narrow, and the wrapped line then gets clipped by capHeight().
         JPanel row1 = new JPanel();
@@ -937,6 +947,8 @@ public class PlotterPanel extends JPanel {
         row1.add(new JLabel("Passes"));
         row1.add(Box.createHorizontalStrut(4));
         row1.add(multipassSpinner);
+        row1.add(Box.createHorizontalStrut(4));
+        row1.add(preflightBtn);
         row1.add(Box.createHorizontalStrut(4));
         row1.add(startBtn);
         row1.add(Box.createHorizontalStrut(4));
