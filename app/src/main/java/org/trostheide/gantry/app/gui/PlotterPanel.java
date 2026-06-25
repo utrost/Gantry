@@ -20,6 +20,7 @@ import org.trostheide.gantry.pipeline.svgimport.SvgImportStage;
 import org.trostheide.gantry.plotter.GcodeBackend;
 import org.trostheide.gantry.plotter.GcodeFileBackend;
 import org.trostheide.gantry.plotter.GcodeFileReplay;
+import org.trostheide.gantry.plotter.GrblSettings;
 import org.trostheide.gantry.plotter.MockPlotterBackend;
 import org.trostheide.gantry.plotter.PlotterBackend;
 import org.trostheide.gantry.watercolor.PaintStation;
@@ -783,14 +784,205 @@ public class PlotterPanel extends JPanel {
     }
 
     /**
-     * Axis calibration wizard (roadmap Phase 16). Not yet implemented — the scale-calibration half
-     * needs new {@link GcodeBackend} plumbing to read/write GRBL's {@code $100}/{@code $101}
-     * settings, which doesn't exist yet; tracked as its own phase with dedicated tests.
+     * Axis calibration wizard (roadmap Phase 16). Two halves: a direction sanity-check (jog +X/+Y
+     * and, if the machine moved the wrong way, offer to flip the matching invert flag) and a
+     * measure-and-correct scale calibration per axis (command a known distance, enter what was
+     * actually measured, preview the corrected GRBL {@code $100}/{@code $101} steps/mm, and write
+     * it). Requires a live connection — the scale half reads/writes GRBL settings over serial.
      */
     private void onCalibrateAxesWizard() {
-        JOptionPane.showMessageDialog(this,
-                "The guided Axis Calibration wizard is planned (see ROADMAP.md Phase 16) but not built yet.",
-                "Calibrate Axes", JOptionPane.INFORMATION_MESSAGE);
+        if (backend == null) {
+            JOptionPane.showMessageDialog(this, "Connect to the plotter first — calibration drives the\n"
+                            + "machine and reads/writes its GRBL settings.",
+                    "Calibrate Axes", JOptionPane.INFORMATION_MESSAGE);
+            return;
+        }
+        List<WizardStep> steps = new ArrayList<>();
+        steps.add(new PanelStep("Intro", wrapStep(
+                "<html><h3>Axis calibration</h3>This checks two things, in order:<br>"
+                        + "<b>1. Direction</b> — jog +X and +Y and confirm the machine moves the way "
+                        + "the screen says; if not, the wizard flips the matching invert setting.<br>"
+                        + "<b>2. Scale</b> — command a known distance on each axis, measure what the "
+                        + "machine actually moved with a ruler, and the wizard computes and writes the "
+                        + "corrected steps/mm (<code>$100</code>/<code>$101</code>).<br><br>"
+                        + "<b>Clear the bed and make sure the pen is up</b> — this moves the head.</html>")));
+        steps.add(new CalibDirectionStep());
+        steps.add(new CalibScaleStep('X', GrblSettings.X_STEPS_PER_MM));
+        steps.add(new CalibScaleStep('Y', GrblSettings.Y_STEPS_PER_MM));
+        steps.add(new PanelStep("Done", wrapStep(
+                "<html><h3>Calibration complete</h3>Any direction flips and corrected steps/mm have "
+                        + "been applied. Re-run this any time from <i>Machine &gt; Calibrate Axes…</i>.</html>")));
+
+        WizardDialog wizard = new WizardDialog(SwingUtilities.getWindowAncestor(this), "Calibrate Axes", steps);
+        wizard.setVisible(true);
+        if (wizard.finishedSuccessfully()) {
+            try {
+                ConfigStore.save(config, configFile);
+            } catch (IOException ex) {
+                log("WARNING: Failed to save config: " + ex.getMessage());
+            }
+            applyConfigToVis();
+            log("Axis calibration finished.");
+        }
+    }
+
+    /**
+     * Direction sanity-check step: jog +X / +Y a fixed amount and let the operator say whether the
+     * machine moved the expected way; "moved the wrong way" toggles the matching invert flag on
+     * {@link #config} (applied for real on Finish). Uses the existing {@link #jog} action so the
+     * test reflects exactly how plotting will move the head.
+     */
+    private final class CalibDirectionStep implements WizardStep {
+        private final JPanel panel;
+
+        CalibDirectionStep() {
+            panel = new JPanel();
+            panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
+            panel.setBorder(BorderFactory.createEmptyBorder(12, 12, 12, 12));
+            panel.add(new JLabel("<html>Jog each axis and confirm the head moved the way the on-screen "
+                    + "+X (right) / +Y (up) arrows point. Tick the box if it went the wrong way.</html>"));
+            panel.add(Box.createVerticalStrut(10));
+            panel.add(axisRow("+X", 1, 0, () -> config.invertX, v -> config.invertX = v));
+            panel.add(Box.createVerticalStrut(8));
+            panel.add(axisRow("+Y", 0, 1, () -> config.invertY, v -> config.invertY = v));
+        }
+
+        private JPanel axisRow(String label, int dxDir, int dyDir,
+                java.util.function.Supplier<Boolean> get, java.util.function.Consumer<Boolean> set) {
+            JPanel row = new JPanel(new FlowLayout(FlowLayout.LEFT));
+            JButton jogBtn = new JButton("Jog " + label);
+            jogBtn.addActionListener(e -> jog(dxDir, dyDir));
+            JCheckBox wrongWay = new JCheckBox("Moved the wrong way (flip " + label.substring(1) + ")");
+            wrongWay.setSelected(get.get());
+            wrongWay.addActionListener(e -> set.accept(wrongWay.isSelected()));
+            row.add(jogBtn);
+            row.add(wrongWay);
+            return row;
+        }
+
+        @Override public String title() { return "Direction check"; }
+        @Override public JComponent panel() { return panel; }
+    }
+
+    /**
+     * Scale-calibration step for one axis: reads the current GRBL steps/mm, commands a known move,
+     * takes the measured distance, previews the corrected steps/mm, and writes it back. Optional —
+     * an operator who only needed the direction check can Skip it.
+     */
+    private final class CalibScaleStep implements WizardStep {
+        private final char axis;
+        private final int setting;
+        private final JPanel panel;
+        private final JLabel currentLabel = new JLabel("Current steps/mm: (read on entry)");
+        private final JSpinner commandedSpinner = new JSpinner(new SpinnerNumberModel(100.0, 1.0, 1000.0, 10.0));
+        private final JSpinner measuredSpinner = new JSpinner(new SpinnerNumberModel(100.0, 0.1, 2000.0, 1.0));
+        private final JLabel previewLabel = new JLabel("Corrected: —");
+        private Double currentStepsPerMm;
+
+        CalibScaleStep(char axis, int setting) {
+            this.axis = axis;
+            this.setting = setting;
+            panel = new JPanel();
+            panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
+            panel.setBorder(BorderFactory.createEmptyBorder(12, 12, 12, 12));
+
+            panel.add(new JLabel("<html><b>" + axis + " axis</b> scale calibration (GRBL $" + setting + ").</html>"));
+            panel.add(Box.createVerticalStrut(6));
+            panel.add(left(currentLabel));
+
+            JButton moveBtn = new JButton("Move " + axis + " by commanded distance");
+            moveBtn.addActionListener(e -> {
+                double d = ((Number) commandedSpinner.getValue()).doubleValue();
+                runOnBackend(b -> {
+                    b.penup();
+                    if (axis == 'X') { b.move(d, 0); } else { b.move(0, d); }
+                    log(String.format("Calibration: commanded %c move of %.1f mm.", axis, d));
+                });
+            });
+            panel.add(Box.createVerticalStrut(8));
+            panel.add(rowOf(new JLabel("Commanded (mm):"), commandedSpinner, moveBtn));
+            panel.add(Box.createVerticalStrut(4));
+            JButton measureBtn = new JButton("Compute corrected steps/mm");
+            measureBtn.addActionListener(e -> updatePreview());
+            measuredSpinner.addChangeListener(e -> updatePreview());
+            panel.add(rowOf(new JLabel("Measured (mm):"), measuredSpinner, measureBtn));
+            panel.add(Box.createVerticalStrut(8));
+            panel.add(left(previewLabel));
+
+            JButton writeBtn = new JButton("Write $" + setting + " to the machine");
+            writeBtn.addActionListener(e -> writeCorrected());
+            panel.add(Box.createVerticalStrut(6));
+            panel.add(left(writeBtn));
+        }
+
+        private void updatePreview() {
+            if (currentStepsPerMm == null) {
+                previewLabel.setText("Corrected: (read current value first)");
+                return;
+            }
+            double commanded = ((Number) commandedSpinner.getValue()).doubleValue();
+            double measured = ((Number) measuredSpinner.getValue()).doubleValue();
+            Double corrected = GrblSettings.correctedStepsPerMm(currentStepsPerMm, commanded, measured);
+            previewLabel.setText(corrected == null ? "Corrected: (enter a measured distance > 0)"
+                    : String.format("Corrected: %.3f steps/mm (was %.3f)", corrected, currentStepsPerMm));
+        }
+
+        private void writeCorrected() {
+            if (currentStepsPerMm == null) {
+                log("Calibration: no current steps/mm read yet; cannot write.");
+                return;
+            }
+            double commanded = ((Number) commandedSpinner.getValue()).doubleValue();
+            double measured = ((Number) measuredSpinner.getValue()).doubleValue();
+            Double corrected = GrblSettings.correctedStepsPerMm(currentStepsPerMm, commanded, measured);
+            if (corrected == null) {
+                log("Calibration: measured distance must be > 0 to compute a correction.");
+                return;
+            }
+            String cmd = GrblSettings.writeCommand(setting, corrected);
+            runOnBackend(b -> {
+                b.sendRaw(cmd);
+                log(String.format("Calibration: wrote %s ($%d %c steps/mm).", cmd, setting, axis));
+                currentStepsPerMm = corrected;
+                SwingUtilities.invokeLater(() -> {
+                    currentLabel.setText(String.format("Current steps/mm: %.3f", corrected));
+                    updatePreview();
+                });
+            });
+        }
+
+        @Override public String title() { return axis + "-axis scale"; }
+        @Override public JComponent panel() { return panel; }
+        @Override public boolean isOptional() { return true; }
+
+        @Override public void onEnter() {
+            currentLabel.setText("Current steps/mm: reading…");
+            runOnBackend(b -> {
+                Double v = GrblSettings.findSetting(b.sendRaw("$$"), setting);
+                SwingUtilities.invokeLater(() -> {
+                    currentStepsPerMm = v;
+                    currentLabel.setText(v == null ? "Current steps/mm: (couldn't read $" + setting + ")"
+                            : String.format("Current steps/mm: %.3f", v));
+                    updatePreview();
+                });
+            });
+        }
+    }
+
+    /** A left-aligned single-component row that won't stretch vertically in a BoxLayout column. */
+    private static JComponent left(JComponent c) {
+        JPanel row = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
+        row.add(c);
+        return row;
+    }
+
+    /** A left-aligned row of components. */
+    private static JComponent rowOf(JComponent... cs) {
+        JPanel row = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        for (JComponent c : cs) {
+            row.add(c);
+        }
+        return row;
     }
 
     /**

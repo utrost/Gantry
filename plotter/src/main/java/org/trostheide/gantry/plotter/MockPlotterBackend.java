@@ -1,5 +1,6 @@
 package org.trostheide.gantry.plotter;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.function.Consumer;
@@ -11,6 +12,10 @@ public class MockPlotterBackend implements PlotterBackend {
     private double x;
     private double y;
     private int feedOverride = 100;
+    // Simulated GRBL steps/mm ($100 = X, $101 = Y), so the axis-calibration wizard can be exercised
+    // against the mock: a "$$" query reports these and "$100="/"$101=" writes update them.
+    private double stepsPerMmX = 80.0;
+    private double stepsPerMmY = 80.0;
 
     public MockPlotterBackend(Consumer<String> log) {
         this.log = log != null ? log : message -> { };
@@ -70,6 +75,27 @@ public class MockPlotterBackend implements PlotterBackend {
     @Override
     public List<String> sendRaw(String command) {
         log.accept("[Mock] Raw: " + command);
+        String cmd = command == null ? "" : command.trim();
+        if (cmd.equals("$$")) {
+            List<String> out = new ArrayList<>();
+            out.add(String.format(Locale.ROOT, "$100=%.3f", stepsPerMmX));
+            out.add(String.format(Locale.ROOT, "$101=%.3f", stepsPerMmY));
+            out.add("ok");
+            return out;
+        }
+        if (cmd.startsWith("$100=") || cmd.startsWith("$101=")) {
+            try {
+                double v = Double.parseDouble(cmd.substring(5).trim());
+                if (cmd.startsWith("$100=")) {
+                    stepsPerMmX = v;
+                } else {
+                    stepsPerMmY = v;
+                }
+                log.accept(String.format(Locale.ROOT, "[Mock] %s applied", cmd));
+            } catch (NumberFormatException ignored) {
+                return List.of("error:3");
+            }
+        }
         return List.of("ok");
     }
 

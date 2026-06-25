@@ -111,7 +111,7 @@ oracle until Phase 3.
 | **13. Guided workflow infrastructure** ✅ | A reusable step-by-step `WizardDialog` shell (progress trail, Back/Next/Skip/Cancel, per-step validation) that Phases 14–16 are built on, instead of three one-off dialogs. Also added the `Machine` menu (between Edit and Settings), giving Connect/Disconnect and Home a menu/keyboard home for the first time, plus the launchers for all three wizards | A throwaway 2-step demo wizard can be built from the shared component in under an hour; no plot-affecting logic lives in it |
 | **14. Pre-plot wizard** ✅ | An optional, skippable step-by-step pre-flight before Start: connection → home → frame the job (pen-up bounding-box trace) → physical checklist (pen installed/lowered correctly, paper taped, correct layer selection) → confirm | A first-time user can run an entire job — connect through Start — without leaving the wizard, and an expert user can dismiss it and use Start directly exactly as today |
 | **15. Machine setup wizard (first run)** ✅ | A guided first-run flow that walks `SettingsPanel`'s fields in a sensible order (connection → geometry → orientation/origin → pen mode/speeds) instead of presenting one long form. Shipped by re-parenting the *real* `SettingsPanel` section panels into wizard steps (no duplicated widgets), with a first-run auto-prompt and a "Run Setup Wizard…" launcher in the Settings dialog | A brand-new machine can be configured end-to-end via the wizard with zero prior knowledge of where each setting lives in `SettingsPanel`; the existing all-in-one Settings dialog is unchanged and still works for edits |
-| **16. Axis calibration wizard** 🚧 NOT STARTED | Guided axis-direction sanity check (does +X/+Y on screen match +X/+Y on the machine?) and a measure-and-correct scale calibration (command a known travel distance, let the user enter what was actually measured, compute and offer to write corrected GRBL `$100`/`$101` steps/mm) | A user can detect and fix a reversed axis without reading GRBL docs, and can correct a steps/mm mismatch (e.g. commanded 200 mm, actual 195 mm) by entering one measured number, with the computed `$10x` value previewed before it's sent |
+| **16. Axis calibration wizard** ✅ | Guided axis-direction sanity check (does +X/+Y on screen match +X/+Y on the machine?) and a measure-and-correct scale calibration (command a known travel distance, let the user enter what was actually measured, compute and offer to write corrected GRBL `$100`/`$101` steps/mm) | A user can detect and fix a reversed axis without reading GRBL docs, and can correct a steps/mm mismatch (e.g. commanded 200 mm, actual 195 mm) by entering one measured number, with the computed `$10x` value previewed before it's sent |
 
 ### Phase 8 — in progress (post-cutover self-audit)
 
@@ -747,7 +747,7 @@ core onboarding flow.
 
 ---
 
-### Phase 16 — Axis calibration wizard (not started)
+### Phase 16 — Axis calibration wizard ✅
 
 **Problem.** Gantry has no machine-direction sanity check beyond trusting
 the `invertX`/`invertY`/`swapXY` settings the operator typed in, and no
@@ -811,6 +811,27 @@ problem, and a different, harder calibration entirely.
   `GcodeBackend` does today — should land with its own focused unit tests
   against canned GRBL `$$` output before any wizard UI is built on top of it,
   same sequencing lesson as Phase 9's "data-model-first, GUI-second."
+
+**Implementation note.** The `$$`-parsing lived up to the "data-model-first"
+note: it's a standalone `GrblSettings` helper (`plotter/`) with
+`findSetting`/`writeCommand`/`correctedStepsPerMm`, built on the *existing*
+`PlotterBackend.sendRaw` (which already collects multi-line GRBL responses
+until `ok`/`error`) — no new backend interface method was needed. The wizard
+(`Machine > Calibrate Axes…`) is Intro → Direction check → X-axis scale →
+Y-axis scale → Done. The direction step jogs via the existing `jog()` action
+and flips `config.invertX`/`invertY` (pure software, applied on Finish); the
+scale steps read the current `$10x` on entry, command a known move, take the
+measured distance, preview `corrected = current × commanded/measured`, and
+write `$10x=` only on explicit button press (the old value stays logged for
+manual revert). To make all of this verifiable headless, `MockPlotterBackend`
+now emulates GRBL: `$$` reports simulated `$100`/`$101` and `$100=`/`$101=`
+writes update them. Verified live end-to-end against the mock: entering the
+X step read `$100=80.000`; with commanded 100 / measured 95 the preview
+computed `84.211`; clicking Write sent `$100=84.211`, the mock applied it,
+and the re-read confirmed the new value; ticking "flip X" persisted
+`invertX:true` to `config.json` on Finish. Not done: the live origin/
+orientation preview is shared with Phase 15's deferral; Z-axis and
+orthogonality calibration remain out of scope as planned.
 
 ---
 
