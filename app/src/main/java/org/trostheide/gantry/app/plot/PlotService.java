@@ -448,6 +448,33 @@ public class PlotService {
         logCallback.accept("--- Refill Complete ---");
     }
 
+    /**
+     * Pen-up dry visit to a station (roadmap Phase 17 test-run wizard): lift the pen and move over
+     * the station so the operator can eyeball whether the brush lines up with the physical pot, with
+     * no dip. Uses the same {@code penup()}/{@code moveto()} the real refill path uses.
+     */
+    public void dryVisitStation(StationConfig station) {
+        backend.penup();
+        backend.moveto(station.x(), station.y());
+        commandedPositionCallback.accept(station.x(), station.y());
+        logCallback.accept(String.format("--- Over station (%.1f mm / %.1f mm), pen up ---",
+                station.x(), station.y()));
+    }
+
+    /**
+     * Wet test of a station (Phase 17): run the station's <em>real</em> refill behaviour — dip for
+     * the configured dwell, then swirl for {@code dip_swirl}/{@code rinse} — so the operator can
+     * confirm the dip depth and swirl radius clear the pot rim. Delegates to the exact {@link #dip}
+     * used during a plot, so the test can never diverge from what a real refill does.
+     */
+    public void wetTestStation(StationConfig station) {
+        logCallback.accept(String.format("--- Wet test at (%.1f mm / %.1f mm), behaviour '%s' ---",
+                station.x(), station.y(), station.behavior()));
+        dip(station);
+        backend.penup();
+        logCallback.accept("--- Wet test complete ---");
+    }
+
     /** Number of straight segments used to approximate one full swirl circle. */
     private static final int SWIRL_SEGMENTS = 16;
 

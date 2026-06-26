@@ -180,6 +180,33 @@ public class VisualizationPanel extends JPanel {
         repaint();
     }
 
+    /**
+     * Notified when the user edits a refill station directly on the canvas (Phase 17 Half A):
+     * drags a marker to a new position, or adds one via the right-click "Add station here" menu.
+     * The controller ({@code PlotterPanel}) writes the change back into the authoritative
+     * {@code config.stations} map and re-pushes it, so the canvas and the {@code SettingsPanel}
+     * station table never hold diverging copies of a station's coordinates.
+     */
+    public interface StationEditListener {
+        /** A station marker was dragged to {@code (x, y)} in machine mm. */
+        void onStationMoved(String name, double x, double y);
+        /** The user asked to add a new station at {@code (x, y)} in machine mm. */
+        void onStationAdded(double x, double y);
+    }
+
+    private StationEditListener stationEditListener;
+
+    public void setStationEditListener(StationEditListener listener) {
+        this.stationEditListener = listener;
+    }
+
+    // Station-drag state: index into `stations` of the marker being dragged, or -1.
+    private int draggingStation = -1;
+    // Machine-mm location of the last popup trigger, used by "Add station here".
+    private double[] lastPopupMm;
+    /** Pixel radius within which a click grabs a station marker. */
+    private static final double STATION_HIT_PX = 9;
+
     // ----- Overlay accessors -----
 
     public double getOverlayOffsetX() { return overlayOffsetX; }
@@ -315,6 +342,13 @@ public class VisualizationPanel extends JPanel {
             @Override
             public void mousePressed(MouseEvent e) {
                 if (maybeShowPopup(e)) return;
+                // Stations are grabbable even on an empty bed, and take precedence over the
+                // drawing handles (they're small, on top, and a deliberate target).
+                int st = hitTestStation(e.getX(), e.getY());
+                if (st != HANDLE_NONE) {
+                    draggingStation = st;
+                    return;
+                }
                 if (allPaths.isEmpty()) return;
                 int handle = hitTestHandle(e.getX(), e.getY());
                 if (handle == HANDLE_NONE) return;
@@ -328,6 +362,13 @@ public class VisualizationPanel extends JPanel {
 
             @Override
             public void mouseDragged(MouseEvent e) {
+                if (draggingStation >= 0) {
+                    double[] mm = screenToPhysical(e.getX(), e.getY());
+                    Station s = stations.get(draggingStation);
+                    stations.set(draggingStation, new Station(s.name(), mm[0], mm[1]));
+                    repaint();
+                    return;
+                }
                 if (dragHandle == HANDLE_NONE) return;
                 double dx = e.getX() - dragStartScreenX;
                 double dy = e.getY() - dragStartScreenY;
@@ -345,6 +386,14 @@ public class VisualizationPanel extends JPanel {
             @Override
             public void mouseReleased(MouseEvent e) {
                 if (maybeShowPopup(e)) return;
+                if (draggingStation >= 0) {
+                    Station s = stations.get(draggingStation);
+                    draggingStation = -1;
+                    if (stationEditListener != null) {
+                        stationEditListener.onStationMoved(s.name(), s.x(), s.y());
+                    }
+                    return;
+                }
                 if (dragHandle != HANDLE_NONE) {
                     dragHandle = HANDLE_NONE;
                     fireOverlayChange();
@@ -353,8 +402,9 @@ public class VisualizationPanel extends JPanel {
 
             private boolean maybeShowPopup(MouseEvent e) {
                 if (!e.isPopupTrigger()) return false;
+                lastPopupMm = screenToPhysical(e.getX(), e.getY());
                 boolean hasDrawing = !allPaths.isEmpty();
-                for (Component item : contextMenu.getComponents()) {
+                for (Component item : drawingMenuItems) {
                     item.setEnabled(hasDrawing);
                 }
                 contextMenu.show(VisualizationPanel.this, e.getX(), e.getY());
@@ -363,6 +413,10 @@ public class VisualizationPanel extends JPanel {
 
             @Override
             public void mouseMoved(MouseEvent e) {
+                if (hitTestStation(e.getX(), e.getY()) != HANDLE_NONE) {
+                    setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+                    return;
+                }
                 if (allPaths.isEmpty()) { setCursor(Cursor.getDefaultCursor()); return; }
                 int handle = hitTestHandle(e.getX(), e.getY());
                 setCursor(cursorForHandle(handle));
@@ -379,13 +433,24 @@ public class VisualizationPanel extends JPanel {
     private JPopupMenu buildContextMenu() {
         JPopupMenu menu = new JPopupMenu();
 
+        // Always available (Phase 17): drop a refill station at the clicked bed position. The
+        // controller turns the mm coordinate into a real StationConfig and re-pushes the list.
+        JMenuItem addStation = new JMenuItem("Add station here");
+        addStation.addActionListener(e -> {
+            if (stationEditListener != null && lastPopupMm != null) {
+                stationEditListener.onStationAdded(lastPopupMm[0], lastPopupMm[1]);
+            }
+        });
+        menu.add(addStation);
+        menu.addSeparator();
+
+        // Drawing-only items: disabled when the bed is empty (toggled in maybeShowPopup).
         JMenuItem remove = new JMenuItem("Remove Drawing");
         remove.addActionListener(e -> {
             clearDrawing();
             if (removeDrawingListener != null) removeDrawingListener.run();
         });
         menu.add(remove);
-        menu.addSeparator();
 
         JMenuItem reset = new JMenuItem("Reset Position");
         reset.addActionListener(e -> resetOverlay());
@@ -399,8 +464,12 @@ public class VisualizationPanel extends JPanel {
         mirror.addActionListener(e -> toggleMirror());
         menu.add(mirror);
 
+        drawingMenuItems = List.of(remove, reset, rotate, mirror);
         return menu;
     }
+
+    /** Context-menu entries that only make sense with a loaded drawing (toggled per right-click). */
+    private List<JMenuItem> drawingMenuItems = new ArrayList<>();
 
     // ----- Data Loading -----
 
@@ -1068,6 +1137,45 @@ public class VisualizationPanel extends JPanel {
         }
 
         return HANDLE_NONE;
+    }
+
+    /**
+     * Returns the index (into {@link #stations}) of the station marker under the mouse, or
+     * {@link #HANDLE_NONE} if none is within {@link #STATION_HIT_PX}. Markers are drawn in
+     * g2 content space, so we map each station's machine-mm position the same way paint does
+     * ({@code physicalToScreen} then the cached translate/scale) before comparing in pixels.
+     */
+    private int hitTestStation(int mouseX, int mouseY) {
+        for (int i = 0; i < stations.size(); i++) {
+            Station s = stations.get(i);
+            double[] sc = physicalToScreen(s.x(), s.y());
+            double px = sc[0] * paintScale + paintTx;
+            double py = sc[1] * paintScale + paintTy;
+            if (Math.hypot(mouseX - px, mouseY - py) <= STATION_HIT_PX) {
+                return i;
+            }
+        }
+        return HANDLE_NONE;
+    }
+
+    /**
+     * Inverse of the station/cursor paint path: a mouse pixel back to a machine-mm position.
+     * Undoes the cached translate/scale to reach g2 content space, then inverts
+     * {@link #physicalToScreen} (reverse order: un-swap, then un-invert) to recover motor coords.
+     */
+    private double[] screenToPhysical(int mouseX, int mouseY) {
+        double sx = (mouseX - paintTx) / paintScale;
+        double sy = (mouseY - paintTy) / paintScale;
+        double originScreenX = isOriginRight() ? displayWidth() : 0;
+        double originScreenY = isOriginBottom() ? displayHeight() : 0;
+        double dx = sx - originScreenX;
+        double dy = originScreenY - sy;
+        if (effectiveSwap()) {
+            double t = dx; dx = dy; dy = t;
+        }
+        if (effectiveInvertX()) dx = -dx;
+        if (effectiveInvertY()) dy = -dy;
+        return new double[] { dx, dy };
     }
 
     private Cursor cursorForHandle(int handle) {

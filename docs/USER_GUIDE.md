@@ -118,6 +118,7 @@ compensate.
 | **Pre-Plot Checklist...** | A guided wizard covering connect → home → frame-the-job (traces the current drawing's bounding box on the bed so you can confirm it fits and the pen tracks correctly) → a final physical-checks page (paper taped down, pen loaded, bed clear). Can also be launched from the **Pre-flight...** button next to **Start Plot**, and runs automatically before **Start Plot** when the Settings toggle below is on. |
 | **Setup Wizard...** | The guided first-time setup described in [First start](#first-start) — Connection, Machine geometry/origin/orientation, Pen/speed, in order, re-using the exact same fields as **Settings**. Safe to re-run any time to revisit those settings step by step. |
 | **Calibrate Axes...** | Checks jog direction (jogs +X/+Y and lets you flip **Extra Invert X/Y** if the carriage moved the wrong way), then calibrates X and Y steps/mm: jog a commanded distance, measure what actually moved with a ruler, enter both, and the wizard computes a corrected `$100`/`$101` value and writes it to the controller on request. Requires a real or mock connection; each axis's scale step is optional, so direction-only or X-only/Y-only runs are fine. |
+| **Test Color Stations...** | A guided test run over every configured refill station (watercolor). For each station you can **Move here** (pen-up dry visit so you can eyeball whether the brush lines up with the physical pot), run a **Wet test** (the station's real dip/swirl, so you can check the dip depth and swirl radius clear the pot rim), and **nudge** the position with the **−X/+X/−Y/+Y** buttons if it's off — a nudge moves the head *and* the stored coordinate, and corrected positions are saved when you click **Finish**. Each station step is optional (use **Skip**). Requires a real or mock connection and at least one configured station. See also [placing stations on the canvas](#placing-refill-stations) below. |
 
 ---
 
@@ -285,10 +286,28 @@ After import, the drawing appears in the visualisation panel.
 | **Reset Position** | Return to the canvas-alignment position from Settings |
 | **X / Y (mm from origin) + Set** | Place the drawing precisely: the entered values become the position of the drawing's bounding-box corner nearest the machine origin. The fields also update live as you drag. |
 
-**Right-click the Live View** for a context menu with **Remove Drawing** (clears
-the canvas and discards the loaded drawing, so nothing is left to plot or export)
-plus the same **Reset Position / Rotate 90° / Mirror** actions, reachable directly
-on the canvas. The menu items are greyed out when no drawing is loaded.
+**Right-click the Live View** for a context menu with **Add station here** (drops
+a new refill station at the clicked bed position — see [Placing refill stations](#placing-refill-stations)),
+**Remove Drawing** (clears the canvas and discards the loaded drawing, so nothing
+is left to plot or export) plus the same **Reset Position / Rotate 90° / Mirror**
+actions, reachable directly on the canvas. The drawing-related items are greyed out
+when no drawing is loaded; **Add station here** is always available.
+
+### Placing refill stations
+
+Refill stations (watercolor) appear as labelled dots on the Live View. You can place
+them visually instead of typing raw coordinates into the **Refill Stations** table in
+Settings:
+
+- **Drag a station dot** to reposition it — the stored coordinate updates and is saved
+  immediately, and the Settings table stays in sync (both edit the one underlying
+  station list).
+- **Right-click an empty spot → Add station here** drops a new station at that bed
+  position. It gets a default name/behaviour and no colour; open **Settings** to set its
+  colour and dip behaviour.
+
+Once placed, verify they line up with the physical pots with
+**Machine > Test Color Stations...** (above), which drives the head to each one.
 
 Whatever you see in the preview — drag, resize, rotate, mirror or the numeric
 position — is exactly what gets plotted and exported. The alignment offset shown

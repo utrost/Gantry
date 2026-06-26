@@ -423,10 +423,10 @@ Swing + FlatLaf dark theme. `GantryApp#main` sets up `FlatDarkLaf`, builds a
   (see `app/pom.xml`'s extra `<resource>`) so the dialog works regardless of the
   working directory; falls back to reading `docs/USER_GUIDE.md` off disk, then to
   a "not found" placeholder, if the classpath resource is missing.
-- **Machine menu & guided wizards** (`PlotterPanel`, roadmap Phases 13–16) — the
+- **Machine menu & guided wizards** (`PlotterPanel`, roadmap Phases 13–17) — the
   **Machine** menu is the shared entry point for the operator-facing flows that
   hang off a connection: **Connect/Disconnect** (label toggles with state, mirrored
-  on the toolbar button), **Home**, and the three wizards below. All wizards are
+  on the toolbar button), **Home**, and the four wizards below. All wizards are
   built on one small shell: `WizardDialog` (a `CardLayout` step host with
   Back/Next/Skip/Finish and per-step gating) + the `WizardStep` interface
   (`title/panel/canAdvance/isOptional/onEnter/onLeave`) + `PanelStep` (a `WizardStep`
@@ -469,6 +469,20 @@ Swing + FlatLaf dark theme. `GantryApp#main` sets up `FlatDarkLaf`, builds a
     reuses the existing `PlotterBackend.sendRaw` (multi-line read until `ok`); no
     backend-interface change was needed, and `MockPlotterBackend` emulates the
     settings store so the whole round-trip is exercisable headless.
+  - **Test Color Stations** (`onTestStationsWizard`, Phase 17 Half B) — requires a
+    live connection and ≥1 configured station. One optional `StationTestStep` per
+    `config.stations` entry: **Move here** (pen-up dry visit) and **Wet test** both
+    delegate to new `PlotService.dryVisitStation`/`wetTestStation`, where the wet
+    test calls the *same* private `dip()` a real refill uses (so the test can never
+    diverge from a plot's refill); the **−X/+X/−Y/+Y** nudge buttons `move()` the
+    head and track the same delta in the step's stored coordinates, written back into
+    `config.stations` on Finish. The companion **Half A** (visual placement) lives in
+    `VisualizationPanel`: station markers are hit-tested (`hitTestStation`) and
+    draggable, with `screenToPhysical` inverting the paint transform (un-translate/
+    scale, then the reverse of `physicalToScreen`); a `StationEditListener` reports
+    drags and the "Add station here" context-menu action back to `PlotterPanel`,
+    which rewrites `config.stations` and re-pushes via `applyConfigToVis` so the
+    canvas and the `SettingsPanel` station table never diverge.
 - **`SettingsPanel`** — machine/serial/pen/feed/station configuration; persisted
   via `plot/ConfigStore` (+ `GantryConfig`, `StationConfig`, `PlotSettings`,
   `PlotService`-facing settings). `TimeEstimator` estimates plot duration —
@@ -572,14 +586,17 @@ live serial, full G-code file-content correctness, the CLI `--style` flag.
 | Change plotting/safety/sequencing | `app:plot/PlotService.java` |
 | Change the canvas/positioning UX | `app:gui/VisualizationPanel.java` |
 | Change menus/controls/orchestration | `app:gui/PlotterPanel.java` |
-| Change/add a guided wizard | `app:gui/PlotterPanel.java` (`onSetupWizard`/`onPreflightWizard`/`onCalibrateAxesWizard`) + `WizardDialog`/`WizardStep`/`PanelStep` |
+| Change/add a guided wizard | `app:gui/PlotterPanel.java` (`onSetupWizard`/`onPreflightWizard`/`onCalibrateAxesWizard`/`onTestStationsWizard`) + `WizardDialog`/`WizardStep`/`PanelStep` |
+| Change refill-station test-run / dip behaviour | `app:plot/PlotService.java` (`dryVisitStation`/`wetTestStation`/`dip`) |
+| Change canvas station placement (drag / add) | `app:gui/VisualizationPanel.java` (`hitTestStation`/`screenToPhysical`/`StationEditListener`) |
 | Change GRBL settings read/write (steps/mm) | `plotter:GrblSettings.java` (+ `MockPlotterBackend` emulation) |
 | Change persisted settings | `app:plot/ConfigStore` + `*Config`/`*Settings` |
 | Headless/batch behavior | `cli:SvgImportCli.java` |
 | Coordinate/transform math | `model:CoordinateTransform.java` |
 
-See `ROADMAP.md` for the phase history and rationale (Phases 13–16 — the Machine
-menu and the Setup / Pre-Plot Checklist / Calibrate Axes wizards — are complete;
-remaining planned work includes the multi-document canvas, per-area hatch styling,
-and CLI/GUI parity) and `docs/LESSONS_LEARNED.md` for the recurring bugs, design
-principles, and gotchas distilled from building it.
+See `ROADMAP.md` for the phase history and rationale (Phases 13–17 — the Machine
+menu and the Setup / Pre-Plot Checklist / Calibrate Axes / Test Color Stations
+wizards plus visual station placement — are complete; remaining planned work
+includes the multi-document canvas, per-area hatch styling, and CLI/GUI parity)
+and `docs/LESSONS_LEARNED.md` for the recurring bugs, design principles, and
+gotchas distilled from building it.

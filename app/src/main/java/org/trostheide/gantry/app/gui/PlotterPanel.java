@@ -415,6 +415,9 @@ public class PlotterPanel extends JPanel {
         machineMenu.add(tip(menuItem("Calibrate Axes...", e -> onCalibrateAxesWizard(), false),
                 "Check that the axes move the right direction, and correct steps/mm if a commanded "
                         + "move doesn't match the measured distance."));
+        machineMenu.add(tip(menuItem("Test Color Stations...", e -> onTestStationsWizard(), true),
+                "Drive the head to each refill station to confirm the brush lands over the pot; "
+                        + "nudge any that are off and save the corrected position."));
         menuBar.add(machineMenu);
 
         JMenu settingsMenu = new JMenu("Settings");
@@ -969,6 +972,150 @@ public class PlotterPanel extends JPanel {
         }
     }
 
+    /**
+     * Watercolor station test-run wizard (roadmap Phase 17, Half B). Requires a live connection.
+     * Walks each configured refill station: a pen-up dry visit to eyeball alignment, an optional wet
+     * dip running the station's real behaviour, and per-axis nudge buttons that move the head <em>and
+     * </em> update the station's stored coordinates. Corrected coordinates are written back to
+     * {@code config.stations} on Finish, so a misplaced pot found here is fixed for good.
+     */
+    private void onTestStationsWizard() {
+        if (backend == null) {
+            JOptionPane.showMessageDialog(this, "Connect to the plotter first — the test run drives the\n"
+                            + "head to each station to confirm it's over the pot.",
+                    "Test Color Stations", JOptionPane.INFORMATION_MESSAGE);
+            return;
+        }
+        if (config.stations.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "No refill stations configured yet. Add one by right-clicking\n"
+                            + "the bed (\"Add station here\") or in Settings, then run this wizard.",
+                    "Test Color Stations", JOptionPane.INFORMATION_MESSAGE);
+            return;
+        }
+        List<WizardStep> steps = new ArrayList<>();
+        steps.add(new PanelStep("Intro", wrapStep(
+                "<html><h3>Test color stations</h3>This drives the head to each refill station so you "
+                        + "can confirm the brush lands over the right pot before committing a watercolor "
+                        + "run.<br><br>For each station you can: <b>Move here</b> (pen-up dry visit), run a "
+                        + "<b>Wet test</b> (the station's real dip/swirl), and <b>nudge</b> the position if "
+                        + "it's off — nudges move the head and update the stored coordinates, saved on "
+                        + "Finish.<br><br><b>Make sure the pots are in place and the pen/brush is mounted.</b></html>")));
+        List<StationTestStep> stationSteps = new ArrayList<>();
+        for (Map.Entry<String, StationConfig> e : config.stations.entrySet()) {
+            StationTestStep step = new StationTestStep(e.getKey(), e.getValue());
+            stationSteps.add(step);
+            steps.add(step);
+        }
+        steps.add(new PanelStep("Done", wrapStep(
+                "<html><h3>Test run complete</h3>Any nudged station positions will be saved. Re-run any "
+                        + "time from <i>Machine &gt; Test Color Stations…</i>.</html>")));
+
+        WizardDialog wizard = new WizardDialog(SwingUtilities.getWindowAncestor(this), "Test Color Stations", steps);
+        wizard.setVisible(true);
+        if (wizard.finishedSuccessfully()) {
+            for (StationTestStep step : stationSteps) {
+                StationConfig base = config.stations.get(step.name);
+                if (base == null) continue;
+                config.stations.put(step.name, new StationConfig(round2(step.curX), round2(step.curY),
+                        base.zDown(), base.behavior(), base.color(), base.dwellMs(), base.swirlRadius()));
+            }
+            persistStationsAndRefresh();
+            log("Station test run finished; positions saved.");
+        }
+    }
+
+    /**
+     * One station's step in the test-run wizard: move-here / wet-test / nudge, over a single
+     * {@link StationConfig}. Optional (an operator can Skip a station). Nudges keep {@link #curX}/
+     * {@link #curY} in sync with the head so the saved coordinates match where the brush ended up.
+     */
+    private final class StationTestStep implements WizardStep {
+        private final String name;
+        private final StationConfig base;
+        private double curX;
+        private double curY;
+        private final JPanel panel;
+        private final JLabel coordLabel = new JLabel();
+        private final JSpinner nudgeSpinner = new JSpinner(new SpinnerNumberModel(1.0, 0.1, 50.0, 0.5));
+
+        StationTestStep(String name, StationConfig station) {
+            this.name = name;
+            this.base = station;
+            this.curX = station.x();
+            this.curY = station.y();
+            panel = new JPanel();
+            panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
+            panel.setBorder(BorderFactory.createEmptyBorder(12, 12, 12, 12));
+
+            String colourNote = (station.color() == null || station.color().isBlank())
+                    ? "no colour set" : station.color();
+            panel.add(capHeight(new JLabel("<html><b>Station '" + name + "'</b> — " + colourNote
+                    + ", behaviour <i>" + station.behavior() + "</i>.</html>")));
+            panel.add(Box.createVerticalStrut(6));
+            updateCoordLabel();
+            panel.add(capHeight(left(coordLabel)));
+            panel.add(Box.createVerticalStrut(8));
+
+            JButton moveBtn = new JButton("Move here (pen up)");
+            moveBtn.addActionListener(e -> runOnBackend(b -> {
+                PlotService svc = serviceFor(b);
+                svc.dryVisitStation(currentStation());
+            }));
+            JButton wetBtn = new JButton("Wet test (dip)");
+            wetBtn.addActionListener(e -> runOnBackend(b -> {
+                PlotService svc = serviceFor(b);
+                svc.wetTestStation(currentStation());
+            }));
+            panel.add(capHeight(rowOf(moveBtn, wetBtn)));
+            panel.add(Box.createVerticalStrut(10));
+
+            panel.add(capHeight(left(new JLabel("Nudge the station position (mm), then re-Move to check:"))));
+            JButton xMinus = new JButton("−X");
+            JButton xPlus = new JButton("+X");
+            JButton yMinus = new JButton("−Y");
+            JButton yPlus = new JButton("+Y");
+            xMinus.addActionListener(e -> nudge(-step(), 0));
+            xPlus.addActionListener(e -> nudge(step(), 0));
+            yMinus.addActionListener(e -> nudge(0, -step()));
+            yPlus.addActionListener(e -> nudge(0, step()));
+            panel.add(capHeight(rowOf(new JLabel("Step:"), nudgeSpinner, xMinus, xPlus, yMinus, yPlus)));
+        }
+
+        private double step() {
+            return ((Number) nudgeSpinner.getValue()).doubleValue();
+        }
+
+        /** Moves the head by a machine-space delta and tracks it in the stored coordinates. */
+        private void nudge(double dx, double dy) {
+            curX += dx;
+            curY += dy;
+            updateCoordLabel();
+            runOnBackend(b -> {
+                b.penup();
+                b.move(dx, dy);
+            });
+        }
+
+        private StationConfig currentStation() {
+            return new StationConfig(curX, curY, base.zDown(), base.behavior(), base.color(),
+                    base.dwellMs(), base.swirlRadius());
+        }
+
+        private PlotService serviceFor(PlotterBackend b) {
+            PlotService svc = new PlotService(b, config.toPlotSettings());
+            svc.setLogCallback(PlotterPanel.this::log);
+            return svc;
+        }
+
+        private void updateCoordLabel() {
+            coordLabel.setText(String.format("Position: (%.1f, %.1f) mm", round2(curX), round2(curY)));
+        }
+
+        @Override public String title() { return "Station " + name; }
+        @Override public JComponent panel() { return panel; }
+        @Override public boolean isOptional() { return true; }
+    }
+
     /** A left-aligned single-component row that won't stretch vertically in a BoxLayout column. */
     private static JComponent left(JComponent c) {
         JPanel row = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
@@ -1165,7 +1312,60 @@ public class PlotterPanel extends JPanel {
         visPanel.setOverlayChangeListener(this::refreshPositionFields);
         // "Remove Drawing" in the canvas context menu drops the loaded output too.
         visPanel.setRemoveDrawingListener(this::onRemoveDrawing);
+        // Drag a station marker / "Add station here" on the canvas edits config.stations directly.
+        visPanel.setStationEditListener(new VisualizationPanel.StationEditListener() {
+            @Override public void onStationMoved(String name, double x, double y) {
+                onStationMovedOnCanvas(name, x, y);
+            }
+            @Override public void onStationAdded(double x, double y) {
+                onStationAddedOnCanvas(x, y);
+            }
+        });
         return panel;
+    }
+
+    /**
+     * A station marker was dragged on the canvas (Phase 17 Half A). Rewrite that station's x/y in
+     * the live {@code config.stations} map — preserving every other field — persist, and re-push so
+     * the canvas and the Settings station table stay in lockstep.
+     */
+    private void onStationMovedOnCanvas(String name, double x, double y) {
+        StationConfig s = config.stations.get(name);
+        if (s == null) return;
+        config.stations.put(name, new StationConfig(round2(x), round2(y), s.zDown(), s.behavior(),
+                s.color(), s.dwellMs(), s.swirlRadius()));
+        persistStationsAndRefresh();
+        log(String.format("Station '%s' moved to (%.1f, %.1f) mm", name, round2(x), round2(y)));
+    }
+
+    /** "Add station here" from the canvas context menu: insert a new station at the clicked mm. */
+    private void onStationAddedOnCanvas(double x, double y) {
+        // Generate a unique default name so it never collides with an existing station.
+        String base = "station";
+        int n = config.stations.size() + 1;
+        String name = base + n;
+        while (config.stations.containsKey(name)) {
+            n++;
+            name = base + n;
+        }
+        config.stations.put(name, new StationConfig(round2(x), round2(y), 30, "simple_dip",
+                null, StationConfig.DEFAULT_DWELL_MS, StationConfig.DEFAULT_SWIRL_RADIUS));
+        persistStationsAndRefresh();
+        log(String.format("Added station '%s' at (%.1f, %.1f) mm — set its colour/behaviour in Settings",
+                name, round2(x), round2(y)));
+    }
+
+    private static double round2(double v) {
+        return Math.round(v * 100.0) / 100.0;
+    }
+
+    private void persistStationsAndRefresh() {
+        try {
+            ConfigStore.save(config, configFile);
+        } catch (IOException ex) {
+            log("WARNING: Failed to save station change: " + ex.getMessage());
+        }
+        applyConfigToVis();
     }
 
     /** Moves the drawing so its origin-nearest corner sits at the X/Y entered in the fields. */

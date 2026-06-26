@@ -112,6 +112,7 @@ oracle until Phase 3.
 | **14. Pre-plot wizard** ✅ | An optional, skippable step-by-step pre-flight before Start: connection → home → frame the job (pen-up bounding-box trace) → physical checklist (pen installed/lowered correctly, paper taped, correct layer selection) → confirm | A first-time user can run an entire job — connect through Start — without leaving the wizard, and an expert user can dismiss it and use Start directly exactly as today |
 | **15. Machine setup wizard (first run)** ✅ | A guided first-run flow that walks `SettingsPanel`'s fields in a sensible order (connection → geometry → orientation/origin → pen mode/speeds) instead of presenting one long form. Shipped by re-parenting the *real* `SettingsPanel` section panels into wizard steps (no duplicated widgets), with a first-run auto-prompt and a "Run Setup Wizard…" launcher in the Settings dialog | A brand-new machine can be configured end-to-end via the wizard with zero prior knowledge of where each setting lives in `SettingsPanel`; the existing all-in-one Settings dialog is unchanged and still works for edits |
 | **16. Axis calibration wizard** ✅ | Guided axis-direction sanity check (does +X/+Y on screen match +X/+Y on the machine?) and a measure-and-correct scale calibration (command a known travel distance, let the user enter what was actually measured, compute and offer to write corrected GRBL `$100`/`$101` steps/mm) | A user can detect and fix a reversed axis without reading GRBL docs, and can correct a steps/mm mismatch (e.g. commanded 200 mm, actual 195 mm) by entering one measured number, with the computed `$10x` value previewed before it's sent |
+| **17. Visual station placement + watercolor test-run** ✅ | Two reinforcing halves over the same `StationConfig` data: (A) make the refill-station dots already drawn on the canvas *draggable*, and right-click-on-bed *adds* a station at that mm position, syncing live with the `SettingsPanel` station table; (B) a `Machine > Test Color Stations…` wizard that physically drives the brush to each station (pen-up dry visit → optional wet dip with the station's real behaviour/dwell/swirl), with jog-to-nudge writing corrections back to the same station — placement and verification edit one backing model | A station can be positioned by dragging its marker on the canvas (table updates live, and vice-versa) and added by right-clicking the bed; a connected operator can walk every configured station, confirm the brush lands over the right pot, nudge any that miss, and have the correction persist — all without typing raw mm coordinates |
 
 ### Phase 8 — in progress (post-cutover self-audit)
 
@@ -832,6 +833,63 @@ and the re-read confirmed the new value; ticking "flip X" persisted
 `invertX:true` to `config.json` on Finish. Not done: the live origin/
 orientation preview is shared with Phase 15's deferral; Z-axis and
 orthogonality calibration remain out of scope as planned.
+
+---
+
+### Phase 17 — Visual station placement + watercolor test-run ✅
+
+**Problem.** Refill stations are positioned today by typing raw mm `x`/`y`
+into the "Refill Stations" `JTable` in `SettingsPanel` and guessing — there
+is no visual feedback that the numbers put the brush over the actual pot, and
+no way to verify it short of starting a real watercolor plot (the #1 way such
+a plot gets ruined: the brush dips into the wrong pot, or misses the pot and
+the rim). The stations are *already drawn* on `VisualizationPanel` as labelled
+dots (`physicalToScreen(station.x, station.y)`), and the canvas already has a
+full mouse drag + hit-test + handle infrastructure (used to reposition the
+drawing overlay) — but stations were display-only, not interactive.
+
+**Goal — two reinforcing halves over the same `StationConfig` backing data,
+never a second coordinate representation:**
+
+1. **Half A — visual placement (design-time, no hardware).** Drag a station
+   dot on the canvas to reposition it; right-click empty bed → "Add station
+   here" drops a new station at that mm coordinate. The `SettingsPanel`
+   station table stays the authoritative editor and live-syncs both ways
+   (drag the dot → table row updates; edit the row → dot moves). Both read/
+   write the one shared `config.stations` map.
+2. **Half B — watercolor test-run wizard (`Machine > Test Color Stations…`).**
+   Built on the existing `WizardDialog`/`WizardStep`/`PanelStep` shell. For
+   each selected station: pen-up dry visit (`penup()` → `moveto(x, y)`) with a
+   "brush is over *station N (red)* — does it line up?" gate, an optional wet
+   test that runs the station's *real* refill behaviour (`pendown(zDown)`,
+   dwell `dwellMs`, swirl `swirlRadius` for `dip_swirl`/`rinse`, lift), and
+   jog-to-nudge that writes the corrected x/y straight back into the same
+   `StationConfig`. Reuses the exact backend primitives the real refill path
+   uses — a guided ordering, never a second code path.
+
+**Scope — Half A:**
+- Extend `VisualizationPanel`'s `hitTestHandle` to also hit-test the station
+  markers; on drag, convert screen→mm via the absolute inverse of
+  `physicalToScreen` (a straightforward affine invert; the panel already has
+  `screenDeltaToMm` for deltas) and fire a change event back to `SettingsPanel`.
+- Right-click context menu (already present on the canvas) gains "Add station
+  here," which inserts a `StationConfig` at the clicked mm position.
+- `SettingsPanel` and the canvas sync through the shared station map — no
+  third copy of the coordinates.
+
+**Scope — Half B:**
+- "Pick stations" step (default all configured), a per-station dry-visit step
+  (pen-up move + confirm/nudge), an optional wet-test step, and a save-on-
+  finish summary that persists any nudged coordinates.
+- Headless-verifiable: `MockPlotterBackend` already emulates `moveto`/
+  `penup`/`pendown`, so the whole wizard drives end-to-end with no plotter.
+
+**Out of scope:** automatic pot detection (camera/vision); Z-only "dip depth"
+calibration beyond what the wet test surfaces; multi-brush carousels.
+
+**Sequencing.** Half A lands first (pure GUI, headless-verifiable, no
+hardware), Half B on top — same "make the data interactive, then drive it"
+ordering as Phases 15→16.
 
 ---
 
