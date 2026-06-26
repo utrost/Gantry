@@ -359,7 +359,7 @@ Implementations:
 Swing + FlatLaf dark theme. `GantryApp#main` sets up `FlatDarkLaf`, builds a
 `PlotterPanel`, attaches its menu bar, and shows the frame.
 
-- **`PlotterPanel`** (~1440 lines) — the main window and de-facto controller. Holds
+- **`PlotterPanel`** (~2200 lines) — the main window and de-facto controller. Holds
   the current `ProcessorOutput` (`currentOutput`), the right-hand control column
   (Jog, Overlay/Position, Plot, Raw G-code sections — each wrapped in
   `capHeight(...)` which also left-aligns to avoid BoxLayout center-clipping), the
@@ -378,7 +378,7 @@ Swing + FlatLaf dark theme. `GantryApp#main` sets up `FlatDarkLaf`, builds a
   Start Plot / Export / the time estimate all operate on just those layers (the
   per-pen workflow). The ticked set is pushed to the preview via
   `VisualizationPanel.setSelectedLayers(...)`.
-- **`VisualizationPanel`** (~974 lines) — the live canvas: draws the bed, the
+- **`VisualizationPanel`** (~1140 lines) — the live canvas: draws the bed, the
   drawing, the moving cursor, and the interactive positioning overlay
   (`overlayOffsetX/Y`, `overlayScale`, `overlayRotation`, `overlayMirror` — a
   **single global transform**, i.e. exactly one drawing today; multi-document is
@@ -423,6 +423,52 @@ Swing + FlatLaf dark theme. `GantryApp#main` sets up `FlatDarkLaf`, builds a
   (see `app/pom.xml`'s extra `<resource>`) so the dialog works regardless of the
   working directory; falls back to reading `docs/USER_GUIDE.md` off disk, then to
   a "not found" placeholder, if the classpath resource is missing.
+- **Machine menu & guided wizards** (`PlotterPanel`, roadmap Phases 13–16) — the
+  **Machine** menu is the shared entry point for the operator-facing flows that
+  hang off a connection: **Connect/Disconnect** (label toggles with state, mirrored
+  on the toolbar button), **Home**, and the three wizards below. All wizards are
+  built on one small shell: `WizardDialog` (a `CardLayout` step host with
+  Back/Next/Skip/Finish and per-step gating) + the `WizardStep` interface
+  (`title/panel/canAdvance/isOptional/onEnter/onLeave`) + `PanelStep` (a `WizardStep`
+  adapter that just hosts a supplied `JComponent` under a title, used to re-parent
+  existing panels into a wizard without duplicating widgets). **Invariant: every
+  wizard step calls the exact same backend/PlotService/SettingsPanel code the
+  non-wizard buttons use — a wizard is a guided *ordering* of existing actions,
+  never a second code path.**
+  - **Setup Wizard** (`onSetupWizard`, Phase 15) — walks the `SettingsPanel`
+    sections in first-run order (connection → geometry/origin → pen/speed) by
+    `PanelStep`-wrapping the panel's **real** section accessors
+    (`connectionPanel()/geometryPanel()/penPanel()`), so there is exactly one set
+    of settings widgets. On Finish it commits/persists/applies config exactly like
+    `Settings > Preferences…`. Offered once automatically on a fresh install
+    (`maybeOfferFirstRunSetup`, gated on `firstRun = !configFile.exists()` captured
+    *before* `ConfigStore.load`), and reachable from a "Run Setup Wizard…" button
+    inside the Settings dialog (which disposes Settings first so two copies of the
+    fields never fight to save).
+  - **Pre-Plot Checklist / Pre-flight** (`onPreflightWizard`, Phase 14) — connect →
+    home (optional) → **frame the job** (optional) → operator-attested physical
+    checklist (gates Next until all ticked) → confirm; Finish calls the same
+    `onStartPlot()`. `frameJob()` traces the job's bounding box pen-up through
+    `PlotService.computeFrameBounds`, which runs the selected layers through the
+    **same transform/alignment/soft-clamp pipeline as the plot**, so the trace can
+    never command the head off the bed even if the drawing overhangs. Reachable
+    from a **Pre-flight…** button next to Start, from the Machine menu, and run
+    automatically before Start when `config.preflightBeforeStart` (the "Run Pre-Plot
+    Checklist before Start" Settings toggle, default on) is set. The connect step
+    polls on a `javax.swing.Timer` to re-enable Next when the background connect
+    thread finishes.
+  - **Calibrate Axes** (`onCalibrateAxesWizard`, Phase 16) — requires a live
+    connection (drives motion and reads/writes GRBL settings). Two halves: a
+    **direction check** (`CalibDirectionStep`: jog +X/+Y via the existing `jog()`,
+    flip `config.invertX/invertY` if the head moved the wrong way) and a per-axis
+    **scale calibration** (`CalibScaleStep`, optional: reads current steps/mm via
+    `sendRaw("$$")` + `GrblSettings.findSetting` on entry, commands a known move,
+    takes the measured distance, previews `GrblSettings.correctedStepsPerMm`
+    = current × commanded/measured, and writes `$100`/`$101` via
+    `GrblSettings.writeCommand` + `sendRaw`). The GRBL `$$`/`$100=`/`$101=` plumbing
+    reuses the existing `PlotterBackend.sendRaw` (multi-line read until `ok`); no
+    backend-interface change was needed, and `MockPlotterBackend` emulates the
+    settings store so the whole round-trip is exercisable headless.
 - **`SettingsPanel`** — machine/serial/pen/feed/station configuration; persisted
   via `plot/ConfigStore` (+ `GantryConfig`, `StationConfig`, `PlotSettings`,
   `PlotService`-facing settings). `TimeEstimator` estimates plot duration —
@@ -526,10 +572,14 @@ live serial, full G-code file-content correctness, the CLI `--style` flag.
 | Change plotting/safety/sequencing | `app:plot/PlotService.java` |
 | Change the canvas/positioning UX | `app:gui/VisualizationPanel.java` |
 | Change menus/controls/orchestration | `app:gui/PlotterPanel.java` |
+| Change/add a guided wizard | `app:gui/PlotterPanel.java` (`onSetupWizard`/`onPreflightWizard`/`onCalibrateAxesWizard`) + `WizardDialog`/`WizardStep`/`PanelStep` |
+| Change GRBL settings read/write (steps/mm) | `plotter:GrblSettings.java` (+ `MockPlotterBackend` emulation) |
 | Change persisted settings | `app:plot/ConfigStore` + `*Config`/`*Settings` |
 | Headless/batch behavior | `cli:SvgImportCli.java` |
 | Coordinate/transform math | `model:CoordinateTransform.java` |
 
-See `ROADMAP.md` for planned work (Phases 9–12: multi-document canvas, per-area
-hatch styling, CLI/GUI parity, per-pattern hatch parameters) and the detailed
-design rationale behind each.
+See `ROADMAP.md` for the phase history and rationale (Phases 13–16 — the Machine
+menu and the Setup / Pre-Plot Checklist / Calibrate Axes wizards — are complete;
+remaining planned work includes the multi-document canvas, per-area hatch styling,
+and CLI/GUI parity) and `docs/LESSONS_LEARNED.md` for the recurring bugs, design
+principles, and gotchas distilled from building it.

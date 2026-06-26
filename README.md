@@ -19,6 +19,10 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for a detailed technical
 reference of the module graph, data model, pipeline, threading model, and
 extension points (written to be consumed by an LLM or a new contributor).
 
+See [docs/LESSONS_LEARNED.md](docs/LESSONS_LEARNED.md) for the design principles,
+the ledger of bugs already fixed (so they aren't reintroduced), development and
+verification gotchas, and an FAQ — read before extending the system.
+
 ## Modules
 
 | Module | Purpose |
