@@ -168,7 +168,7 @@ a `testdata/` folder.
 
 #### TS-D1 — Machine menu contents *(mock OK)*
 1. Open the **Machine** menu.
-   - [ ] Items present: **Connect**, **Home**, then (after a separator) **Pre-Plot Checklist...**, **Setup Wizard...**, **Calibrate Axes...**.
+   - [ ] Items present: **Connect**, **Home**, then (after a separator) **Pre-Plot Checklist...**, **Setup Wizard...**, **Calibrate Axes...**, **Test Color Stations...**.
    - [ ] Hovering each shows a descriptive tooltip.
 
 #### TS-D2 — Connect/Disconnect label toggle *(mock OK)*
@@ -358,11 +358,11 @@ a `testdata/` folder.
 
 #### TS-K2 — Live View context menu *(mock OK)*
 1. **Right-click** the Live View with a drawing loaded.
-   - [ ] Context menu: **Remove Drawing**, **Reset Position**, **Rotate 90°**, **Mirror**.
+   - [ ] Context menu: **Add station here**, then (after a separator) **Remove Drawing**, **Reset Position**, **Rotate 90°**, **Mirror**.
 2. **Remove Drawing**.
    - [ ] Canvas clears; console logs `Removed the loaded drawing.`; a subsequent Start Plot / Export reports nothing loaded.
 3. Right-click again with nothing loaded.
-   - [ ] All items are greyed out.
+   - [ ] The drawing-specific items (**Remove Drawing**, **Reset Position**, **Rotate 90°**, **Mirror**) are greyed out, but **Add station here** stays enabled (it does not depend on a loaded drawing).
 
 ---
 
@@ -404,6 +404,9 @@ a `testdata/` folder.
 ---
 
 ### Group N — Watercolor / colour→station mapping
+
+*(For placing/adjusting stations on the canvas and physically verifying their
+positions with the test-run wizard, see [Group T](#group-t--visual-station-placement--test-run-wizard).)*
 
 #### TS-N1 — Map Colors to Stations *(mock OK)*
 1. In Settings, configure two stations with distinct **Color** values (e.g. `#FF0000`, `#0000FF`) and `simple_dip` behaviour. Save.
@@ -529,6 +532,68 @@ java -jar cli/target/cli-1.0-SNAPSHOT.jar \
 
 ---
 
+### Group T — Visual station placement & test-run wizard
+
+These scripts cover Phase 17: placing/adjusting refill stations directly on the
+Live View canvas, and the **Test Color Stations** wizard that drives the head to
+each one. Canvas placement and the wizard edit the **same** `StationConfig`
+backing model as the Settings → Refill stations table, so changes in one surface
+appear in the other.
+
+#### TS-T1 — Add a station by right-clicking the bed *(mock OK)*
+1. Start from a known config (no stations needed). **Right-click** an empty spot on the Live View bed.
+   - [ ] The context menu's **Add station here** item is enabled (even with no drawing loaded — see TS-K2).
+2. Click **Add station here**.
+   - [ ] A new station marker appears at (approximately) the clicked position.
+   - [ ] The console logs the added station with its name and mm coordinates.
+   - [ ] The new coordinates correspond to the clicked bed point under the current origin/orientation (e.g. under a Top-Right origin with inverted axes, a click in the upper-middle of the bed yields the expected signed mm — placement is in machine space, not raw pixels).
+3. Open **Settings > Preferences...** → Refill stations table.
+   - [ ] The station added on the canvas is present in the table with the same coordinates and sensible defaults (behaviour `simple_dip`, default dwell/swirl).
+4. Quit and relaunch.
+   - [ ] The added station persists (it was saved to `config.json`).
+
+#### TS-T2 — Drag a station marker to reposition it *(mock OK)*
+1. With at least one station present, **drag its marker** across the Live View.
+   - [ ] The marker follows the cursor; on release the station settles at the new position.
+   - [ ] The console logs the moved station's new mm coordinates.
+   - [ ] Hovering a marker shows a hand/move cursor (so it's discoverable as draggable); dragging a marker takes precedence over the drawing's move/scale handles when both overlap.
+2. Open Settings → Refill stations table.
+   - [ ] The dragged station's X/Y match the new on-canvas position (canvas → table sync).
+3. In the Settings table, change that station's X/Y to new values, Save.
+   - [ ] The marker on the Live View moves to the typed position (table → canvas sync).
+
+#### TS-T3 — Test-run wizard guards *(mock OK)*
+1. **Disconnect** (or never connect). Choose **Machine > Test Color Stations...**.
+   - [ ] A dialog says to connect first (the test run drives the head); the wizard does **not** open.
+2. Connect (mock). Ensure there are **no** stations configured (clear the table / start from a station-free `config.json`). Choose **Machine > Test Color Stations...**.
+   - [ ] A dialog says no stations are configured and points to "Add station here" / Settings; the wizard does **not** open.
+
+#### TS-T4 — Full test-run: move / wet / nudge / persist *(hardware; mock OK)*
+1. Connect (mock). Configure (or add on canvas) **two** stations — e.g. `Red` (`simple_dip`) and `Blue` (`dip_swirl`, swirl 3 mm). Choose **Machine > Test Color Stations...**.
+   - [ ] Step 1 **Intro** explains Move/Wet/nudge and reminds you to mount the brush and place the pots.
+2. **Next** → the first station's step.
+   - [ ] The header shows the station name, its colour (or "no colour set"), and its behaviour.
+   - [ ] A **Position: (X, Y) mm** label shows the station's current coordinates.
+3. Click **Move here (pen up)**.
+   - [ ] Console logs `--- Over station (X mm / Y mm), pen up ---`; the cursor dot moves to that station with the pen **up** (a dry visit — no dip).
+4. Click **Wet test (dip)**.
+   - [ ] Console logs the wet-test banner and runs the station's real dip: pen down → dwell → pen up, plus a swirl trace for `dip_swirl`/`rinse` stations (the same motion a real plot's refill uses).
+5. Set the nudge **Step** spinner (e.g. 2 mm) and click **+X** once, then **+Y** once.
+   - [ ] The **Position** label increases by the step in X then Y; console shows a pen-up relative move for each nudge (head moves and the stored coordinate tracks it together).
+6. Click **Move here (pen up)** again.
+   - [ ] The head moves to the **nudged** position (confirming nudges feed back into the move target).
+7. **Next** → the second station. Click **Skip** instead of testing it.
+   - [ ] The wizard advances past it without moving the head (a station step is optional).
+8. **Next** → **Done** → **Finish**.
+   - [ ] Console logs `Station test run finished; positions saved.`
+9. Open Settings → Refill stations table (and/or reopen the wizard).
+   - [ ] The first station's coordinates reflect the nudge applied in step 5; the **skipped** station is unchanged; all other fields (behaviour, colour, Z down, dwell, swirl) are preserved.
+   - [ ] Quitting and relaunching keeps the corrected position (saved to `config.json`).
+10. Re-run the wizard and **Cancel** on a station step after nudging.
+   - [ ] No position change is saved (only **Finish** persists nudges).
+
+---
+
 ## 3. Coverage map & gaps
 
 ### Feature → script index
@@ -544,6 +609,7 @@ java -jar cli/target/cli-1.0-SNAPSHOT.jar \
 | SVG import | TS-G1, TS-G2, TS-H1 |
 | SVGToolBox & re-process | TS-I1, TS-I2, TS-J1 |
 | Canvas positioning | TS-K1, TS-K2 |
+| Visual station placement & test-run wizard | TS-T1, TS-T2, TS-T3, TS-T4 |
 | Optimise commands | TS-L1, TS-L2 |
 | Jog / raw G-code | TS-M1, TS-M2 |
 | Watercolor mapping | TS-N1 |
@@ -557,7 +623,8 @@ java -jar cli/target/cli-1.0-SNAPSHOT.jar \
 
 These rely on the manual scripts above (Swing/serial/file behaviour that isn't unit-testable without a display or hardware):
 
-- GUI rendering, the interactive canvas, and all wizard flows (Setup, Calibrate Axes, Pre-Plot Checklist).
+- GUI rendering, the interactive canvas, and all wizard flows (Setup, Calibrate Axes, Pre-Plot Checklist, Test Color Stations).
+- Visual station placement on the canvas (drag-to-move markers, right-click "Add station here", and canvas↔Settings-table coordinate sync).
 - The Help/User Guide dialog rendering and table-of-contents navigation.
 - Live serial communication and real motion on hardware.
 - G-code export file content beyond basic format (see `GcodeBackendTest`).
