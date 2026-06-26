@@ -3,6 +3,26 @@
 This document describes how to verify that all Gantry features work correctly,
 covering both the automated test suite and manual acceptance checks.
 
+> **Recording results:** copy [`TEST_RESULTS_TEMPLATE.md`](TEST_RESULTS_TEMPLATE.md)
+> per run and fill in PASS/FAIL/BLOCKED/N-A per script ID.
+>
+> **Test data:** the input SVGs every script references live in
+> [`../testdata/`](../testdata/) (already in the repo — no need to hand-author
+> them). See `testdata/README.md` for what each file is for.
+
+### Known limitations / out of scope (don't file these as bugs)
+
+- **Hardware-marked scripts on the mock backend are smoke tests**, not proof of
+  real motion/serial behaviour — repeat them on a real plotter before a hardware
+  release.
+- **CLI per-colour hatch override (`--style`)** is not wired up; only the GUI
+  Process-SVG tab exposes per-colour hatch styling.
+- **No undo/redo** for canvas edits (drawing moves, station placement) — changes
+  apply immediately; revert by re-importing or editing Settings.
+- The **mock backend emulates** `$$`/`$100`/`$101`, pen and motion commands well
+  enough for flow testing, but does not model real timing, acceleration, or
+  limit-switch behaviour.
+
 ---
 
 ## 1. Automated test suite

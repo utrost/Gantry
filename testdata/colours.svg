@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- TS-N1: several distinct stroke colours for colour -> station mapping.
+     Reds/blues/greens so nearest-station routing is unambiguous. -->
+<svg xmlns="http://www.w3.org/2000/svg" width="200" height="160" viewBox="0 0 200 160">
+  <line x1="20" y1="20"  x2="180" y2="20"  stroke="#FF0000"/>
+  <line x1="20" y1="50"  x2="180" y2="50"  stroke="#0000FF"/>
+  <line x1="20" y1="80"  x2="180" y2="80"  stroke="#00AA00"/>
+  <rect x="20" y="100" width="60" height="40" fill="none" stroke="#FF8800"/>
+  <circle cx="150" cy="120" r="20" fill="none" stroke="#8800CC"/>
+</svg>

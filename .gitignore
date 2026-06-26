@@ -5,3 +5,7 @@ target/
 .vscode/
 .DS_Store
 dependency-reduced-pom.xml
+
+
+# Runtime config — testers edit this locally; ship config.example.json instead
+config.json

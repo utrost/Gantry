@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- TS-L2: a single polyline exported as many separate, end-to-end touching
+     <line> segments. With Merge=0.2 the welder collapses these into continuous
+     lines (large strokes X -> Y drop); with Merge=0 the count is unchanged. -->
+<svg xmlns="http://www.w3.org/2000/svg" width="180" height="120" viewBox="0 0 180 120">
+  <!-- chain 1: a zig-zag, each leg a separate touching segment -->
+  <line x1="10" y1="20" x2="30" y2="40" stroke="#000000"/>
+  <line x1="30" y1="40" x2="50" y2="20" stroke="#000000"/>
+  <line x1="50" y1="20" x2="70" y2="40" stroke="#000000"/>
+  <line x1="70" y1="40" x2="90" y2="20" stroke="#000000"/>
+  <line x1="90" y1="20" x2="110" y2="40" stroke="#000000"/>
+  <line x1="110" y1="40" x2="130" y2="20" stroke="#000000"/>
+  <line x1="130" y1="20" x2="150" y2="40" stroke="#000000"/>
+  <!-- chain 2: a second contiguous run sharing endpoints -->
+  <line x1="10" y1="80" x2="40" y2="80" stroke="#000000"/>
+  <line x1="40" y1="80" x2="70" y2="100" stroke="#000000"/>
+  <line x1="70" y1="100" x2="100" y2="80" stroke="#000000"/>
+  <line x1="100" y1="80" x2="130" y2="100" stroke="#000000"/>
+  <line x1="130" y1="100" x2="160" y2="80" stroke="#000000"/>
+</svg>

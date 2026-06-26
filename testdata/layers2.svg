@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Two Inkscape layers with different stroke colours (TS-H1, TS-N1).
+     Each <g> carries inkscape:groupmode="layer" so the importer splits them. -->
+<svg xmlns="http://www.w3.org/2000/svg"
+     xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+     width="200" height="150" viewBox="0 0 200 150">
+  <g inkscape:groupmode="layer" inkscape:label="red_wash">
+    <rect x="20" y="20" width="70" height="70" fill="none" stroke="#FF0000"/>
+    <line x1="20" y1="20" x2="90" y2="90" stroke="#FF0000"/>
+  </g>
+  <g inkscape:groupmode="layer" inkscape:label="blue_detail">
+    <path d="M110,30 L170,30 L140,110 Z" fill="none" stroke="#0000FF"/>
+  </g>
+</svg>
