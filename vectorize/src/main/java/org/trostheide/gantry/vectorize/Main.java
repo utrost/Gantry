@@ -142,9 +142,23 @@ public class Main {
     }
 
     /**
+     * Programmatic entry point for embedders (e.g. the Gantry GUI): runs the single-image
+     * workflow from a CLI-style argument array, reusing the exact option parsing and
+     * strategy dispatch as the command line. Unlike {@link #main(String[])} it never calls
+     * {@code System.exit}; failures surface as exceptions for the caller to handle.
+     *
+     * @param args the same options accepted on the command line (must include {@code -i};
+     *             {@code -o} is recommended so the SVG path is deterministic).
+     */
+    public static void runSingleFile(String[] args) throws Exception {
+        CliParser cli = new CliParser();
+        runSingleFile(cli, cli.parse(args));
+    }
+
+    /**
      * Processes a single image file (the core workflow).
      */
-    private static void runSingleFile(CliParser cli, CommandLine cmd) throws Exception {
+    public static void runSingleFile(CliParser cli, CommandLine cmd) throws Exception {
         // --- Get all parameters from CLI ---
         String inputPath = cmd.getOptionValue("i");
         VectorizationStrategy strategy = cli.getStrategy(cmd.getOptionValue("s"));
@@ -228,8 +242,7 @@ public class Main {
         // --- Load image ---
         BufferedImage image = ImageIO.read(new File(inputPath));
         if (image == null) {
-            System.err.println("Could not read input image: " + inputPath);
-            System.exit(1);
+            throw new java.io.IOException("Could not read input image: " + inputPath);
         }
 
         // --- Apply crop ---

@@ -114,7 +114,7 @@ oracle until Phase 3.
 | **15. Machine setup wizard (first run)** ✅ | A guided first-run flow that walks `SettingsPanel`'s fields in a sensible order (connection → geometry → orientation/origin → pen mode/speeds) instead of presenting one long form. Shipped by re-parenting the *real* `SettingsPanel` section panels into wizard steps (no duplicated widgets), with a first-run auto-prompt and a "Run Setup Wizard…" launcher in the Settings dialog | A brand-new machine can be configured end-to-end via the wizard with zero prior knowledge of where each setting lives in `SettingsPanel`; the existing all-in-one Settings dialog is unchanged and still works for edits |
 | **16. Axis calibration wizard** ✅ | Guided axis-direction sanity check (does +X/+Y on screen match +X/+Y on the machine?) and a measure-and-correct scale calibration (command a known travel distance, let the user enter what was actually measured, compute and offer to write corrected GRBL `$100`/`$101` steps/mm) | A user can detect and fix a reversed axis without reading GRBL docs, and can correct a steps/mm mismatch (e.g. commanded 200 mm, actual 195 mm) by entering one measured number, with the computed `$10x` value previewed before it's sent |
 | **17. Visual station placement + watercolor test-run** ✅ | Two reinforcing halves over the same `StationConfig` data: (A) make the refill-station dots already drawn on the canvas *draggable*, and right-click-on-bed *adds* a station at that mm position, syncing live with the `SettingsPanel` station table; (B) a `Machine > Test Color Stations…` wizard that physically drives the brush to each station (pen-up dry visit → optional wet dip with the station's real behaviour/dwell/swirl), with jog-to-nudge writing corrections back to the same station — placement and verification edit one backing model | A station can be positioned by dragging its marker on the canvas (table updates live, and vice-versa) and added by right-clicking the bed; a connected operator can walk every configured station, confirm the brush lands over the right pot, nudge any that miss, and have the correction persist — all without typing raw mm coordinates |
-| **18. Raster vectorization (image → SVG front stage)** 🚧 NOT STARTED | Absorb the standalone **Vectorize** (BoofCV-Batik Vectorizer) tool as a new `vectorize` module that turns a raster image (JPG/PNG) into an SVG, then hands that SVG to the *existing* `SvgImportStage` — a new optional front stage *before* `svgtoolbox-core`, opening the full **image → SVG → process → plot** path. Ported by copying source into Gantry (the Vectorize repo stays untouched); re-homed under `org.trostheide.gantry.vectorize`; wired into both the CLI and a GUI "Import Image…" entry point | A JPG/PNG can be loaded in the GUI or CLI, vectorized with a chosen strategy, and flow straight into the existing import → toolbox → plot pipeline with no external tooling; Gantry ships as one AGPLv3 artifact and the standalone Vectorize repo is unmodified |
+| **18. Raster vectorization (image → SVG front stage)** 🚧 Half A + B done; fat-jar packaging pending | Absorb the standalone **Vectorize** (BoofCV-Batik Vectorizer) tool as a new `vectorize` module that turns a raster image (JPG/PNG) into an SVG, then hands that SVG to the *existing* `SvgImportStage` — a new optional front stage *before* `svgtoolbox-core`, opening the full **image → SVG → process → plot** path. Ported by copying source into Gantry (the Vectorize repo stays untouched); re-homed under `org.trostheide.gantry.vectorize`; wired into both the CLI and a GUI "Import Image…" entry point | A JPG/PNG can be loaded in the GUI or CLI, vectorized with a chosen strategy, and flow straight into the existing import → toolbox → plot pipeline with no external tooling; Gantry ships as one AGPLv3 artifact and the standalone Vectorize repo is unmodified |
 
 ### Phase 8 — in progress (post-cutover self-audit)
 
@@ -1005,11 +1005,25 @@ green from the first commit.
   JSON. No options duplicated. Verified end-to-end on `test_circles.png`
   (image → SVG → 1-layer/18-command JSON).
 
-**Half A is complete.** Remaining for Phase 18: **Half B** (GUI "Import Image…"
-hook in `PlotterPanel`) and the standalone fat-jar packaging of the vendored
-DrPTrace `system`-scoped jars (the `bezier` strategy works on the reactor
-classpath and in tests; bundling it into the shaded `cli`/`app` jars is the
-outstanding packaging task — the other seven strategies bundle normally).
+**Status — Half B.**
+- ✅ **GUI "Import Image (vectorize)…" wired** — new `File` menu item in
+  `PlotterPanel` (Ctrl+Shift+I). Flow: pick a raster image → focused
+  `VectorizeDialog` (strategy picker + the core parameters, controls enabled per
+  strategy) → the image is traced to a temporary SVG via the non-exiting
+  `Main.runSingleFile(String[])` entry → that SVG enters through the **same**
+  `SvgImportDialog`/`SvgImportStage` path as "Import SVG", so scaling, refill and
+  SVGToolBox processing all apply unchanged. The generated SVG is the only seam.
+- ✅ `vectorize` added as an `app` dependency; `Main.runSingleFile` exposed as a
+  `System.exit`-free programmatic entry for embedders.
+- ✅ Reactor `mvn clean install` green across all nine modules; the GUI engine
+  path (`runSingleFile` → `importSvg`) headless-verified end-to-end on the
+  `dp`, `centerline` and `pbn` strategies (valid SVG → command model each).
+
+**Half A and Half B are complete.** Remaining for Phase 18: the standalone
+fat-jar packaging of the vendored DrPTrace `system`-scoped jars — the `bezier`
+strategy works on the reactor classpath, in tests and in the GUI run from the
+reactor, but those jars are not bundled into the shaded `cli`/`app` artifacts
+yet (the other seven strategies bundle normally). Tracked as a follow-up.
 
 ---
 

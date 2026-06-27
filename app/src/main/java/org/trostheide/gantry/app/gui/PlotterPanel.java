@@ -369,6 +369,10 @@ public class PlotterPanel extends JPanel {
                 "Read a vector drawing (.svg) and convert it into the editable command model. "
                         + "This is where artwork enters Gantry."),
                 KeyEvent.VK_I, shortcut));
+        fileMenu.add(accel(tip(menuItem("Import Image (vectorize)...", e -> onImportImage(), true),
+                "Trace a raster image (.png/.jpg) into vector paths, then bring it in through the "
+                        + "same SVG import. Lets photos, scans and logos enter Gantry."),
+                KeyEvent.VK_I, shortcut | java.awt.event.InputEvent.SHIFT_DOWN_MASK));
         fileMenu.add(accel(tip(menuItem("Save Commands (JSON)...", e -> onSaveCommands(), true),
                 "Save the current drawing as a Gantry command file (.json) so you can reopen and "
                         + "keep editing it later. This is Gantry's working format, not G-code."),
@@ -1719,6 +1723,79 @@ public class PlotterPanel extends JPanel {
             refreshGuidance();
             log(String.format("Imported %s: %d layer(s), %d command(s)",
                     file.getName(), currentOutput.layers().size(), currentOutput.metadata().totalCommands()));
+        });
+    }
+
+    /**
+     * "Import Image (vectorize)": trace a raster image into an SVG with the {@code vectorize}
+     * module, then route that SVG through the exact same import path as {@link #onImportSvg()}.
+     * The generated SVG is the only boundary — scaling, refill and SVGToolBox processing all
+     * apply unchanged via {@link SvgImportDialog}.
+     */
+    private void onImportImage() {
+        JFileChooser chooser = newFileChooser();
+        chooser.setFileFilter(new javax.swing.filechooser.FileNameExtensionFilter(
+                "Raster image — PNG/JPG (*.png, *.jpg, *.jpeg, *.bmp)", "png", "jpg", "jpeg", "bmp"));
+        if (chooser.showOpenDialog(this) != JFileChooser.APPROVE_OPTION) {
+            return;
+        }
+        File imageFile = chooser.getSelectedFile();
+        rememberDirectory(imageFile);
+
+        // 1) How to trace the image into vector paths.
+        VectorizeDialog.Result vec =
+                new VectorizeDialog(SwingUtilities.getWindowAncestor(this)).showDialog();
+        if (vec == null) {
+            return;
+        }
+        // 2) The produced SVG enters through the same dialog/flow as a hand-authored SVG.
+        SvgImportDialog.Result dialogResult =
+                new SvgImportDialog(SwingUtilities.getWindowAncestor(this)).showDialog();
+        if (dialogResult == null) {
+            return;
+        }
+
+        final File svgFile;
+        try {
+            svgFile = File.createTempFile("gantry-vectorize-", ".svg");
+            svgFile.deleteOnExit();
+        } catch (IOException ex) {
+            error("Vectorize failed: could not create a temporary SVG (" + ex.getMessage() + ")");
+            return;
+        }
+
+        runBusy("Vectorize", () -> {
+            // image -> SVG, reusing the vectorize engine (non-exiting programmatic entry).
+            List<String> args = new ArrayList<>();
+            args.add("-i");
+            args.add(imageFile.getAbsolutePath());
+            args.add("-o");
+            args.add(svgFile.getAbsolutePath());
+            args.addAll(vec.vectorizeArgs());
+            org.trostheide.gantry.vectorize.Main.runSingleFile(args.toArray(new String[0]));
+
+            // SVG -> command model, identical to Import SVG.
+            ProcessorOutput out = dialogResult.toolboxConfig() != null
+                    ? SvgImportStage.importSvg(svgFile, dialogResult.toolboxConfig(), dialogResult.importOptions())
+                    : SvgImportStage.importSvg(svgFile, dialogResult.importOptions());
+            return autoMapColors(out);
+        }, out -> {
+            currentOutput = out;
+            lastImportedSvgFile = svgFile;
+            lastImportOptions = dialogResult.importOptions();
+            undoSnapshot = null;
+            if (undoMenuItem != null) {
+                undoMenuItem.setEnabled(false);
+            }
+            visPanel.loadFromOutput(currentOutput);
+            visPanel.setContentMotorMin(0, 0);
+            refreshLayerSelector();
+            refreshPositionFields();
+            refreshTimeEstimate();
+            refreshGuidance();
+            log(String.format("Vectorized %s (%s): %d layer(s), %d command(s)",
+                    imageFile.getName(), vec.strategyLabel(),
+                    currentOutput.layers().size(), currentOutput.metadata().totalCommands()));
         });
     }
 
