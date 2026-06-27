@@ -32,6 +32,7 @@ verification gotchas, and an FAQ — read before extending the system.
 | `pipeline-core` | Flatten, position, multipass, command model, output orchestration — pen plotting works end-to-end with just this module |
 | `watercolor` | Optional: paint station mapping and refill-split |
 | `plotter` | G-code backend (jSerialComm), mock backend, `.gcode` file writer |
+| `vectorize` | Optional front stage: raster image (JPG/PNG)→SVG (BoofCV/Batik tracing) feeding the SVG pipeline |
 | `cli` | Headless entry point |
 | `app` | Swing/FlatLaf GUI and orchestration service |
 
@@ -58,3 +59,11 @@ Windows (`.cmd`), all run from the repo root:
 | `start.sh` / `start.cmd` | Launch the Gantry GUI (`app/target/app-1.0-SNAPSHOT.jar`), building it first if missing |
 
 Requires Java 17+ and Maven 3.8+ on `PATH`.
+
+## License
+
+Gantry is licensed under the **GNU Affero General Public License v3.0** — see
+[LICENSE](LICENSE). The `vectorize` module incorporates the
+[Vectorize](https://github.com/utrost/vectorize) (BoofCV-Batik Vectorizer)
+sources (AGPLv3) and the public-domain
+[ImageTracer](https://github.com/jankovicsandras/imagetracerjava).

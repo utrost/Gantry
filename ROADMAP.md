@@ -996,8 +996,20 @@ green from the first commit.
   (it builds the palette internally), keeping full `bezier2` parity with no
   external repository. All eight strategies retained.
 - ✅ **Module builds green in the reactor** — `mvn -pl vectorize -am test`:
-  86/86 tests pass on the `testimages/` fixtures (copied in).
-- ⏳ CLI `image → SVG` entry point (chains into `SvgImportCli`) — in progress.
+  86/86 tests pass on the `testimages/` fixtures (copied in). Full reactor
+  `mvn install` is green across all nine modules.
+- ✅ **CLI `image → SVG [→ commands]` wired** — `cli/VectorizeCli` is a thin
+  front controller that delegates the image→SVG step to the `vectorize` CLI and,
+  when arguments contain a `--` separator, chains the produced SVG into
+  `SvgImportCli` (injecting it as `-i`) so one command goes image → command
+  JSON. No options duplicated. Verified end-to-end on `test_circles.png`
+  (image → SVG → 1-layer/18-command JSON).
+
+**Half A is complete.** Remaining for Phase 18: **Half B** (GUI "Import Image…"
+hook in `PlotterPanel`) and the standalone fat-jar packaging of the vendored
+DrPTrace `system`-scoped jars (the `bezier` strategy works on the reactor
+classpath and in tests; bundling it into the shaded `cli`/`app` jars is the
+outstanding packaging task — the other seven strategies bundle normally).
 
 ---
 
