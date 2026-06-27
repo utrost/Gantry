@@ -54,6 +54,7 @@ dependency graph (no cycles). Arrows mean "depends on".
             model
 
    cli ──▶ pipeline-core (+ svgtoolbox-core, model)
+   cli, app ──▶ vectorize     (optional raster→SVG front stage; no other internal deps)
 ```
 
 | Module | Package root | Responsibility | Key types |
@@ -63,8 +64,9 @@ dependency graph (no cycles). Arrows mean "depends on".
 | `pipeline-core` | `…pipeline` | SVG→command-model import and command-model→command-model transforms. | `SvgImportStage`, `SvgImportOptions`, `PaperFormat`, `OptimizeStage`, `MultipassStage`, `PathOptimizer`, `RamerDouglasPeucker`, `ProcessorOutputIO` |
 | `watercolor` | `…watercolor` | Optional colour→paint-station assignment. | `StationMapper`, `PaintStation`, `ColorUtil` |
 | `plotter` | `…plotter` | Pluggable plotter backends + G-code formatting/replay/serial transport. | `PlotterBackend` (interface), `GcodeBackend`, `MockPlotterBackend`, `GcodeFileBackend`, `GcodeFormatter`, `GcodeFileReplay`, `SerialTransport`/`JSerialCommTransport` |
-| `cli` | `…cli` | Headless SVG→JSON converter. | `SvgImportCli` |
-| `app` | `…app` | Swing GUI, plot orchestration, settings persistence, live visualization. | `GantryApp`, `gui/PlotterPanel`, `gui/VisualizationPanel`, `gui/SvgImportDialog`, `gui/EditProcessDialog`, `gui/SettingsPanel`, `plot/PlotService`, `plot/*Config`/`*Settings` |
+| `vectorize` | `…vectorize` | Optional front stage: raster image (JPG/PNG)→SVG via BoofCV edge detection + multiple tracing strategies. Emits an SVG consumed by `SvgImportStage`; depends on no other Gantry module. DrPTrace (in-project `maven-repo`) and the vendored public-domain ImageTracer (`jankovicsandras/imagetracer`) power the two whole-image tracers. | `BoofcvBatikVector`, `Main#runSingleFile`, `VectorizationStrategy` (+ `strategies/*`), `PaintByNumbersProcessor` |
+| `cli` | `…cli` | Headless SVG→JSON converter, plus image→SVG[→JSON] vectorization. | `SvgImportCli`, `VectorizeCli` |
+| `app` | `…app` | Swing GUI, plot orchestration, settings persistence, live visualization. | `GantryApp`, `gui/PlotterPanel`, `gui/VisualizationPanel`, `gui/SvgImportDialog`, `gui/VectorizeDialog`, `gui/EditProcessDialog`, `gui/SettingsPanel`, `plot/PlotService`, `plot/*Config`/`*Settings` |
 
 **Invariant:** dependencies only ever point "down/right" in the table. `model`
 depends on nothing internal. Never introduce a back-edge (e.g. `model` importing

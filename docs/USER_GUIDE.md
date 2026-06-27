@@ -273,6 +273,40 @@ Use whichever fits your workflow — there's no need to enable both.
 
 ---
 
+## Importing an Image (vectorize)
+
+To bring a **raster image** (PNG/JPG) into Gantry, click **Import Image
+(vectorize)…** (File menu, Ctrl+Shift+I). Gantry traces the image into vector
+paths, then hands the result to the same SVG import you'd use for hand-authored
+artwork — so a photo, scan, sketch or logo can become a plot.
+
+The flow is two dialogs:
+
+1. **Vectorize dialog** — choose a tracing **Strategy** and its core parameters.
+   Only the controls relevant to the selected strategy are enabled.
+
+   | Strategy | Good for | Key parameters |
+   |---|---|---|
+   | Line art / contours (Douglas–Peucker) | line art, technical drawings | Tolerance, Detail, Auto/manual Canny, colour-aware edges |
+   | Straight-line fit · Raw contours · Convex hull | variants of contour tracing | as above |
+   | Centerline / single-stroke (skeleton) | plotters/laser — one stroke per shape | Centerline threshold, Tolerance |
+   | Bézier outlines (DrPTrace) | smooth filled/outlined shapes | Bézier colours, Bézier detail |
+   | Colour fills (ImageTracer) | many-colour photo → SVG | ImageTracer colours, Outline mode |
+   | Paint by Numbers | colouring-book style regions + legend | Number of colours |
+
+   Stroke colour/width and Smooth curves apply to the polyline/centerline/bézier
+   outputs (the colour-fill tracers carry their own colours).
+
+2. **Import SVG dialog** — the *same* dialog as [Importing an SVG](#importing-an-svg):
+   set Fit-to size, refill, curve step, and optional SVGToolBox processing. The
+   traced SVG flows through unchanged, so everything downstream (positioning,
+   layers, hatching, plotting) behaves exactly as for any imported SVG.
+
+> The generated SVG is the only hand-off between the two halves — vectorization
+> is a front stage, not a separate pipeline.
+
+---
+
 ## Positioning on the canvas
 
 After import, the drawing appears in the visualisation panel.
@@ -541,6 +575,27 @@ Key flags:
 | `--toolbox-stats` | Print statistics |
 
 Run with `--help` for the full list.
+
+### Vectorizing an image headlessly
+
+`VectorizeCli` traces a raster image to SVG and can chain straight into the SVG
+import above. Arguments are split on a literal `--`: everything before it goes to
+the vectorizer (image → SVG), everything after it to `SvgImportCli` (SVG →
+commands), with the produced SVG injected as the import's `-i`.
+
+```bash
+# image -> SVG only
+java -cp cli/target/cli-1.0-SNAPSHOT.jar org.trostheide.gantry.cli.VectorizeCli \
+  -i photo.jpg -o photo.svg -s dp --canny-auto
+
+# image -> SVG -> command JSON in one command (fit to A4)
+java -cp cli/target/cli-1.0-SNAPSHOT.jar org.trostheide.gantry.cli.VectorizeCli \
+  -i photo.jpg -o photo.svg -s centerline -- -o photo.json --fit-to A4
+```
+
+The vectorize options (`-s` strategy and its parameters) mirror the standalone
+vectorizer; run `VectorizeCli` with no arguments for usage, and see the
+`vectorize` module for the full option list.
 
 ---
 

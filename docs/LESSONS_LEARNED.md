@@ -134,6 +134,27 @@ product — bugs in *how you work on it*).
   store so the Calibrate Axes round-trip (read → compute → write → re-read) is
   fully exercisable without hardware — extend the mock when you add GRBL plumbing.
 
+- **The shade plugin does not bundle `system`-scoped dependencies.** The
+  `vectorize` module needs DrPTrace, which isn't on Maven Central. Carrying it as
+  a `system`-scoped jar compiles and tests fine on the reactor classpath, but the
+  class is then *missing* from the shaded `cli`/`app` fat jars — so `bezier`
+  breaks only in the distributed artifact. The fix that keeps a fresh
+  `mvn clean install` self-contained is an **in-project Maven repository**
+  (`<root>/maven-repo`, the `gantry-local` `file://` repo keyed off
+  `${maven.multiModuleProjectDirectory}`) with the jars as ordinary `compile`
+  dependencies. Don't reach for `<scope>system</scope>` for anything that must
+  ship in a fat jar.
+
+- **Prefer vendoring a small public-domain source file over a JitPack
+  dependency.** ImageTracer (`bezier2`) was originally a JitPack artifact
+  (`com.github.brixomatic:imagetracerjava`); JitPack is unreachable from
+  restricted/CI/offline networks (HTTP 403 here), which blocks the *whole* build.
+  The upstream `jankovicsandras/imagetracer` is a single Unlicense file — vendored
+  in-tree under `vectorize/.../jankovicsandras/imagetracer/`, with the fork-only
+  `getPalette()`/`SVGUtils` calls mapped onto the upstream
+  `imageToSVG(image, options, null)`. Self-contained builds beat a fragile remote
+  repo.
+
 ---
 
 ## 4. FAQ
