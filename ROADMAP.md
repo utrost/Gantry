@@ -115,6 +115,7 @@ oracle until Phase 3.
 | **16. Axis calibration wizard** ✅ | Guided axis-direction sanity check (does +X/+Y on screen match +X/+Y on the machine?) and a measure-and-correct scale calibration (command a known travel distance, let the user enter what was actually measured, compute and offer to write corrected GRBL `$100`/`$101` steps/mm) | A user can detect and fix a reversed axis without reading GRBL docs, and can correct a steps/mm mismatch (e.g. commanded 200 mm, actual 195 mm) by entering one measured number, with the computed `$10x` value previewed before it's sent |
 | **17. Visual station placement + watercolor test-run** ✅ | Two reinforcing halves over the same `StationConfig` data: (A) make the refill-station dots already drawn on the canvas *draggable*, and right-click-on-bed *adds* a station at that mm position, syncing live with the `SettingsPanel` station table; (B) a `Machine > Test Color Stations…` wizard that physically drives the brush to each station (pen-up dry visit → optional wet dip with the station's real behaviour/dwell/swirl), with jog-to-nudge writing corrections back to the same station — placement and verification edit one backing model | A station can be positioned by dragging its marker on the canvas (table updates live, and vice-versa) and added by right-clicking the bed; a connected operator can walk every configured station, confirm the brush lands over the right pot, nudge any that miss, and have the correction persist — all without typing raw mm coordinates |
 | **18. Raster vectorization (image → SVG front stage)** ✅ | Absorb the standalone **Vectorize** (BoofCV-Batik Vectorizer) tool as a new `vectorize` module that turns a raster image (JPG/PNG) into an SVG, then hands that SVG to the *existing* `SvgImportStage` — a new optional front stage *before* `svgtoolbox-core`, opening the full **image → SVG → process → plot** path. Ported by copying source into Gantry (the Vectorize repo stays untouched); re-homed under `org.trostheide.gantry.vectorize`; wired into both the CLI and a GUI "Import Image…" entry point | A JPG/PNG can be loaded in the GUI or CLI, vectorized with a chosen strategy, and flow straight into the existing import → toolbox → plot pipeline with no external tooling; Gantry ships as one AGPLv3 artifact and the standalone Vectorize repo is unmodified |
+| **19. Vectorize live-preview studio** 🚧 NOT STARTED | Replace Phase 18's blind two-dialog Import-Image flow with a single live-preview workspace: source image and vector preview side by side, **debounced re-trace** as you change strategy/parameters, preset-first controls, and plotter-aware readouts (stroke/point counts, single-stroke vs filled). Tuned SVG still hands off to the existing `SvgImportStage`; the source image + parameters are remembered so the drawing can be **re-vectorized** later without starting over | A user can load an image and watch the trace update live as they tune (no commit-to-see), judge plottability from on-screen metrics, then import into the existing positioning/plot pipeline; re-opening a vectorized drawing restores the studio pre-populated for re-tuning |
 
 ### Phase 8 — in progress (post-cutover self-audit)
 
@@ -1034,6 +1035,80 @@ and `bezier2` (vendored ImageTracer) — work from the distributed `cli`/`app`
 artifacts. Reactor `mvn clean install` is green across all nine modules and the
 86 `vectorize` tests pass. Image → SVG → process → plot is available headless
 (CLI) and in the GUI (`File ▸ Import Image (vectorize)…`).
+
+---
+
+### Phase 19 — Vectorize live-preview studio (best-UX raster tuning) 🚧 NOT STARTED
+
+**Problem.** Phase 18 made image→SVG *possible*, but the UX is "tune blind": two
+sequential modal dialogs (`VectorizeDialog` → `SvgImportDialog`) with **no
+preview**. You pick a strategy and parameters, click through, and only see the
+trace *after* it has been imported onto the canvas — and if it's wrong, you
+start over. Vectorization is inherently iterative: you nudge tolerance / colour
+count / Canny thresholds and re-trace until it looks right. The standalone
+Vectorize tool solved this with a live `JSVGCanvas` preview + debounced
+re-processing; Gantry's port dropped that and kept only the parameter form.
+
+The single highest-value improvement is therefore a **live preview** — see the
+result update as you tune. For an explore-and-adjust task this argues for a
+*workspace* (stay on one surface and iterate), not a linear wizard (Back/Next
+fights the loop). Presets provide the guided on-ramp instead.
+
+**Goal — a dedicated "Vectorize" workspace where you tune against a live preview,
+judge plottability on screen, then hand off to the existing pipeline unchanged.**
+
+**Scope — Tier 1: the live-preview tuning surface** (replaces `VectorizeDialog`):
+- **Side-by-side**: source image (left, zoom/pan) and vector preview (right) via
+  Batik `JSVGCanvas`; synchronised zoom; an overlay/toggle to compare trace
+  against source. (`batik-swing` is already on the classpath via the `vectorize`
+  module.)
+- **Debounced background re-trace**: any control change schedules a trace on a
+  cancellable `SwingWorker` (port/adapt the standalone tool's
+  `VectorizationWorker`), cancelling any in-flight run; the UI never blocks.
+  Trace a downscaled/ROI image while tuning, full resolution on commit.
+- **Preset-first controls**: a preset row (Line art · Photo-detailed ·
+  Photo-simplified · Logo · Sketch · Paint-by-Numbers · Centerline-for-plotting)
+  sets strategy + sensible parameters; advanced, strategy-aware parameters are
+  revealed progressively. Auto-Canny and colour-aware-edges toggles.
+- **ROI crop** directly on the source preview (reuses the engine's `--crop`).
+
+**Scope — Tier 2: plotter-aware readouts** (what makes Gantry's better than a
+generic tracer — it's a *plotter* front end):
+- Live metrics under the preview: path count, point/segment count, colour count,
+  and plot-relevant numbers — estimated pen-down strokes and rough pen-travel,
+  single-stroke (centerline) vs double-stroked outline.
+- A gentle warning when a strategy yields doubled outlines that waste pen travel,
+  nudging toward `centerline` for line work.
+- Optional **"as it will plot"** preview: render the vector the way the plotter
+  draws it (stroke order/travel) rather than as filled shapes, and surface a
+  rough plot-time/complexity hint *before* import.
+
+**Scope — Tier 3: hand-off and re-tune:**
+- **Import** applies fit-to / refill / curve-step / toolbox (reuse the
+  `SvgImportDialog` panel content as a second tab) and feeds the existing
+  `SvgImportStage` → command model, completely unchanged.
+- **Remember source image + parameters** with the imported drawing so a
+  `Re-vectorize…` action (analogous to today's *Re-process Source SVG*) reopens
+  the studio pre-populated to re-tune without re-importing from scratch.
+
+**Out of scope:** a fully docked, non-modal workspace fused into the main canvas
+(this phase is a dedicated modal studio, consistent with `SettingsPanel`); manual
+per-path editing of the traced result; GPU acceleration; batch/folder
+vectorization in the GUI (the CLI already does batch). The linear *wizard*
+framing is explicitly rejected for the tuning surface — guidance comes from
+presets, not Back/Next — though the shell may still bookend the workspace with a
+choose-image entry and a confirm/import step.
+
+**Sequencing.** Tier 1 (live preview + presets) is the core value and ships
+first, replacing `VectorizeDialog` while keeping the engine and import plumbing
+from Phase 18. Tier 2 (plotter-aware readouts / plot-order preview) and Tier 3
+(re-vectorize round-trip) layer on top. Headless behaviour and the CLI are
+unchanged; this phase is GUI-only.
+
+**Reuse.** The standalone Vectorize project already implements the two hard
+parts — `VectorizationWorker` (background trace with cancel + progress) and a
+`JSVGCanvas` live preview with debounced updates — so Tier 1 is largely a
+port/adapt of proven code rather than a green-field build.
 
 ---
 
