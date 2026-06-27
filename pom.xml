@@ -38,19 +38,9 @@
         <!-- Raster vectorization (vectorize module, Phase 18) -->
         <boofcv.version>0.44</boofcv.version>
         <georegression.version>0.26</georegression.version>
-        <imagetracer.version>1.1.5</imagetracer.version>
         <drptrace.version>2.0.0</drptrace.version>
         <json.version>20231013</json.version>
     </properties>
-
-    <repositories>
-        <!-- imagetracerjava (whole-image ImageTracer strategy) is published via JitPack -->
-        <repository>
-            <id>jitpack.io</id>
-            <url>https://jitpack.io</url>
-            <snapshots><enabled>false</enabled></snapshots>
-        </repository>
-    </repositories>
 
     <dependencyManagement>
         <dependencies>
@@ -126,11 +116,6 @@
                 <groupId>org.georegression</groupId>
                 <artifactId>georegression</artifactId>
                 <version>${georegression.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>com.github.brixomatic</groupId>
-                <artifactId>imagetracerjava</artifactId>
-                <version>${imagetracer.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.json</groupId>

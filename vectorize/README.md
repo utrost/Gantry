@@ -14,29 +14,30 @@ leaves a fully functional plotter (same priority encoding as `watercolor/`).
 `dp`, `line`, `raw`, `convexhull`, `centerline`, `pbn` (Paint-by-Numbers),
 `bezier` (DrPTrace outlines), and `bezier2` (ImageTracer colour fills).
 
-## Third-party dependencies that are not on Maven Central
+## Third-party tracers not on Maven Central
 
-Two tracer libraries are not resolvable from Maven Central and need special
-handling — note them before building:
+The two whole-image tracer libraries are not on Maven Central. Both are
+vendored so the module builds offline with no extra repositories — there is
+**nothing to install**:
 
-### DrPTrace (`bezier` strategy) — vendored, no action needed
+### DrPTrace (`bezier` strategy) — vendored JARs
 
 `net.plantabyte:drptrace` / `drptrace-utils` (2.0.0) are vendored under
-[`lib/`](lib/) and wired as `system`-scoped dependencies in `pom.xml`. They
-build out of the box.
+[`lib/`](lib/) and wired as `system`-scoped dependencies in `pom.xml`.
 
-### imagetracerjava (`bezier2` strategy) — JitPack
+### ImageTracer (`bezier2` strategy) — vendored source
 
-`com.github.brixomatic:imagetracerjava:1.1.5` is published only via
-[JitPack](https://jitpack.io) (declared as a repository in the **root** Gantry
-`pom.xml`). The aggregate build therefore needs network access to `jitpack.io`.
-
-> **Restricted/CI environments:** if `jitpack.io` is not reachable (e.g. an
-> egress policy returns HTTP 403), the module — and the aggregate
-> `mvn package` — cannot resolve this dependency. The fix is either to allow
-> `jitpack.io`, vendor the jar under `lib/` the way DrPTrace is vendored, or
-> drop the `bezier2`/ImageTracer strategy. See ROADMAP Phase 18 for the
-> recorded decision.
+The `bezier2` colour-fill strategy uses
+[`jankovicsandras/imagetracerjava`](https://github.com/jankovicsandras/imagetracerjava),
+a single public-domain (The Unlicense) source file. Rather than depend on the
+JitPack repackage (`com.github.brixomatic:imagetracerjava`, which is not
+reliably reachable from restricted/CI networks), the upstream
+`ImageTracer.java` is carried in-tree at
+[`src/main/java/jankovicsandras/imagetracer/ImageTracer.java`](src/main/java/jankovicsandras/imagetracer/ImageTracer.java),
+unmodified. The fork-only `getPalette()`/`SVGUtils` helpers map onto the
+upstream `imageToSVG(image, options, null)` entry point (which builds the
+palette internally), so the strategy keeps full parity with no JitPack
+dependency.
 
 ## Building
 

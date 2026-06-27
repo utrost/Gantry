@@ -60,13 +60,25 @@
             <artifactId>batik-all</artifactId>
             <type>pom</type>
         </dependency>
-
-        <!-- Whole-image tracers -->
+        <!-- PNG export (ExportUtil) and the live SVG preview canvas (MainFrame)
+             are not pulled in transitively by batik-all; declare them explicitly. -->
         <dependency>
-            <groupId>com.github.brixomatic</groupId>
-            <artifactId>imagetracerjava</artifactId>
+            <groupId>org.apache.xmlgraphics</groupId>
+            <artifactId>batik-transcoder</artifactId>
+            <version>${batik.version}</version>
         </dependency>
-        <!-- DrPTrace is not on Maven Central; vendored under lib/ (see README) -->
+        <dependency>
+            <groupId>org.apache.xmlgraphics</groupId>
+            <artifactId>batik-swing</artifactId>
+            <version>${batik.version}</version>
+        </dependency>
+
+        <!-- Whole-image tracers.
+             ImageTracer (jankovicsandras, public domain) is vendored directly as
+             source under src/main/java/jankovicsandras/imagetracer/ — it is not on
+             Maven Central and the brixomatic JitPack repackage is not reliably
+             reachable, so the single upstream file is carried in-tree instead.
+             DrPTrace is not on Maven Central either; vendored under lib/ (see README). -->
         <dependency>
             <groupId>net.plantabyte</groupId>
             <artifactId>drptrace</artifactId>

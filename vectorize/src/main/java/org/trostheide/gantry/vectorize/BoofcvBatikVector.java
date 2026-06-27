@@ -11,7 +11,6 @@ import boofcv.alg.filter.binary.Contour;
 import boofcv.struct.ConnectRule;
 import georegression.struct.point.Point2D_I32;
 
-import jankovicsandras.imagetracer.SVGUtils;
 import org.apache.batik.anim.dom.SVGDOMImplementation;
 import org.trostheide.gantry.vectorize.strategies.StraightLineStrategy;
 import org.w3c.dom.DOMImplementation;
@@ -473,13 +472,13 @@ public class BoofcvBatikVector {
         options.put("lcpr", 0f);
         options.put("qcpr", 0f);
 
-        // 2. Run the trace
-        jankovicsandras.imagetracer.ImageTracer.ImageData imgd =
-                jankovicsandras.imagetracer.ImageTracer.loadImageData(image);
-        byte[][] palette = jankovicsandras.imagetracer.ImageTracer.getPalette(image, options);
-        jankovicsandras.imagetracer.ImageTracer.IndexedImage ii =
-                jankovicsandras.imagetracer.ImageTracer.imagedataToTracedata(imgd, options, palette);
-        String svgContent = jankovicsandras.imagetracer.SVGUtils.getsvgstring(ii, options);
+        // 2. Run the trace.
+        // Vendored upstream ImageTracer (jankovicsandras, public domain). Passing a
+        // null palette makes colorquantization build it internally from the options
+        // (colorsampling/numberofcolors) — exactly what the brixomatic getPalette()
+        // helper did. imageToSVG() also runs checkoptions() to fill any defaults.
+        String svgContent =
+                jankovicsandras.imagetracer.ImageTracer.imageToSVG(image, options, null);
 
         // 3. --- THIS IS THE FIX ---
         // If --b2-outline is true, we modify the SVG string
