@@ -78,20 +78,18 @@
              source under src/main/java/jankovicsandras/imagetracer/ — it is not on
              Maven Central and the brixomatic JitPack repackage is not reliably
              reachable, so the single upstream file is carried in-tree instead.
-             DrPTrace is not on Maven Central either; vendored under lib/ (see README). -->
+             DrPTrace is not on Maven Central either; its jars are carried in the
+             in-project repository at <root>/maven-repo (see README) and resolved as
+             normal compile dependencies so the shade plugin bundles them. -->
         <dependency>
             <groupId>net.plantabyte</groupId>
             <artifactId>drptrace</artifactId>
             <version>${drptrace.version}</version>
-            <scope>system</scope>
-            <systemPath>${project.basedir}/lib/net.plantabyte.drptrace-2.0.0.jar</systemPath>
         </dependency>
         <dependency>
             <groupId>net.plantabyte</groupId>
             <artifactId>drptrace-utils</artifactId>
             <version>${drptrace.version}</version>
-            <scope>system</scope>
-            <systemPath>${project.basedir}/lib/net.plantabyte.drptrace.utils-2.0.0.jar</systemPath>
         </dependency>
 
         <!-- JSON sidecar (run parameters) -->

@@ -20,10 +20,14 @@ The two whole-image tracer libraries are not on Maven Central. Both are
 vendored so the module builds offline with no extra repositories — there is
 **nothing to install**:
 
-### DrPTrace (`bezier` strategy) — vendored JARs
+### DrPTrace (`bezier` strategy) — in-project repository
 
-`net.plantabyte:drptrace` / `drptrace-utils` (2.0.0) are vendored under
-[`lib/`](lib/) and wired as `system`-scoped dependencies in `pom.xml`.
+`net.plantabyte:drptrace` / `drptrace-utils` (2.0.0) are carried in the
+in-project Maven repository at `<repo-root>/maven-repo` (declared as the
+`gantry-local` repository in the root `pom.xml`) and resolved as ordinary
+`compile` dependencies. Because they are not `system`-scoped, the shade plugin
+bundles them into the `cli` and `app` fat jars, so the `bezier` strategy works
+from the distributed artifacts with nothing to install.
 
 ### ImageTracer (`bezier2` strategy) — vendored source
 

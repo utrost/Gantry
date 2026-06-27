@@ -42,6 +42,21 @@
         <json.version>20231013</json.version>
     </properties>
 
+    <repositories>
+        <!-- In-project repository for DrPTrace, which is not on Maven Central.
+             Carrying the jars here (instead of as system-scoped paths) lets them
+             resolve as ordinary compile dependencies, so the shade plugin bundles
+             them into the cli/app fat jars and the bezier strategy works from the
+             distributed artifacts. The reactor-root property keeps the path stable
+             for every module. -->
+        <repository>
+            <id>gantry-local</id>
+            <url>file://${maven.multiModuleProjectDirectory}/maven-repo</url>
+            <releases><enabled>true</enabled></releases>
+            <snapshots><enabled>false</enabled></snapshots>
+        </repository>
+    </repositories>
+
     <dependencyManagement>
         <dependencies>
             <!-- Inter-module dependencies -->
