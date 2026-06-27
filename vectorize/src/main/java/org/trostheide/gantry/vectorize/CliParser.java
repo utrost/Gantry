@@ -251,6 +251,12 @@ public class CliParser {
                 .desc("Run Canny on R/G/B channels and merge edges. Catches hue-boundary edges that grayscale misses.")
                 .build());
 
+        // --- Debug Option ---
+        options.addOption(Option.builder()
+                .longOpt("debug")
+                .desc("Write diagnostic edge maps (edges_debug.png, edges_debug_simplified.png) to the temp directory. Off by default.")
+                .build());
+
         // --- Paint by Numbers Options ---
         // --- Crop Option ---
         options.addOption(Option.builder()

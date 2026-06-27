@@ -45,6 +45,8 @@ Expected output: `BUILD SUCCESS` with zero failures across all modules.
 | `plotter` | `GcodeBackendTest` | G-code formatting: init sequence, pen modes (servo/zaxis/m3m5), moveto, lineto, raw send |
 | `app` | `PlotServiceTest` | Full plot orchestration: layer sequencing, refill at layer boundary, cancel mid-plot, OOB clamping, per-waypoint position callbacks |
 | `app` | `TimeEstimatorTest` (7) | Travel/draw distances use their respective feed rates; refill travel + fixed dip overhead; unknown station falls back to default; pen-down settle overhead charged once per `DrawCommand` and driven by the configurable `penDownDelayMillis` (0 removes it); multi-layer totals; `H:MM:SS` formatting |
+| `vectorize` | `IntegrationTest`, `BoofcvBatikVectorTest`, `StrategiesTest`, `PaintByNumbersTest` (86) | Raster→SVG engine: contour extraction, all eight strategies, polyline/Bézier geometry, auto-Canny, crop, SVG optimisation, Paint-by-Numbers quantisation/regions/labels |
+| `cli` | `VectorizeCliTest` (2) | `VectorizeCli` wiring: image→SVG, and the `--`-separated image→SVG→command-JSON chain (argument split, SVG-path derivation, `-i` injection) |
 | `svgtoolbox-core` | `ConfigBuilderTest` | Config builder defaults and overrides |
 | `svgtoolbox-core` | `VisibilityProcessorTest` (4) | Remove hidden layers by colour |
 | `svgtoolbox-core` | `StyleNormalizerProcessorTest` (2) | Move inline `style` attributes to presentation attributes |
@@ -550,6 +552,21 @@ java -jar cli/target/cli-1.0-SNAPSHOT.jar \
 - [ ] `out2.json` is valid and loadable.
 - [ ] `--help` prints the full flag list.
 
+#### TS-S3 — Vectorize an image (image → SVG → commands)
+Use any PNG/JPG as `IMAGE` below.
+```bash
+# image -> SVG only
+java -cp cli/target/cli-1.0-SNAPSHOT.jar org.trostheide.gantry.cli.VectorizeCli \
+  -i IMAGE -o /tmp/v.svg -s dp --canny-auto
+
+# image -> SVG -> command JSON in one command
+java -cp cli/target/cli-1.0-SNAPSHOT.jar org.trostheide.gantry.cli.VectorizeCli \
+  -i IMAGE -o /tmp/v.svg -s centerline -- -o /tmp/v.json --fit-to A4
+```
+- [ ] The first command writes a valid `/tmp/v.svg` (opens in a browser) and no `/tmp/v.json`.
+- [ ] The second writes both; `/tmp/v.json` loads in the GUI via **Open Commands (JSON)**.
+- [ ] `VectorizeCli` with no arguments prints usage; omitting `-o` before `--` errors clearly.
+
 ---
 
 ### Group T — Visual station placement & test-run wizard
@@ -614,6 +631,28 @@ appear in the other.
 
 ---
 
+### Group U — Image import (vectorize)
+
+Covers Phase 18: bringing a raster image into Gantry via **File > Import Image
+(vectorize)…**. The traced SVG flows through the same import as a hand-authored
+SVG, so this group focuses on the vectorize step itself.
+
+#### TS-U1 — Import an image and trace it *(mock OK)*
+1. **File > Import Image (vectorize)…** (Ctrl+Shift+I) and choose a PNG/JPG (a logo or line drawing works well).
+   - [ ] A **Vectorize** dialog opens with a **Strategy** dropdown and parameter fields.
+2. Change the **Strategy** between e.g. *Line art (dp)*, *Centerline*, *Colour fills (ImageTracer)*, *Paint by Numbers*.
+   - [ ] Only the parameters relevant to the selected strategy are enabled (e.g. Canny low/high only for the dp family, ImageTracer colours only for `bezier2`).
+3. Pick *Line art (Douglas–Peucker)*, leave defaults, click **Vectorize**.
+   - [ ] The **Import SVG** dialog opens next (the same one as Import SVG) — pick a **Fit to** size and import.
+   - [ ] The drawing appears in the Live View; the console logs `Vectorized <image> (<strategy>): N layer(s), M command(s)`.
+4. Cancel the **Vectorize** dialog (instead of clicking Vectorize) on a fresh attempt.
+   - [ ] Nothing is imported and no error is shown.
+5. After a successful import, confirm normal downstream behaviour.
+   - [ ] Positioning, the Layers checklist, Optimize, Export G-code and Start Plot (mock) all work exactly as for an imported SVG.
+   - [ ] No `edges_debug*.png` files are left in the launch directory (gitignored; see also the standalone Vectorize `--debug` behaviour).
+
+---
+
 ## 3. Coverage map & gaps
 
 ### Feature → script index
@@ -627,6 +666,7 @@ appear in the other.
 | Calibrate Axes wizard | TS-E1, TS-E2, TS-E3, TS-E4 |
 | Pre-Plot Checklist / Pre-flight | TS-F1, TS-F2, TS-F3, TS-F4 |
 | SVG import | TS-G1, TS-G2, TS-H1 |
+| Image import (vectorize) | TS-U1, TS-S3 |
 | SVGToolBox & re-process | TS-I1, TS-I2, TS-J1 |
 | Canvas positioning | TS-K1, TS-K2 |
 | Visual station placement & test-run wizard | TS-T1, TS-T2, TS-T3, TS-T4 |
@@ -637,7 +677,7 @@ appear in the other.
 | Time estimate | TS-P1, TS-P2 |
 | Export / replay / persistence | TS-Q1, TS-Q2, TS-Q3 |
 | Help / About | TS-R1, TS-R2 |
-| CLI | TS-S1, TS-S2 |
+| CLI | TS-S1, TS-S2, TS-S3 |
 
 ### Not covered by automated unit tests
 

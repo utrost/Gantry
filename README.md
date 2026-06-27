@@ -1,7 +1,9 @@
 # Gantry
 
 An all-Java toolkit that prepares SVGs for pen plotters and drives the plotter
-directly: optimize → position → process → stream/export G-code.
+directly: optimize → position → process → stream/export G-code. Raster images
+(PNG/JPG) can enter the same pipeline through the optional `vectorize` front
+stage (image → SVG), in the GUI (**Import Image**) or headless (`VectorizeCli`).
 
 Gantry merges the SVG-prep features of [SVGToolBox](https://github.com/utrost/SVGToolBox)
 with the processing and plotter-driving of SVG2WaterColor into a single

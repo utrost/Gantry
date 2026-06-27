@@ -159,6 +159,9 @@ public class Main {
      * Processes a single image file (the core workflow).
      */
     public static void runSingleFile(CliParser cli, CommandLine cmd) throws Exception {
+        // Diagnostic edge maps are written only with --debug (to the temp dir, not the CWD).
+        BoofcvBatikVector.DEBUG = cmd.hasOption("debug");
+
         // --- Get all parameters from CLI ---
         String inputPath = cmd.getOptionValue("i");
         VectorizationStrategy strategy = cli.getStrategy(cmd.getOptionValue("s"));
@@ -342,13 +345,15 @@ public class Main {
             case CANNY_CONTOUR -> {
                 List<List<Point2D_I32>> contours = BoofcvBatikVector.extractContours(
                         image, (float) cannyBlur, (float) cannyLow, (float) cannyHigh, colorEdges);
-                double effectiveTolerance = strategy.computeEffectiveTolerance(tolerance, detailFactor);
-                BufferedImage debugSimplified = BoofcvBatikVector.renderSimplifiedContours(
-                        contours, strategy, effectiveTolerance, detailFactor,
-                        image.getWidth(), image.getHeight(), minLength, maxLength);
-                File debugFile = new File("edges_debug_simplified.png");
-                ImageIO.write(debugSimplified, "PNG", debugFile);
-                System.out.println("Saved simplified debug: " + debugFile.getAbsolutePath());
+                if (BoofcvBatikVector.DEBUG) {
+                    double effectiveTolerance = strategy.computeEffectiveTolerance(tolerance, detailFactor);
+                    BufferedImage debugSimplified = BoofcvBatikVector.renderSimplifiedContours(
+                            contours, strategy, effectiveTolerance, detailFactor,
+                            image.getWidth(), image.getHeight(), minLength, maxLength);
+                    File debugFile = BoofcvBatikVector.debugFile("edges_debug_simplified.png");
+                    ImageIO.write(debugSimplified, "PNG", debugFile);
+                    System.out.println("Saved simplified debug: " + debugFile.getAbsolutePath());
+                }
                 BoofcvBatikVector.createSvgFileBatik(
                         contours, image.getWidth(), image.getHeight(), svgOutputPath,
                         strategy, tolerance, detailFactor, minLength, maxLength,

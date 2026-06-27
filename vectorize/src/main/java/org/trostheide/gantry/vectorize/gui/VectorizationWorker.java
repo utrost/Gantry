@@ -164,11 +164,14 @@ public class VectorizationWorker extends SwingWorker<File, Void> {
 
                 if (isCancelled()) return null;
                 reportProgress("Detecting edges...");
+                // The edge overlay reads the edge map back, so enable debug output for the
+                // GUI; it is written to the temp dir rather than the working directory.
+                BoofcvBatikVector.DEBUG = true;
                 List<List<Point2D_I32>> contours = BoofcvBatikVector.extractContours(
                         sourceImage, blur, low, high, colorEdges);
 
                 try {
-                    File edgeDebugFile = new File("edges_debug.png");
+                    File edgeDebugFile = BoofcvBatikVector.debugFile("edges_debug.png");
                     if (edgeDebugFile.exists()) {
                         edgeImage = ImageIO.read(edgeDebugFile);
                     }

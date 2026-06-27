@@ -46,6 +46,20 @@ import java.util.HashMap;
  */
 public class BoofcvBatikVector {
 
+    /**
+     * When {@code true}, the canny pipeline writes its diagnostic edge maps
+     * ({@code edges_debug.png}, {@code edges_debug_simplified.png}) to the system temp
+     * directory (see {@link #debugFile(String)}). Off by default so a normal run leaves no
+     * stray files; the CLI enables it via {@code --debug} and the module's own GUI enables it
+     * because its edge overlay reads the edge map back.
+     */
+    public static volatile boolean DEBUG = false;
+
+    /** Resolves a debug-output file in the system temp directory (never the CWD). */
+    public static File debugFile(String name) {
+        return new File(System.getProperty("java.io.tmpdir"), "vectorizer-" + name);
+    }
+
     // Defaults for the old main() method, kept for the overloaded extractContours
     private static final float DEFAULT_CANNY_BLUR = 1.5f;
     private static final float DEFAULT_CANNY_LOW = 0.02f;
@@ -89,19 +103,22 @@ public class BoofcvBatikVector {
             edgeImage = extractGrayscaleEdges(image, blurSigma, threshLow, threshHigh);
         }
 
-        // --- Debug output ---
-        try {
-            GrayU8 visibleEdges = new GrayU8(edgeImage.width, edgeImage.height);
-            for (int y = 0; y < edgeImage.height; y++) {
-                for (int x = 0; x < edgeImage.width; x++) {
-                    visibleEdges.set(x, y, edgeImage.get(x, y) * 255);
+        // --- Debug output (only when enabled; written to the temp dir, not the CWD) ---
+        if (DEBUG) {
+            try {
+                GrayU8 visibleEdges = new GrayU8(edgeImage.width, edgeImage.height);
+                for (int y = 0; y < edgeImage.height; y++) {
+                    for (int x = 0; x < edgeImage.width; x++) {
+                        visibleEdges.set(x, y, edgeImage.get(x, y) * 255);
+                    }
                 }
+                BufferedImage debugImg = ConvertBufferedImage.convertTo(visibleEdges, null, true);
+                File out = debugFile("edges_debug.png");
+                ImageIO.write(debugImg, "png", out);
+                System.out.println("Saved debug edge map: " + out.getAbsolutePath());
+            } catch (IOException e) {
+                System.err.println("Could not save debug edge map: " + e.getMessage());
             }
-            BufferedImage debugImg = ConvertBufferedImage.convertTo(visibleEdges, null, true);
-            ImageIO.write(debugImg, "png", new File("edges_debug.png"));
-            System.out.println("Saved debug edge map: edges_debug.png");
-        } catch (IOException e) {
-            System.err.println("Could not save debug edge map: " + e.getMessage());
         }
 
         // --- Contour Tracing ---
