@@ -43,6 +43,7 @@
 ## Pipeline (stages, each toggleable)
 
 ```
+(image)           (raster JPG/PNG → SVG, optional front stage — Phase 18)  ← opt-in
 SVG → Batik DOM
    → optimize        (simplify, path-optimize)              ← first-class, default ON
    → position        (scale, fit-page, rotate, mirror, align)  ← first-class
@@ -113,6 +114,7 @@ oracle until Phase 3.
 | **15. Machine setup wizard (first run)** ✅ | A guided first-run flow that walks `SettingsPanel`'s fields in a sensible order (connection → geometry → orientation/origin → pen mode/speeds) instead of presenting one long form. Shipped by re-parenting the *real* `SettingsPanel` section panels into wizard steps (no duplicated widgets), with a first-run auto-prompt and a "Run Setup Wizard…" launcher in the Settings dialog | A brand-new machine can be configured end-to-end via the wizard with zero prior knowledge of where each setting lives in `SettingsPanel`; the existing all-in-one Settings dialog is unchanged and still works for edits |
 | **16. Axis calibration wizard** ✅ | Guided axis-direction sanity check (does +X/+Y on screen match +X/+Y on the machine?) and a measure-and-correct scale calibration (command a known travel distance, let the user enter what was actually measured, compute and offer to write corrected GRBL `$100`/`$101` steps/mm) | A user can detect and fix a reversed axis without reading GRBL docs, and can correct a steps/mm mismatch (e.g. commanded 200 mm, actual 195 mm) by entering one measured number, with the computed `$10x` value previewed before it's sent |
 | **17. Visual station placement + watercolor test-run** ✅ | Two reinforcing halves over the same `StationConfig` data: (A) make the refill-station dots already drawn on the canvas *draggable*, and right-click-on-bed *adds* a station at that mm position, syncing live with the `SettingsPanel` station table; (B) a `Machine > Test Color Stations…` wizard that physically drives the brush to each station (pen-up dry visit → optional wet dip with the station's real behaviour/dwell/swirl), with jog-to-nudge writing corrections back to the same station — placement and verification edit one backing model | A station can be positioned by dragging its marker on the canvas (table updates live, and vice-versa) and added by right-clicking the bed; a connected operator can walk every configured station, confirm the brush lands over the right pot, nudge any that miss, and have the correction persist — all without typing raw mm coordinates |
+| **18. Raster vectorization (image → SVG front stage)** 🚧 NOT STARTED | Absorb the standalone **Vectorize** (BoofCV-Batik Vectorizer) tool as a new `vectorize` module that turns a raster image (JPG/PNG) into an SVG, then hands that SVG to the *existing* `SvgImportStage` — a new optional front stage *before* `svgtoolbox-core`, opening the full **image → SVG → process → plot** path. Ported by copying source into Gantry (the Vectorize repo stays untouched); re-homed under `org.trostheide.gantry.vectorize`; wired into both the CLI and a GUI "Import Image…" entry point | A JPG/PNG can be loaded in the GUI or CLI, vectorized with a chosen strategy, and flow straight into the existing import → toolbox → plot pipeline with no external tooling; Gantry ships as one AGPLv3 artifact and the standalone Vectorize repo is unmodified |
 
 ### Phase 8 — in progress (post-cutover self-audit)
 
@@ -893,6 +895,93 @@ ordering as Phases 15→16.
 
 ---
 
+### Phase 18 — Raster vectorization (image → SVG front stage) 🚧 NOT STARTED
+
+**Problem.** Gantry starts from an SVG. Everything upstream of that — turning a
+photo, scan, logo or sketch into vector paths — happens in a *separate* tool,
+the standalone **Vectorize** project (BoofCV-Batik Vectorizer). A user who has
+a raster image today must run Vectorize by hand, save an SVG, then come back to
+Gantry and import it. The two tools already share the exact same stack
+(Java 17 · Maven · Swing/FlatLaf · Apache Batik) and meet at a clean data
+boundary: **Vectorize's output (SVG) is precisely Gantry's input.** Vectorize
+is the missing *front* stage of the pipeline, not a competing one.
+
+**Decisions taken (from the integration analysis):**
+- **Integration depth — new module.** Port Vectorize as a self-contained
+  `vectorize` Maven module that emits an SVG; that SVG is fed into the existing
+  `SvgImportStage`. Gantry's core (`svgtoolbox-core`, `pipeline-core`,
+  `plotter`) is **untouched** — the boundary stays "a generated SVG," not a new
+  internal coordinate model.
+- **The Vectorize repo stays untouched.** The port is a one-way *copy* of the
+  Vectorize source into Gantry (re-homed to `org.trostheide.gantry.vectorize`);
+  no changes are pushed to, and no git history is rewritten in, the standalone
+  Vectorize repository. It continues to live and evolve on its own.
+- **Licensing — adopt AGPLv3 for Gantry.** Vectorize is AGPLv3 and Gantry
+  currently has no `LICENSE` file. The combined project becomes AGPLv3: add an
+  AGPLv3 `LICENSE` at the Gantry root and the corresponding notices.
+- **DrPTrace — whatever's cleanest.** The `bezier` strategy depends on the
+  vendored DrPTrace JARs (`lib/net.plantabyte.drptrace-2.0.0.jar`, today wired
+  via Maven `system` scope, which a multi-module reactor + fat-jar assembly
+  does *not* bundle). Preferred: make those JARs reproducibly available to the
+  build (install into the local repo / repackage) so the `bezier` strategy
+  survives in the shipped artifact. Fallback, if that fights the reactor build:
+  drop the single `bezier` strategy and ship the other seven. No silent loss —
+  the outcome is recorded here when the phase lands.
+
+**Goal — image → SVG → process → plot, in one tool, with Gantry's core
+unchanged.** Two reinforcing halves, same "build the engine, then drive it"
+ordering as Phases 13→14 and 15→16.
+
+1. **Half A — `vectorize` module + CLI (headless, no GUI).** Copy in the
+   Vectorize engine and strategies, re-home the package/groupId, reconcile
+   dependencies, and expose a headless `image → SVG` converter that chains into
+   the existing `SvgImportCli`.
+2. **Half B — GUI integration.** A `PlotterPanel` "Import Image…" action that
+   runs vectorization, writes an SVG, and hands it straight to the existing
+   SVG-import path (the same path "Import SVG…" already uses). A focused
+   controls dialog — not the whole standalone Vectorize GUI — exposing strategy
+   choice and the core parameters.
+
+**Scope — Half A:**
+- New `vectorize` module added to the parent `<modules>` list, *before*
+  `svgtoolbox-core` in the dependency order. Copy `BoofcvBatikVector`, the
+  `VectorizationStrategy` interface and its eight strategies (`dp`, `line`,
+  `raw`, `convexhull`, `bezier`, `bezier2`, `centerline`, `pbn`), the
+  `algorithms` helpers (`CurveFitter`, `SkeletonTracer`), Paint-by-Numbers,
+  auto-Canny, and the SVG/export utilities. Re-home `org.trostheide.vectorizer`
+  → `org.trostheide.gantry.vectorize`; groupId `com.structuredexplorer` →
+  `org.trostheide.gantry`.
+- Add BoofCV 0.44 + georegression + imagetracerjava (and the DrPTrace handling
+  above) to the parent `dependencyManagement`. Align the shared deps to
+  Gantry's versions: Batik 1.17 → **1.19**, commons-cli 1.5 → **1.6** (both
+  trivial). Keep the BoofCV footprint confined to this module so removing
+  `vectorize/` still leaves a fully functional plotter (same priority encoding
+  as `watercolor/`).
+- A headless entry point (`cli`): `image → SVG`, reusing Vectorize's strategy
+  options, that either writes an SVG or chains directly into `SvgImportCli` so
+  one command goes image → plottable command model.
+
+**Scope — Half B:**
+- `PlotterPanel` gains an "Import Image…" action alongside "Import SVG…". It
+  opens a vectorize dialog (strategy + key parameters, Batik live preview as in
+  the standalone tool if cheap to reuse), produces an SVG, then routes it
+  through the *existing* `SvgImportDialog`/`SvgImportStage` flow — so the
+  toolbox-processing tab, scaling, refill, etc. all apply unchanged.
+- Presets carried over where they map cleanly (Line Art, Logo, Sketch, …).
+
+**Out of scope:** porting the entire standalone Vectorize Swing application
+(menus, snapshot/undo stack, theme toggling) verbatim — Gantry already owns the
+window chrome; only the vectorization controls are needed. Live re-vectorize on
+every slider tick beyond a simple debounced preview. Any change to the
+downstream pipeline — the SVG boundary is deliberately the seam.
+
+**Sequencing.** Half A lands first (module + CLI, headless-verifiable on the
+`testimages`/`testdata` samples, no GUI), Half B on top. License + dependency
+reconciliation is part of Half A's exit criteria so the reactor build stays
+green from the first commit.
+
+---
+
 ### Phase 6 — done
 
 All 13 SVGToolBox SVG→SVG processors (Visibility, StyleNormalizer, Rotate,
@@ -1031,3 +1120,9 @@ SVGToolBox processor pipeline are now available in `pipeline-core`/
 - **SVGToolBox** (https://github.com/utrost/SVGToolBox) — Java 17 + Maven + Batik,
   SVG→SVG optimization processors (PathOptimize, Simplify, Hatch, palette, …).
   To be absorbed as `svgtoolbox-core`.
+- **Vectorize** (BoofCV-Batik Vectorizer, https://github.com/utrost/vectorize) —
+  Java 17 + Maven + Batik + BoofCV, raster image (JPG/PNG) → SVG via edge
+  detection and multiple tracing strategies (Canny/contour, centerline,
+  whole-image Bézier, Paint-by-Numbers). AGPLv3. To be absorbed as the
+  `vectorize` front-stage module (Phase 18) by copying its source into Gantry;
+  the standalone Vectorize repository stays untouched and continues on its own.
