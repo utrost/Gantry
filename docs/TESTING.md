@@ -637,19 +637,26 @@ Covers Phase 18: bringing a raster image into Gantry via **File > Import Image
 (vectorize)…**. The traced SVG flows through the same import as a hand-authored
 SVG, so this group focuses on the vectorize step itself.
 
-#### TS-U1 — Import an image and trace it *(mock OK)*
+#### TS-U1 — Vectorize studio: live preview & tuning *(mock OK)* — Phase 19 Tier 1
 1. **File > Import Image (vectorize)…** (Ctrl+Shift+I) and choose a PNG/JPG (a logo or line drawing works well).
-   - [ ] A **Vectorize** dialog opens with a **Strategy** dropdown and parameter fields.
-2. Change the **Strategy** between e.g. *Line art (dp)*, *Centerline*, *Colour fills (ImageTracer)*, *Paint by Numbers*.
-   - [ ] Only the parameters relevant to the selected strategy are enabled (e.g. Canny low/high only for the dp family, ImageTracer colours only for `bezier2`).
-3. Pick *Line art (Douglas–Peucker)*, leave defaults, click **Vectorize**.
-   - [ ] The **Import SVG** dialog opens next (the same one as Import SVG) — pick a **Fit to** size and import.
+   - [ ] The **Vectorize — live preview** studio opens: source image on the left, an (initially empty) **Vector preview** on the right, controls on the right edge, and a status line bottom-left.
+   - [ ] Within ~1 s a trace appears in the preview and the status shows `<strategy> · N path(s)`.
+2. Change a parameter (e.g. raise **Tolerance**, toggle **Auto Canny** off and edit low/high).
+   - [ ] The preview re-traces automatically a moment after you stop adjusting (debounced — it does not re-trace on every tick); the status updates; the UI never freezes.
+3. Switch **Strategy** between *Line art (dp)*, *Centerline*, *Colour fills (ImageTracer)*, *Paint by Numbers*.
+   - [ ] Only the parameters relevant to the selected strategy are enabled; the preview reflects each strategy (e.g. `bezier2` shows colour fills; centerline shows single strokes).
+4. Use the **Preset** dropdown (Line art, Centerline (plotter), Photo — detailed, …).
+   - [ ] Selecting a preset sets the strategy + parameters and re-traces; switching to *Custom* leaves controls as-is.
+5. Click **Crop**, drag a region on the source, and observe.
+   - [ ] The preview re-traces using only the cropped region.
+6. Click **Vectorize**.
+   - [ ] The **Import SVG** dialog opens (same as Import SVG) — pick a **Fit to** size and import.
    - [ ] The drawing appears in the Live View; the console logs `Vectorized <image> (<strategy>): N layer(s), M command(s)`.
-4. Cancel the **Vectorize** dialog (instead of clicking Vectorize) on a fresh attempt.
+7. Re-open the studio and **Cancel**.
    - [ ] Nothing is imported and no error is shown.
-5. After a successful import, confirm normal downstream behaviour.
+8. After a successful import, confirm normal downstream behaviour.
    - [ ] Positioning, the Layers checklist, Optimize, Export G-code and Start Plot (mock) all work exactly as for an imported SVG.
-   - [ ] No `edges_debug*.png` files are left in the launch directory (gitignored; see also the standalone Vectorize `--debug` behaviour).
+   - [ ] No `edges_debug*.png` files are left in the launch directory.
 
 ---
 

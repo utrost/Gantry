@@ -1742,9 +1742,14 @@ public class PlotterPanel extends JPanel {
         File imageFile = chooser.getSelectedFile();
         rememberDirectory(imageFile);
 
-        // 1) How to trace the image into vector paths.
-        VectorizeDialog.Result vec =
-                new VectorizeDialog(SwingUtilities.getWindowAncestor(this)).showDialog();
+        // 1) Tune the trace against a live preview, then commit the chosen options.
+        VectorizeStudioDialog.Result vec;
+        try {
+            vec = new VectorizeStudioDialog(SwingUtilities.getWindowAncestor(this), imageFile).showDialog();
+        } catch (IOException ex) {
+            error("Vectorize failed: could not open the image (" + ex.getMessage() + ")");
+            return;
+        }
         if (vec == null) {
             return;
         }

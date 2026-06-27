@@ -41,6 +41,12 @@
             <groupId>org.trostheide.gantry</groupId>
             <artifactId>vectorize</artifactId>
         </dependency>
+        <!-- Live SVG preview canvas (JSVGCanvas) for the vectorize studio -->
+        <dependency>
+            <groupId>org.apache.xmlgraphics</groupId>
+            <artifactId>batik-swing</artifactId>
+            <version>${batik.version}</version>
+        </dependency>
         <dependency>
             <groupId>com.formdev</groupId>
             <artifactId>flatlaf</artifactId>

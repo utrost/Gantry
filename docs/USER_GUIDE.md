@@ -282,8 +282,17 @@ artwork — so a photo, scan, sketch or logo can become a plot.
 
 The flow is two dialogs:
 
-1. **Vectorize dialog** — choose a tracing **Strategy** and its core parameters.
-   Only the controls relevant to the selected strategy are enabled.
+1. **Vectorize studio** — a live-preview workspace: the source image on the
+   left, the traced **vector preview** on the right, and controls on the right
+   edge. The preview re-traces automatically (debounced) as you change anything,
+   and a status line shows the strategy and path count — so you tune against what
+   you'll actually get rather than committing blind. Start from a **Preset**
+   (Line art, Centerline (plotter), Photo, Paint by Numbers, …) and adjust from
+   there; only the controls relevant to the selected **Strategy** are enabled.
+   **Crop** lets you drag a region on the source to trace just part of the image.
+   Click **Vectorize** when the preview looks right.
+
+   Strategy guide:
 
    | Strategy | Good for | Key parameters |
    |---|---|---|
