@@ -980,6 +980,25 @@ downstream pipeline — the SVG boundary is deliberately the seam.
 reconciliation is part of Half A's exit criteria so the reactor build stays
 green from the first commit.
 
+**Status — Half A in progress.**
+- ✅ `vectorize` module scaffolded; all Vectorize source ported and re-homed
+  `org.trostheide.vectorizer` → `org.trostheide.gantry.vectorize`; parent
+  `<modules>` + `dependencyManagement` wired (BoofCV 0.44, georegression,
+  imagetracerjava, org.json, drptrace). Batik aligned to 1.19, commons-cli to
+  1.6. DrPTrace JARs vendored under `vectorize/lib/` (system scope).
+- ✅ AGPLv3 `LICENSE` added at the Gantry root.
+- ⏳ **Open dependency decision — `imagetracerjava` (the `bezier2`/ImageTracer
+  colour-fill strategy) is published only on JitPack.** It is woven through 9
+  files (incl. 16 references in `BoofcvBatikVector`, the CLI parser and the GUI
+  presets), so while it is unresolvable nothing in the module compiles. The two
+  other tracers are unaffected: `bezier` uses DrPTrace's own vendored
+  `net.plantabyte.drptrace.utils.ImageTracer`. Resolution options: (a) drop the
+  `bezier2`/ImageTracer strategy and the JitPack dependency so Gantry builds in
+  any environment; (b) keep it as-is — builds wherever `jitpack.io` is
+  reachable; (c) vendor the jar under `vectorize/lib/` like DrPTrace. Pending a
+  decision, the faithful full port (option b) is what is committed.
+- ⏳ CLI `image → SVG` entry point (chains into `SvgImportCli`) — not yet wired.
+
 ---
 
 ### Phase 6 — done

@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>org.trostheide.gantry</groupId>
+        <artifactId>gantry</artifactId>
+        <version>1.0-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>vectorize</artifactId>
+    <name>Gantry :: vectorize</name>
+    <description>
+        Raster image (JPG/PNG) to SVG front stage — the ported BoofCV-Batik
+        Vectorizer. Produces an SVG that the existing pipeline-core SvgImportStage
+        consumes; depends on no other Gantry module so dropping it leaves a fully
+        functional plotter.
+    </description>
+
+    <dependencies>
+        <!-- Computer vision (edge detection, contours, skeletonisation) -->
+        <dependency>
+            <groupId>org.boofcv</groupId>
+            <artifactId>boofcv-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.boofcv</groupId>
+            <artifactId>boofcv-io</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.boofcv</groupId>
+            <artifactId>boofcv-ip</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.boofcv</groupId>
+            <artifactId>boofcv-feature</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.boofcv</groupId>
+            <artifactId>boofcv-swing</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.boofcv</groupId>
+            <artifactId>boofcv-recognition</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.boofcv</groupId>
+            <artifactId>boofcv-geo</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.georegression</groupId>
+            <artifactId>georegression</artifactId>
+        </dependency>
+
+        <!-- SVG generation + preview (whole batik stack, managed by parent) -->
+        <dependency>
+            <groupId>org.apache.xmlgraphics</groupId>
+            <artifactId>batik-all</artifactId>
+            <type>pom</type>
+        </dependency>
+
+        <!-- Whole-image tracers -->
+        <dependency>
+            <groupId>com.github.brixomatic</groupId>
+            <artifactId>imagetracerjava</artifactId>
+        </dependency>
+        <!-- DrPTrace is not on Maven Central; vendored under lib/ (see README) -->
+        <dependency>
+            <groupId>net.plantabyte</groupId>
+            <artifactId>drptrace</artifactId>
+            <version>${drptrace.version}</version>
+            <scope>system</scope>
+            <systemPath>${project.basedir}/lib/net.plantabyte.drptrace-2.0.0.jar</systemPath>
+        </dependency>
+        <dependency>
+            <groupId>net.plantabyte</groupId>
+            <artifactId>drptrace-utils</artifactId>
+            <version>${drptrace.version}</version>
+            <scope>system</scope>
+            <systemPath>${project.basedir}/lib/net.plantabyte.drptrace.utils-2.0.0.jar</systemPath>
+        </dependency>
+
+        <!-- JSON sidecar (run parameters) -->
+        <dependency>
+            <groupId>org.json</groupId>
+            <artifactId>json</artifactId>
+        </dependency>
+
+        <!-- CLI parsing reused by the standalone Main entry point -->
+        <dependency>
+            <groupId>commons-cli</groupId>
+            <artifactId>commons-cli</artifactId>
+        </dependency>
+
+        <!-- Look and feel for the module's own preview GUI -->
+        <dependency>
+            <groupId>com.formdev</groupId>
+            <artifactId>flatlaf</artifactId>
+        </dependency>
+
+        <!-- Testing -->
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+</project>

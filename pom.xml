@@ -18,6 +18,7 @@
         <module>pipeline-core</module>
         <module>watercolor</module>
         <module>plotter</module>
+        <module>vectorize</module>
         <module>cli</module>
         <module>app</module>
     </modules>
@@ -34,7 +35,22 @@
         <mockito.version>5.8.0</mockito.version>
         <jserialcomm.version>2.10.4</jserialcomm.version>
         <commonmark.version>0.21.0</commonmark.version>
+        <!-- Raster vectorization (vectorize module, Phase 18) -->
+        <boofcv.version>0.44</boofcv.version>
+        <georegression.version>0.26</georegression.version>
+        <imagetracer.version>1.1.5</imagetracer.version>
+        <drptrace.version>2.0.0</drptrace.version>
+        <json.version>20231013</json.version>
     </properties>
+
+    <repositories>
+        <!-- imagetracerjava (whole-image ImageTracer strategy) is published via JitPack -->
+        <repository>
+            <id>jitpack.io</id>
+            <url>https://jitpack.io</url>
+            <snapshots><enabled>false</enabled></snapshots>
+        </repository>
+    </repositories>
 
     <dependencyManagement>
         <dependencies>
@@ -63,6 +79,63 @@
                 <groupId>org.trostheide.gantry</groupId>
                 <artifactId>plotter</artifactId>
                 <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.trostheide.gantry</groupId>
+                <artifactId>vectorize</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+
+            <!-- Raster vectorization stack (vectorize module) -->
+            <dependency>
+                <groupId>org.boofcv</groupId>
+                <artifactId>boofcv-core</artifactId>
+                <version>${boofcv.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.boofcv</groupId>
+                <artifactId>boofcv-io</artifactId>
+                <version>${boofcv.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.boofcv</groupId>
+                <artifactId>boofcv-ip</artifactId>
+                <version>${boofcv.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.boofcv</groupId>
+                <artifactId>boofcv-feature</artifactId>
+                <version>${boofcv.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.boofcv</groupId>
+                <artifactId>boofcv-swing</artifactId>
+                <version>${boofcv.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.boofcv</groupId>
+                <artifactId>boofcv-recognition</artifactId>
+                <version>${boofcv.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.boofcv</groupId>
+                <artifactId>boofcv-geo</artifactId>
+                <version>${boofcv.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.georegression</groupId>
+                <artifactId>georegression</artifactId>
+                <version>${georegression.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.github.brixomatic</groupId>
+                <artifactId>imagetracerjava</artifactId>
+                <version>${imagetracer.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.json</groupId>
+                <artifactId>json</artifactId>
+                <version>${json.version}</version>
             </dependency>
 
             <!-- JSON -->
