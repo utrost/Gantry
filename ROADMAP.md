@@ -422,10 +422,33 @@ region whose `fill` is `none`.
   outside the processor (command-model option above) so the processor's
   colour-keyed contract is left intact.
 
+*Prerequisite — viewport zoom/pan on the plotter canvas.* Picking one small
+traced region (a single lock of hair, an eye) by clicking is impractical at
+fit-to-window scale, so this tier depends on a **magnifying zoom + pan** that
+`VisualizationPanel` does not have today: there is no `MouseWheelListener`, and
+`paintScale`/`paintTx`/`paintTy` are recomputed every paint purely to fit the
+whole bed in the panel (the status bar's "Scale=…%" is the *content* resize via
+drag handles, not a viewport zoom). What's needed is a separate view transform —
+a user zoom factor and pan offset applied on top of the fit transform, ideally
+zoom-to-cursor on mouse-wheel with space/middle-drag (or a modifier) to pan, and
+a "fit/reset" affordance. Two cautions specific to this canvas:
+- **Hit-testing already round-trips through the paint transform**
+  (`physicalToScreen` then the cached translate/scale, per the existing
+  inverse-transform helpers). A user zoom/pan must compose into that same chain
+  so click→motor mapping stays correct at any zoom — do it in one place, not as
+  a parallel path.
+- The drag-handle content-resize gesture and a new pan/zoom gesture must not
+  fight over the mouse; needs a clear modifier/mode split.
+The **Vectorize** standalone GUI already implements zoom-to-cursor on scroll +
+fit-to-window + grab-cursor panning (see its CHANGELOG "Enhanced Image Viewer"),
+so the interaction model is proven and can be mirrored rather than designed from
+scratch. This zoom/pan is also independently useful for Phase 9 selection and
+Phase 17 station placement, so it is worth landing as its own small piece first.
+
 *Sequencing.* This shares its selection mechanism with Phase 10 Tier 2's
 "direct selection" and Phase 9's click-to-select on `VisualizationPanel` — build
-the canvas hit-test **once** and reuse it. Recommend landing it after whichever
-of those introduces canvas selection, rather than adding a third selection path.
+the canvas hit-test **once** and reuse it. Land the viewport zoom/pan first
+(useful on its own), then the shared selection/hit-test, then this tier on top.
 A minimal first cut worth shipping on its own: click → if a single closed path
 encloses the point, hatch just that path with the global pattern; defer
 per-region pattern choice, multi-select, and open-contour handling.
