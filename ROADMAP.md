@@ -945,6 +945,12 @@ emulation unit-tested (`GrblSettingsTest`, `MockGrblEmulationTest`). The Swing
 steps themselves weren't driven headless — live first-run verification pending.
 Original scoping follows; "✅"/notes mark what landed.
 
+Also chained the onboarding: the **Calibrate Axes** wizard now opens with a
+**Connect** step (reusing `PreflightConnectStep`) instead of dead-ending when
+disconnected, and the **Setup** wizard's Done step offers "Continue to axis
+calibration now" (default on) — so a first run flows settings → connect →
+calibrate as one journey, while each wizard still runs standalone.
+
 Feedback from real first-run use: the setup/calibration flow should *derive*
 the fiddly axis settings from a few observations instead of asking the operator
 to reason about swap/invert, and should cover the hardware questions a fresh

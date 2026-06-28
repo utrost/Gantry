@@ -784,10 +784,22 @@ public class PlotterPanel extends JPanel {
         steps.add(new PanelStep("Connection", wrapStep(settings.connectionPanel())));
         steps.add(new PanelStep("Geometry & origin", wrapStep(settings.geometryPanel())));
         steps.add(new PanelStep("Pen & speeds", wrapStep(settings.penPanel())));
-        steps.add(new PanelStep("Done", wrapStep(
-                "<html><h3>All set</h3>Click <b>Finish</b> to save these settings and apply them. "
-                        + "Refill stations weren't touched here — edit those under "
-                        + "<i>Settings &gt; Preferences…</i> if you use them.</html>")));
+
+        // Done step carries an opt-in hand-off into axis calibration, so a first run flows
+        // settings → connect → calibrate as one journey (calibration connects itself).
+        JCheckBox calibrateNext = new JCheckBox(
+                "Continue to axis calibration now (connects to the machine)", true);
+        JPanel donePanel = new JPanel();
+        donePanel.setLayout(new BoxLayout(donePanel, BoxLayout.Y_AXIS));
+        JLabel doneBlurb = new JLabel("<html><body style='width:430px'><h3>All set</h3>Click "
+                + "<b>Finish</b> to save these settings and apply them. Refill stations weren't touched "
+                + "here — edit those under <i>Settings &gt; Preferences…</i> if you use them.</body></html>");
+        doneBlurb.setAlignmentX(JComponent.LEFT_ALIGNMENT);
+        calibrateNext.setAlignmentX(JComponent.LEFT_ALIGNMENT);
+        donePanel.add(doneBlurb);
+        donePanel.add(Box.createVerticalStrut(12));
+        donePanel.add(calibrateNext);
+        steps.add(new PanelStep("Done", wrapStep(donePanel)));
 
         WizardDialog wizard = new WizardDialog(SwingUtilities.getWindowAncestor(this),
                 "Machine Setup", steps);
@@ -801,6 +813,9 @@ public class PlotterPanel extends JPanel {
             }
             applyConfigToVis();
             log("Machine setup saved and applied.");
+            if (calibrateNext.isSelected()) {
+                onCalibrateAxesWizard();
+            }
         }
     }
 
@@ -831,15 +846,11 @@ public class PlotterPanel extends JPanel {
      * it). Requires a live connection — the scale half reads/writes GRBL settings over serial.
      */
     private void onCalibrateAxesWizard() {
-        if (backend == null) {
-            JOptionPane.showMessageDialog(this, "Connect to the plotter first — calibration drives the\n"
-                            + "machine and reads/writes its GRBL settings.",
-                    "Calibrate Axes", JOptionPane.INFORMATION_MESSAGE);
-            return;
-        }
+        // No "connect first" dead-end: the wizard's own Connect step establishes the link (using the
+        // saved connection settings / mock) before any step that drives the machine.
         List<WizardStep> steps = new ArrayList<>();
         steps.add(new PanelStep("Intro", wrapStep(
-                "<html><h3>Axis calibration</h3>This checks two things, in order:<br>"
+                "<html><h3>Axis calibration</h3>First this connects to the plotter, then:<br>"
                         + "<b>1. Direction</b> — jog each motor axis and click the way the pen actually "
                         + "moved; the wizard derives the right swap/invert settings (it catches "
                         + "swapped axes, not just reversed ones).<br>"
@@ -850,6 +861,8 @@ public class PlotterPanel extends JPanel {
                         + "and watch each switch register as you press it.<br>"
                         + "<b>4. Pen lift</b> — pick the lift type (servo / Z / M3-M5) and test it.<br><br>"
                         + "<b>Clear the bed and make sure the pen is up</b> — this moves the head.</html>")));
+        PreflightConnectStep connectStep = new PreflightConnectStep();
+        steps.add(connectStep);
         steps.add(new CalibDirectionStep());
         steps.add(new CalibScaleStep('X', GrblSettings.X_STEPS_PER_MM));
         steps.add(new CalibScaleStep('Y', GrblSettings.Y_STEPS_PER_MM));
@@ -861,6 +874,7 @@ public class PlotterPanel extends JPanel {
                         + "<i>Machine &gt; Calibrate Axes…</i>.</html>")));
 
         WizardDialog wizard = new WizardDialog(SwingUtilities.getWindowAncestor(this), "Calibrate Axes", steps);
+        connectStep.attachOwner(wizard);
         wizard.setVisible(true);
         if (wizard.finishedSuccessfully()) {
             try {
