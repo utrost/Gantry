@@ -13,7 +13,43 @@ public final class GrblSettings {
     public static final int X_STEPS_PER_MM = 100;
     public static final int Y_STEPS_PER_MM = 101;
 
+    /** Homing/limit settings (GRBL): soft limits, hard limits, homing-cycle enable, homing dir mask. */
+    public static final int SOFT_LIMITS = 20;
+    public static final int HARD_LIMITS = 21;
+    public static final int HOMING_ENABLE = 22;
+    public static final int HOMING_DIR_MASK = 23;
+
     private GrblSettings() {
+    }
+
+    /**
+     * The currently-triggered limit/probe pins from a GRBL realtime status report (the reply to
+     * {@code ?}), e.g. {@code <Idle|MPos:0,0,0|Pn:XY>} returns {@code "XY"}. Returns an empty string
+     * if a status line is present with no pins active, and {@code null} if there's no status line at
+     * all. Lets the limit-switch step show pins lighting up as the operator presses each switch.
+     */
+    public static String parsePins(List<String> statusOutput) {
+        if (statusOutput == null) {
+            return null;
+        }
+        boolean sawStatus = false;
+        for (String raw : statusOutput) {
+            if (raw == null) {
+                continue;
+            }
+            String line = raw.trim();
+            if (!line.startsWith("<") || !line.contains("|")) {
+                continue;
+            }
+            sawStatus = true;
+            for (String field : line.replace("<", "").replace(">", "").split("\\|")) {
+                String f = field.trim();
+                if (f.startsWith("Pn:")) {
+                    return f.substring(3).trim();
+                }
+            }
+        }
+        return sawStatus ? "" : null;
     }
 
     /**

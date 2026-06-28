@@ -935,7 +935,15 @@ and the re-read confirmed the new value; ticking "flip X" persisted
 orientation preview is shared with Phase 15's deferral; Z-axis and
 orthogonality calibration remain out of scope as planned.
 
-#### Phase 16b — Guided first-run calibration enhancements (planned)
+#### Phase 16b — Guided first-run calibration enhancements ✅ (shipped)
+
+All four enhancements below are implemented in the **Calibrate Axes** wizard
+(Intro → Direction → X scale → Y scale → **Limit switches** → **Pen lift** →
+Done). Verification: `AxisDirectionSolver` exhaustively unit-tested (8 valid
+observation pairs round-trip); `GrblSettings.parsePins` + the mock's $$/$2x/`?`
+emulation unit-tested (`GrblSettingsTest`, `MockGrblEmulationTest`). The Swing
+steps themselves weren't driven headless — live first-run verification pending.
+Original scoping follows; "✅"/notes mark what landed.
 
 Feedback from real first-run use: the setup/calibration flow should *derive*
 the fiddly axis settings from a few observations instead of asking the operator
@@ -958,14 +966,17 @@ step can't. The pure solver is implemented and exhaustively unit-tested:
 effective `{swap, invertX, invertY}` (or empty if the two observations aren't
 perpendicular — a mis-click), and `toStoredExtra(effective, originRight,
 originBottom)` XORs out the origin baseline to the flags persisted on
-`GantryConfig` (mirrors `toPlotSettings`, solved backwards). Remaining work is
-UI + a *raw-motor* jog path (the current `jog()` already applies the transform;
-calibration must bypass it to move a known motor axis — add a raw jog on the
-backend or temporarily neutralise the transform during this step). Caveat:
+`GantryConfig` (mirrors `toPlotSettings`, solved backwards). ✅ UI landed: the new
+`CalibDirectionStep` centres-then-observes, and the raw-motor jog turned out to
+need no new backend method — `b.move(dx, dy)` already moves a known motor axis
+(the transform is applied earlier, in `jog()`, which calibration simply skips).
+Result is applied to config + the live preview immediately. Caveat:
 Portrait-on-landscape-bed adds its own swap in `toPlotSettings`, so run
 calibration in the final orientation (documented in the solver).
 
-**3. Limit/stop switches (new model + GRBL wiring).** Ask "does the machine have
+**3. Limit/stop switches (new model + GRBL wiring) — ✅ shipped** (read-only +
+homing-enable toggle; corner→$23 mask auto-derivation deliberately not done as
+too firmware-risky). Ask "does the machine have
 limit switches, and in which corner is the homing origin?" Today only
 `$100/$101` are modelled (`GrblSettings`); homing/limits ($20–$27) are not.
 Scope: read `$22` (homing enable) / `$23` (homing dir mask) / `$21` (hard
@@ -976,7 +987,10 @@ that's the closest thing to a real "test" without motion. Persisting the
 switch corner also lets the origin/orientation answer cross-check the homing
 direction (catch the common "homes to a different corner than the origin" trap).
 
-**4. Z-axis type + test (new model).** Ask the pen-lift type — servo (M3/M5 +
+**4. Z-axis type + test — ✅ shipped** (reused the existing `GcodeOptions.penMode`
++ sub-fields; no new config needed; the connected backend shares `config.gcode`
+and reads it per pen command, so Test tunes live with no reconnect). Ask the
+pen-lift type — servo (M3/M5 +
 angle), Z-axis lift (G0 Z), or solenoid/relay — store it on `GantryConfig`
 (only pen-mode sub-fields exist today), and add a **Test** button that runs the
 configured pen-up then pen-down a few times so the operator can confirm travel

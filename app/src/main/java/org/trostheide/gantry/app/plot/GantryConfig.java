@@ -52,6 +52,9 @@ public class GantryConfig {
      */
     public boolean softLimits = true;
 
+    /** Whether the machine has physical limit/homing switches (recorded by the calibration wizard). */
+    public boolean hasLimitSwitches;
+
     /**
      * Derives {@link PlotSettings} from this config, applying the same machine-origin and
      * portrait-mode axis derivation rules used throughout the plot pipeline:

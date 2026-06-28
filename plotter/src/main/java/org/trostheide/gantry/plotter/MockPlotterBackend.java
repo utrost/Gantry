@@ -16,6 +16,17 @@ public class MockPlotterBackend implements PlotterBackend {
     // against the mock: a "$$" query reports these and "$100="/"$101=" writes update them.
     private double stepsPerMmX = 80.0;
     private double stepsPerMmY = 80.0;
+    // Simulated GRBL homing/limit settings ($20–$23) and the active limit pins reported by "?".
+    private int softLimits = 0;
+    private int hardLimits = 0;
+    private int homingEnable = 0;
+    private int homingDirMask = 3;
+    private String simulatedPins = "";
+
+    /** Sets the limit pins the next {@code ?} status report will show as triggered (e.g. "X", "XY"). */
+    public void setSimulatedPins(String pins) {
+        this.simulatedPins = pins == null ? "" : pins;
+    }
 
     public MockPlotterBackend(Consumer<String> log) {
         this.log = log != null ? log : message -> { };
@@ -76,8 +87,17 @@ public class MockPlotterBackend implements PlotterBackend {
     public List<String> sendRaw(String command) {
         log.accept("[Mock] Raw: " + command);
         String cmd = command == null ? "" : command.trim();
+        if (cmd.equals("?")) {
+            String pn = simulatedPins.isEmpty() ? "" : "|Pn:" + simulatedPins;
+            return List.of(String.format(Locale.ROOT,
+                    "<Idle|MPos:%.3f,%.3f,0.000|FS:0,0%s>", x, y, pn));
+        }
         if (cmd.equals("$$")) {
             List<String> out = new ArrayList<>();
+            out.add(String.format(Locale.ROOT, "$20=%d", softLimits));
+            out.add(String.format(Locale.ROOT, "$21=%d", hardLimits));
+            out.add(String.format(Locale.ROOT, "$22=%d", homingEnable));
+            out.add(String.format(Locale.ROOT, "$23=%d", homingDirMask));
             out.add(String.format(Locale.ROOT, "$100=%.3f", stepsPerMmX));
             out.add(String.format(Locale.ROOT, "$101=%.3f", stepsPerMmY));
             out.add("ok");
@@ -90,6 +110,21 @@ public class MockPlotterBackend implements PlotterBackend {
                     stepsPerMmX = v;
                 } else {
                     stepsPerMmY = v;
+                }
+                log.accept(String.format(Locale.ROOT, "[Mock] %s applied", cmd));
+            } catch (NumberFormatException ignored) {
+                return List.of("error:3");
+            }
+        }
+        if (cmd.matches("\\$2[0-3]=.*")) {
+            try {
+                int v = Integer.parseInt(cmd.substring(cmd.indexOf('=') + 1).trim());
+                switch (cmd.substring(0, cmd.indexOf('='))) {
+                    case "$20" -> softLimits = v;
+                    case "$21" -> hardLimits = v;
+                    case "$22" -> homingEnable = v;
+                    case "$23" -> homingDirMask = v;
+                    default -> { }
                 }
                 log.accept(String.format(Locale.ROOT, "[Mock] %s applied", cmd));
             } catch (NumberFormatException ignored) {
