@@ -338,12 +338,30 @@ After import, the drawing appears in the visualisation panel.
 | **Reset Position** | Return to the canvas-alignment position from Settings |
 | **X / Y (mm from origin) + Set** | Place the drawing precisely: the entered values become the position of the drawing's bounding-box corner nearest the machine origin. The fields also update live as you drag. |
 
+### Zooming and panning the view
+
+The Live View has a viewport zoom/pan that is independent of the drawing's
+position — it changes only what you *see*, never where the drawing plots:
+
+| Control | Action |
+|---|---|
+| **Mouse wheel** | Zoom in/out toward the cursor (the point under the pointer stays put) |
+| **Middle-button drag** | Pan the view |
+| **Left-drag on empty canvas** | Pan the view (left-drag *on* the drawing still moves/resizes it) |
+| **Double-click empty canvas** | Reset to fit-to-window (100%) |
+| **Right-click → Reset View (Zoom/Pan)** | Reset to fit-to-window (100%) |
+
+The current zoom level shows in the HUD as **View: N%**. Loading a new drawing
+resets the view to 100%. Zoom is purely a viewing aid: G-code, positioning and
+the bed coordinates are unaffected.
+
 **Right-click the Live View** for a context menu with **Add station here** (drops
 a new refill station at the clicked bed position — see [Placing refill stations](#placing-refill-stations)),
+**Reset View (Zoom/Pan)** (snaps the viewport back to fit-to-window),
 **Remove Drawing** (clears the canvas and discards the loaded drawing, so nothing
 is left to plot or export) plus the same **Reset Position / Rotate 90° / Mirror**
 actions, reachable directly on the canvas. The drawing-related items are greyed out
-when no drawing is loaded; **Add station here** is always available.
+when no drawing is loaded; **Add station here** and **Reset View** are always available.
 
 ### Placing refill stations
 

@@ -122,6 +122,17 @@ public class VisualizationPanel extends JPanel {
     private double paintScale = 1.0;
     private double paintTx = 0, paintTy = 0;
 
+    // User viewport zoom/pan, applied *on top of* the fit-to-window transform and folded into
+    // paintScale/paintTx/paintTy each paint. Because every hit-test already inverts those cached
+    // values, the click→motor mapping stays correct at any zoom/pan with no parallel transform.
+    private double viewZoom = 1.0;
+    private double viewPanX = 0, viewPanY = 0;
+    private static final double VIEW_ZOOM_MIN = 0.2, VIEW_ZOOM_MAX = 50.0;
+
+    // Pan gesture state (middle-drag anywhere, or left-drag on empty canvas).
+    private boolean panning = false;
+    private int panLastX, panLastY;
+
     // Interactive drag state
     private static final int HANDLE_NONE = -1;
     private static final int HANDLE_MOVE = 0;
@@ -159,6 +170,9 @@ public class VisualizationPanel extends JPanel {
         overlayRotation = 0;
         overlayMirror = false;
         suppressAlignment = false;
+        viewZoom = 1.0;
+        viewPanX = 0;
+        viewPanY = 0;
         recalculateTransform();
         repaint();
         fireOverlayChange();
@@ -262,6 +276,43 @@ public class VisualizationPanel extends JPanel {
         fireOverlayChange();
     }
 
+    // ----- Viewport zoom/pan -----
+
+    /** Resets the viewport to fit-to-window (zoom 100%, no pan). Leaves the drawing untouched. */
+    public void resetView() {
+        viewZoom = 1.0;
+        viewPanX = 0;
+        viewPanY = 0;
+        repaint();
+    }
+
+    /**
+     * Multiplies the viewport zoom by {@code factor} while keeping the content under screen pixel
+     * {@code (mx, my)} fixed (zoom-to-cursor). The pan is re-solved via {@link #zoomToCursorPan}
+     * so the cached paint transform — and therefore every hit-test that inverts it — stays exact.
+     */
+    private void zoomAtCursor(double factor, int mx, int my) {
+        double newZoom = Math.max(VIEW_ZOOM_MIN, Math.min(VIEW_ZOOM_MAX, viewZoom * factor));
+        if (newZoom == viewZoom) {
+            return;
+        }
+        viewPanX = zoomToCursorPan(viewPanX, viewZoom, newZoom, mx);
+        viewPanY = zoomToCursorPan(viewPanY, viewZoom, newZoom, my);
+        viewZoom = newZoom;
+        repaint();
+    }
+
+    /**
+     * The new pan offset (one axis) that keeps screen pixel {@code m} pointing at the same content
+     * after the zoom changes from {@code oldZoom} to {@code newZoom}. Derived from holding
+     * {@code finalPixel = zoom*fitPixel + pan} fixed at {@code m}; the fit terms cancel, leaving a
+     * relation in pan/zoom/cursor alone (package-private for testing).
+     */
+    static double zoomToCursorPan(double pan, double oldZoom, double newZoom, double m) {
+        double f = newZoom / oldZoom;
+        return f * pan + (1 - f) * m;
+    }
+
     // ----- Setters -----
 
     public void setOrientation(String orientation) {
@@ -349,8 +400,17 @@ public class VisualizationPanel extends JPanel {
                     draggingStation = st;
                     return;
                 }
-                if (allPaths.isEmpty()) return;
-                int handle = hitTestHandle(e.getX(), e.getY());
+                int handle = allPaths.isEmpty() ? HANDLE_NONE : hitTestHandle(e.getX(), e.getY());
+                // Pan with the middle button anywhere, or the left button on empty canvas (where
+                // there's no drawing handle to grab) — leaves left-drag on content for move/resize.
+                if (SwingUtilities.isMiddleMouseButton(e)
+                        || (handle == HANDLE_NONE && SwingUtilities.isLeftMouseButton(e))) {
+                    panning = true;
+                    panLastX = e.getX();
+                    panLastY = e.getY();
+                    setCursor(Cursor.getPredefinedCursor(Cursor.MOVE_CURSOR));
+                    return;
+                }
                 if (handle == HANDLE_NONE) return;
                 dragHandle = handle;
                 dragStartScreenX = e.getX();
@@ -362,6 +422,14 @@ public class VisualizationPanel extends JPanel {
 
             @Override
             public void mouseDragged(MouseEvent e) {
+                if (panning) {
+                    viewPanX += e.getX() - panLastX;
+                    viewPanY += e.getY() - panLastY;
+                    panLastX = e.getX();
+                    panLastY = e.getY();
+                    repaint();
+                    return;
+                }
                 if (draggingStation >= 0) {
                     double[] mm = screenToPhysical(e.getX(), e.getY());
                     Station s = stations.get(draggingStation);
@@ -386,6 +454,11 @@ public class VisualizationPanel extends JPanel {
             @Override
             public void mouseReleased(MouseEvent e) {
                 if (maybeShowPopup(e)) return;
+                if (panning) {
+                    panning = false;
+                    setCursor(Cursor.getDefaultCursor());
+                    return;
+                }
                 if (draggingStation >= 0) {
                     Station s = stations.get(draggingStation);
                     draggingStation = -1;
@@ -421,9 +494,22 @@ public class VisualizationPanel extends JPanel {
                 int handle = hitTestHandle(e.getX(), e.getY());
                 setCursor(cursorForHandle(handle));
             }
+
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                // Double-click on empty canvas (not a handle or station) resets the view to fit.
+                if (e.getClickCount() == 2 && SwingUtilities.isLeftMouseButton(e)
+                        && hitTestStation(e.getX(), e.getY()) == HANDLE_NONE
+                        && (allPaths.isEmpty() || hitTestHandle(e.getX(), e.getY()) == HANDLE_NONE)) {
+                    resetView();
+                }
+            }
         };
         addMouseListener(mouseHandler);
         addMouseMotionListener(mouseHandler);
+        // Mouse wheel zooms toward the cursor (wheel-up / away = zoom in).
+        addMouseWheelListener(e ->
+                zoomAtCursor(e.getPreciseWheelRotation() < 0 ? 1.12 : 1 / 1.12, e.getX(), e.getY()));
     }
 
     /**
@@ -442,6 +528,11 @@ public class VisualizationPanel extends JPanel {
             }
         });
         menu.add(addStation);
+
+        // Always available: snap the viewport back to fit-to-window (zoom 100%, no pan).
+        JMenuItem resetView = new JMenuItem("Reset View (Zoom/Pan)");
+        resetView.addActionListener(e -> resetView());
+        menu.add(resetView);
         menu.addSeparator();
 
         // Drawing-only items: disabled when the bed is empty (toggled in maybeShowPopup).
@@ -481,6 +572,11 @@ public class VisualizationPanel extends JPanel {
         overlayRotation = 0;
         overlayMirror = false;
         suppressAlignment = false;
+        // A fresh drawing starts at fit-to-window so the user isn't left looking at an off-screen
+        // region left over from a previous drawing's zoom/pan.
+        viewZoom = 1.0;
+        viewPanX = 0;
+        viewPanY = 0;
         loadPathsPreservingOverlay(output);
     }
 
@@ -936,13 +1032,19 @@ public class VisualizationPanel extends JPanel {
         // Calculate scale to fit displayed bed in panel
         double scaleX = (w - 40) / dw;
         double scaleY = (h - 40) / dh;
-        double scale = Math.min(scaleX, scaleY);
-        if (scale <= 0)
-            scale = 1.0;
+        double fitScale = Math.min(scaleX, scaleY);
+        if (fitScale <= 0)
+            fitScale = 1.0;
 
         // Center the displayed bed in the panel
-        double tx = 20 + (w - 40 - dw * scale) / 2.0;
-        double ty = 20 + (h - 40 - dh * scale) / 2.0;
+        double fitTx = 20 + (w - 40 - dw * fitScale) / 2.0;
+        double fitTy = 20 + (h - 40 - dh * fitScale) / 2.0;
+
+        // Fold the user viewport zoom/pan over the fit transform: a final pixel is
+        // viewZoom * fitPixel + viewPan, i.e. content*(fitScale*viewZoom) + (viewZoom*fitTx+pan).
+        double scale = fitScale * viewZoom;
+        double tx = viewZoom * fitTx + viewPanX;
+        double ty = viewZoom * fitTy + viewPanY;
 
         this.paintScale = scale;
         this.paintTx = tx;
@@ -1085,8 +1187,8 @@ public class VisualizationPanel extends JPanel {
         g2.setColor(new Color(180, 180, 180));
         g2.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 11));
         g2.drawString(String.format(
-                "Pos: %.1f, %.1f | Speed: %d%% | Align: %s | Rot: %d | Origin: %s | %s",
-                currentX, currentY, speedPercent, canvasAlignment, dataRotation,
+                "Pos: %.1f, %.1f | Speed: %d%% | View: %.0f%% | Align: %s | Rot: %d | Origin: %s | %s",
+                currentX, currentY, speedPercent, viewZoom * 100, canvasAlignment, dataRotation,
                 machineOrigin, orientation), 10, h - 10);
         if (hasOverlayTransform()) {
             g2.drawString(String.format(

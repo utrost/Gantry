@@ -422,28 +422,26 @@ region whose `fill` is `none`.
   outside the processor (command-model option above) so the processor's
   colour-keyed contract is left intact.
 
-*Prerequisite — viewport zoom/pan on the plotter canvas.* Picking one small
-traced region (a single lock of hair, an eye) by clicking is impractical at
-fit-to-window scale, so this tier depends on a **magnifying zoom + pan** that
-`VisualizationPanel` does not have today: there is no `MouseWheelListener`, and
-`paintScale`/`paintTx`/`paintTy` are recomputed every paint purely to fit the
-whole bed in the panel (the status bar's "Scale=…%" is the *content* resize via
-drag handles, not a viewport zoom). What's needed is a separate view transform —
-a user zoom factor and pan offset applied on top of the fit transform, ideally
-zoom-to-cursor on mouse-wheel with space/middle-drag (or a modifier) to pan, and
-a "fit/reset" affordance. Two cautions specific to this canvas:
+*Prerequisite — viewport zoom/pan on the plotter canvas.* ✅ **DONE** (landed
+ahead of the rest of this tier, as its own piece). `VisualizationPanel` now has
+a viewport zoom/pan folded into the cached `paintScale`/`paintTx`/`paintTy`, so
+every existing hit-test inverts it for free (no parallel transform). Controls:
+mouse-wheel zoom-to-cursor, middle-drag or left-drag-on-empty-canvas to pan,
+double-click or a "Reset View (Zoom/Pan)" context-menu item to fit, and a
+"View: N%" HUD readout; the view resets to fit on load. The cursor-invariance
+math is unit-tested in `VisualizationViewTest` (`zoomToCursorPan`). Both canvas
+cautions below were handled — kept here for the selection/hatch work to come.
 - **Hit-testing already round-trips through the paint transform**
   (`physicalToScreen` then the cached translate/scale, per the existing
   inverse-transform helpers). A user zoom/pan must compose into that same chain
-  so click→motor mapping stays correct at any zoom — do it in one place, not as
-  a parallel path.
-- The drag-handle content-resize gesture and a new pan/zoom gesture must not
-  fight over the mouse; needs a clear modifier/mode split.
-The **Vectorize** standalone GUI already implements zoom-to-cursor on scroll +
-fit-to-window + grab-cursor panning (see its CHANGELOG "Enhanced Image Viewer"),
-so the interaction model is proven and can be mirrored rather than designed from
-scratch. This zoom/pan is also independently useful for Phase 9 selection and
-Phase 17 station placement, so it is worth landing as its own small piece first.
+  so click→motor mapping stays correct at any zoom — done in one place (the
+  cached paint values), not as a parallel path.
+- The drag-handle content-resize gesture and the new pan gesture do not fight:
+  left-drag on content still moves/resizes; pan is middle-drag or left-drag on
+  empty canvas only.
+The interaction mirrors the **Vectorize** standalone GUI's "Enhanced Image
+Viewer" (zoom-to-cursor + grab-pan + fit). This zoom/pan is also independently
+useful for Phase 9 selection and Phase 17 station placement.
 
 *Sequencing.* This shares its selection mechanism with Phase 10 Tier 2's
 "direct selection" and Phase 9's click-to-select on `VisualizationPanel` — build
