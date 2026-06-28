@@ -2578,17 +2578,21 @@ public class PlotterPanel extends JPanel {
 
             @Override
             protected void done() {
-                if (overlay != null) {
-                    overlay.dismiss();
-                }
-                if (window != null) {
-                    window.setCursor(Cursor.getDefaultCursor());
-                }
+                // Keep the overlay up through onSuccess: applying the result (rebuilding the
+                // visualization for a large drawing) runs on the EDT and can take a while, so
+                // dismissing first would leave a frozen UI with no feedback during that phase.
                 try {
                     onSuccess.accept(get());
                 } catch (Exception ex) {
                     Throwable cause = ex.getCause() != null ? ex.getCause() : ex;
                     error(description + " failed: " + cause.getMessage());
+                } finally {
+                    if (overlay != null) {
+                        overlay.dismiss();
+                    }
+                    if (window != null) {
+                        window.setCursor(Cursor.getDefaultCursor());
+                    }
                 }
             }
         }.execute();
