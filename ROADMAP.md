@@ -375,6 +375,61 @@ phase operates at element/group granularity, not within a single shape.
   validated against a real use case before committing to the group-id
   vs. direct-selection design choice.
 
+**Scope — Tier 3: click-to-hatch unfilled vectorized regions (field finding).**
+
+*Why this is its own tier.* Phase 10 Tiers 1–2 assume **filled** regions keyed
+by colour (or group). But the most common source of "areas" in practice is now
+the vectorizer, and its output is the opposite: trace strategies that produce
+outlines (`bezier` outline mode, `dp`, `centerline`, ImageTracer `--b2-outline`)
+emit closed paths with `fill:none; stroke:…`. `HatchProcessor` gates on a
+non-`none` fill (`HatchProcessor.process`, the `"none".equalsIgnoreCase(fill)`
+skip), so it never even considers them — every traced loop stays a single pen
+stroke. That is exactly the "areas that are treated as lines" a user sees: the
+geometry *is* a closed region, but nothing downstream treats it as fillable.
+The ask is to click such a region and hatch-fill it.
+
+*What already exists (so this is smaller than it looks).* Hatch **generation**
+is already region-based and fill-agnostic at its core: `HatchPattern.generate(
+worldShape, config, style)` clips hatch lines/curves/dots to any closed
+`java.awt.Shape`, and `ShapeParser.parse(element)` already turns a path's `d`
+into that Shape. So "hatch this one region" is mechanically solved — what is
+missing is (a) **selection** of a region and (b) **permission** to hatch a
+region whose `fill` is `none`.
+
+*Two candidate integration points (decision needed before building):*
+- **Command-model / plotter canvas (matches the observed workflow).** The user
+  clicks in `VisualizationPanel` (the plotter view, post-import), so hit-test
+  the click against the imported path geometry, build an AWT `Shape` from the
+  enclosing **closed** polyline, run an existing `HatchPattern`, and append the
+  generated lines as new pen strokes in the current layer — then re-render and
+  recompute the time estimate. Most direct to what the user actually did; keeps
+  the SVG stage untouched. Needs the command model to retain enough per-path
+  identity to hit-test and to know which polylines are closed.
+- **SVG stage (maximal reuse of `HatchProcessor`).** Select the region in a
+  preview, set a per-element hatch flag (or synthesise a fill), and re-run the
+  existing processor. Cleaner reuse, but the selection then happens in an SVG
+  preview rather than the plotter canvas the user was on, and it re-imports.
+
+*Hard parts specific to unfilled traces:*
+- **Closure / hit-test.** Traced outlines are frequently open or doubled
+  (an outline trace makes two near-coincident loops around each stroke), so
+  "the region under the cursor" is ambiguous. Need closure detection
+  (first≈last point within tolerance) and a rule for picking the enclosing
+  loop (e.g. smallest closed path that `contains()` the click), or a
+  fill-from-seed flood approach as a fallback.
+- **`fill:none` permission.** Either relax `HatchProcessor` to accept an
+  explicit "hatch this element even though unfilled" marker, or do the fill
+  outside the processor (command-model option above) so the processor's
+  colour-keyed contract is left intact.
+
+*Sequencing.* This shares its selection mechanism with Phase 10 Tier 2's
+"direct selection" and Phase 9's click-to-select on `VisualizationPanel` — build
+the canvas hit-test **once** and reuse it. Recommend landing it after whichever
+of those introduces canvas selection, rather than adding a third selection path.
+A minimal first cut worth shipping on its own: click → if a single closed path
+encloses the point, hatch just that path with the global pattern; defer
+per-region pattern choice, multi-select, and open-contour handling.
+
 ---
 
 ### Phase 11 — CLI/GUI parity (not started)
