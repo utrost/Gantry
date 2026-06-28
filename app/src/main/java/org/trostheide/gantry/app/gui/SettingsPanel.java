@@ -42,6 +42,7 @@ public class SettingsPanel extends JPanel {
     private final JCheckBox invertYCheckBox = new JCheckBox("Extra Invert Y");
     private final JCheckBox swapXYCheckBox = new JCheckBox("Extra Swap X/Y");
     private final JCheckBox flipYCheckBox = new JCheckBox("Flip Y");
+    private final JCheckBox softLimitsCheckBox = new JCheckBox("Soft limits — clamp jog to the bed (0/0 → width/height)");
 
     private final JComboBox<String> penModeCombo = new JComboBox<>(PEN_MODES);
     private final JSpinner servoPinSpinner = new JSpinner(new SpinnerNumberModel(0, 0, 16, 1));
@@ -64,16 +65,18 @@ public class SettingsPanel extends JPanel {
     private final JPanel stationsPanel = stationsSection();
 
     public SettingsPanel() {
-        setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
+        setLayout(new BorderLayout());
         setBorder(new EmptyBorder(8, 8, 8, 8));
 
-        add(connectionPanel);
-        add(Box.createVerticalStrut(8));
-        add(geometryPanel);
-        add(Box.createVerticalStrut(8));
-        add(penPanel);
-        add(Box.createVerticalStrut(8));
-        add(stationsPanel);
+        // Tabbed so the dialog stays a sensible height (the old stacked layout grew past the
+        // screen and never scrolled). The section panels are the same instances the Setup Wizard
+        // re-parents, so its step cards are unaffected.
+        JTabbedPane tabs = new JTabbedPane();
+        tabs.addTab("Connection", scrollable(connectionPanel));
+        tabs.addTab("Geometry", scrollable(geometryPanel));
+        tabs.addTab("Pen / Speed", scrollable(penPanel));
+        tabs.addTab("Stations", stationsPanel);
+        add(tabs, BorderLayout.CENTER);
 
         serialPortCombo.setEditable(true);
         refreshPortsButton.addActionListener(e -> refreshSerialPorts());
@@ -151,6 +154,9 @@ public class SettingsPanel extends JPanel {
         flags.add(flipYCheckBox);
         panel.add(flags, gbc);
 
+        gbc.gridy++;
+        panel.add(softLimitsCheckBox, gbc);
+
         return panel;
     }
 
@@ -224,6 +230,14 @@ public class SettingsPanel extends JPanel {
         return border;
     }
 
+    /** Wraps a tab's content so an overflowing section scrolls within the tab instead of growing it. */
+    private static JComponent scrollable(JComponent content) {
+        JScrollPane sp = new JScrollPane(content);
+        sp.setBorder(null);
+        sp.getVerticalScrollBar().setUnitIncrement(16);
+        return sp;
+    }
+
     /** Loads every field from {@code config} (does not retain a reference to it). */
     public void loadConfig(GantryConfig config) {
         serialPortCombo.getEditor().setItem(config.gcode.serialPort);
@@ -239,6 +253,7 @@ public class SettingsPanel extends JPanel {
         rotationCombo.setSelectedItem(config.dataRotation);
         paddingXSpinner.setValue(config.paddingX);
         paddingYSpinner.setValue(config.paddingY);
+        softLimitsCheckBox.setSelected(config.softLimits);
         invertXCheckBox.setSelected(config.invertX);
         invertYCheckBox.setSelected(config.invertY);
         swapXYCheckBox.setSelected(config.swapXY);
@@ -278,6 +293,7 @@ public class SettingsPanel extends JPanel {
         config.invertY = invertYCheckBox.isSelected();
         config.swapXY = swapXYCheckBox.isSelected();
         config.flipY = flipYCheckBox.isSelected();
+        config.softLimits = softLimitsCheckBox.isSelected();
 
         config.gcode.penMode = (String) penModeCombo.getSelectedItem();
         config.gcode.servoPin = (Integer) servoPinSpinner.getValue();

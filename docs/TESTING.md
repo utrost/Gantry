@@ -45,6 +45,7 @@ Expected output: `BUILD SUCCESS` with zero failures across all modules.
 | `plotter` | `GcodeBackendTest` | G-code formatting: init sequence, pen modes (servo/zaxis/m3m5), moveto, lineto, raw send |
 | `app` | `PlotServiceTest` | Full plot orchestration: layer sequencing, refill at layer boundary, cancel mid-plot, OOB clamping, per-waypoint position callbacks |
 | `app` | `StudioMetricsTest` (4) | Vectorize-studio plottability metrics: stroke/point counts, draw-vs-travel separation, scale-invariant travel ratio, no-double-count on stroke approach |
+| `app` | `SoftLimitsTest` (5) | Jog soft-limit clamp: within-bounds passthrough, clamp at 0 and at width/height, zero-at-wall (stops continuous jog), independent per-axis clamping |
 | `app` | `TimeEstimatorTest` (7) | Travel/draw distances use their respective feed rates; refill travel + fixed dip overhead; unknown station falls back to default; pen-down settle overhead charged once per `DrawCommand` and driven by the configurable `penDownDelayMillis` (0 removes it); multi-layer totals; `H:MM:SS` formatting |
 | `vectorize` | `IntegrationTest`, `BoofcvBatikVectorTest`, `StrategiesTest`, `PaintByNumbersTest` (86) | Raster→SVG engine: contour extraction, all eight strategies, polyline/Bézier geometry, auto-Canny, crop, SVG optimisation, Paint-by-Numbers quantisation/regions/labels |
 | `cli` | `VectorizeCliTest` (2) | `VectorizeCli` wiring: image→SVG, and the `--`-separated image→SVG→command-JSON chain (argument split, SVG-path derivation, `-i` injection) |
@@ -412,13 +413,23 @@ a `testdata/` folder.
 
 #### TS-M1 — Jog & pen *(hardware; mock OK)*
 1. Connect (mock).
-   - [ ] Press **▲** — console shows a `G1` move.
-   - [ ] Set step = 1 mm, press **◄** — move is 1 mm.
+   - [ ] **Tap ▲** — console shows a single `G1` move.
+   - [ ] The step control reads **Step (mm)** and accepts up to **1000**.
+   - [ ] Set Step (mm) = 1, **tap ◄** — move is 1 mm.
+   - [ ] **Press and hold ▲** — the carriage jogs continuously (a stream of small moves) and **stops when released** (a tap still does just one Step move).
    - [ ] **Pen Down** / **Pen Up** — console shows the matching pen G-code.
-   - [ ] Arrow keys / numpad 8-2-4-6 jog the same as the buttons (when no text field is focused).
+   - [ ] Arrow keys / numpad 8-2-4-6 jog the same as a button tap (when no text field is focused).
    - [ ] Shift+▲ / Shift+▼ raise/lower the pen.
 2. **Speed −** / **+** / **Reset**.
    - [ ] The feed-rate override percentage changes and is shown in the HUD as `Speed: N%`.
+
+#### TS-M3 — Soft limits *(hardware; mock OK)* — clamp jog to the bed
+1. Settings → Geometry: confirm **Soft limits** is checked (default). Set a small Machine Width/Height for a quick test if on mock.
+2. **Home** the machine (origin → 0/0).
+   - [ ] Try to jog/hold past **0** on an axis — the carriage does not go negative.
+   - [ ] Jog/hold toward the far side — motion **stops at the Machine Width / Height**, not beyond; continuous jog halts at the wall on its own.
+3. Uncheck **Soft limits**, Save.
+   - [ ] Jog is no longer clamped (use care on real hardware).
 
 #### TS-M2 — Raw G-code field *(hardware; mock OK)*
 1. Type `?` in the Raw G-code field and press Enter.
@@ -693,7 +704,7 @@ SVG, so this group focuses on the vectorize step itself.
 | Canvas positioning | TS-K1, TS-K2 |
 | Visual station placement & test-run wizard | TS-T1, TS-T2, TS-T3, TS-T4 |
 | Optimise commands | TS-L1, TS-L2 |
-| Jog / raw G-code | TS-M1, TS-M2 |
+| Jog / raw G-code | TS-M1, TS-M2, TS-M3 |
 | Watercolor mapping | TS-N1 |
 | Plotting / passes / pause | TS-O1, TS-O2, TS-O3, TS-O4 |
 | Time estimate | TS-P1, TS-P2 |

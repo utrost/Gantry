@@ -156,7 +156,10 @@ File/Edit menu item shows a tooltip reminding you which format it touches.
 
 ## Settings
 
-Open with the **Settings** button. Changes take effect after clicking **Save**.
+Open via **Settings ▸ Preferences…**. The dialog is organised into tabs —
+**Connection**, **Geometry**, **Pen / Speed**, **Stations** — so it stays a
+sensible size; pick a tab to edit that group. Changes take effect after clicking
+**Save** (OK).
 
 ### Connection
 
@@ -521,13 +524,22 @@ happening:
 
 | Control | Action |
 |---|---|
-| ▲ ▼ ◄ ► | Jog by the step amount (large, touch-friendly buttons) |
-| Arrow keys / numpad arrows (8/2/4/6) | Same as the ▲▼◄► buttons, usable from anywhere in the window except while a text field is focused |
+| ▲ ▼ ◄ ► (tap) | Jog by the **Step (mm)** amount — one move per tap (large, touch-friendly buttons) |
+| ▲ ▼ ◄ ► (press and hold) | Jog **continuously** in that direction until you release the button |
+| Arrow keys / numpad arrows (8/2/4/6) | Same as a tap of the ▲▼◄► buttons, usable from anywhere in the window except while a text field is focused |
 | Shift + ▲ / Shift + ▼ | Pen Up / Pen Down |
-| Step spinner | Jog step size (0.1–200 mm) |
+| Step (mm) spinner | Distance per jog tap (0.1–1000 mm) |
 | Pen Up / Pen Down | Raise / lower pen manually |
 | Speed − / + / Reset | Decrease, increase, or reset the plotter's feed-rate override while jogging or plotting |
 | Home (limit switches) | Runs GRBL's homing cycle (`$H`) against the machine's physical limit switches at 0/0, then zeroes the work origin at that position. Asks for confirmation first, since the plotter will move on its own. Requires GRBL homing to be enabled and configured on the controller (`$22=1` and the related `$23`/`$24`/`$25` settings) — Gantry just triggers the cycle, it doesn't configure GRBL. |
+
+**Soft limits.** With **Soft limits** enabled (Settings → Geometry; on by
+default), jog moves — including press-and-hold continuous jogging — are clamped
+so the commanded position can't leave the bed: it stops at 0/0 on one side and at
+the configured Machine Width / Height on the other, so you can't over-travel an
+axis. The limits track the position from the last **Home** (and from live
+position reports), so home first for them to be accurate. Disable the checkbox to
+jog without clamping.
 
 ### Raw G-code
 

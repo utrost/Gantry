@@ -46,6 +46,13 @@ public class GantryConfig {
     public boolean preflightBeforeStart = true;
 
     /**
+     * If true, jog moves are clamped so the commanded position stays within the bed
+     * {@code [0,width] × [0,height]} (the 0/0 corner and the opposite corner) — a soft stop in
+     * addition to the physical 0/0 origin, so holding a jog button can't over-travel an axis.
+     */
+    public boolean softLimits = true;
+
+    /**
      * Derives {@link PlotSettings} from this config, applying the same machine-origin and
      * portrait-mode axis derivation rules used throughout the plot pipeline:
      * <ul>

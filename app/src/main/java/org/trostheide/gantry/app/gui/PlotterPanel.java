@@ -72,7 +72,18 @@ public class PlotterPanel extends JPanel {
     private JPanel guidancePanel;
     private boolean guidanceDismissed;
     private final JLabel speedLabel = new JLabel("100%");
-    private final JSpinner jogStepSpinner = new JSpinner(new SpinnerNumberModel(10.0, 0.1, 200.0, 1.0));
+    private final JSpinner jogStepSpinner = new JSpinner(new SpinnerNumberModel(10.0, 0.1, 1000.0, 1.0));
+
+    /** Per-iteration distance for hold-to-jog continuous motion (small ⇒ smooth + prompt stop). */
+    private static final double CONTINUOUS_JOG_MM = 1.0;
+    /** How long a jog button must be held before continuous motion starts (vs a single-step tap). */
+    private static final int JOG_HOLD_DELAY_MS = 300;
+    /** Commanded jog position (mm, work coords) for soft-limit clamping; tracked from home + reports. */
+    private volatile double jogX;
+    private volatile double jogY;
+    private volatile boolean jogPosKnown;
+    /** True while a jog button is held past the threshold (continuous motion in progress). */
+    private volatile boolean jogHolding;
     private final JTextField rawCommandField = new JTextField(16);
     private final JSpinner simplifyToleranceSpinner = new JSpinner(new SpinnerNumberModel(0.2, 0.0, 10.0, 0.1));
     private final JCheckBox reorderStrokesCheckBox = new JCheckBox("Reorder", true);
@@ -1191,10 +1202,11 @@ public class PlotterPanel extends JPanel {
         JButton down = requireConnection(disableDuringPlot(jogButton("▼")));
         JButton left = requireConnection(disableDuringPlot(jogButton("◄")));
         JButton right = requireConnection(disableDuringPlot(jogButton("►")));
-        up.addActionListener(e -> jog(0, 1));
-        down.addActionListener(e -> jog(0, -1));
-        left.addActionListener(e -> jog(-1, 0));
-        right.addActionListener(e -> jog(1, 0));
+        // Tap = one Step move; press-and-hold = continuous jog until released.
+        wireJogButton(up, 0, 1);
+        wireJogButton(down, 0, -1);
+        wireJogButton(left, -1, 0);
+        wireJogButton(right, 1, 0);
 
         gbc.gridx = 1; gbc.gridy = 0; panel.add(up, gbc);
         gbc.gridx = 0; gbc.gridy = 1; panel.add(left, gbc);
@@ -1208,8 +1220,8 @@ public class PlotterPanel extends JPanel {
         penDownBtn.addActionListener(e -> runOnBackend(PlotterBackend::pendown));
 
         JPanel stepRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 0));
-        jogStepSpinner.setToolTipText("Jog step size (mm)");
-        stepRow.add(new JLabel("Step"));
+        jogStepSpinner.setToolTipText("Distance per jog tap (mm). Hold a jog button to move continuously.");
+        stepRow.add(new JLabel("Step (mm)"));
         stepRow.add(disableDuringPlot(jogStepSpinner));
 
         JPanel side = new JPanel();
@@ -2020,7 +2032,10 @@ public class PlotterPanel extends JPanel {
         if (backend == null) {
             PlotterBackend newBackend = config.mock ? new MockPlotterBackend(this::log) : new GcodeBackend(config.gcode);
             if (newBackend instanceof GcodeBackend gcode) {
-                gcode.setPositionCallback((x, y) -> SwingUtilities.invokeLater(() -> visPanel.updatePosition(x, y)));
+                gcode.setPositionCallback((x, y) -> {
+                    onJogPositionReport(x, y);
+                    SwingUtilities.invokeLater(() -> visPanel.updatePosition(x, y));
+                });
                 gcode.setSpeedCallback(percent -> SwingUtilities.invokeLater(() -> {
                     speedLabel.setText(percent + "%");
                     visPanel.setSpeedPercent(percent);
@@ -2124,7 +2139,10 @@ public class PlotterPanel extends JPanel {
 
         PlotService service = new PlotService(backend, settings);
         service.setLogCallback(this::log);
-        service.setCommandedPositionCallback((x, y) -> SwingUtilities.invokeLater(() -> visPanel.updatePosition(x, y)));
+        service.setCommandedPositionCallback((x, y) -> {
+            onJogPositionReport(x, y);
+            SwingUtilities.invokeLater(() -> visPanel.updatePosition(x, y));
+        });
         service.setLayerGate(layer -> {
             log("Layer '" + layer.id() + "' ready. Click Confirm Layer to start.");
             confirmGate.acquire();
@@ -2212,12 +2230,18 @@ public class PlotterPanel extends JPanel {
         refreshGuidance();
     }
 
+    /** Single-step jog (one tap) in the given screen-space direction, by the Step (mm) distance. */
     private void jog(int dxDir, int dyDir) {
         if (backend == null) {
             return;
         }
+        double[] d = transformDelta(dxDir, dyDir, ((Number) jogStepSpinner.getValue()).doubleValue());
+        runOnBackend(b -> jogMove(b, d[0], d[1]));
+    }
+
+    /** Maps a screen-space jog direction + magnitude to a machine-space (dx, dy) relative move. */
+    private double[] transformDelta(int dxDir, int dyDir, double mm) {
         PlotSettings settings = config.toPlotSettings();
-        double step = ((Number) jogStepSpinner.getValue()).doubleValue();
         double dx = dxDir;
         double dy = dyDir;
         if (settings.swapXY) {
@@ -2231,9 +2255,92 @@ public class PlotterPanel extends JPanel {
         if (settings.invertY) {
             dy = -dy;
         }
-        double mdx = dx * step;
-        double mdy = dy * step;
-        runOnBackend(b -> b.move(mdx, mdy));
+        return new double[] {dx * mm, dy * mm};
+    }
+
+    /**
+     * Sends one relative jog move, clamped to the bed when soft limits are on, and tracks the
+     * commanded position. Returns {@code false} when nothing moved (e.g. already at a soft wall),
+     * which lets continuous jogging stop at the edge.
+     */
+    private boolean jogMove(PlotterBackend b, double mdx, double mdy) {
+        if (config.softLimits && jogPosKnown) {
+            PlotSettings s = config.toPlotSettings();
+            double[] c = SoftLimits.clampDelta(jogX, jogY, mdx, mdy,
+                    s.resolveMachineWidth(), s.resolveMachineHeight());
+            mdx = c[0];
+            mdy = c[1];
+        }
+        if (mdx == 0 && mdy == 0) {
+            return false;
+        }
+        b.move(mdx, mdy);
+        // Commanded estimate; the live position report corrects any drift.
+        jogX += mdx;
+        jogY += mdy;
+        return true;
+    }
+
+    /**
+     * Wires a jog button so a quick tap does a single {@link #jog} step while holding it past
+     * {@link #JOG_HOLD_DELAY_MS} jogs continuously (in {@link #CONTINUOUS_JOG_MM} increments) until
+     * released. Disabled buttons receive no mouse events, so connection/plot gating still applies.
+     */
+    private void wireJogButton(JButton btn, int dxDir, int dyDir) {
+        Timer hold = new Timer(JOG_HOLD_DELAY_MS, e -> startContinuousJog(dxDir, dyDir));
+        hold.setRepeats(false);
+        btn.addMouseListener(new java.awt.event.MouseAdapter() {
+            @Override
+            public void mousePressed(java.awt.event.MouseEvent e) {
+                if (btn.isEnabled() && SwingUtilities.isLeftMouseButton(e)) {
+                    hold.restart();
+                }
+            }
+
+            @Override
+            public void mouseReleased(java.awt.event.MouseEvent e) {
+                if (hold.isRunning()) {
+                    hold.stop();
+                    jog(dxDir, dyDir); // it was a tap → one Step move
+                } else {
+                    stopContinuousJog(); // continuous was running → stop it
+                }
+            }
+        });
+    }
+
+    /** Begins continuous jogging on a dedicated thread; moves self-pace via the backend's ok-wait. */
+    private void startContinuousJog(int dxDir, int dyDir) {
+        final PlotterBackend b = backend;
+        if (b == null || jogHolding) {
+            return;
+        }
+        jogHolding = true;
+        new Thread(() -> {
+            try {
+                while (jogHolding) {
+                    double[] d = transformDelta(dxDir, dyDir, CONTINUOUS_JOG_MM);
+                    if (!jogMove(b, d[0], d[1])) {
+                        break; // reached a soft wall
+                    }
+                }
+            } catch (RuntimeException ex) {
+                log("Jog stopped: " + ex.getMessage());
+            } finally {
+                jogHolding = false;
+            }
+        }, "jog-continuous").start();
+    }
+
+    private void stopContinuousJog() {
+        jogHolding = false;
+    }
+
+    /** Records a live work-position report so soft limits clamp against the real position. */
+    private void onJogPositionReport(double x, double y) {
+        jogX = x;
+        jogY = y;
+        jogPosKnown = true;
     }
 
     private void onHome() {
@@ -2250,6 +2357,7 @@ public class PlotterPanel extends JPanel {
         log("Homing...");
         runOnBackend(b -> {
             b.home();
+            onJogPositionReport(0, 0); // origin zeroed at the homed corner
             log("Homed. Origin zeroed at (0, 0).");
         });
     }
