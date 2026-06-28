@@ -537,9 +537,11 @@ happening:
 default), jog moves — including press-and-hold continuous jogging — are clamped
 so the commanded position can't leave the bed: it stops at 0/0 on one side and at
 the configured Machine Width / Height on the other, so you can't over-travel an
-axis. The limits track the position from the last **Home** (and from live
-position reports), so home first for them to be accurate. Disable the checkbox to
-jog without clamping.
+axis. The clamp uses the same orientation geometry as the on-screen cursor, so
+the soft stops stay on the correct physical edges even when X/Y are inverted or
+swapped or the machine origin is a different corner. The limits track the
+position from the last **Home** (and from live position reports), so home first
+for them to be accurate. Disable the checkbox to jog without clamping.
 
 ### Raw G-code
 

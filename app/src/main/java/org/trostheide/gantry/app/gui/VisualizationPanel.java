@@ -763,6 +763,17 @@ public class VisualizationPanel extends JPanel {
         return isPortrait() ? Math.max(machineWidth, machineHeight) : Math.min(machineWidth, machineHeight);
     }
 
+    /**
+     * Clamps a motor position to the bed for jog soft limits, using the same composited
+     * swap/invert/origin geometry this panel draws the cursor with — so the soft stops always
+     * align with the physical bed edges regardless of inverted/swapped axes or origin corner.
+     */
+    public double[] clampMotorToBed(double motorX, double motorY) {
+        return SoftLimits.clampMotorToBed(motorX, motorY,
+                effectiveInvertX(), effectiveInvertY(), effectiveSwap(),
+                displayWidth(), displayHeight(), isOriginRight(), isOriginBottom());
+    }
+
     private double[] physicalToScreen(double motorX, double motorY) {
         // This is the exact inverse of the jog logic in PlotterPanel.jog(): jogging maps a
         // desired on-screen direction (right/up) to a motor delta using the composited

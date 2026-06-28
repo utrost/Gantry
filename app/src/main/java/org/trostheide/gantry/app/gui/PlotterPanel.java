@@ -2265,11 +2265,12 @@ public class PlotterPanel extends JPanel {
      */
     private boolean jogMove(PlotterBackend b, double mdx, double mdy) {
         if (config.softLimits && jogPosKnown) {
-            PlotSettings s = config.toPlotSettings();
-            double[] c = SoftLimits.clampDelta(jogX, jogY, mdx, mdy,
-                    s.resolveMachineWidth(), s.resolveMachineHeight());
-            mdx = c[0];
-            mdy = c[1];
+            // Clamp the target motor position to the bed using the visualization's composited
+            // swap/invert/origin geometry, so soft stops track the physical edges regardless of
+            // inverted/swapped axes or which corner is home.
+            double[] target = visPanel.clampMotorToBed(jogX + mdx, jogY + mdy);
+            mdx = target[0] - jogX;
+            mdy = target[1] - jogY;
         }
         if (mdx == 0 && mdy == 0) {
             return false;

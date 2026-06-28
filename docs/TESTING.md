@@ -45,7 +45,7 @@ Expected output: `BUILD SUCCESS` with zero failures across all modules.
 | `plotter` | `GcodeBackendTest` | G-code formatting: init sequence, pen modes (servo/zaxis/m3m5), moveto, lineto, raw send |
 | `app` | `PlotServiceTest` | Full plot orchestration: layer sequencing, refill at layer boundary, cancel mid-plot, OOB clamping, per-waypoint position callbacks |
 | `app` | `StudioMetricsTest` (4) | Vectorize-studio plottability metrics: stroke/point counts, draw-vs-travel separation, scale-invariant travel ratio, no-double-count on stroke approach |
-| `app` | `SoftLimitsTest` (5) | Jog soft-limit clamp: within-bounds passthrough, clamp at 0 and at width/height, zero-at-wall (stops continuous jog), independent per-axis clamping |
+| `app` | `SoftLimitsTest` (7) | Orientation-aware jog soft-limit clamp: within-bounds passthrough, clamp at 0/width/height, inverted-X negative bed, top-right origin (negative both axes), swapped-axis bounds, at-wall returns same point (stops continuous jog) |
 | `app` | `TimeEstimatorTest` (7) | Travel/draw distances use their respective feed rates; refill travel + fixed dip overhead; unknown station falls back to default; pen-down settle overhead charged once per `DrawCommand` and driven by the configurable `penDownDelayMillis` (0 removes it); multi-layer totals; `H:MM:SS` formatting |
 | `vectorize` | `IntegrationTest`, `BoofcvBatikVectorTest`, `StrategiesTest`, `PaintByNumbersTest` (86) | Raster→SVG engine: contour extraction, all eight strategies, polyline/Bézier geometry, auto-Canny, crop, SVG optimisation, Paint-by-Numbers quantisation/regions/labels |
 | `cli` | `VectorizeCliTest` (2) | `VectorizeCli` wiring: image→SVG, and the `--`-separated image→SVG→command-JSON chain (argument split, SVG-path derivation, `-i` injection) |
@@ -428,7 +428,9 @@ a `testdata/` folder.
 2. **Home** the machine (origin → 0/0).
    - [ ] Try to jog/hold past **0** on an axis — the carriage does not go negative.
    - [ ] Jog/hold toward the far side — motion **stops at the Machine Width / Height**, not beyond; continuous jog halts at the wall on its own.
-3. Uncheck **Soft limits**, Save.
+3. Toggle **Extra Invert X/Y** and/or **Extra Swap X/Y** (Settings → Geometry), and/or change **Machine Origin** to a different corner; re-home.
+   - [ ] The soft stops still land on the correct physical edges (0/0 corner and the width/height corner) — jogging "into the bed" is allowed up to the far edge, and "out of the bed" is blocked — i.e. the limits follow the same direction the cursor moves on screen, not raw motor sign.
+4. Uncheck **Soft limits**, Save.
    - [ ] Jog is no longer clamped (use care on real hardware).
 
 #### TS-M2 — Raw G-code field *(hardware; mock OK)*
