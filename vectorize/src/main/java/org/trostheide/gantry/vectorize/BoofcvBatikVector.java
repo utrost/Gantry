@@ -26,6 +26,7 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.stream.Collectors;
 
 import org.apache.commons.cli.CommandLine;
@@ -394,7 +395,7 @@ public class BoofcvBatikVector {
         Element element = document.createElementNS(svgNS, elementName);
         element.setAttributeNS(null, "points", sb.toString().trim());
 
-        String style = String.format("fill:none;stroke:%s;stroke-width:%.1f", strokeColor, strokeWidth);
+        String style = String.format(Locale.ROOT, "fill:none;stroke:%s;stroke-width:%.1f", strokeColor, strokeWidth);
         element.setAttributeNS(null, "style", style);
 
         parent.appendChild(element);
@@ -409,7 +410,7 @@ public class BoofcvBatikVector {
         Element path = document.createElementNS(svgNS, "path");
         path.setAttributeNS(null, "d", pathData);
 
-        String style = String.format("fill:none;stroke:%s;stroke-width:%.1f", strokeColor, strokeWidth);
+        String style = String.format(Locale.ROOT, "fill:none;stroke:%s;stroke-width:%.1f", strokeColor, strokeWidth);
         path.setAttributeNS(null, "style", style);
 
         parent.appendChild(path);
@@ -659,7 +660,7 @@ public class BoofcvBatikVector {
             double cp2x = p2.x - (p3.x - p1.x) / 6.0;
             double cp2y = p2.y - (p3.y - p1.y) / 6.0;
 
-            sb.append(String.format(" C %.1f %.1f, %.1f %.1f, %d %d",
+            sb.append(String.format(Locale.ROOT, " C %.1f %.1f, %.1f %.1f, %d %d",
                     cp1x, cp1y, cp2x, cp2y, p2.x, p2.y));
         }
 

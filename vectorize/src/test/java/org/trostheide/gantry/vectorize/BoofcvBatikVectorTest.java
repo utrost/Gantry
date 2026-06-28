@@ -48,6 +48,26 @@ class BoofcvBatikVectorTest {
         }
 
         @Test
+        void pathDataIsLocaleIndependent() {
+            // Regression: in a comma-decimal locale (e.g. de_DE) the Bézier control points were
+            // written as "62,3", which SVG reads as the two coordinates 62 and 3 — corrupting the
+            // path and tripping the importer with "Unexpected character ('C' ...)". The path data
+            // must use '.' decimals regardless of the default locale.
+            List<Point2D_I32> points = pts(0, 0, 53, 47, 100, 0);
+            java.util.Locale original = java.util.Locale.getDefault();
+            try {
+                java.util.Locale.setDefault(java.util.Locale.US);
+                String us = BoofcvBatikVector.polylineToCubicBezierPath(points);
+                java.util.Locale.setDefault(java.util.Locale.GERMANY);
+                String de = BoofcvBatikVector.polylineToCubicBezierPath(points);
+                assertEquals(us, de, "Bézier path data must not depend on the locale separator");
+                assertTrue(de.contains("."), "fractional control points use a dot decimal");
+            } finally {
+                java.util.Locale.setDefault(original);
+            }
+        }
+
+        @Test
         void manyPoints_producesCorrectNumberOfSegments() {
             List<Point2D_I32> points = pts(0, 0, 10, 10, 20, 0, 30, 10, 40, 0);
             String result = BoofcvBatikVector.polylineToCubicBezierPath(points);

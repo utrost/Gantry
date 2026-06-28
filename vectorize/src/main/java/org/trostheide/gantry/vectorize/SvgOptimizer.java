@@ -3,6 +3,7 @@ package org.trostheide.gantry.vectorize;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Locale;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -68,6 +69,8 @@ public class SvgOptimizer {
         if (rounded == (long) rounded) {
             return String.valueOf((long) rounded);
         }
-        return String.format("%.1f", rounded);
+        // Locale.ROOT so SVG coordinates always use '.' decimals — a locale-default comma would
+        // be read as an SVG coordinate separator and corrupt the path (e.g. "62,3" → 62 and 3).
+        return String.format(Locale.ROOT, "%.1f", rounded);
     }
 }
