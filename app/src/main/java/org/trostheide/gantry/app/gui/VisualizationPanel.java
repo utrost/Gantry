@@ -133,6 +133,36 @@ public class VisualizationPanel extends JPanel {
     private boolean panning = false;
     private int panLastX, panLastY;
 
+    // Click-to-hatch mode (Phase 10 Tier 3): when on, a left click inside a closed traced region
+    // fires {@link #regionHatchListener} with that region instead of moving/resizing the drawing.
+    private boolean hatchRegionMode = false;
+    private RegionHatchListener regionHatchListener;
+
+    /** Notified when the user clicks a closed region in hatch mode. */
+    public interface RegionHatchListener {
+        /**
+         * @param region     the clicked region as a closed path in raw model (mm) space
+         * @param layerIndex the index (into the loaded output's layers) the region belongs to, so
+         *                   the fill can be added to the same pen/layer
+         */
+        void onHatchRegion(Path2D region, int layerIndex);
+    }
+
+    public void setRegionHatchListener(RegionHatchListener listener) {
+        this.regionHatchListener = listener;
+    }
+
+    /** Enables/disables click-to-hatch mode and reflects it in the cursor. */
+    public void setHatchRegionMode(boolean on) {
+        this.hatchRegionMode = on;
+        setCursor(on ? Cursor.getPredefinedCursor(Cursor.CROSSHAIR_CURSOR) : Cursor.getDefaultCursor());
+        repaint();
+    }
+
+    public boolean isHatchRegionMode() {
+        return hatchRegionMode;
+    }
+
     // Interactive drag state
     private static final int HANDLE_NONE = -1;
     private static final int HANDLE_MOVE = 0;
@@ -399,6 +429,17 @@ public class VisualizationPanel extends JPanel {
                 if (st != HANDLE_NONE) {
                     draggingStation = st;
                     return;
+                }
+                // Click-to-hatch: a left click on a closed region fills it. A click on empty space
+                // falls through so the user can still pan while in hatch mode.
+                if (hatchRegionMode && SwingUtilities.isLeftMouseButton(e)) {
+                    int ri = findClosedRegionAt(e.getX(), e.getY());
+                    if (ri >= 0) {
+                        if (regionHatchListener != null) {
+                            regionHatchListener.onHatchRegion(rawRegionPath(allPaths.get(ri)), pathLayer.get(ri));
+                        }
+                        return;
+                    }
                 }
                 int handle = allPaths.isEmpty() ? HANDLE_NONE : hitTestHandle(e.getX(), e.getY());
                 // Pan with the middle button anywhere, or the left button on empty canvas (where
@@ -1357,6 +1398,78 @@ public class VisualizationPanel extends JPanel {
         scaleFactor = Math.max(0.05, Math.min(scaleFactor, 20.0));
 
         overlayScale = dragStartOverlayScale * scaleFactor;
+    }
+
+    // ----- Click-to-hatch region hit-test -----
+
+    /**
+     * Index (into {@link #allPaths}) of the smallest closed region whose on-screen shape contains
+     * the pixel {@code (mx, my)}, or {@code -1} if none. "Smallest" so clicking nested regions
+     * picks the innermost. Geometry is tested in pixel space (each point pushed through the same
+     * {@link #transformPoint} + cached paint transform used to draw it), so it's correct at any
+     * zoom/pan; {@link java.awt.geom.Path2D#contains} treats the path as implicitly closed.
+     */
+    private int findClosedRegionAt(int mx, int my) {
+        int best = -1;
+        double bestArea = Double.MAX_VALUE;
+        for (int i = 0; i < allPaths.size(); i++) {
+            List<Point2D> path = allPaths.get(i);
+            if (path.size() < 3 || !isClosedRegion(path)) {
+                continue;
+            }
+            Path2D px = pixelPath(path);
+            if (px.contains(mx, my)) {
+                Rectangle2D b = px.getBounds2D();
+                double area = b.getWidth() * b.getHeight();
+                if (area < bestArea) {
+                    bestArea = area;
+                    best = i;
+                }
+            }
+        }
+        return best;
+    }
+
+    /**
+     * Whether a polyline reads as an enclosed region: its endpoints meet within a small fraction of
+     * its own size. Filters out clearly-open contours (a single un-closed stroke) that
+     * {@code contains} would otherwise treat as a fillable area.
+     */
+    private static boolean isClosedRegion(List<Point2D> path) {
+        Point2D a = path.get(0);
+        Point2D b = path.get(path.size() - 1);
+        double minX = a.x(), maxX = a.x(), minY = a.y(), maxY = a.y();
+        for (Point2D p : path) {
+            minX = Math.min(minX, p.x()); maxX = Math.max(maxX, p.x());
+            minY = Math.min(minY, p.y()); maxY = Math.max(maxY, p.y());
+        }
+        double diag = Math.hypot(maxX - minX, maxY - minY);
+        double tol = Math.max(0.5, 0.02 * diag); // 0.5mm floor, else 2% of the region's diagonal
+        return Math.hypot(a.x() - b.x(), a.y() - b.y()) <= tol;
+    }
+
+    /** The region as a closed {@link Path2D} in screen pixels (for hit-testing). */
+    private Path2D pixelPath(List<Point2D> path) {
+        Path2D p2d = new Path2D.Double();
+        double[] p0 = transformPoint(path.get(0));
+        p2d.moveTo(p0[0] * paintScale + paintTx, p0[1] * paintScale + paintTy);
+        for (int j = 1; j < path.size(); j++) {
+            double[] pj = transformPoint(path.get(j));
+            p2d.lineTo(pj[0] * paintScale + paintTx, pj[1] * paintScale + paintTy);
+        }
+        p2d.closePath();
+        return p2d;
+    }
+
+    /** The region as a closed {@link Path2D} in raw model (mm) space (for hatch generation). */
+    private static Path2D rawRegionPath(List<Point2D> path) {
+        Path2D p2d = new Path2D.Double();
+        p2d.moveTo(path.get(0).x(), path.get(0).y());
+        for (int j = 1; j < path.size(); j++) {
+            p2d.lineTo(path.get(j).x(), path.get(j).y());
+        }
+        p2d.closePath();
+        return p2d;
     }
 
     // ----- Internal Types -----

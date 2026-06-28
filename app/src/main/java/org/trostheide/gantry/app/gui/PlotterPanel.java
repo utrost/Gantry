@@ -107,6 +107,7 @@ public class PlotterPanel extends JPanel {
     private File lastVectorizeImage;
     private List<String> lastVectorizeArgs;
     private JMenuItem reVectorizeMenuItem;
+    private JCheckBoxMenuItem hatchRegionModeItem;
     /** Single-level undo snapshot of {@link #currentOutput} before the last destructive transform. */
     private ProcessorOutput undoSnapshot;
     private JMenuItem undoMenuItem;
@@ -422,6 +423,13 @@ public class PlotterPanel extends JPanel {
                 "Clean up the current drawing in place — simplify, reorder, and weld touching strokes. "
                         + "Edits the command model; does not touch any SVG or G-code file."));
         editMenu.add(menuItem("Map Layer Colors to Stations", e -> onMapColorsToStations(), true));
+        editMenu.addSeparator();
+        hatchRegionModeItem = new JCheckBoxMenuItem("Hatch Region (click areas to fill)");
+        hatchRegionModeItem.setToolTipText("Click inside a closed traced region to fill it with hatch "
+                + "lines that plot as part of that layer (useful for outline traces where filled areas "
+                + "became bare strokes). Toggle off when done.");
+        hatchRegionModeItem.addActionListener(e -> visPanel.setHatchRegionMode(hatchRegionModeItem.isSelected()));
+        editMenu.add(hatchRegionModeItem);
         menuBar.add(editMenu);
 
         JMenu machineMenu = new JMenu("Machine");
@@ -1337,6 +1345,8 @@ public class PlotterPanel extends JPanel {
         visPanel.setOverlayChangeListener(this::refreshPositionFields);
         // "Remove Drawing" in the canvas context menu drops the loaded output too.
         visPanel.setRemoveDrawingListener(this::onRemoveDrawing);
+        // Click-to-hatch (Edit ▸ Hatch Region): fill a clicked closed region with hatch strokes.
+        visPanel.setRegionHatchListener(this::onHatchRegion);
         // Drag a station marker / "Add station here" on the canvas edits config.stations directly.
         visPanel.setStationEditListener(new VisualizationPanel.StationEditListener() {
             @Override public void onStationMoved(String name, double x, double y) {
@@ -2629,6 +2639,34 @@ public class PlotterPanel extends JPanel {
         refreshTimeEstimate();
         refreshGuidance();
         log("Removed the loaded drawing.");
+    }
+
+    // Default hatch fill for click-to-hatch: 2 mm line spacing at 45°. A fineliner-friendly
+    // starting point; per-region pattern/gap selection is deferred (ROADMAP Phase 10 Tier 3).
+    private static final double HATCH_GAP_MM = 2.0;
+    private static final double HATCH_ANGLE_DEG = 45.0;
+
+    /**
+     * Fills a clicked closed region (in raw model mm space) with linear hatch strokes, added to the
+     * region's own layer/pen so they plot with it. Undoable; refreshes the view and time estimate.
+     */
+    private void onHatchRegion(java.awt.geom.Path2D region, int layerIndex) {
+        if (currentOutput == null) {
+            return;
+        }
+        int startId = RegionHatch.maxCommandId(currentOutput) + 1;
+        List<DrawCommand> strokes = RegionHatch.hatchCommands(region, HATCH_ANGLE_DEG, HATCH_GAP_MM, startId);
+        if (strokes.isEmpty()) {
+            log(String.format("Region too small to hatch at %.1f mm spacing.", HATCH_GAP_MM));
+            return;
+        }
+        snapshotForUndo();
+        currentOutput = RegionHatch.appendToLayer(currentOutput, layerIndex, strokes);
+        visPanel.loadPathsPreservingOverlay(currentOutput);
+        refreshLayerSelector();
+        refreshTimeEstimate();
+        refreshGuidance();
+        log(String.format("Hatched region: +%d stroke(s) into layer %d.", strokes.size(), layerIndex + 1));
     }
 
     /** Snapshots {@link #currentOutput} so the next destructive transform can be undone. */

@@ -1,0 +1,92 @@
+package org.trostheide.gantry.app.gui;
+
+import org.junit.jupiter.api.Test;
+import org.trostheide.gantry.model.Bounds;
+import org.trostheide.gantry.model.Layer;
+import org.trostheide.gantry.model.Metadata;
+import org.trostheide.gantry.model.ProcessorOutput;
+import org.trostheide.gantry.model.command.Command;
+import org.trostheide.gantry.model.command.DrawCommand;
+
+import java.awt.geom.Path2D;
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
+
+import static org.junit.jupiter.api.Assertions.*;
+
+/** Click-to-hatch geometry/model splicing (Phase 10 Tier 3). */
+class RegionHatchTest {
+
+    private static Path2D square(double x, double y, double size) {
+        Path2D p = new Path2D.Double();
+        p.moveTo(x, y);
+        p.lineTo(x + size, y);
+        p.lineTo(x + size, y + size);
+        p.lineTo(x, y + size);
+        p.closePath();
+        return p;
+    }
+
+    @Test
+    void fillsAClosedRegionWithStrokesInsideItsBounds() {
+        List<DrawCommand> strokes = RegionHatch.hatchCommands(square(10, 10, 100), 0.0, 10.0, 1);
+
+        assertFalse(strokes.isEmpty(), "a 100mm square should hold several 10mm-spaced lines");
+        for (DrawCommand d : strokes) {
+            assertEquals(2, d.points.size(), "each hatch stroke is a single line segment");
+            for (var pt : d.points) {
+                assertTrue(pt.x() >= 9.5 && pt.x() <= 110.5, "x within the region: " + pt.x());
+                assertTrue(pt.y() >= 9.5 && pt.y() <= 110.5, "y within the region: " + pt.y());
+            }
+        }
+    }
+
+    @Test
+    void idsContinueFromStart() {
+        List<DrawCommand> strokes = RegionHatch.hatchCommands(square(0, 0, 100), 45.0, 8.0, 50);
+        assertEquals(50, strokes.get(0).id);
+        for (int i = 1; i < strokes.size(); i++) {
+            assertEquals(strokes.get(i - 1).id + 1, strokes.get(i).id, "ids are sequential");
+        }
+    }
+
+    @Test
+    void tooSmallRegionYieldsNoStrokes() {
+        // A 1mm square can hold no 10mm-spaced scanline.
+        assertTrue(RegionHatch.hatchCommands(square(0, 0, 1), 0.0, 10.0, 1).isEmpty());
+    }
+
+    @Test
+    void appendAddsToTargetLayerAndBumpsMetadata() {
+        ProcessorOutput out = oneLayerOutput();
+        assertEquals(7, RegionHatch.maxCommandId(out), "highest existing id");
+
+        List<DrawCommand> extra = RegionHatch.hatchCommands(square(0, 0, 100), 0.0, 10.0, 8);
+        ProcessorOutput after = RegionHatch.appendToLayer(out, 0, extra);
+
+        assertEquals(1 + extra.size(), after.layers().get(0).commands().size(),
+                "the new strokes land in the target layer");
+        assertEquals(1 + extra.size(), after.metadata().totalCommands(),
+                "metadata command count is bumped");
+        assertEquals(out.metadata().source(), after.metadata().source(), "other metadata preserved");
+    }
+
+    @Test
+    void appendIsANoOpForEmptyOrBadLayer() {
+        ProcessorOutput out = oneLayerOutput();
+        assertSame(out, RegionHatch.appendToLayer(out, 0, List.of()), "empty extra → unchanged");
+        assertSame(out, RegionHatch.appendToLayer(out, 5,
+                RegionHatch.hatchCommands(square(0, 0, 100), 0.0, 10.0, 8)),
+                "out-of-range layer → unchanged");
+    }
+
+    private static ProcessorOutput oneLayerOutput() {
+        List<Command> cmds = new ArrayList<>();
+        cmds.add(new DrawCommand(7, List.of(new org.trostheide.gantry.model.Point(0, 0),
+                new org.trostheide.gantry.model.Point(1, 1))));
+        Layer layer = new Layer("layer1", null, "#000000", cmds);
+        Metadata md = new Metadata("test", Instant.EPOCH, null, "mm", 1, Bounds.empty());
+        return new ProcessorOutput(md, new ArrayList<>(List.of(layer)));
+    }
+}

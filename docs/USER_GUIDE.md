@@ -363,6 +363,24 @@ is left to plot or export) plus the same **Reset Position / Rotate 90° / Mirror
 actions, reachable directly on the canvas. The drawing-related items are greyed out
 when no drawing is loaded; **Add station here** and **Reset View** are always available.
 
+### Hatch-filling a region (click to fill)
+
+Outline-style traces (the `bezier` outline mode, `dp`, `centerline`, or
+ImageTracer `--b2-outline`) produce closed *outlines* with no fill, so an area
+that looks solid in the source plots as just its border. To fill such an area
+with hatching:
+
+1. Enable **Edit ▸ Hatch Region (click areas to fill)**. The cursor becomes a
+   crosshair.
+2. Click inside a closed region. It's filled with parallel hatch lines (2 mm
+   apart at 45°) added to that region's own layer/pen, so they plot together.
+   Tip: zoom in first (mouse wheel) to click small regions precisely.
+3. Repeat for other regions, then toggle the menu item off when done.
+
+The fill is a normal edit — **Undo** (Ctrl/⌘-Z) reverses the last one, and the
+time estimate updates to include the added strokes. Clicking empty space while
+in this mode still pans, so you can navigate without leaving hatch mode.
+
 ### Placing refill stations
 
 Refill stations (watercolor) appear as labelled dots on the Live View. You can place

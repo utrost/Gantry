@@ -377,6 +377,17 @@ phase operates at element/group granularity, not within a single shape.
 
 **Scope — Tier 3: click-to-hatch unfilled vectorized regions (field finding).**
 
+*Status.* ✅ **Minimal first cut shipped.** Implemented on the command-model /
+plotter-canvas integration point (below): **Edit ▸ Hatch Region** toggles a mode
+where a left click inside a closed region fills it with linear hatch (2 mm / 45°)
+added to that region's own layer, undoable, with the time estimate refreshed.
+`VisualizationPanel.findClosedRegionAt` hit-tests in pixel space through the same
+paint transform (so it tracks the new zoom/pan); `RegionHatch` (unit-tested)
+generates the strokes via the existing `LinearHatchPattern` and splices them into
+the `ProcessorOutput`. Deferred as planned: per-region pattern/gap/angle choice,
+multi-select, open-contour handling, and using `HatchProcessor` at the SVG stage.
+The original analysis is kept below for the deferred work.
+
 *Why this is its own tier.* Phase 10 Tiers 1–2 assume **filled** regions keyed
 by colour (or group). But the most common source of "areas" in practice is now
 the vectorizer, and its output is the opposite: trace strategies that produce
