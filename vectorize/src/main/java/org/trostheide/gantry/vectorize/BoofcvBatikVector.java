@@ -440,11 +440,21 @@ public class BoofcvBatikVector {
 
         System.out.printf("Trace complete, found %d paths.%n", shapes.size());
 
-        // 2. Convert the List<BezierShape> to our List<VectorGeometry>
-        return shapes.stream()
-                .map(BezierShape::toSVGPathString)
-                .map(PathGeometry::new)
-                .collect(Collectors.toList());
+        // 2. Convert the List<BezierShape> to our List<VectorGeometry>.
+        //    DrPTrace's toSVGPathString() formats coordinates with the default locale, so in a
+        //    comma-decimal locale (e.g. de_DE) it emits "1,500000" — which SVG reads as the two
+        //    numbers 1 and 500000, throwing the geometry off-canvas (blank image). Force
+        //    Locale.ROOT for just this conversion so the path data always uses '.' decimals.
+        Locale previous = Locale.getDefault();
+        try {
+            Locale.setDefault(Locale.ROOT);
+            return shapes.stream()
+                    .map(BezierShape::toSVGPathString)
+                    .map(PathGeometry::new)
+                    .collect(Collectors.toList());
+        } finally {
+            Locale.setDefault(previous);
+        }
     }
 
 

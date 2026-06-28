@@ -2,6 +2,7 @@ package org.trostheide.gantry.vectorize.algorithms;
 
 import georegression.struct.point.Point2D_I32;
 import java.util.List;
+import java.util.Locale;
 
 /**
  * Utility for fitting smooth curves to a set of points.
@@ -53,7 +54,7 @@ public class CurveFitter {
             double cp2x = pEnd.x - (pNext.x - pStart.x) / 6.0;
             double cp2y = pEnd.y - (pNext.y - pStart.y) / 6.0;
 
-            path.append(String.format(" C %.2f,%.2f %.2f,%.2f %d,%d",
+            path.append(String.format(Locale.ROOT, " C %.2f,%.2f %.2f,%.2f %d,%d",
                     cp1x, cp1y, cp2x, cp2y, pEnd.x, pEnd.y));
         }
 
