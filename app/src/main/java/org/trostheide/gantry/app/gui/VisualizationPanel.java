@@ -430,15 +430,22 @@ public class VisualizationPanel extends JPanel {
                     draggingStation = st;
                     return;
                 }
-                // Click-to-hatch: a left click on a closed region fills it. A click on empty space
-                // falls through so the user can still pan while in hatch mode.
-                if (hatchRegionMode && SwingUtilities.isLeftMouseButton(e)) {
+                // Click-to-hatch: a left click fills the region under it. First try a single closed
+                // path; if none, flood-fill an area enclosed by several separate strokes. A click on
+                // empty space falls through so the user can still pan while in hatch mode.
+                if (hatchRegionMode && SwingUtilities.isLeftMouseButton(e) && regionHatchListener != null) {
                     int ri = findClosedRegionAt(e.getX(), e.getY());
                     if (ri >= 0) {
-                        if (regionHatchListener != null) {
-                            regionHatchListener.onHatchRegion(rawRegionPath(allPaths.get(ri)), pathLayer.get(ri));
-                        }
+                        regionHatchListener.onHatchRegion(rawRegionPath(allPaths.get(ri)), pathLayer.get(ri));
                         return;
+                    }
+                    double[] seed = screenToModel(e.getX(), e.getY());
+                    if (seed != null) {
+                        Path2D enclosed = EnclosedRegion.fromSeed(strokesAsModel(), seed[0], seed[1]);
+                        if (enclosed != null) {
+                            regionHatchListener.onHatchRegion(enclosed, nearestStrokeLayer(seed[0], seed[1]));
+                            return;
+                        }
                     }
                 }
                 int handle = allPaths.isEmpty() ? HANDLE_NONE : hitTestHandle(e.getX(), e.getY());
@@ -1459,6 +1466,67 @@ public class VisualizationPanel extends JPanel {
         }
         p2d.closePath();
         return p2d;
+    }
+
+    /** All loaded strokes as model-space point arrays, for flood-fill enclosure detection. */
+    private List<double[][]> strokesAsModel() {
+        List<double[][]> out = new ArrayList<>();
+        for (List<Point2D> path : allPaths) {
+            if (path.size() < 2) {
+                continue;
+            }
+            double[][] s = new double[path.size()][2];
+            for (int i = 0; i < path.size(); i++) {
+                s[i][0] = path.get(i).x();
+                s[i][1] = path.get(i).y();
+            }
+            out.add(s);
+        }
+        return out;
+    }
+
+    /** Layer of the stroke whose nearest vertex is closest to {@code (mx, my)} (model mm), or 0. */
+    private int nearestStrokeLayer(double mx, double my) {
+        int best = -1;
+        double bestD = Double.MAX_VALUE;
+        for (int i = 0; i < allPaths.size(); i++) {
+            for (Point2D p : allPaths.get(i)) {
+                double d = Math.hypot(p.x() - mx, p.y() - my);
+                if (d < bestD) {
+                    bestD = d;
+                    best = i;
+                }
+            }
+        }
+        return best >= 0 ? pathLayer.get(best) : 0;
+    }
+
+    /** Screen pixel of a model-space point, via the same forward transform paint uses. */
+    private double[] modelToPixel(double mx, double my) {
+        double[] c = transformPoint(new Point2D(mx, my));
+        return new double[]{c[0] * paintScale + paintTx, c[1] * paintScale + paintTy};
+    }
+
+    /**
+     * Inverse of {@link #modelToPixel}: a screen pixel back to a raw model (mm) point. The
+     * model→pixel map is affine, so it's recovered exactly by sampling three reference points and
+     * inverting the resulting 2×2 system (same technique as {@link #screenDeltaToMm}). Returns
+     * {@code null} only if the transform is degenerate.
+     */
+    private double[] screenToModel(int px, int py) {
+        double[] o = modelToPixel(0, 0);
+        double[] ux = modelToPixel(1, 0);
+        double[] uy = modelToPixel(0, 1);
+        double a = ux[0] - o[0], b = uy[0] - o[0];
+        double c = ux[1] - o[1], d = uy[1] - o[1];
+        double det = a * d - b * c;
+        if (Math.abs(det) < 1e-12) {
+            return null;
+        }
+        double rx = px - o[0], ry = py - o[1];
+        double mx = (rx * d - b * ry) / det;
+        double my = (a * ry - rx * c) / det;
+        return new double[]{mx, my};
     }
 
     /** The region as a closed {@link Path2D} in raw model (mm) space (for hatch generation). */

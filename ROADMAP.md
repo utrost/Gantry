@@ -377,16 +377,27 @@ phase operates at element/group granularity, not within a single shape.
 
 **Scope — Tier 3: click-to-hatch unfilled vectorized regions (field finding).**
 
-*Status.* ✅ **Minimal first cut shipped.** Implemented on the command-model /
-plotter-canvas integration point (below): **Edit ▸ Hatch Region** toggles a mode
-where a left click inside a closed region fills it with linear hatch (2 mm / 45°)
-added to that region's own layer, undoable, with the time estimate refreshed.
-`VisualizationPanel.findClosedRegionAt` hit-tests in pixel space through the same
-paint transform (so it tracks the new zoom/pan); `RegionHatch` (unit-tested)
-generates the strokes via the existing `LinearHatchPattern` and splices them into
-the `ProcessorOutput`. Deferred as planned: per-region pattern/gap/angle choice,
-multi-select, open-contour handling, and using `HatchProcessor` at the SVG stage.
-The original analysis is kept below for the deferred work.
+*Status.* ✅ **Shipped (single-path fill, per-region styles, and multi-stroke
+enclosures).** Implemented on the command-model / plotter-canvas integration
+point (below): **Edit ▸ Hatch Region** toggles a click-to-fill mode; fills are
+added to the region's own layer, undoable, with the time estimate refreshed.
+- *Single closed path:* `VisualizationPanel.findClosedRegionAt` hit-tests in
+  pixel space through the same paint transform (tracks zoom/pan), smallest
+  enclosing wins.
+- *Per-region styles:* **Edit ▸ Hatch Region Style…** picks pattern
+  (linear/cross/zig-zag/wave/dot), spacing and angle, applied per click so
+  different areas can differ. `RegionHatch` (unit-tested) runs the chosen
+  `HatchPattern` and flattens every output (lines/paths/dots) to plottable
+  polylines spliced into the `ProcessorOutput`.
+- *Multi-stroke enclosures:* when no single path matches, `EnclosedRegion`
+  (unit-tested) flood-fills from the click bounded by all strokes and Moore-traces
+  the blob to a polygon, then the same hatch pipeline fills it; a leaky boundary
+  escapes ⇒ nothing filled. The click pixel is mapped to model space by an exact
+  affine inverse (`screenToModel`).
+
+Still deferred: interior holes in flood-filled regions, multi-select, genuinely
+open contours, and surfacing this at the SVG stage via `HatchProcessor`. The
+original analysis is kept below for that remaining work.
 
 *Why this is its own tier.* Phase 10 Tiers 1–2 assume **filled** regions keyed
 by colour (or group). But the most common source of "areas" in practice is now

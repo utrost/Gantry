@@ -372,10 +372,21 @@ with hatching:
 
 1. Enable **Edit ▸ Hatch Region (click areas to fill)**. The cursor becomes a
    crosshair.
-2. Click inside a closed region. It's filled with parallel hatch lines (2 mm
-   apart at 45°) added to that region's own layer/pen, so they plot together.
-   Tip: zoom in first (mouse wheel) to click small regions precisely.
+2. Click inside a region. It's filled with hatch strokes added to that region's
+   own layer/pen, so they plot together. Tip: zoom in first (mouse wheel) to
+   click small regions precisely.
 3. Repeat for other regions, then toggle the menu item off when done.
+
+**What counts as a region.** Both a single closed outline *and* an area fenced in
+by several **separate** strokes can be filled — clicking inside a shape that's
+bounded by independent lines flood-fills the enclosed area (as long as the
+boundary actually closes; a gap lets the fill "leak" and nothing is filled).
+Nested shapes fill the innermost region under the cursor.
+
+**Different styles per area.** Open **Edit ▸ Hatch Region Style…** to choose the
+pattern (linear, cross, zig-zag, wave, dot), spacing (mm) and angle. The current
+style applies to each click, so you can change it between clicks — e.g. dense
+cross-hatch for the hair, sparse linear for the coat, nothing on the face.
 
 The fill is a normal edit — **Undo** (Ctrl/⌘-Z) reverses the last one, and the
 time estimate updates to include the added strokes. Clicking empty space while

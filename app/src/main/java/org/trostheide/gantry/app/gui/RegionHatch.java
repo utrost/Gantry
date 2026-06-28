@@ -8,11 +8,15 @@ import org.trostheide.gantry.model.command.Command;
 import org.trostheide.gantry.model.command.DrawCommand;
 import org.trostheide.gantry.svgtoolbox.Config;
 import org.trostheide.gantry.svgtoolbox.HatchStyle;
+import org.trostheide.gantry.svgtoolbox.patterns.CrossHatchPattern;
+import org.trostheide.gantry.svgtoolbox.patterns.DotHatchPattern;
+import org.trostheide.gantry.svgtoolbox.patterns.HatchPattern;
 import org.trostheide.gantry.svgtoolbox.patterns.LinearHatchPattern;
+import org.trostheide.gantry.svgtoolbox.patterns.WaveHatchPattern;
+import org.trostheide.gantry.svgtoolbox.patterns.ZigZagHatchPattern;
 
 import java.awt.Shape;
-import java.awt.geom.Line2D;
-import java.awt.geom.Path2D;
+import java.awt.geom.PathIterator;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -27,26 +31,77 @@ final class RegionHatch {
     private RegionHatch() {
     }
 
-    /** A shared, default toolbox config; {@link LinearHatchPattern} ignores it but the API needs one. */
+    /** The hatch patterns offered by the click-to-hatch style picker, in menu order. */
+    static final List<String> PATTERNS = List.of("linear", "cross", "zigzag", "wave", "dot");
+
+    /** A shared, default toolbox config; the patterns derive their geometry from {@link HatchStyle}. */
     private static final Config DEFAULT_CONFIG = new Config.Builder().build();
 
+    /** Flatness (mm) for converting curved/closed pattern shapes (waves, dots) to polylines. */
+    private static final double FLATNESS = 0.25;
+
     /**
-     * Linear hatch fill for {@code region} (closed, in model mm space) as 2-point draw strokes,
-     * numbered from {@code startId}. Empty if the region is smaller than {@code gap}.
+     * Hatch fill for {@code region} (closed, in model mm space) as plottable polyline strokes,
+     * numbered from {@code startId}. Every pattern's output — straight lines, zig-zag/wave paths,
+     * or dots — is flattened into polylines. Empty if the region is too small for the spacing.
+     *
+     * @param pattern one of {@link #PATTERNS}; unknown values fall back to linear
      */
-    static List<DrawCommand> hatchCommands(Path2D region, double angleDeg, double gapMm, int startId) {
-        List<Shape> lines = new LinearHatchPattern().generate(region, DEFAULT_CONFIG,
-                HatchStyle.of(angleDeg, gapMm));
+    static List<DrawCommand> hatchCommands(java.awt.geom.Path2D region, String pattern,
+                                           double angleDeg, double gapMm, int startId) {
+        HatchPattern hp = patternFor(pattern);
+        HatchStyle style = new HatchStyle(angleDeg, gapMm, pattern == null ? "linear" : pattern);
+        List<Shape> shapes = hp.generate(region, DEFAULT_CONFIG, style);
+
         List<DrawCommand> out = new ArrayList<>();
-        int id = startId;
-        for (Shape s : lines) {
-            if (s instanceof Line2D l) {
-                out.add(new DrawCommand(id++, List.of(
-                        new Point(l.getX1(), l.getY1()),
-                        new Point(l.getX2(), l.getY2()))));
-            }
+        int[] id = {startId};
+        for (Shape s : shapes) {
+            appendFlattened(out, s, id);
         }
         return out;
+    }
+
+    private static HatchPattern patternFor(String name) {
+        return switch (name == null ? "linear" : name.toLowerCase()) {
+            case "cross" -> new CrossHatchPattern();
+            case "zigzag" -> new ZigZagHatchPattern();
+            case "wave" -> new WaveHatchPattern();
+            case "dot" -> new DotHatchPattern();
+            default -> new LinearHatchPattern();
+        };
+    }
+
+    /** Flattens any {@link Shape} into one or more polyline draw strokes (split on subpath moves). */
+    private static void appendFlattened(List<DrawCommand> out, Shape s, int[] id) {
+        PathIterator pi = s.getPathIterator(null, FLATNESS);
+        double[] c = new double[6];
+        List<Point> cur = new ArrayList<>();
+        while (!pi.isDone()) {
+            switch (pi.currentSegment(c)) {
+                case PathIterator.SEG_MOVETO -> {
+                    flush(out, cur, id);
+                    cur = new ArrayList<>();
+                    cur.add(new Point(c[0], c[1]));
+                }
+                case PathIterator.SEG_LINETO -> cur.add(new Point(c[0], c[1]));
+                case PathIterator.SEG_CLOSE -> {
+                    if (!cur.isEmpty()) {
+                        cur.add(new Point(cur.get(0).x(), cur.get(0).y()));
+                    }
+                    flush(out, cur, id);
+                    cur = new ArrayList<>();
+                }
+                default -> { /* flattened iterator yields no QUAD/CUBIC */ }
+            }
+            pi.next();
+        }
+        flush(out, cur, id);
+    }
+
+    private static void flush(List<DrawCommand> out, List<Point> pts, int[] id) {
+        if (pts.size() >= 2) {
+            out.add(new DrawCommand(id[0]++, List.copyOf(pts)));
+        }
     }
 
     /** The highest command id across all layers, or 0 if there are none. */

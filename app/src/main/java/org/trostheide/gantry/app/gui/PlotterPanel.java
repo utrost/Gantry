@@ -430,6 +430,10 @@ public class PlotterPanel extends JPanel {
                 + "became bare strokes). Toggle off when done.");
         hatchRegionModeItem.addActionListener(e -> visPanel.setHatchRegionMode(hatchRegionModeItem.isSelected()));
         editMenu.add(hatchRegionModeItem);
+        editMenu.add(tip(menuItem("Hatch Region Style...", e -> onHatchStyleDialog(), true),
+                "Choose the pattern (linear/cross/zigzag/wave/dot), spacing and angle used when you "
+                        + "click regions in Hatch Region mode. Change it between clicks to fill different "
+                        + "areas with different styles."));
         menuBar.add(editMenu);
 
         JMenu machineMenu = new JMenu("Machine");
@@ -2641,23 +2645,25 @@ public class PlotterPanel extends JPanel {
         log("Removed the loaded drawing.");
     }
 
-    // Default hatch fill for click-to-hatch: 2 mm line spacing at 45°. A fineliner-friendly
-    // starting point; per-region pattern/gap selection is deferred (ROADMAP Phase 10 Tier 3).
-    private static final double HATCH_GAP_MM = 2.0;
-    private static final double HATCH_ANGLE_DEG = 45.0;
+    // Current click-to-hatch style, applied to each clicked region (so different areas can be
+    // hatched differently by changing it between clicks). Defaults: linear, 2 mm spacing, 45°.
+    private String hatchPattern = "linear";
+    private double hatchGapMm = 2.0;
+    private double hatchAngleDeg = 45.0;
 
     /**
-     * Fills a clicked closed region (in raw model mm space) with linear hatch strokes, added to the
-     * region's own layer/pen so they plot with it. Undoable; refreshes the view and time estimate.
+     * Fills a clicked closed region (in raw model mm space) with the current hatch style, added to
+     * the region's own layer/pen so they plot with it. Undoable; refreshes the view and estimate.
      */
     private void onHatchRegion(java.awt.geom.Path2D region, int layerIndex) {
         if (currentOutput == null) {
             return;
         }
         int startId = RegionHatch.maxCommandId(currentOutput) + 1;
-        List<DrawCommand> strokes = RegionHatch.hatchCommands(region, HATCH_ANGLE_DEG, HATCH_GAP_MM, startId);
+        List<DrawCommand> strokes =
+                RegionHatch.hatchCommands(region, hatchPattern, hatchAngleDeg, hatchGapMm, startId);
         if (strokes.isEmpty()) {
-            log(String.format("Region too small to hatch at %.1f mm spacing.", HATCH_GAP_MM));
+            log(String.format("Region too small to hatch at %.1f mm spacing.", hatchGapMm));
             return;
         }
         snapshotForUndo();
@@ -2666,7 +2672,37 @@ public class PlotterPanel extends JPanel {
         refreshLayerSelector();
         refreshTimeEstimate();
         refreshGuidance();
-        log(String.format("Hatched region: +%d stroke(s) into layer %d.", strokes.size(), layerIndex + 1));
+        log(String.format("Hatched region (%s, %.1fmm, %.0f°): +%d stroke(s) into layer %d.",
+                hatchPattern, hatchGapMm, hatchAngleDeg, strokes.size(), layerIndex + 1));
+    }
+
+    /**
+     * Prompts for the click-to-hatch style (pattern, spacing, angle) applied to subsequently
+     * clicked regions. Changing it between clicks lets different areas get different fills.
+     */
+    private void onHatchStyleDialog() {
+        JComboBox<String> patternCombo = new JComboBox<>(RegionHatch.PATTERNS.toArray(new String[0]));
+        patternCombo.setSelectedItem(hatchPattern);
+        JSpinner gapSpinner = new JSpinner(new SpinnerNumberModel(hatchGapMm, 0.2, 50.0, 0.2));
+        JSpinner angleSpinner = new JSpinner(new SpinnerNumberModel(hatchAngleDeg, 0.0, 180.0, 5.0));
+
+        JPanel form = new JPanel(new GridLayout(0, 2, 6, 6));
+        form.add(new JLabel("Pattern"));
+        form.add(patternCombo);
+        form.add(new JLabel("Spacing (mm)"));
+        form.add(gapSpinner);
+        form.add(new JLabel("Angle (°)"));
+        form.add(angleSpinner);
+
+        int result = JOptionPane.showConfirmDialog(this, form, "Hatch Region Style",
+                JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
+        if (result != JOptionPane.OK_OPTION) {
+            return;
+        }
+        hatchPattern = (String) patternCombo.getSelectedItem();
+        hatchGapMm = ((Number) gapSpinner.getValue()).doubleValue();
+        hatchAngleDeg = ((Number) angleSpinner.getValue()).doubleValue();
+        log(String.format("Hatch style set: %s, %.1fmm, %.0f°.", hatchPattern, hatchGapMm, hatchAngleDeg));
     }
 
     /** Snapshots {@link #currentOutput} so the next destructive transform can be undone. */

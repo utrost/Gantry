@@ -30,11 +30,11 @@ class RegionHatchTest {
 
     @Test
     void fillsAClosedRegionWithStrokesInsideItsBounds() {
-        List<DrawCommand> strokes = RegionHatch.hatchCommands(square(10, 10, 100), 0.0, 10.0, 1);
+        List<DrawCommand> strokes = RegionHatch.hatchCommands(square(10, 10, 100), "linear", 0.0, 10.0, 1);
 
         assertFalse(strokes.isEmpty(), "a 100mm square should hold several 10mm-spaced lines");
         for (DrawCommand d : strokes) {
-            assertEquals(2, d.points.size(), "each hatch stroke is a single line segment");
+            assertEquals(2, d.points.size(), "each linear hatch stroke is a single line segment");
             for (var pt : d.points) {
                 assertTrue(pt.x() >= 9.5 && pt.x() <= 110.5, "x within the region: " + pt.x());
                 assertTrue(pt.y() >= 9.5 && pt.y() <= 110.5, "y within the region: " + pt.y());
@@ -43,8 +43,24 @@ class RegionHatchTest {
     }
 
     @Test
+    void everyPatternProducesStrokesAndStaysInBounds() {
+        for (String pattern : RegionHatch.PATTERNS) {
+            List<DrawCommand> strokes = RegionHatch.hatchCommands(square(0, 0, 100), pattern, 45.0, 6.0, 1);
+            assertFalse(strokes.isEmpty(), pattern + " should produce strokes");
+            for (DrawCommand d : strokes) {
+                assertTrue(d.points.size() >= 2, pattern + " strokes are polylines");
+                for (var pt : d.points) {
+                    // Wave/zigzag can bow slightly past the edge; allow a small margin.
+                    assertTrue(pt.x() >= -10 && pt.x() <= 110, pattern + " x in range: " + pt.x());
+                    assertTrue(pt.y() >= -10 && pt.y() <= 110, pattern + " y in range: " + pt.y());
+                }
+            }
+        }
+    }
+
+    @Test
     void idsContinueFromStart() {
-        List<DrawCommand> strokes = RegionHatch.hatchCommands(square(0, 0, 100), 45.0, 8.0, 50);
+        List<DrawCommand> strokes = RegionHatch.hatchCommands(square(0, 0, 100), "linear", 45.0, 8.0, 50);
         assertEquals(50, strokes.get(0).id);
         for (int i = 1; i < strokes.size(); i++) {
             assertEquals(strokes.get(i - 1).id + 1, strokes.get(i).id, "ids are sequential");
@@ -54,7 +70,7 @@ class RegionHatchTest {
     @Test
     void tooSmallRegionYieldsNoStrokes() {
         // A 1mm square can hold no 10mm-spaced scanline.
-        assertTrue(RegionHatch.hatchCommands(square(0, 0, 1), 0.0, 10.0, 1).isEmpty());
+        assertTrue(RegionHatch.hatchCommands(square(0, 0, 1), "linear", 0.0, 10.0, 1).isEmpty());
     }
 
     @Test
@@ -62,7 +78,7 @@ class RegionHatchTest {
         ProcessorOutput out = oneLayerOutput();
         assertEquals(7, RegionHatch.maxCommandId(out), "highest existing id");
 
-        List<DrawCommand> extra = RegionHatch.hatchCommands(square(0, 0, 100), 0.0, 10.0, 8);
+        List<DrawCommand> extra = RegionHatch.hatchCommands(square(0, 0, 100), "linear", 0.0, 10.0, 8);
         ProcessorOutput after = RegionHatch.appendToLayer(out, 0, extra);
 
         assertEquals(1 + extra.size(), after.layers().get(0).commands().size(),
@@ -77,7 +93,7 @@ class RegionHatchTest {
         ProcessorOutput out = oneLayerOutput();
         assertSame(out, RegionHatch.appendToLayer(out, 0, List.of()), "empty extra → unchanged");
         assertSame(out, RegionHatch.appendToLayer(out, 5,
-                RegionHatch.hatchCommands(square(0, 0, 100), 0.0, 10.0, 8)),
+                RegionHatch.hatchCommands(square(0, 0, 100), "linear", 0.0, 10.0, 8)),
                 "out-of-range layer → unchanged");
     }
 
