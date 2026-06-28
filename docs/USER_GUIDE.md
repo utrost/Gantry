@@ -640,7 +640,12 @@ or mirrored — e.g. left moves the pen down, down moves it right, and so on.
 
 This is **not a bug**, it's a wiring mismatch — fix it with the checkboxes,
 not by changing Machine Origin/Orientation (those should match the
-physical bed, not be tweaked to compensate):
+physical bed, not be tweaked to compensate). The Machine Origin corner sets a
+baseline axis direction and **Extra Invert X/Y toggle (correct) it** — so they
+can un-invert an axis the origin already inverted, not only add inversion. With
+**Extra Swap X/Y** on, screen up/down drives one machine axis and left/right the
+other, so the Extra Invert that fixes a reversed direction may be the opposite
+one — just toggle whichever flips the direction you see:
 
 1. Set **Machine Origin** to the corner the machine actually treats as
    (0,0), and **Orientation** to match the physical bed (see next section).

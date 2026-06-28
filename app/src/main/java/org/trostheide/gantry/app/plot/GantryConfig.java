@@ -76,8 +76,13 @@ public class GantryConfig {
         boolean originRight = machineOrigin.toLowerCase().contains("right");
         boolean originBottom = machineOrigin.toLowerCase().contains("bottom");
 
-        boolean effInvertX = originRight || invertX;
-        boolean effInvertY = originBottom || invertY;
+        // The origin corner sets the baseline axis directions; Extra Invert X/Y are manual
+        // *corrections* on top of that (e.g. for a rotated machine or reversed motor wiring), so
+        // they must be able to cancel an origin-derived inversion, not only add one. Hence XOR —
+        // with OR the checkbox (and the Calibrate Axes wizard) could never un-invert a bottom/right
+        // origin's axis.
+        boolean effInvertX = originRight ^ invertX;
+        boolean effInvertY = originBottom ^ invertY;
         boolean effSwapXY = swapXY;
 
         String align = canvasAlignment;
