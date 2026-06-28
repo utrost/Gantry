@@ -935,6 +935,60 @@ and the re-read confirmed the new value; ticking "flip X" persisted
 orientation preview is shared with Phase 15's deferral; Z-axis and
 orthogonality calibration remain out of scope as planned.
 
+#### Phase 16b — Guided first-run calibration enhancements (planned)
+
+Feedback from real first-run use: the setup/calibration flow should *derive*
+the fiddly axis settings from a few observations instead of asking the operator
+to reason about swap/invert, and should cover the hardware questions a fresh
+machine raises (limit switches, Z type). Four enhancements, roughly in order:
+
+**1. Centre the pen first (small, do first).** Add a step before the direction
+check: "Jog the head to roughly the middle of the bed (or move it there by
+hand), then continue." On an un-homed machine there's no safe auto-centre, so
+this is operator-driven; it guarantees room to test all four directions without
+hitting a hard stop. Reuse the existing jog action / the main Jog pad.
+
+**2. Observe-direction axis solver (the gem) — ✅ core built.** Replace the
+two-independent-invert-checkbox `CalibDirectionStep` with: command a *raw motor*
++X jog, ask the operator to click the arrow (←/→/↑/↓) for the direction the pen
+*actually* moved; repeat for raw motor +Y; then solve swap+invert in one shot.
+This catches **axis swap** (press X, head moves vertically) that the current
+step can't. The pure solver is implemented and exhaustively unit-tested:
+`AxisDirectionSolver.solveEffective(rawXObserved, rawYObserved)` returns the
+effective `{swap, invertX, invertY}` (or empty if the two observations aren't
+perpendicular — a mis-click), and `toStoredExtra(effective, originRight,
+originBottom)` XORs out the origin baseline to the flags persisted on
+`GantryConfig` (mirrors `toPlotSettings`, solved backwards). Remaining work is
+UI + a *raw-motor* jog path (the current `jog()` already applies the transform;
+calibration must bypass it to move a known motor axis — add a raw jog on the
+backend or temporarily neutralise the transform during this step). Caveat:
+Portrait-on-landscape-bed adds its own swap in `toPlotSettings`, so run
+calibration in the final orientation (documented in the solver).
+
+**3. Limit/stop switches (new model + GRBL wiring).** Ask "does the machine have
+limit switches, and in which corner is the homing origin?" Today only
+`$100/$101` are modelled (`GrblSettings`); homing/limits ($20–$27) are not.
+Scope: read `$22` (homing enable) / `$23` (homing dir mask) / `$21` (hard
+limits) via the existing `$$` path, let the wizard set them to match the stated
+corner, and surface the live limit-pin state from GRBL's `?` status report
+(`Pn:` field) so the operator can press each switch and watch it register —
+that's the closest thing to a real "test" without motion. Persisting the
+switch corner also lets the origin/orientation answer cross-check the homing
+direction (catch the common "homes to a different corner than the origin" trap).
+
+**4. Z-axis type + test (new model).** Ask the pen-lift type — servo (M3/M5 +
+angle), Z-axis lift (G0 Z), or solenoid/relay — store it on `GantryConfig`
+(only pen-mode sub-fields exist today), and add a **Test** button that runs the
+configured pen-up then pen-down a few times so the operator can confirm travel
+and tune the up/down values live. Reuses the existing pen-command path; no new
+backend protocol.
+
+*Sequencing & risk.* (1) and (2)-UI are low-risk and high-value — land them
+first. (3) and (4) introduce new persisted config + GRBL settings, so follow the
+"data-model-first" lesson: model the fields and a `MockPlotterBackend` emulation
+($21/$22/$23, `Pn:`) before the wizard UI, exactly as the $10x scale calibration
+was done. All of it drives the *same* backend methods the manual controls use.
+
 ---
 
 ### Phase 17 — Visual station placement + watercolor test-run ✅
