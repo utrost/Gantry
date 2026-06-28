@@ -88,7 +88,7 @@ public final class VectorizeStudioDialog extends JDialog {
     private final JSpinner strokeWidthSpinner = new JSpinner(new SpinnerNumberModel(1.0, 0.1, 5.0, 0.1));
     private final JCheckBox smoothCurvesCheck = new JCheckBox("Smooth curves");
     private final JSpinner clThresholdSpinner = new JSpinner(new SpinnerNumberModel(128, 0, 255, 1));
-    private final JSpinner bezierColorsSpinner = new JSpinner(new SpinnerNumberModel(2, 1, 32, 1));
+    private final JSpinner bezierColorsSpinner = new JSpinner(new SpinnerNumberModel(16, 1, 64, 1));
     private final JSpinner bezierDetailSpinner = new JSpinner(new SpinnerNumberModel(5, 1, 20, 1));
     private final JSpinner b2ColorsSpinner = new JSpinner(new SpinnerNumberModel(16, 2, 64, 1));
     private final JCheckBox b2OutlineCheck = new JCheckBox("Outline mode (fills → strokes)");
@@ -145,7 +145,8 @@ public final class VectorizeStudioDialog extends JDialog {
         }
         updateEnabledState();
 
-        setSize(1100, 720);
+        setSize(1240, 800);
+        setMinimumSize(new Dimension(1000, 640));
         setLocationRelativeTo(owner);
 
         // Fit the source once the panel is realised, then kick off the first trace.
@@ -201,10 +202,22 @@ public final class VectorizeStudioDialog extends JDialog {
         addSpan(form, gbc, smoothCurvesCheck);
         addSpan(form, gbc, cropToggle);
 
+        // Cap the value column so a long combo label (e.g. "Bézier outlines (DrPTrace)") or a wide
+        // spinner can't stretch the form past the scroll viewport and push fields off the edge.
+        for (JComponent c : new JComponent[] {presetCombo, strategyCombo, toleranceSpinner,
+                detailSpinner, cannyLowSpinner, cannyHighSpinner, clThresholdSpinner,
+                bezierColorsSpinner, bezierDetailSpinner, b2ColorsSpinner, pbnNumColorsSpinner,
+                strokeColorField, strokeWidthSpinner}) {
+            Dimension pref = c.getPreferredSize();
+            c.setPreferredSize(new Dimension(170, pref.height));
+            c.setMinimumSize(new Dimension(80, pref.height));
+        }
+
         JPanel wrap = new JPanel(new BorderLayout());
         wrap.add(form, BorderLayout.NORTH);
         JScrollPane scroll = new JScrollPane(wrap);
-        scroll.setPreferredSize(new Dimension(280, 0));
+        scroll.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
+        scroll.setPreferredSize(new Dimension(360, 0));
         scroll.getVerticalScrollBar().setUnitIncrement(16);
         return scroll;
     }
