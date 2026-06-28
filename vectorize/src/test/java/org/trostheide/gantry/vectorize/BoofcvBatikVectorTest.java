@@ -142,4 +142,34 @@ class BoofcvBatikVectorTest {
             assertInstanceOf(VectorGeometry.class, pg);
         }
     }
+
+    @Nested
+    class ImageTracerOutputTest {
+
+        @Test
+        void bezier2SvgHasViewBox() throws Exception {
+            // Regression: ImageTracer (viewbox=0) emitted a root <svg> with width/height but no
+            // viewBox, so renderers drew bezier2 at native pixel size (overflowing the live
+            // preview) while every other strategy fit to the viewport. The output must carry a
+            // viewBox matching the source dimensions so bezier2 sizes like the rest.
+            java.awt.image.BufferedImage img =
+                    new java.awt.image.BufferedImage(16, 16, java.awt.image.BufferedImage.TYPE_INT_RGB);
+            java.awt.Graphics2D g = img.createGraphics();
+            g.setColor(java.awt.Color.WHITE);
+            g.fillRect(0, 0, 16, 16);
+            g.setColor(java.awt.Color.BLACK);
+            g.fillRect(4, 4, 8, 8);
+            g.dispose();
+
+            java.io.File out = java.io.File.createTempFile("b2-viewbox-", ".svg");
+            out.deleteOnExit();
+            BoofcvBatikVector.runAndWriteImageTracer(img, 2, 1.0, 1.0, 8, false, out.getAbsolutePath());
+
+            String svg = java.nio.file.Files.readString(out.toPath());
+            assertTrue(svg.contains("viewBox=\"0 0 16 16\""),
+                    "bezier2 SVG must carry a viewBox matching the source size");
+            assertTrue(svg.contains("preserveAspectRatio=\"xMidYMid meet\""),
+                    "bezier2 SVG must preserve aspect ratio like the other strategies");
+        }
+    }
 }

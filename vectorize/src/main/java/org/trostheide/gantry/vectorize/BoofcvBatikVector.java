@@ -508,6 +508,15 @@ public class BoofcvBatikVector {
         String svgContent =
                 jankovicsandras.imagetracer.ImageTracer.imageToSVG(image, options, null);
 
+        // 2b. ImageTracer (viewbox=0) emits a root <svg> with width/height but no viewBox, so
+        // renderers fit it differently from every other strategy: Batik's JSVGCanvas draws it at
+        // native pixel size (overflowing the live preview) instead of scaling to the viewport.
+        // Inject a viewBox (keeping width/height) so bezier2 sizes identically to dp/bezier/etc.
+        svgContent = svgContent.replaceFirst(
+                "<svg ",
+                "<svg viewBox=\"0 0 " + image.getWidth() + " " + image.getHeight()
+                        + "\" preserveAspectRatio=\"xMidYMid meet\" ");
+
         // 3. --- THIS IS THE FIX ---
         // If --b2-outline is true, we modify the SVG string
         if (b2Outline) {
