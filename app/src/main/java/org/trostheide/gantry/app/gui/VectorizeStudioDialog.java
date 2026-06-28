@@ -8,6 +8,7 @@ import org.trostheide.gantry.vectorize.gui.ImagePanel;
 
 import javax.imageio.ImageIO;
 import javax.swing.*;
+import javax.swing.border.TitledBorder;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 import java.awt.*;
@@ -100,8 +101,13 @@ public final class VectorizeStudioDialog extends JDialog {
     private final JSVGCanvas previewCanvas = new JSVGCanvas();
     private final JLabel readout = new JLabel(" ");
     private final JLabel hint = new JLabel(" ");
+    private final JProgressBar progress = new JProgressBar();
     private final JButton vectorizeBtn = new JButton("Vectorize");
     private final Timer debounce;
+
+    private TitledBorder previewBorder;
+    private JComponent previewPanel;
+    private Font readoutPlainFont;
 
     private final File imageFile;
     private final BufferedImage sourceImage;
@@ -160,7 +166,11 @@ public final class VectorizeStudioDialog extends JDialog {
 
     private JComponent buildPreviewSplit() {
         JPanel left = titled("Source image", sourcePanel);
-        JPanel right = titled("Vector preview", previewCanvas);
+        previewBorder = BorderFactory.createTitledBorder("Vector preview");
+        JPanel right = new JPanel(new BorderLayout());
+        right.setBorder(previewBorder);
+        right.add(previewCanvas, BorderLayout.CENTER);
+        previewPanel = right;
         JSplitPane split = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, left, right);
         split.setResizeWeight(0.5);
         split.setDividerLocation(540);
@@ -233,17 +243,55 @@ public final class VectorizeStudioDialog extends JDialog {
 
         hint.setForeground(new Color(120, 120, 120));
         hint.setFont(hint.getFont().deriveFont(Font.ITALIC, hint.getFont().getSize() - 1f));
+        readoutPlainFont = readout.getFont();
+
+        // Animated indeterminate bar shown only while a trace runs — motion is what catches the eye,
+        // so the user can't miss that the preview is recomputing.
+        progress.setIndeterminate(true);
+        progress.setVisible(false);
+        Dimension barSize = new Dimension(110, 14);
+        progress.setPreferredSize(barSize);
+        progress.setMaximumSize(barSize);
+
+        JPanel readoutRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
+        readoutRow.add(progress);
+        readoutRow.add(readout);
+        readoutRow.setAlignmentX(JComponent.LEFT_ALIGNMENT);
+        hint.setAlignmentX(JComponent.LEFT_ALIGNMENT);
 
         JPanel status = new JPanel();
         status.setLayout(new BoxLayout(status, BoxLayout.Y_AXIS));
-        status.setBorder(BorderFactory.createEmptyBorder(0, 10, 0, 0));
-        status.add(readout);
+        status.setBorder(BorderFactory.createEmptyBorder(0, 4, 0, 0));
+        status.add(readoutRow);
         status.add(hint);
 
         JPanel south = new JPanel(new BorderLayout());
         south.add(status, BorderLayout.WEST);
         south.add(buttons, BorderLayout.EAST);
         return south;
+    }
+
+    /** Toggles the visible "tracing in progress" state: the animated bar, an accented readout, and
+     *  an "updating…" preview title — so a running trace is obvious, not a glance-and-miss label. */
+    private void setTracing(boolean tracing) {
+        progress.setVisible(tracing);
+        if (tracing) {
+            readout.setText("Tracing…");
+            readout.setForeground(new Color(0, 90, 180));
+            readout.setFont(readoutPlainFont.deriveFont(Font.BOLD));
+            if (previewBorder != null) {
+                previewBorder.setTitle("Vector preview — updating…");
+            }
+        } else {
+            readout.setForeground(UIManager.getColor("Label.foreground"));
+            readout.setFont(readoutPlainFont);
+            if (previewBorder != null) {
+                previewBorder.setTitle("Vector preview");
+            }
+        }
+        if (previewPanel != null) {
+            previewPanel.repaint();
+        }
     }
 
     private void buildPresets() {
@@ -516,7 +564,7 @@ public final class VectorizeStudioDialog extends JDialog {
         if (worker != null && !worker.isDone()) {
             worker.cancel(true);
         }
-        readout.setText("Tracing…");
+        setTracing(true);
         hint.setText(" ");
         vectorizeBtn.setEnabled(false);
         List<String> params = buildParams();
@@ -548,8 +596,10 @@ public final class VectorizeStudioDialog extends JDialog {
             @Override
             protected void done() {
                 if (isCancelled()) {
+                    // A newer trace is already running (it re-armed the tracing state); leave it.
                     return;
                 }
+                setTracing(false);
                 vectorizeBtn.setEnabled(true);
                 try {
                     TraceResult tr = get();

@@ -2566,6 +2566,10 @@ public class PlotterPanel extends JPanel {
         if (window != null) {
             window.setCursor(Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR));
         }
+        // A dimmed, animated overlay so a slow step (e.g. vectorization) is obviously in progress,
+        // not a silent wait-cursor; plus a console breadcrumb at start.
+        BusyOverlay overlay = BusyOverlay.show(this, busyMessage(description));
+        log(busyMessage(description));
         new javax.swing.SwingWorker<ProcessorOutput, Void>() {
             @Override
             protected ProcessorOutput doInBackground() throws Exception {
@@ -2574,6 +2578,9 @@ public class PlotterPanel extends JPanel {
 
             @Override
             protected void done() {
+                if (overlay != null) {
+                    overlay.dismiss();
+                }
                 if (window != null) {
                     window.setCursor(Cursor.getDefaultCursor());
                 }
@@ -2585,6 +2592,16 @@ public class PlotterPanel extends JPanel {
                 }
             }
         }.execute();
+    }
+
+    /** A present-tense, user-facing phrase for an in-progress {@link #runBusy} operation. */
+    private static String busyMessage(String description) {
+        return switch (description) {
+            case "Vectorize" -> "Vectorizing image…";
+            case "Import" -> "Importing…";
+            case "Process SVG" -> "Processing SVG…";
+            default -> description + "…";
+        };
     }
 
     /**
