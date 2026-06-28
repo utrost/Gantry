@@ -44,6 +44,7 @@ Expected output: `BUILD SUCCESS` with zero failures across all modules.
 | `pipeline-core` | `OptimizeStageTest` (7), `MultipassStageTest` | RDP simplify, greedy-NN reorder, multipass command expansion; stroke welding (touching segments merge into one polyline, reverse-when-only-end-touches, disjoint stay separate, zero tolerance disables) |
 | `plotter` | `GcodeBackendTest` | G-code formatting: init sequence, pen modes (servo/zaxis/m3m5), moveto, lineto, raw send |
 | `app` | `PlotServiceTest` | Full plot orchestration: layer sequencing, refill at layer boundary, cancel mid-plot, OOB clamping, per-waypoint position callbacks |
+| `app` | `StudioMetricsTest` (4) | Vectorize-studio plottability metrics: stroke/point counts, draw-vs-travel separation, scale-invariant travel ratio, no-double-count on stroke approach |
 | `app` | `TimeEstimatorTest` (7) | Travel/draw distances use their respective feed rates; refill travel + fixed dip overhead; unknown station falls back to default; pen-down settle overhead charged once per `DrawCommand` and driven by the configurable `penDownDelayMillis` (0 removes it); multi-layer totals; `H:MM:SS` formatting |
 | `vectorize` | `IntegrationTest`, `BoofcvBatikVectorTest`, `StrategiesTest`, `PaintByNumbersTest` (86) | Raster→SVG engine: contour extraction, all eight strategies, polyline/Bézier geometry, auto-Canny, crop, SVG optimisation, Paint-by-Numbers quantisation/regions/labels |
 | `cli` | `VectorizeCliTest` (2) | `VectorizeCli` wiring: image→SVG, and the `--`-separated image→SVG→command-JSON chain (argument split, SVG-path derivation, `-i` injection) |
@@ -640,7 +641,8 @@ SVG, so this group focuses on the vectorize step itself.
 #### TS-U1 — Vectorize studio: live preview & tuning *(mock OK)* — Phase 19 Tier 1
 1. **File > Import Image (vectorize)…** (Ctrl+Shift+I) and choose a PNG/JPG (a logo or line drawing works well).
    - [ ] The **Vectorize — live preview** studio opens: source image on the left, an (initially empty) **Vector preview** on the right, controls on the right edge, and a status line bottom-left.
-   - [ ] Within ~1 s a trace appears in the preview and the status shows `<strategy> · N path(s)`.
+   - [ ] Within ~1 s a trace appears in the preview and the status shows `<strategy> · N layer(s) · M strokes · P pts · X% travel`.
+   - [ ] Pick a **Centerline** trace: the hint line reads *"Single-stroke paths — efficient for pen plotting."* Pick a busy `bezier2`/`pbn` trace with lots of scattered fills: when pen-up travel is high the hint suggests Centerline / fewer colours.
 2. Change a parameter (e.g. raise **Tolerance**, toggle **Auto Canny** off and edit low/high).
    - [ ] The preview re-traces automatically a moment after you stop adjusting (debounced — it does not re-trace on every tick); the status updates; the UI never freezes.
 3. Switch **Strategy** between *Line art (dp)*, *Centerline*, *Colour fills (ImageTracer)*, *Paint by Numbers*.
@@ -658,6 +660,19 @@ SVG, so this group focuses on the vectorize step itself.
    - [ ] Positioning, the Layers checklist, Optimize, Export G-code and Start Plot (mock) all work exactly as for an imported SVG.
    - [ ] No `edges_debug*.png` files are left in the launch directory.
 
+#### TS-U2 — Re-vectorize an image *(mock OK)* — Phase 19 Tier 3
+1. Before any image import, open the **Edit** menu.
+   - [ ] **Re-vectorize Image…** is present but **disabled**.
+2. Import an image via the studio (TS-U1) using a non-default strategy/params (e.g. *Centerline*, threshold 100).
+   - [ ] After import, **Edit > Re-vectorize Image…** becomes **enabled**.
+3. Choose **Edit > Re-vectorize Image…**.
+   - [ ] The studio reopens on the **same image**, pre-populated with the strategy and parameters you used (Centerline, threshold 100) — not the defaults.
+   - [ ] A preview re-traces immediately from those restored settings.
+4. Adjust a parameter and **Vectorize** → import again.
+   - [ ] The drawing updates to the re-tuned trace; you did not have to re-pick the file.
+5. Open a `.json` command file via **Open Commands (JSON)** (which has no source image), then open the **Edit** menu.
+   - [ ] **Re-vectorize Image…** still refers to the last *image* import (or is disabled if none this session); choosing it with no remembered image shows an informational message rather than erroring.
+
 ---
 
 ## 3. Coverage map & gaps
@@ -673,7 +688,7 @@ SVG, so this group focuses on the vectorize step itself.
 | Calibrate Axes wizard | TS-E1, TS-E2, TS-E3, TS-E4 |
 | Pre-Plot Checklist / Pre-flight | TS-F1, TS-F2, TS-F3, TS-F4 |
 | SVG import | TS-G1, TS-G2, TS-H1 |
-| Image import (vectorize) | TS-U1, TS-S3 |
+| Image import (vectorize) | TS-U1, TS-U2, TS-S3 |
 | SVGToolBox & re-process | TS-I1, TS-I2, TS-J1 |
 | Canvas positioning | TS-K1, TS-K2 |
 | Visual station placement & test-run wizard | TS-T1, TS-T2, TS-T3, TS-T4 |

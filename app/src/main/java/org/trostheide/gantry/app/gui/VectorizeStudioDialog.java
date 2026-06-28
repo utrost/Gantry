@@ -1,6 +1,9 @@
 package org.trostheide.gantry.app.gui;
 
 import org.apache.batik.swing.JSVGCanvas;
+import org.trostheide.gantry.model.ProcessorOutput;
+import org.trostheide.gantry.pipeline.svgimport.SvgImportOptions;
+import org.trostheide.gantry.pipeline.svgimport.SvgImportStage;
 import org.trostheide.gantry.vectorize.gui.ImagePanel;
 
 import javax.imageio.ImageIO;
@@ -96,6 +99,7 @@ public final class VectorizeStudioDialog extends JDialog {
     private final ImagePanel sourcePanel = new ImagePanel();
     private final JSVGCanvas previewCanvas = new JSVGCanvas();
     private final JLabel readout = new JLabel(" ");
+    private final JLabel hint = new JLabel(" ");
     private final JButton vectorizeBtn = new JButton("Vectorize");
     private final Timer debounce;
 
@@ -106,6 +110,15 @@ public final class VectorizeStudioDialog extends JDialog {
     private Result result;
 
     public VectorizeStudioDialog(Window owner, File imageFile) throws IOException {
+        this(owner, imageFile, null);
+    }
+
+    /**
+     * @param initialArgs vectorize CLI-style arguments to pre-populate the controls with (the
+     *                    {@link Result#vectorizeArgs()} of a previous run), or {@code null} for
+     *                    defaults. Used by "Re-vectorize Image…".
+     */
+    public VectorizeStudioDialog(Window owner, File imageFile, List<String> initialArgs) throws IOException {
         super(owner, "Vectorize — live preview", ModalityType.APPLICATION_MODAL);
         this.imageFile = imageFile;
         this.sourceImage = ImageIO.read(imageFile);
@@ -127,6 +140,9 @@ public final class VectorizeStudioDialog extends JDialog {
         getRootPane().setDefaultButton(vectorizeBtn);
 
         wireControls();
+        if (initialArgs != null) {
+            applyArgs(initialArgs);
+        }
         updateEnabledState();
 
         setSize(1100, 720);
@@ -202,10 +218,17 @@ public final class VectorizeStudioDialog extends JDialog {
         buttons.add(vectorizeBtn);
         buttons.add(cancelBtn);
 
-        readout.setBorder(BorderFactory.createEmptyBorder(0, 10, 0, 0));
+        hint.setForeground(new Color(120, 120, 120));
+        hint.setFont(hint.getFont().deriveFont(Font.ITALIC, hint.getFont().getSize() - 1f));
+
+        JPanel status = new JPanel();
+        status.setLayout(new BoxLayout(status, BoxLayout.Y_AXIS));
+        status.setBorder(BorderFactory.createEmptyBorder(0, 10, 0, 0));
+        status.add(readout);
+        status.add(hint);
 
         JPanel south = new JPanel(new BorderLayout());
-        south.add(readout, BorderLayout.WEST);
+        south.add(status, BorderLayout.WEST);
         south.add(buttons, BorderLayout.EAST);
         return south;
     }
@@ -400,9 +423,80 @@ public final class VectorizeStudioDialog extends JDialog {
         a.add(v instanceof Integer i ? Integer.toString(i) : Double.toString(((Number) v).doubleValue()));
     }
 
+    // ----- restoring controls from a previous run (re-vectorize) -----
+
+    /** Inverse of {@link #buildParams()}: set the controls from a prior run's argument list. */
+    private void applyArgs(List<String> args) {
+        applyingPreset = true; // suppress per-control re-trace churn while we set many at once
+        try {
+            int i = 0;
+            while (i < args.size()) {
+                String a = args.get(i);
+                String v = (i + 1 < args.size()) ? args.get(i + 1) : null;
+                switch (a) {
+                    case "-s" -> { selectStrategy(v); i += 2; }
+                    case "-t" -> { setDouble(toleranceSpinner, v); i += 2; }
+                    case "--detail" -> { setDouble(detailSpinner, v); i += 2; }
+                    case "--canny-low" -> { setDouble(cannyLowSpinner, v); cannyAutoCheck.setSelected(false); i += 2; }
+                    case "--canny-high" -> { setDouble(cannyHighSpinner, v); cannyAutoCheck.setSelected(false); i += 2; }
+                    case "--stroke-color" -> { if (v != null) strokeColorField.setText(v); i += 2; }
+                    case "--stroke-width" -> { setDouble(strokeWidthSpinner, v); i += 2; }
+                    case "--cl-threshold" -> { setInt(clThresholdSpinner, v); i += 2; }
+                    case "--bezier-colors" -> { setInt(bezierColorsSpinner, v); i += 2; }
+                    case "--bezier-detail" -> { setInt(bezierDetailSpinner, v); i += 2; }
+                    case "--b2-colors" -> { setInt(b2ColorsSpinner, v); i += 2; }
+                    case "--pbn-num-colors" -> { setInt(pbnNumColorsSpinner, v); i += 2; }
+                    case "--crop" -> i += 2; // ROI restore unsupported; skip its value
+                    case "--canny-auto" -> { cannyAutoCheck.setSelected(true); i += 1; }
+                    case "--color-edges" -> { colorEdgesCheck.setSelected(true); i += 1; }
+                    case "--smooth-curves" -> { smoothCurvesCheck.setSelected(true); i += 1; }
+                    case "--b2-outline" -> { b2OutlineCheck.setSelected(true); i += 1; }
+                    default -> i += 1;
+                }
+            }
+            presetCombo.setSelectedIndex(0); // these are explicit values, not a named preset
+        } finally {
+            applyingPreset = false;
+        }
+    }
+
+    private void selectStrategy(String code) {
+        if (code == null) {
+            return;
+        }
+        for (Strategy s : Strategy.values()) {
+            if (s.code.equals(code)) {
+                strategyCombo.setSelectedItem(s);
+                return;
+            }
+        }
+    }
+
+    private static void setDouble(JSpinner spinner, String v) {
+        if (v == null) {
+            return;
+        }
+        try {
+            spinner.setValue(Double.parseDouble(v));
+        } catch (NumberFormatException ignored) {
+            // leave the default
+        }
+    }
+
+    private static void setInt(JSpinner spinner, String v) {
+        if (v == null) {
+            return;
+        }
+        try {
+            spinner.setValue((int) Math.round(Double.parseDouble(v)));
+        } catch (NumberFormatException ignored) {
+            // leave the default
+        }
+    }
+
     // ----- the live trace -----
 
-    private record TraceResult(File svg, int paths) {
+    private record TraceResult(File svg, int paths, StudioMetrics metrics) {
     }
 
     private void retrace() {
@@ -410,6 +504,7 @@ public final class VectorizeStudioDialog extends JDialog {
             worker.cancel(true);
         }
         readout.setText("Tracing…");
+        hint.setText(" ");
         vectorizeBtn.setEnabled(false);
         List<String> params = buildParams();
 
@@ -425,7 +520,16 @@ public final class VectorizeStudioDialog extends JDialog {
                 org.trostheide.gantry.vectorize.Main.runSingleFile(args.toArray(new String[0]));
                 String content = Files.readString(svg.toPath());
                 int paths = count(content, "<path") + count(content, "<polyline") + count(content, "<line");
-                return new TraceResult(svg, paths);
+                // Import the traced SVG to the command model for plotter-aware metrics (Tier 2);
+                // best-effort — fall back to the raw path count if import fails.
+                StudioMetrics metrics = null;
+                try {
+                    ProcessorOutput out = SvgImportStage.importSvg(svg, SvgImportOptions.defaults());
+                    metrics = StudioMetrics.of(out);
+                } catch (Exception ignored) {
+                    // keep metrics null
+                }
+                return new TraceResult(svg, paths, metrics);
             }
 
             @Override
@@ -437,13 +541,32 @@ public final class VectorizeStudioDialog extends JDialog {
                 try {
                     TraceResult tr = get();
                     previewCanvas.setURI(tr.svg.toURI().toString());
-                    readout.setText(String.format("%s · %d path(s)", currentStrategy().label, tr.paths));
+                    if (tr.metrics != null) {
+                        readout.setText(currentStrategy().label + " · " + tr.metrics.summary());
+                        hint.setText(plottabilityHint(currentStrategy().group, tr.metrics));
+                    } else {
+                        readout.setText(String.format("%s · %d path(s)", currentStrategy().label, tr.paths));
+                        hint.setText(" ");
+                    }
                 } catch (Exception ex) {
                     readout.setText("Trace failed: " + rootMessage(ex));
+                    hint.setText(" ");
                 }
             }
         };
         worker.execute();
+    }
+
+    /** A short, data-driven nudge about how efficiently this trace will pen-plot. */
+    private static String plottabilityHint(Group group, StudioMetrics m) {
+        if (group == Group.CENTERLINE) {
+            return "Single-stroke paths — efficient for pen plotting.";
+        }
+        int travelPct = (int) Math.round(m.travelRatio() * 100);
+        if (travelPct > 50) {
+            return "High pen-up travel (" + travelPct + "%) — try Centerline or fewer colours.";
+        }
+        return " ";
     }
 
     private void onVectorize() {

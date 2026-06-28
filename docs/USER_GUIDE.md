@@ -290,7 +290,13 @@ The flow is two dialogs:
    (Line art, Centerline (plotter), Photo, Paint by Numbers, …) and adjust from
    there; only the controls relevant to the selected **Strategy** are enabled.
    **Crop** lets you drag a region on the source to trace just part of the image.
-   Click **Vectorize** when the preview looks right.
+   The status line shows plotter-aware numbers — layers, strokes, points and the
+   **pen-up travel %** (lower plots faster) — plus a hint when a trace would plot
+   inefficiently (e.g. suggesting *Centerline* for single-stroke work). Click
+   **Vectorize** when the preview looks right.
+
+   After importing, **Edit ▸ Re-vectorize Image…** reopens the studio on the same
+   image with your parameters restored, so you can re-tune without re-importing.
 
    Strategy guide:
 

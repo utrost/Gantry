@@ -92,6 +92,10 @@ public class PlotterPanel extends JPanel {
     private ProcessorOutput currentOutput;
     private File lastImportedSvgFile;
     private org.trostheide.gantry.pipeline.svgimport.SvgImportOptions lastImportOptions;
+    /** Source image + vectorize options of the last image import, for "Re-vectorize Image…". */
+    private File lastVectorizeImage;
+    private List<String> lastVectorizeArgs;
+    private JMenuItem reVectorizeMenuItem;
     /** Single-level undo snapshot of {@link #currentOutput} before the last destructive transform. */
     private ProcessorOutput undoSnapshot;
     private JMenuItem undoMenuItem;
@@ -398,6 +402,11 @@ public class PlotterPanel extends JPanel {
         editMenu.add(tip(menuItem("Re-process Source SVG...", e -> onEditProcessSvg(), true),
                 "Re-run the SVGToolBox processors against the SVG you imported, replacing the current "
                         + "drawing. Only available after Import SVG (a loaded .json command file has no source SVG)."));
+        reVectorizeMenuItem = tip(menuItem("Re-vectorize Image...", e -> onReVectorizeImage(), true),
+                "Reopen the vectorize studio on the last imported image, pre-loaded with the parameters "
+                        + "you used, to re-tune the trace. Available after Import Image (vectorize).");
+        reVectorizeMenuItem.setEnabled(false);
+        editMenu.add(reVectorizeMenuItem);
         editMenu.add(tip(menuItem("Optimize Commands (JSON)...", e -> onOptimizeDialog(), true),
                 "Clean up the current drawing in place — simplify, reorder, and weld touching strokes. "
                         + "Edits the command model; does not touch any SVG or G-code file."));
@@ -1741,11 +1750,34 @@ public class PlotterPanel extends JPanel {
         }
         File imageFile = chooser.getSelectedFile();
         rememberDirectory(imageFile);
+        vectorizeAndImport(imageFile, null);
+    }
 
-        // 1) Tune the trace against a live preview, then commit the chosen options.
+    /**
+     * "Re-vectorize Image": reopens the studio on the same source image as the last image
+     * import, pre-populated with the parameters used, so the trace can be re-tuned without
+     * re-importing from scratch (the raster analogue of {@code Re-process Source SVG}).
+     */
+    private void onReVectorizeImage() {
+        if (lastVectorizeImage == null || !lastVectorizeImage.exists()) {
+            JOptionPane.showMessageDialog(this,
+                    "No vectorized image to re-tune. Use File > Import Image (vectorize)… first.",
+                    "Re-vectorize", JOptionPane.INFORMATION_MESSAGE);
+            return;
+        }
+        vectorizeAndImport(lastVectorizeImage, lastVectorizeArgs);
+    }
+
+    /**
+     * Shared image→SVG→commands flow: tune in the live studio (optionally pre-populated with
+     * {@code initialArgs}), route the produced SVG through the same {@link SvgImportDialog}
+     * import as a hand-authored SVG, and remember the source + parameters for re-vectorising.
+     */
+    private void vectorizeAndImport(File imageFile, List<String> initialArgs) {
         VectorizeStudioDialog.Result vec;
         try {
-            vec = new VectorizeStudioDialog(SwingUtilities.getWindowAncestor(this), imageFile).showDialog();
+            vec = new VectorizeStudioDialog(SwingUtilities.getWindowAncestor(this), imageFile, initialArgs)
+                    .showDialog();
         } catch (IOException ex) {
             error("Vectorize failed: could not open the image (" + ex.getMessage() + ")");
             return;
@@ -1753,7 +1785,6 @@ public class PlotterPanel extends JPanel {
         if (vec == null) {
             return;
         }
-        // 2) The produced SVG enters through the same dialog/flow as a hand-authored SVG.
         SvgImportDialog.Result dialogResult =
                 new SvgImportDialog(SwingUtilities.getWindowAncestor(this)).showDialog();
         if (dialogResult == null) {
@@ -1788,6 +1819,11 @@ public class PlotterPanel extends JPanel {
             currentOutput = out;
             lastImportedSvgFile = svgFile;
             lastImportOptions = dialogResult.importOptions();
+            lastVectorizeImage = imageFile;
+            lastVectorizeArgs = vec.vectorizeArgs();
+            if (reVectorizeMenuItem != null) {
+                reVectorizeMenuItem.setEnabled(true);
+            }
             undoSnapshot = null;
             if (undoMenuItem != null) {
                 undoMenuItem.setEnabled(false);
