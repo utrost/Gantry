@@ -346,7 +346,8 @@ position — it changes only what you *see*, never where the drawing plots:
 | Control | Action |
 |---|---|
 | **Mouse wheel** | Zoom in/out toward the cursor (the point under the pointer stays put) |
-| **Middle-button drag** | Pan the view |
+| **Middle-button drag** | Pan the view (works anywhere, including in hatch mode) |
+| **Shift + left-drag** | Pan the view from anywhere — over the drawing or while hatching, handy when zoomed in with no empty bed to grab |
 | **Left-drag on empty canvas** | Pan the view (left-drag *on* the drawing still moves/resizes it) |
 | **Double-click empty canvas** | Reset to fit-to-window (100%) |
 | **Right-click → Reset View (Zoom/Pan)** | Reset to fit-to-window (100%) |

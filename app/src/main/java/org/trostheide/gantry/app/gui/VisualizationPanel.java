@@ -479,6 +479,14 @@ public class VisualizationPanel extends JPanel {
                     draggingStation = st;
                     return;
                 }
+                // Pan from ANYWHERE with middle-drag or Shift+left-drag — works over the drawing and
+                // in hatch mode, so you can reposition while zoomed in even with no empty bed to grab
+                // and no middle button.
+                if (SwingUtilities.isMiddleMouseButton(e)
+                        || (SwingUtilities.isLeftMouseButton(e) && e.isShiftDown())) {
+                    startPan(e);
+                    return;
+                }
                 // Click-to-hatch: a left click fills the region under it (a single closed path, else
                 // an area enclosed by several separate strokes). A click on empty space falls through
                 // so the user can still pan while in hatch mode.
@@ -490,14 +498,9 @@ public class VisualizationPanel extends JPanel {
                     }
                 }
                 int handle = allPaths.isEmpty() ? HANDLE_NONE : hitTestHandle(e.getX(), e.getY());
-                // Pan with the middle button anywhere, or the left button on empty canvas (where
-                // there's no drawing handle to grab) — leaves left-drag on content for move/resize.
-                if (SwingUtilities.isMiddleMouseButton(e)
-                        || (handle == HANDLE_NONE && SwingUtilities.isLeftMouseButton(e))) {
-                    panning = true;
-                    panLastX = e.getX();
-                    panLastY = e.getY();
-                    setCursor(Cursor.getPredefinedCursor(Cursor.MOVE_CURSOR));
+                // Left-drag on empty canvas (no drawing handle to grab) also pans.
+                if (handle == HANDLE_NONE && SwingUtilities.isLeftMouseButton(e)) {
+                    startPan(e);
                     return;
                 }
                 if (handle == HANDLE_NONE) return;
@@ -545,7 +548,8 @@ public class VisualizationPanel extends JPanel {
                 if (maybeShowPopup(e)) return;
                 if (panning) {
                     panning = false;
-                    setCursor(Cursor.getDefaultCursor());
+                    setCursor(Cursor.getPredefinedCursor(
+                            hatchRegionMode ? Cursor.CROSSHAIR_CURSOR : Cursor.DEFAULT_CURSOR));
                     return;
                 }
                 if (draggingStation >= 0) {
@@ -1519,6 +1523,14 @@ public class VisualizationPanel extends JPanel {
     }
 
     // ----- Click-to-hatch region hit-test -----
+
+    /** Begins a viewport pan from the given press event. */
+    private void startPan(MouseEvent e) {
+        panning = true;
+        panLastX = e.getX();
+        panLastY = e.getY();
+        setCursor(Cursor.getPredefinedCursor(Cursor.MOVE_CURSOR));
+    }
 
     /** Updates the highlighted hover region (closed paths only, cheap) and repaints on change. */
     private void updateHoverRegion(int px, int py) {
