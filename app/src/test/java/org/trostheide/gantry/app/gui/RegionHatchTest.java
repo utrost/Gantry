@@ -144,6 +144,31 @@ class RegionHatchTest {
     }
 
     @Test
+    void replaceCommandSwapsPointsInPlace() {
+        ProcessorOutput out = oneLayerOutput(); // command id 7
+        DrawCommand moved = new DrawCommand(7, List.of(
+                new org.trostheide.gantry.model.Point(50, 50),
+                new org.trostheide.gantry.model.Point(60, 60)));
+        ProcessorOutput after = RegionHatch.replaceCommand(out, moved);
+        DrawCommand got = RegionHatch.findDrawCommand(after, 7);
+        assertNotNull(got);
+        assertEquals(50, got.points.get(0).x(), 1e-9);
+        assertEquals(1, after.layers().get(0).commands().size(), "still one command (replaced, not added)");
+
+        // Unknown id: unchanged.
+        assertSame(after, RegionHatch.replaceCommand(after, new DrawCommand(999, List.of())));
+    }
+
+    @Test
+    void findAndLayerLocateACommand() {
+        ProcessorOutput out = oneLayerOutput();
+        assertEquals(0, RegionHatch.layerOfCommand(out, 7));
+        assertEquals(-1, RegionHatch.layerOfCommand(out, 999));
+        assertNotNull(RegionHatch.findDrawCommand(out, 7));
+        assertNull(RegionHatch.findDrawCommand(out, 999));
+    }
+
+    @Test
     void clearIsANoOpWhenNothingMatches() {
         ProcessorOutput out = oneLayerOutput();
         RegionHatch.RemoveResult r = RegionHatch.removeHatchInRegion(out, java.util.Set.of(), square(0, 0, 100));

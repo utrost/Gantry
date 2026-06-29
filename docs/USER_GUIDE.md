@@ -416,10 +416,16 @@ right-click menu (one mode active at a time — hatch, delete, or add):
   straight line (a green rubber-band previews it). Tip: use this to **bridge a
   gap** in an outline so an area becomes enclosed — then hatch-fill it (the
   flood fill needs a sealed boundary).
+- **Move Line** mode — the line under the cursor highlights **cyan**; drag it to
+  reposition (it moves with the cursor). Pan still works (middle-drag or
+  Shift+drag) so you can navigate mid-edit.
+- **Duplicate** — right-click a line → **Duplicate nearest line** drops a copy
+  nudged a few mm into the same pen/layer.
 
-Both are undoable and update the time estimate. For anything heavier than
-touch-ups (moving points, editing curves), edit the source SVG in a vector
-editor and re-import — Gantry's canvas is for quick fixes, not full node editing.
+All of these are undoable and update the time estimate. For anything heavier than
+touch-ups (moving individual points, editing curves), edit the source SVG in a
+vector editor and re-import — Gantry's canvas is for quick fixes, not full node
+editing.
 
 ### Placing refill stations
 

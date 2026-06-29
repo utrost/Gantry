@@ -138,6 +138,47 @@ final class RegionHatch {
         return new RemoveResult(new ProcessorOutput(m2, layers), removed.size(), removed);
     }
 
+    /** Replaces the command with {@code replacement.getId()} in place; unchanged if absent. */
+    static ProcessorOutput replaceCommand(ProcessorOutput out, Command replacement) {
+        List<Layer> layers = new ArrayList<>();
+        boolean found = false;
+        for (Layer layer : out.layers()) {
+            List<Command> cmds = new ArrayList<>(layer.commands());
+            for (int i = 0; i < cmds.size(); i++) {
+                if (cmds.get(i).getId() == replacement.getId()) {
+                    cmds.set(i, replacement);
+                    found = true;
+                }
+            }
+            layers.add(new Layer(layer.id(), layer.stationId(), layer.color(), cmds));
+        }
+        return found ? new ProcessorOutput(out.metadata(), layers) : out;
+    }
+
+    /** The {@link DrawCommand} with {@code id} anywhere in {@code out}, or null. */
+    static DrawCommand findDrawCommand(ProcessorOutput out, int id) {
+        for (Layer layer : out.layers()) {
+            for (Command c : layer.commands()) {
+                if (c instanceof DrawCommand d && d.id == id) {
+                    return d;
+                }
+            }
+        }
+        return null;
+    }
+
+    /** Index of the layer containing the command with {@code id}, or -1. */
+    static int layerOfCommand(ProcessorOutput out, int id) {
+        for (int li = 0; li < out.layers().size(); li++) {
+            for (Command c : out.layers().get(li).commands()) {
+                if (c.getId() == id) {
+                    return li;
+                }
+            }
+        }
+        return -1;
+    }
+
     /** Removes the single command with {@code id}; {@code removed == 0} if no such command exists. */
     static RemoveResult removeCommandById(ProcessorOutput out, int id) {
         java.util.Set<Integer> removed = new java.util.HashSet<>();

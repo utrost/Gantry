@@ -111,6 +111,7 @@ public class PlotterPanel extends JPanel {
     private JCheckBoxMenuItem hatchRegionModeItem;
     private JCheckBoxMenuItem deleteStrokeModeItem;
     private JCheckBoxMenuItem addLineModeItem;
+    private JCheckBoxMenuItem moveStrokeModeItem;
     /** Single-level undo snapshot of {@link #currentOutput} before the last destructive transform. */
     private ProcessorOutput undoSnapshot;
     private JMenuItem undoMenuItem;
@@ -457,6 +458,14 @@ public class PlotterPanel extends JPanel {
                         ? VisualizationPanel.InteractionMode.ADD_LINE
                         : VisualizationPanel.InteractionMode.NONE));
         editMenu.add(addLineModeItem);
+        moveStrokeModeItem = new JCheckBoxMenuItem("Move Line (drag to reposition)");
+        moveStrokeModeItem.setToolTipText("Drag a line (it highlights cyan under the cursor) to move it. "
+                + "Right-click a line for Duplicate. Undoable.");
+        moveStrokeModeItem.addActionListener(e -> visPanel.setInteractionMode(
+                moveStrokeModeItem.isSelected()
+                        ? VisualizationPanel.InteractionMode.MOVE_STROKE
+                        : VisualizationPanel.InteractionMode.NONE));
+        editMenu.add(moveStrokeModeItem);
         menuBar.add(editMenu);
 
         JMenu machineMenu = new JMenu("Machine");
@@ -1655,6 +1664,12 @@ public class PlotterPanel extends JPanel {
             @Override public void onAddLine(double x1, double y1, double x2, double y2, int layerIndex) {
                 PlotterPanel.this.onAddLine(x1, y1, x2, y2, layerIndex);
             }
+            @Override public void onMoveStroke(int commandId, double[][] points) {
+                PlotterPanel.this.onMoveStroke(commandId, points);
+            }
+            @Override public void onDuplicateStroke(int commandId) {
+                PlotterPanel.this.onDuplicateStroke(commandId);
+            }
         });
         // Keep all three Edit-menu mode checkboxes in sync when the mode changes from the canvas.
         visPanel.setInteractionModeChangeListener(mode -> {
@@ -1662,6 +1677,7 @@ public class PlotterPanel extends JPanel {
                 hatchRegionModeItem.setSelected(mode == VisualizationPanel.InteractionMode.HATCH);
                 deleteStrokeModeItem.setSelected(mode == VisualizationPanel.InteractionMode.DELETE_STROKE);
                 addLineModeItem.setSelected(mode == VisualizationPanel.InteractionMode.ADD_LINE);
+                moveStrokeModeItem.setSelected(mode == VisualizationPanel.InteractionMode.MOVE_STROKE);
             }
         });
         // Drag a station marker / "Add station here" on the canvas edits config.stations directly.
@@ -3037,6 +3053,52 @@ public class PlotterPanel extends JPanel {
         refreshTimeEstimate();
         refreshGuidance();
         log(String.format("Added line (%.1f, %.1f) → (%.1f, %.1f).", x1, y1, x2, y2));
+    }
+
+    /** Replaces a dragged line's points in the model (Tier B move). Undoable. */
+    private void onMoveStroke(int commandId, double[][] points) {
+        if (currentOutput == null) {
+            return;
+        }
+        java.util.List<Point> pts = new ArrayList<>(points.length);
+        for (double[] p : points) {
+            pts.add(new Point(p[0], p[1]));
+        }
+        ProcessorOutput next = RegionHatch.replaceCommand(currentOutput, new DrawCommand(commandId, pts));
+        if (next == currentOutput) {
+            return;
+        }
+        snapshotForUndo();
+        currentOutput = next;
+        visPanel.loadPathsPreservingOverlay(currentOutput);
+        refreshTimeEstimate();
+        refreshGuidance();
+        log("Moved 1 line.");
+    }
+
+    /** Duplicates a line: a copy nudged a few mm, into the same layer (Tier B). Undoable. */
+    private void onDuplicateStroke(int commandId) {
+        if (currentOutput == null) {
+            return;
+        }
+        DrawCommand src = RegionHatch.findDrawCommand(currentOutput, commandId);
+        int layer = RegionHatch.layerOfCommand(currentOutput, commandId);
+        if (src == null || layer < 0) {
+            return;
+        }
+        final double nudge = 3.0; // mm offset so the copy is visibly separate
+        java.util.List<Point> pts = new ArrayList<>(src.points.size());
+        for (Point p : src.points) {
+            pts.add(new Point(p.x() + nudge, p.y() + nudge));
+        }
+        DrawCommand copy = new DrawCommand(RegionHatch.maxCommandId(currentOutput) + 1, pts);
+        snapshotForUndo();
+        currentOutput = RegionHatch.appendToLayer(currentOutput, layer, List.of(copy));
+        visPanel.loadPathsPreservingOverlay(currentOutput);
+        refreshLayerSelector();
+        refreshTimeEstimate();
+        refreshGuidance();
+        log("Duplicated 1 line.");
     }
 
     /** Removes hatch fill previously added inside the clicked region (canvas "Clear hatch here"). */

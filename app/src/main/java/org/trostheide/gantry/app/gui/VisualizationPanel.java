@@ -141,14 +141,14 @@ public class VisualizationPanel extends JPanel {
      * Exclusive left-click interaction modes on the canvas. {@code NONE} is the default place/resize
      * behaviour; the others repurpose the left click for hatching or stroke editing (Tier A).
      */
-    public enum InteractionMode { NONE, HATCH, DELETE_STROKE, ADD_LINE }
+    public enum InteractionMode { NONE, HATCH, DELETE_STROKE, ADD_LINE, MOVE_STROKE }
 
     private InteractionMode interactionMode = InteractionMode.NONE;
     private RegionHatchListener regionHatchListener;
     private StrokeEditListener strokeEditListener;
     private Runnable hatchStyleAction;
     private java.util.function.Consumer<InteractionMode> interactionModeListener;
-    private JCheckBoxMenuItem ctxHatchItem, ctxDeleteItem, ctxAddLineItem;
+    private JCheckBoxMenuItem ctxHatchItem, ctxDeleteItem, ctxAddLineItem, ctxMoveItem;
     // Closed region currently under the cursor in hatch mode, highlighted as a pick preview (-1 none).
     private int hoverRegionIndex = -1;
     // Stroke under the cursor in delete mode (index into allPaths), highlighted in red (-1 none).
@@ -156,6 +156,12 @@ public class VisualizationPanel extends JPanel {
     // First clicked point (model mm) while drawing a line in ADD_LINE mode, or null between lines.
     private double[] lineStart;
     private int lineHoverX, lineHoverY; // last cursor pixel, for the rubber-band preview
+    // Live drag state for MOVE_STROKE: the stroke being dragged (index into allPaths), its original
+    // points (model mm), the press point, and whether it actually moved.
+    private int dragStrokeIndex = -1;
+    private List<Point2D> dragStrokeOrig;
+    private double[] dragStrokePressModel;
+    private boolean dragStrokeMoved;
     // Pixel position of the last context-menu trigger, for "Hatch area here" / "Clear hatch here".
     private int lastPopupX, lastPopupY;
 
@@ -178,6 +184,10 @@ public class VisualizationPanel extends JPanel {
         void onDeleteStroke(int commandId);
         /** Add a straight 2-point stroke (model mm) into {@code layerIndex} (the nearest pen/layer). */
         void onAddLine(double x1, double y1, double x2, double y2, int layerIndex);
+        /** Replace the command's points after a drag (model mm), as {@code [n][2]}. */
+        void onMoveStroke(int commandId, double[][] points);
+        /** Duplicate the command (a nudged copy in the same layer). */
+        void onDuplicateStroke(int commandId);
     }
 
     public void setRegionHatchListener(RegionHatchListener listener) {
@@ -208,6 +218,8 @@ public class VisualizationPanel extends JPanel {
         hoverRegionIndex = -1;
         hoverStrokeIndex = -1;
         lineStart = null;
+        dragStrokeIndex = -1;
+        dragStrokeOrig = null;
         setCursor(Cursor.getPredefinedCursor(
                 mode == InteractionMode.NONE ? Cursor.DEFAULT_CURSOR : Cursor.CROSSHAIR_CURSOR));
         if (changed && interactionModeListener != null) {
@@ -557,10 +569,22 @@ public class VisualizationPanel extends JPanel {
                             repaint();
                             return;
                         }
+                    } else if (interactionMode == InteractionMode.MOVE_STROKE && strokeEditListener != null) {
+                        int si = nearestStrokeIndex(e.getX(), e.getY());
+                        double[] m = si >= 0 ? screenToModel(e.getX(), e.getY()) : null;
+                        if (m != null) {
+                            dragStrokeIndex = si;
+                            dragStrokePressModel = m;
+                            dragStrokeOrig = new ArrayList<>(allPaths.get(si));
+                            dragStrokeMoved = false;
+                            return;
+                        }
                     }
                 }
-                int handle = allPaths.isEmpty() ? HANDLE_NONE : hitTestHandle(e.getX(), e.getY());
-                // Left-drag on empty canvas (no drawing handle to grab) also pans.
+                // Drawing move/resize handles only act in the default (NONE) mode; in an edit mode an
+                // unconsumed left-press pans instead of grabbing the whole-drawing handle.
+                int handle = (interactionMode == InteractionMode.NONE && !allPaths.isEmpty())
+                        ? hitTestHandle(e.getX(), e.getY()) : HANDLE_NONE;
                 if (handle == HANDLE_NONE && SwingUtilities.isLeftMouseButton(e)) {
                     startPan(e);
                     return;
@@ -589,6 +613,21 @@ public class VisualizationPanel extends JPanel {
                     Station s = stations.get(draggingStation);
                     stations.set(draggingStation, new Station(s.name(), mm[0], mm[1]));
                     repaint();
+                    return;
+                }
+                if (dragStrokeIndex >= 0) {
+                    double[] m = screenToModel(e.getX(), e.getY());
+                    if (m != null && dragStrokePressModel != null) {
+                        double ddx = m[0] - dragStrokePressModel[0];
+                        double ddy = m[1] - dragStrokePressModel[1];
+                        List<Point2D> moved = new ArrayList<>(dragStrokeOrig.size());
+                        for (Point2D p : dragStrokeOrig) {
+                            moved.add(new Point2D(p.x() + ddx, p.y() + ddy));
+                        }
+                        allPaths.set(dragStrokeIndex, moved);
+                        dragStrokeMoved = true;
+                        repaint();
+                    }
                     return;
                 }
                 if (dragHandle == HANDLE_NONE) return;
@@ -622,6 +661,20 @@ public class VisualizationPanel extends JPanel {
                     }
                     return;
                 }
+                if (dragStrokeIndex >= 0) {
+                    if (dragStrokeMoved && strokeEditListener != null) {
+                        List<Point2D> pts = allPaths.get(dragStrokeIndex);
+                        double[][] coords = new double[pts.size()][2];
+                        for (int i = 0; i < pts.size(); i++) {
+                            coords[i][0] = pts.get(i).x();
+                            coords[i][1] = pts.get(i).y();
+                        }
+                        strokeEditListener.onMoveStroke(pathCommandId.get(dragStrokeIndex), coords);
+                    }
+                    dragStrokeIndex = -1;
+                    dragStrokeOrig = null;
+                    return;
+                }
                 if (dragHandle != HANDLE_NONE) {
                     dragHandle = HANDLE_NONE;
                     fireOverlayChange();
@@ -640,6 +693,7 @@ public class VisualizationPanel extends JPanel {
                 ctxHatchItem.setSelected(interactionMode == InteractionMode.HATCH);
                 ctxDeleteItem.setSelected(interactionMode == InteractionMode.DELETE_STROKE);
                 ctxAddLineItem.setSelected(interactionMode == InteractionMode.ADD_LINE);
+                ctxMoveItem.setSelected(interactionMode == InteractionMode.MOVE_STROKE);
                 contextMenu.show(VisualizationPanel.this, e.getX(), e.getY());
                 return true;
             }
@@ -652,7 +706,8 @@ public class VisualizationPanel extends JPanel {
                     setCursor(Cursor.getPredefinedCursor(Cursor.CROSSHAIR_CURSOR));
                     if (interactionMode == InteractionMode.HATCH) {
                         updateHoverRegion(e.getX(), e.getY());
-                    } else if (interactionMode == InteractionMode.DELETE_STROKE) {
+                    } else if (interactionMode == InteractionMode.DELETE_STROKE
+                            || interactionMode == InteractionMode.MOVE_STROKE) {
                         updateHoverStroke(e.getX(), e.getY());
                     } else if (interactionMode == InteractionMode.ADD_LINE && lineStart != null) {
                         lineHoverX = e.getX();
@@ -715,9 +770,11 @@ public class VisualizationPanel extends JPanel {
         ctxHatchItem = modeItem("Hatch mode (click areas to fill)", InteractionMode.HATCH);
         ctxDeleteItem = modeItem("Delete-stroke mode (click a line)", InteractionMode.DELETE_STROKE);
         ctxAddLineItem = modeItem("Add-line mode (click two points)", InteractionMode.ADD_LINE);
+        ctxMoveItem = modeItem("Move-stroke mode (drag a line)", InteractionMode.MOVE_STROKE);
         menu.add(ctxHatchItem);
         menu.add(ctxDeleteItem);
         menu.add(ctxAddLineItem);
+        menu.add(ctxMoveItem);
 
         // Hatch the region under the click — fill it, clear a previous fill, or pick the style —
         // without switching into hatch mode first. Disabled when no drawing is loaded.
@@ -748,7 +805,7 @@ public class VisualizationPanel extends JPanel {
             }
         });
         menu.add(hatchStyle);
-        // One-shot delete of the stroke nearest the click, without entering delete mode.
+        // One-shot delete/duplicate of the stroke nearest the click, without entering a mode.
         JMenuItem deleteHere = new JMenuItem("Delete nearest line");
         deleteHere.addActionListener(e -> {
             if (strokeEditListener != null) {
@@ -759,6 +816,16 @@ public class VisualizationPanel extends JPanel {
             }
         });
         menu.add(deleteHere);
+        JMenuItem duplicateHere = new JMenuItem("Duplicate nearest line");
+        duplicateHere.addActionListener(e -> {
+            if (strokeEditListener != null) {
+                int si = nearestStrokeIndex(lastPopupX, lastPopupY);
+                if (si >= 0) {
+                    strokeEditListener.onDuplicateStroke(pathCommandId.get(si));
+                }
+            }
+        });
+        menu.add(duplicateHere);
         menu.addSeparator();
 
         // Drawing-only items: disabled when the bed is empty (toggled in maybeShowPopup).
@@ -781,7 +848,8 @@ public class VisualizationPanel extends JPanel {
         mirror.addActionListener(e -> toggleMirror());
         menu.add(mirror);
 
-        drawingMenuItems = List.of(remove, reset, rotate, mirror, hatchHere, clearHatchHere, deleteHere);
+        drawingMenuItems = List.of(remove, reset, rotate, mirror, hatchHere, clearHatchHere,
+                deleteHere, duplicateHere);
         return menu;
     }
 
@@ -1389,8 +1457,9 @@ public class VisualizationPanel extends JPanel {
             }
         }
 
-        // --- Delete-mode hover highlight: outline the stroke the next click would remove (red) ---
-        if (interactionMode == InteractionMode.DELETE_STROKE
+        // --- Stroke-edit hover highlight: outline the stroke the next click would act on
+        //     (red = delete, cyan = move) ---
+        if ((interactionMode == InteractionMode.DELETE_STROKE || interactionMode == InteractionMode.MOVE_STROKE)
                 && hoverStrokeIndex >= 0 && hoverStrokeIndex < allPaths.size()) {
             List<Point2D> hp = allPaths.get(hoverStrokeIndex);
             if (!hp.isEmpty()) {
@@ -1401,7 +1470,8 @@ public class VisualizationPanel extends JPanel {
                     double[] hj = transformPoint(hp.get(j));
                     hi.lineTo(hj[0], hj[1]);
                 }
-                g2.setColor(new Color(255, 80, 80));
+                g2.setColor(interactionMode == InteractionMode.DELETE_STROKE
+                        ? new Color(255, 80, 80) : new Color(90, 210, 230));
                 g2.setStroke(new BasicStroke((float) (3.0 / scale)));
                 g2.draw(hi);
             }

@@ -395,17 +395,22 @@ added to the region's own layer, undoable, with the time estimate refreshed.
   escapes ⇒ nothing filled. The click pixel is mapped to model space by an exact
   affine inverse (`screenToModel`).
 
-**Sibling — stroke editing Tier A ✅ (shipped).** The hatch machinery (canvas
+**Sibling — stroke editing Tier A+B ✅ (shipped).** The hatch machinery (canvas
 hit-test, screen↔model inverse, add/remove `DrawCommand`s, undo) made light
 in-canvas editing cheap, so it landed alongside: an exclusive interaction-mode
-enum (`NONE`/`HATCH`/`DELETE_STROKE`/`ADD_LINE`) drives **Delete Line** (click a
-red-highlighted line to remove; or right-click → *Delete nearest line*) and
-**Add Line** (click two points; green rubber-band preview; joins the nearest
-pen/layer). `RegionHatch.removeCommandById` is unit-tested; `nearestStrokeIndex`
-(pixel-space point-to-segment) verified headless. Add-line is the intended fix
-for the "leaky boundary" limitation above — bridge a gap, then flood-fill.
-Deliberately **not** done (the "whole new territory"): per-vertex/curve node
-editing, move/duplicate — round-trip through a vector editor instead.
+enum (`NONE`/`HATCH`/`DELETE_STROKE`/`ADD_LINE`/`MOVE_STROKE`) drives **Delete
+Line** (click a red-highlighted line; or right-click → *Delete nearest line*),
+**Add Line** (click two points; green rubber-band; joins the nearest pen/layer),
+**Move Line** (drag a cyan-highlighted line — both endpoints translate by the
+cursor's model delta), and **Duplicate** (right-click → nudged copy in the same
+layer). Model helpers `removeCommandById`/`replaceCommand`/`findDrawCommand`/
+`layerOfCommand` are unit-tested; `nearestStrokeIndex` and the full
+press-drag-release move are verified headless (synthetic mouse events).
+Add-line is the intended fix for the "leaky boundary" limitation above — bridge
+a gap, then flood-fill. Edit modes also no longer let an unconsumed click grab
+the whole-drawing move handle (that's a NONE-mode action now). Deliberately
+**not** done (the "whole new territory"): per-vertex/curve node editing — that's
+**Phase 9**-adjacent; round-trip through a vector editor instead.
 
 Still deferred: interior holes in flood-filled regions, multi-select, genuinely
 open contours, and surfacing this at the SVG stage via `HatchProcessor`. The
