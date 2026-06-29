@@ -1625,6 +1625,12 @@ public class PlotterPanel extends JPanel {
             }
         });
         visPanel.setHatchStyleAction(this::onHatchStyleDialog);
+        // Keep the Edit-menu checkbox in sync when hatch mode is toggled from the canvas menu.
+        visPanel.setHatchModeChangeListener(on -> {
+            if (hatchRegionModeItem != null) {
+                hatchRegionModeItem.setSelected(on);
+            }
+        });
         // Drag a station marker / "Add station here" on the canvas edits config.stations directly.
         visPanel.setStationEditListener(new VisualizationPanel.StationEditListener() {
             @Override public void onStationMoved(String name, double x, double y) {

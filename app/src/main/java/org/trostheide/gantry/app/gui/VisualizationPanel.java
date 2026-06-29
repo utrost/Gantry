@@ -138,6 +138,8 @@ public class VisualizationPanel extends JPanel {
     private boolean hatchRegionMode = false;
     private RegionHatchListener regionHatchListener;
     private Runnable hatchStyleAction;
+    private JCheckBoxMenuItem hatchModeItem;
+    private java.util.function.Consumer<Boolean> hatchModeChangeListener;
     // Closed region currently under the cursor in hatch mode, highlighted as a pick preview (-1 none).
     private int hoverRegionIndex = -1;
     // Pixel position of the last context-menu trigger, for "Hatch area here" / "Clear hatch here".
@@ -165,12 +167,20 @@ public class VisualizationPanel extends JPanel {
         this.hatchStyleAction = action;
     }
 
+    /** Notified when hatch mode is toggled from the canvas, so the Edit-menu item can stay in sync. */
+    public void setHatchModeChangeListener(java.util.function.Consumer<Boolean> listener) {
+        this.hatchModeChangeListener = listener;
+    }
+
     /** Enables/disables click-to-hatch mode and reflects it in the cursor. */
     public void setHatchRegionMode(boolean on) {
         this.hatchRegionMode = on;
         setCursor(on ? Cursor.getPredefinedCursor(Cursor.CROSSHAIR_CURSOR) : Cursor.getDefaultCursor());
         if (!on) {
             hoverRegionIndex = -1;
+        }
+        if (hatchModeItem != null) {
+            hatchModeItem.setSelected(on);
         }
         repaint();
     }
@@ -622,6 +632,16 @@ public class VisualizationPanel extends JPanel {
         resetView.addActionListener(e -> resetView());
         menu.add(resetView);
         menu.addSeparator();
+
+        // Toggle hatch mode right from the canvas (kept in sync with Edit ▸ Hatch Region).
+        hatchModeItem = new JCheckBoxMenuItem("Hatch mode (click areas to fill)");
+        hatchModeItem.addActionListener(e -> {
+            setHatchRegionMode(hatchModeItem.isSelected());
+            if (hatchModeChangeListener != null) {
+                hatchModeChangeListener.accept(hatchModeItem.isSelected());
+            }
+        });
+        menu.add(hatchModeItem);
 
         // Hatch the region under the click — fill it, clear a previous fill, or pick the style —
         // without switching into hatch mode first. Disabled when no drawing is loaded.

@@ -378,9 +378,10 @@ with hatching:
    click small regions precisely.
 3. Repeat for other regions, then toggle the menu item off when done.
 
-**Quicker: the right-click menu.** You don't have to enter hatch mode — right-click
-an area on the canvas and choose **Hatch area here**, **Clear hatch in this area**,
-or **Hatch style…** directly. (The highlight preview only appears in hatch mode.)
+**Quicker: the right-click menu.** Right-click the canvas to toggle **Hatch mode**
+(kept in sync with the Edit menu), or — without entering hatch mode at all —
+**Hatch area here**, **Clear hatch in this area**, or **Hatch style…** act directly
+on the region under the pointer. (The highlight preview only appears in hatch mode.)
 
 **Removing a fill.** **Clear hatch in this area** (right-click) removes the hatch
 strokes you added inside that region, leaving the region's outline — the "empty"
