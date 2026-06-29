@@ -138,6 +138,30 @@ final class RegionHatch {
         return new RemoveResult(new ProcessorOutput(m2, layers), removed.size(), removed);
     }
 
+    /** Removes the single command with {@code id}; {@code removed == 0} if no such command exists. */
+    static RemoveResult removeCommandById(ProcessorOutput out, int id) {
+        java.util.Set<Integer> removed = new java.util.HashSet<>();
+        List<Layer> layers = new ArrayList<>();
+        for (Layer layer : out.layers()) {
+            List<Command> kept = new ArrayList<>();
+            for (Command c : layer.commands()) {
+                if (c.getId() == id) {
+                    removed.add(id);
+                } else {
+                    kept.add(c);
+                }
+            }
+            layers.add(new Layer(layer.id(), layer.stationId(), layer.color(), kept));
+        }
+        if (removed.isEmpty()) {
+            return new RemoveResult(out, 0, removed);
+        }
+        Metadata m = out.metadata();
+        Metadata m2 = new Metadata(m.source(), m.generatedAt(), m.stationId(), m.units(),
+                Math.max(0, m.totalCommands() - removed.size()), m.bounds());
+        return new RemoveResult(new ProcessorOutput(m2, layers), removed.size(), removed);
+    }
+
     private static boolean centroidInside(DrawCommand d, java.awt.geom.Path2D region) {
         if (d.points.isEmpty()) {
             return false;

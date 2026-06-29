@@ -404,6 +404,23 @@ The fill is a normal edit — **Undo** (Ctrl/⌘-Z) reverses the last one, and t
 time estimate updates to include the added strokes. Clicking empty space while
 in this mode still pans, so you can navigate without leaving hatch mode.
 
+### Editing lines (delete / add)
+
+Light touch-ups to the drawing itself, from the **Edit** menu or the canvas
+right-click menu (one mode active at a time — hatch, delete, or add):
+
+- **Delete Line** mode — the line under the cursor highlights **red**; click to
+  remove it. Or right-click → **Delete nearest line** for a one-off without
+  entering the mode. Good for clearing stray strokes a trace left behind.
+- **Add Line** mode — click a **start** point then an **end** point to drop a
+  straight line (a green rubber-band previews it). Tip: use this to **bridge a
+  gap** in an outline so an area becomes enclosed — then hatch-fill it (the
+  flood fill needs a sealed boundary).
+
+Both are undoable and update the time estimate. For anything heavier than
+touch-ups (moving points, editing curves), edit the source SVG in a vector
+editor and re-import — Gantry's canvas is for quick fixes, not full node editing.
+
 ### Placing refill stations
 
 Refill stations (watercolor) appear as labelled dots on the Live View. You can place

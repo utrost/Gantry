@@ -395,6 +395,18 @@ added to the region's own layer, undoable, with the time estimate refreshed.
   escapes ⇒ nothing filled. The click pixel is mapped to model space by an exact
   affine inverse (`screenToModel`).
 
+**Sibling — stroke editing Tier A ✅ (shipped).** The hatch machinery (canvas
+hit-test, screen↔model inverse, add/remove `DrawCommand`s, undo) made light
+in-canvas editing cheap, so it landed alongside: an exclusive interaction-mode
+enum (`NONE`/`HATCH`/`DELETE_STROKE`/`ADD_LINE`) drives **Delete Line** (click a
+red-highlighted line to remove; or right-click → *Delete nearest line*) and
+**Add Line** (click two points; green rubber-band preview; joins the nearest
+pen/layer). `RegionHatch.removeCommandById` is unit-tested; `nearestStrokeIndex`
+(pixel-space point-to-segment) verified headless. Add-line is the intended fix
+for the "leaky boundary" limitation above — bridge a gap, then flood-fill.
+Deliberately **not** done (the "whole new territory"): per-vertex/curve node
+editing, move/duplicate — round-trip through a vector editor instead.
+
 Still deferred: interior holes in flood-filled regions, multi-select, genuinely
 open contours, and surfacing this at the SVG stage via `HatchProcessor`. The
 original analysis is kept below for that remaining work.

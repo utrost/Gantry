@@ -131,6 +131,19 @@ class RegionHatchTest {
     }
 
     @Test
+    void removeCommandByIdDropsExactlyThatCommand() {
+        ProcessorOutput out = oneLayerOutput(); // single command, id 7
+        RegionHatch.RemoveResult miss = RegionHatch.removeCommandById(out, 123);
+        assertEquals(0, miss.removed(), "unknown id removes nothing");
+        assertSame(out, miss.output());
+
+        RegionHatch.RemoveResult hit = RegionHatch.removeCommandById(out, 7);
+        assertEquals(1, hit.removed());
+        assertTrue(hit.output().layers().get(0).commands().isEmpty(), "the command is gone");
+        assertEquals(0, hit.output().metadata().totalCommands());
+    }
+
+    @Test
     void clearIsANoOpWhenNothingMatches() {
         ProcessorOutput out = oneLayerOutput();
         RegionHatch.RemoveResult r = RegionHatch.removeHatchInRegion(out, java.util.Set.of(), square(0, 0, 100));

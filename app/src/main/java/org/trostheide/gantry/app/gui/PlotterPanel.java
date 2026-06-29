@@ -109,6 +109,8 @@ public class PlotterPanel extends JPanel {
     private List<String> lastVectorizeArgs;
     private JMenuItem reVectorizeMenuItem;
     private JCheckBoxMenuItem hatchRegionModeItem;
+    private JCheckBoxMenuItem deleteStrokeModeItem;
+    private JCheckBoxMenuItem addLineModeItem;
     /** Single-level undo snapshot of {@link #currentOutput} before the last destructive transform. */
     private ProcessorOutput undoSnapshot;
     private JMenuItem undoMenuItem;
@@ -429,12 +431,32 @@ public class PlotterPanel extends JPanel {
         hatchRegionModeItem.setToolTipText("Click inside a closed traced region to fill it with hatch "
                 + "lines that plot as part of that layer (useful for outline traces where filled areas "
                 + "became bare strokes). Toggle off when done.");
-        hatchRegionModeItem.addActionListener(e -> visPanel.setHatchRegionMode(hatchRegionModeItem.isSelected()));
+        hatchRegionModeItem.addActionListener(e -> visPanel.setInteractionMode(
+                hatchRegionModeItem.isSelected()
+                        ? VisualizationPanel.InteractionMode.HATCH
+                        : VisualizationPanel.InteractionMode.NONE));
         editMenu.add(hatchRegionModeItem);
         editMenu.add(tip(menuItem("Hatch Region Style...", e -> onHatchStyleDialog(), true),
                 "Choose the pattern (linear/cross/zigzag/wave/dot), spacing and angle used when you "
                         + "click regions in Hatch Region mode. Change it between clicks to fill different "
                         + "areas with different styles."));
+        editMenu.addSeparator();
+        deleteStrokeModeItem = new JCheckBoxMenuItem("Delete Line (click a line to remove)");
+        deleteStrokeModeItem.setToolTipText("Click a line to delete it (it highlights red under the "
+                + "cursor). Undoable. Handy for removing stray strokes a trace left behind.");
+        deleteStrokeModeItem.addActionListener(e -> visPanel.setInteractionMode(
+                deleteStrokeModeItem.isSelected()
+                        ? VisualizationPanel.InteractionMode.DELETE_STROKE
+                        : VisualizationPanel.InteractionMode.NONE));
+        editMenu.add(deleteStrokeModeItem);
+        addLineModeItem = new JCheckBoxMenuItem("Add Line (click two points)");
+        addLineModeItem.setToolTipText("Click a start point then an end point to add a straight line — "
+                + "e.g. to bridge a gap so an area encloses for hatching. Undoable.");
+        addLineModeItem.addActionListener(e -> visPanel.setInteractionMode(
+                addLineModeItem.isSelected()
+                        ? VisualizationPanel.InteractionMode.ADD_LINE
+                        : VisualizationPanel.InteractionMode.NONE));
+        editMenu.add(addLineModeItem);
         menuBar.add(editMenu);
 
         JMenu machineMenu = new JMenu("Machine");
@@ -1625,10 +1647,21 @@ public class PlotterPanel extends JPanel {
             }
         });
         visPanel.setHatchStyleAction(this::onHatchStyleDialog);
-        // Keep the Edit-menu checkbox in sync when hatch mode is toggled from the canvas menu.
-        visPanel.setHatchModeChangeListener(on -> {
+        // Stroke editing (Tier A): delete a clicked line, or add a straight line.
+        visPanel.setStrokeEditListener(new VisualizationPanel.StrokeEditListener() {
+            @Override public void onDeleteStroke(int commandId) {
+                PlotterPanel.this.onDeleteStroke(commandId);
+            }
+            @Override public void onAddLine(double x1, double y1, double x2, double y2, int layerIndex) {
+                PlotterPanel.this.onAddLine(x1, y1, x2, y2, layerIndex);
+            }
+        });
+        // Keep all three Edit-menu mode checkboxes in sync when the mode changes from the canvas.
+        visPanel.setInteractionModeChangeListener(mode -> {
             if (hatchRegionModeItem != null) {
-                hatchRegionModeItem.setSelected(on);
+                hatchRegionModeItem.setSelected(mode == VisualizationPanel.InteractionMode.HATCH);
+                deleteStrokeModeItem.setSelected(mode == VisualizationPanel.InteractionMode.DELETE_STROKE);
+                addLineModeItem.setSelected(mode == VisualizationPanel.InteractionMode.ADD_LINE);
             }
         });
         // Drag a station marker / "Add station here" on the canvas edits config.stations directly.
@@ -2964,6 +2997,46 @@ public class PlotterPanel extends JPanel {
         refreshGuidance();
         log(String.format("Hatched region (%s, %.1fmm, %.0f°): +%d stroke(s) into layer %d.",
                 hatchPattern, hatchGapMm, hatchAngleDeg, strokes.size(), layerIndex + 1));
+    }
+
+    /** Deletes the clicked line from the model (Tier A stroke editing). Undoable. */
+    private void onDeleteStroke(int commandId) {
+        if (currentOutput == null) {
+            return;
+        }
+        RegionHatch.RemoveResult r = RegionHatch.removeCommandById(currentOutput, commandId);
+        if (r.removed() == 0) {
+            return;
+        }
+        snapshotForUndo();
+        currentOutput = r.output();
+        hatchCommandIds.removeAll(r.removedIds());
+        visPanel.loadPathsPreservingOverlay(currentOutput);
+        refreshLayerSelector();
+        refreshTimeEstimate();
+        refreshGuidance();
+        log("Deleted 1 line.");
+    }
+
+    /** Adds a straight line to the model, into {@code layerIndex} (the nearest pen). Undoable. */
+    private void onAddLine(double x1, double y1, double x2, double y2, int layerIndex) {
+        if (currentOutput == null) {
+            return;
+        }
+        int id = RegionHatch.maxCommandId(currentOutput) + 1;
+        DrawCommand line = new DrawCommand(id, List.of(new Point(x1, y1), new Point(x2, y2)));
+        ProcessorOutput next = RegionHatch.appendToLayer(currentOutput, layerIndex, List.of(line));
+        if (next == currentOutput) {
+            log("Couldn't add the line (no target layer).");
+            return;
+        }
+        snapshotForUndo();
+        currentOutput = next;
+        visPanel.loadPathsPreservingOverlay(currentOutput);
+        refreshLayerSelector();
+        refreshTimeEstimate();
+        refreshGuidance();
+        log(String.format("Added line (%.1f, %.1f) → (%.1f, %.1f).", x1, y1, x2, y2));
     }
 
     /** Removes hatch fill previously added inside the clicked region (canvas "Clear hatch here"). */

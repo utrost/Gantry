@@ -38,6 +38,10 @@ public class VisualizationPanel extends JPanel {
      */
     private final List<Integer> pathLayer = new ArrayList<>();
 
+    /** Command id of each entry in {@link #allPaths}, in lockstep — lets a clicked stroke map back to
+     *  its {@code DrawCommand} for deletion (Tier A stroke editing). */
+    private final List<Integer> pathCommandId = new ArrayList<>();
+
     /**
      * Indices of the layers currently selected for display. Selected layers draw in full colour;
      * unselected layers are ghosted (dimmed) for context. Defaults to "all layers" on load; the
@@ -133,15 +137,25 @@ public class VisualizationPanel extends JPanel {
     private boolean panning = false;
     private int panLastX, panLastY;
 
-    // Click-to-hatch mode (Phase 10 Tier 3): when on, a left click inside a closed traced region
-    // fires {@link #regionHatchListener} with that region instead of moving/resizing the drawing.
-    private boolean hatchRegionMode = false;
+    /**
+     * Exclusive left-click interaction modes on the canvas. {@code NONE} is the default place/resize
+     * behaviour; the others repurpose the left click for hatching or stroke editing (Tier A).
+     */
+    public enum InteractionMode { NONE, HATCH, DELETE_STROKE, ADD_LINE }
+
+    private InteractionMode interactionMode = InteractionMode.NONE;
     private RegionHatchListener regionHatchListener;
+    private StrokeEditListener strokeEditListener;
     private Runnable hatchStyleAction;
-    private JCheckBoxMenuItem hatchModeItem;
-    private java.util.function.Consumer<Boolean> hatchModeChangeListener;
+    private java.util.function.Consumer<InteractionMode> interactionModeListener;
+    private JCheckBoxMenuItem ctxHatchItem, ctxDeleteItem, ctxAddLineItem;
     // Closed region currently under the cursor in hatch mode, highlighted as a pick preview (-1 none).
     private int hoverRegionIndex = -1;
+    // Stroke under the cursor in delete mode (index into allPaths), highlighted in red (-1 none).
+    private int hoverStrokeIndex = -1;
+    // First clicked point (model mm) while drawing a line in ADD_LINE mode, or null between lines.
+    private double[] lineStart;
+    private int lineHoverX, lineHoverY; // last cursor pixel, for the rubber-band preview
     // Pixel position of the last context-menu trigger, for "Hatch area here" / "Clear hatch here".
     private int lastPopupX, lastPopupY;
 
@@ -158,8 +172,20 @@ public class VisualizationPanel extends JPanel {
         void onClearHatchRegion(Path2D region);
     }
 
+    /** Notified for stroke add/delete edits (Tier A). */
+    public interface StrokeEditListener {
+        /** Delete the command with this id from the model. */
+        void onDeleteStroke(int commandId);
+        /** Add a straight 2-point stroke (model mm) into {@code layerIndex} (the nearest pen/layer). */
+        void onAddLine(double x1, double y1, double x2, double y2, int layerIndex);
+    }
+
     public void setRegionHatchListener(RegionHatchListener listener) {
         this.regionHatchListener = listener;
+    }
+
+    public void setStrokeEditListener(StrokeEditListener listener) {
+        this.strokeEditListener = listener;
     }
 
     /** Action invoked by the canvas "Hatch style…" menu item (opens the style picker). */
@@ -167,26 +193,40 @@ public class VisualizationPanel extends JPanel {
         this.hatchStyleAction = action;
     }
 
-    /** Notified when hatch mode is toggled from the canvas, so the Edit-menu item can stay in sync. */
-    public void setHatchModeChangeListener(java.util.function.Consumer<Boolean> listener) {
-        this.hatchModeChangeListener = listener;
+    /** Notified when the interaction mode changes, so the menu checkboxes can stay in sync. */
+    public void setInteractionModeChangeListener(java.util.function.Consumer<InteractionMode> listener) {
+        this.interactionModeListener = listener;
     }
 
-    /** Enables/disables click-to-hatch mode and reflects it in the cursor. */
-    public void setHatchRegionMode(boolean on) {
-        this.hatchRegionMode = on;
-        setCursor(on ? Cursor.getPredefinedCursor(Cursor.CROSSHAIR_CURSOR) : Cursor.getDefaultCursor());
-        if (!on) {
-            hoverRegionIndex = -1;
+    /** Sets the exclusive interaction mode, resetting transient pick state and the cursor. */
+    public void setInteractionMode(InteractionMode mode) {
+        if (mode == null) {
+            mode = InteractionMode.NONE;
         }
-        if (hatchModeItem != null) {
-            hatchModeItem.setSelected(on);
+        boolean changed = mode != interactionMode;
+        interactionMode = mode;
+        hoverRegionIndex = -1;
+        hoverStrokeIndex = -1;
+        lineStart = null;
+        setCursor(Cursor.getPredefinedCursor(
+                mode == InteractionMode.NONE ? Cursor.DEFAULT_CURSOR : Cursor.CROSSHAIR_CURSOR));
+        if (changed && interactionModeListener != null) {
+            interactionModeListener.accept(mode);
         }
         repaint();
     }
 
+    public InteractionMode getInteractionMode() {
+        return interactionMode;
+    }
+
+    /** Back-compat shim: hatch mode is now one of the interaction modes. */
+    public void setHatchRegionMode(boolean on) {
+        setInteractionMode(on ? InteractionMode.HATCH : InteractionMode.NONE);
+    }
+
     public boolean isHatchRegionMode() {
-        return hatchRegionMode;
+        return interactionMode == InteractionMode.HATCH;
     }
 
     /**
@@ -487,14 +527,36 @@ public class VisualizationPanel extends JPanel {
                     startPan(e);
                     return;
                 }
-                // Click-to-hatch: a left click fills the region under it (a single closed path, else
-                // an area enclosed by several separate strokes). A click on empty space falls through
-                // so the user can still pan while in hatch mode.
-                if (hatchRegionMode && SwingUtilities.isLeftMouseButton(e) && regionHatchListener != null) {
-                    HatchTarget t = resolveHatchTarget(e.getX(), e.getY());
-                    if (t != null) {
-                        regionHatchListener.onHatchRegion(t.region(), t.layerIndex());
-                        return;
+                // Left-click behaviour depends on the interaction mode. A click that doesn't act
+                // (e.g. hatch on empty space) falls through so the user can still pan.
+                if (SwingUtilities.isLeftMouseButton(e)) {
+                    if (interactionMode == InteractionMode.HATCH && regionHatchListener != null) {
+                        HatchTarget t = resolveHatchTarget(e.getX(), e.getY());
+                        if (t != null) {
+                            regionHatchListener.onHatchRegion(t.region(), t.layerIndex());
+                            return;
+                        }
+                    } else if (interactionMode == InteractionMode.DELETE_STROKE && strokeEditListener != null) {
+                        int si = nearestStrokeIndex(e.getX(), e.getY());
+                        if (si >= 0) {
+                            strokeEditListener.onDeleteStroke(pathCommandId.get(si));
+                            return;
+                        }
+                    } else if (interactionMode == InteractionMode.ADD_LINE && strokeEditListener != null) {
+                        double[] p = screenToModel(e.getX(), e.getY());
+                        if (p != null) {
+                            if (lineStart == null) {
+                                lineStart = p;
+                                lineHoverX = e.getX();
+                                lineHoverY = e.getY();
+                            } else {
+                                strokeEditListener.onAddLine(lineStart[0], lineStart[1], p[0], p[1],
+                                        nearestStrokeLayer(lineStart[0], lineStart[1]));
+                                lineStart = null;
+                            }
+                            repaint();
+                            return;
+                        }
                     }
                 }
                 int handle = allPaths.isEmpty() ? HANDLE_NONE : hitTestHandle(e.getX(), e.getY());
@@ -548,8 +610,8 @@ public class VisualizationPanel extends JPanel {
                 if (maybeShowPopup(e)) return;
                 if (panning) {
                     panning = false;
-                    setCursor(Cursor.getPredefinedCursor(
-                            hatchRegionMode ? Cursor.CROSSHAIR_CURSOR : Cursor.DEFAULT_CURSOR));
+                    setCursor(Cursor.getPredefinedCursor(interactionMode == InteractionMode.NONE
+                            ? Cursor.DEFAULT_CURSOR : Cursor.CROSSHAIR_CURSOR));
                     return;
                 }
                 if (draggingStation >= 0) {
@@ -575,17 +637,28 @@ public class VisualizationPanel extends JPanel {
                 for (Component item : drawingMenuItems) {
                     item.setEnabled(hasDrawing);
                 }
+                ctxHatchItem.setSelected(interactionMode == InteractionMode.HATCH);
+                ctxDeleteItem.setSelected(interactionMode == InteractionMode.DELETE_STROKE);
+                ctxAddLineItem.setSelected(interactionMode == InteractionMode.ADD_LINE);
                 contextMenu.show(VisualizationPanel.this, e.getX(), e.getY());
                 return true;
             }
 
             @Override
             public void mouseMoved(MouseEvent e) {
-                // In hatch mode the crosshair stays put (don't let the drag-handle hit-test swap it to
-                // a move/resize cursor), and the region under the cursor is highlighted as a preview.
-                if (hatchRegionMode) {
+                // In an interaction mode the crosshair stays put (don't let the drag-handle hit-test
+                // swap it), and a mode-specific preview tracks the cursor.
+                if (interactionMode != InteractionMode.NONE) {
                     setCursor(Cursor.getPredefinedCursor(Cursor.CROSSHAIR_CURSOR));
-                    updateHoverRegion(e.getX(), e.getY());
+                    if (interactionMode == InteractionMode.HATCH) {
+                        updateHoverRegion(e.getX(), e.getY());
+                    } else if (interactionMode == InteractionMode.DELETE_STROKE) {
+                        updateHoverStroke(e.getX(), e.getY());
+                    } else if (interactionMode == InteractionMode.ADD_LINE && lineStart != null) {
+                        lineHoverX = e.getX();
+                        lineHoverY = e.getY();
+                        repaint();
+                    }
                     return;
                 }
                 if (hitTestStation(e.getX(), e.getY()) != HANDLE_NONE) {
@@ -637,15 +710,14 @@ public class VisualizationPanel extends JPanel {
         menu.add(resetView);
         menu.addSeparator();
 
-        // Toggle hatch mode right from the canvas (kept in sync with Edit ▸ Hatch Region).
-        hatchModeItem = new JCheckBoxMenuItem("Hatch mode (click areas to fill)");
-        hatchModeItem.addActionListener(e -> {
-            setHatchRegionMode(hatchModeItem.isSelected());
-            if (hatchModeChangeListener != null) {
-                hatchModeChangeListener.accept(hatchModeItem.isSelected());
-            }
-        });
-        menu.add(hatchModeItem);
+        // Interaction-mode toggles, mutually exclusive (kept in sync with the Edit menu and each
+        // other via setInteractionMode + the mode-change listener).
+        ctxHatchItem = modeItem("Hatch mode (click areas to fill)", InteractionMode.HATCH);
+        ctxDeleteItem = modeItem("Delete-stroke mode (click a line)", InteractionMode.DELETE_STROKE);
+        ctxAddLineItem = modeItem("Add-line mode (click two points)", InteractionMode.ADD_LINE);
+        menu.add(ctxHatchItem);
+        menu.add(ctxDeleteItem);
+        menu.add(ctxAddLineItem);
 
         // Hatch the region under the click — fill it, clear a previous fill, or pick the style —
         // without switching into hatch mode first. Disabled when no drawing is loaded.
@@ -676,6 +748,17 @@ public class VisualizationPanel extends JPanel {
             }
         });
         menu.add(hatchStyle);
+        // One-shot delete of the stroke nearest the click, without entering delete mode.
+        JMenuItem deleteHere = new JMenuItem("Delete nearest line");
+        deleteHere.addActionListener(e -> {
+            if (strokeEditListener != null) {
+                int si = nearestStrokeIndex(lastPopupX, lastPopupY);
+                if (si >= 0) {
+                    strokeEditListener.onDeleteStroke(pathCommandId.get(si));
+                }
+            }
+        });
+        menu.add(deleteHere);
         menu.addSeparator();
 
         // Drawing-only items: disabled when the bed is empty (toggled in maybeShowPopup).
@@ -698,8 +781,16 @@ public class VisualizationPanel extends JPanel {
         mirror.addActionListener(e -> toggleMirror());
         menu.add(mirror);
 
-        drawingMenuItems = List.of(remove, reset, rotate, mirror, hatchHere, clearHatchHere);
+        drawingMenuItems = List.of(remove, reset, rotate, mirror, hatchHere, clearHatchHere, deleteHere);
         return menu;
+    }
+
+    /** A mutually-exclusive interaction-mode toggle for the context menu. */
+    private JCheckBoxMenuItem modeItem(String label, InteractionMode mode) {
+        JCheckBoxMenuItem item = new JCheckBoxMenuItem(label);
+        item.addActionListener(e ->
+                setInteractionMode(item.isSelected() ? mode : InteractionMode.NONE));
+        return item;
     }
 
     /** Context-menu entries that only make sense with a loaded drawing (toggled per right-click). */
@@ -730,6 +821,7 @@ public class VisualizationPanel extends JPanel {
     public void loadPathsPreservingOverlay(ProcessorOutput output) {
         allPaths.clear();
         pathLayer.clear();
+        pathCommandId.clear();
         currentX = 0;
         currentY = 0;
         targetX = 0;
@@ -751,6 +843,7 @@ public class VisualizationPanel extends JPanel {
                     if (!stroke.isEmpty()) {
                         allPaths.add(stroke);
                         pathLayer.add(li);
+                        pathCommandId.add(draw.id);
                     }
                 }
             }
@@ -1276,7 +1369,8 @@ public class VisualizationPanel extends JPanel {
         }
 
         // --- Hatch-mode hover highlight: tint the closed region the next click would fill ---
-        if (hatchRegionMode && hoverRegionIndex >= 0 && hoverRegionIndex < allPaths.size()) {
+        if (interactionMode == InteractionMode.HATCH
+                && hoverRegionIndex >= 0 && hoverRegionIndex < allPaths.size()) {
             List<Point2D> hp = allPaths.get(hoverRegionIndex);
             if (hp.size() >= 3) {
                 Path2D hi = new Path2D.Double();
@@ -1292,6 +1386,38 @@ public class VisualizationPanel extends JPanel {
                 g2.setColor(new Color(255, 200, 50));
                 g2.setStroke(new BasicStroke((float) (1.5 / scale)));
                 g2.draw(hi);
+            }
+        }
+
+        // --- Delete-mode hover highlight: outline the stroke the next click would remove (red) ---
+        if (interactionMode == InteractionMode.DELETE_STROKE
+                && hoverStrokeIndex >= 0 && hoverStrokeIndex < allPaths.size()) {
+            List<Point2D> hp = allPaths.get(hoverStrokeIndex);
+            if (!hp.isEmpty()) {
+                Path2D hi = new Path2D.Double();
+                double[] h0 = transformPoint(hp.get(0));
+                hi.moveTo(h0[0], h0[1]);
+                for (int j = 1; j < hp.size(); j++) {
+                    double[] hj = transformPoint(hp.get(j));
+                    hi.lineTo(hj[0], hj[1]);
+                }
+                g2.setColor(new Color(255, 80, 80));
+                g2.setStroke(new BasicStroke((float) (3.0 / scale)));
+                g2.draw(hi);
+            }
+        }
+
+        // --- Add-line preview: marker at the first point + rubber-band to the cursor ---
+        if (interactionMode == InteractionMode.ADD_LINE && lineStart != null) {
+            double[] a = transformPoint(new Point2D(lineStart[0], lineStart[1]));
+            double[] b = screenToModel(lineHoverX, lineHoverY);
+            g2.setColor(new Color(120, 220, 150));
+            double rr = 3 / scale;
+            g2.fill(new java.awt.geom.Ellipse2D.Double(a[0] - rr, a[1] - rr, rr * 2, rr * 2));
+            if (b != null) {
+                double[] bp = transformPoint(new Point2D(b[0], b[1]));
+                g2.setStroke(new BasicStroke((float) (1.5 / scale)));
+                g2.draw(new java.awt.geom.Line2D.Double(a[0], a[1], bp[0], bp[1]));
             }
         }
 
@@ -1539,6 +1665,59 @@ public class VisualizationPanel extends JPanel {
             hoverRegionIndex = ri;
             repaint();
         }
+    }
+
+    /** Pixel-distance threshold for clicking/hovering a stroke in stroke-edit modes. */
+    private static final double STROKE_HIT_PX = 7.0;
+
+    /** Updates the highlighted hover stroke (delete mode) and repaints on change. */
+    private void updateHoverStroke(int px, int py) {
+        int si = allPaths.isEmpty() ? -1 : nearestStrokeIndex(px, py);
+        if (si != hoverStrokeIndex) {
+            hoverStrokeIndex = si;
+            repaint();
+        }
+    }
+
+    /** Index of the stroke whose nearest segment is within {@link #STROKE_HIT_PX} of the pixel, or -1. */
+    private int nearestStrokeIndex(int px, int py) {
+        int best = -1;
+        double bestD = STROKE_HIT_PX;
+        for (int i = 0; i < allPaths.size(); i++) {
+            List<Point2D> path = allPaths.get(i);
+            if (path.isEmpty()) {
+                continue;
+            }
+            double[] prev = pixelOf(path.get(0));
+            double d = path.size() == 1 ? Math.hypot(px - prev[0], py - prev[1]) : Double.MAX_VALUE;
+            for (int j = 1; j < path.size(); j++) {
+                double[] cur = pixelOf(path.get(j));
+                d = Math.min(d, distToSegment(px, py, prev[0], prev[1], cur[0], cur[1]));
+                prev = cur;
+            }
+            if (d < bestD) {
+                bestD = d;
+                best = i;
+            }
+        }
+        return best;
+    }
+
+    /** Screen pixel of a model-space stroke point (same transform paint uses). */
+    private double[] pixelOf(Point2D p) {
+        double[] c = transformPoint(p);
+        return new double[]{c[0] * paintScale + paintTx, c[1] * paintScale + paintTy};
+    }
+
+    private static double distToSegment(double px, double py, double x1, double y1, double x2, double y2) {
+        double dx = x2 - x1, dy = y2 - y1;
+        double len2 = dx * dx + dy * dy;
+        if (len2 < 1e-9) {
+            return Math.hypot(px - x1, py - y1);
+        }
+        double t = ((px - x1) * dx + (py - y1) * dy) / len2;
+        t = Math.max(0, Math.min(1, t));
+        return Math.hypot(px - (x1 + t * dx), py - (y1 + t * dy));
     }
 
     /**
