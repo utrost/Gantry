@@ -371,11 +371,21 @@ that looks solid in the source plots as just its border. To fill such an area
 with hatching:
 
 1. Enable **Edit ▸ Hatch Region (click areas to fill)**. The cursor becomes a
-   crosshair.
+   crosshair, and the region under it is **highlighted** so you can see what a
+   click will fill before you commit.
 2. Click inside a region. It's filled with hatch strokes added to that region's
    own layer/pen, so they plot together. Tip: zoom in first (mouse wheel) to
    click small regions precisely.
 3. Repeat for other regions, then toggle the menu item off when done.
+
+**Quicker: the right-click menu.** You don't have to enter hatch mode — right-click
+an area on the canvas and choose **Hatch area here**, **Clear hatch in this area**,
+or **Hatch style…** directly. (The highlight preview only appears in hatch mode.)
+
+**Removing a fill.** **Clear hatch in this area** (right-click) removes the hatch
+strokes you added inside that region, leaving the region's outline — the "empty"
+state. It only removes fills added this session; a re-import or load-from-disk
+treats everything as plain artwork again.
 
 **What counts as a region.** Both a single closed outline *and* an area fenced in
 by several **separate** strokes can be filled — clicking inside a shape that's

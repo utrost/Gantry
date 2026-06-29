@@ -1614,8 +1614,17 @@ public class PlotterPanel extends JPanel {
         visPanel.setOverlayChangeListener(this::refreshPositionFields);
         // "Remove Drawing" in the canvas context menu drops the loaded output too.
         visPanel.setRemoveDrawingListener(this::onRemoveDrawing);
-        // Click-to-hatch (Edit ▸ Hatch Region): fill a clicked closed region with hatch strokes.
-        visPanel.setRegionHatchListener(this::onHatchRegion);
+        // Click-to-hatch (Edit ▸ Hatch Region, or the canvas right-click menu): fill or clear the
+        // region under the cursor, and open the style picker.
+        visPanel.setRegionHatchListener(new VisualizationPanel.RegionHatchListener() {
+            @Override public void onHatchRegion(java.awt.geom.Path2D region, int layerIndex) {
+                PlotterPanel.this.onHatchRegion(region, layerIndex);
+            }
+            @Override public void onClearHatchRegion(java.awt.geom.Path2D region) {
+                PlotterPanel.this.onClearHatchRegion(region);
+            }
+        });
+        visPanel.setHatchStyleAction(this::onHatchStyleDialog);
         // Drag a station marker / "Add station here" on the canvas edits config.stations directly.
         visPanel.setStationEditListener(new VisualizationPanel.StationEditListener() {
             @Override public void onStationMoved(String name, double x, double y) {
@@ -1976,6 +1985,7 @@ public class PlotterPanel extends JPanel {
             if (undoMenuItem != null) {
                 undoMenuItem.setEnabled(false);
             }
+            hatchCommandIds.clear(); // a freshly loaded drawing has no session hatch strokes
             visPanel.loadFromOutput(currentOutput);
             visPanel.setContentMotorMin(0, 0);
             refreshLayerSelector();
@@ -2015,6 +2025,7 @@ public class PlotterPanel extends JPanel {
             if (undoMenuItem != null) {
                 undoMenuItem.setEnabled(false);
             }
+            hatchCommandIds.clear(); // a freshly loaded drawing has no session hatch strokes
             visPanel.loadFromOutput(currentOutput);
             visPanel.setContentMotorMin(0, 0);
             refreshLayerSelector();
@@ -2119,6 +2130,7 @@ public class PlotterPanel extends JPanel {
             if (undoMenuItem != null) {
                 undoMenuItem.setEnabled(false);
             }
+            hatchCommandIds.clear(); // a freshly loaded drawing has no session hatch strokes
             visPanel.loadFromOutput(currentOutput);
             visPanel.setContentMotorMin(0, 0);
             refreshLayerSelector();
@@ -2899,6 +2911,7 @@ public class PlotterPanel extends JPanel {
         currentOutput = null;
         lastImportedSvgFile = null;
         lastImportOptions = null;
+        hatchCommandIds.clear();
         undoSnapshot = null;
         if (undoMenuItem != null) {
             undoMenuItem.setEnabled(false);
@@ -2915,6 +2928,9 @@ public class PlotterPanel extends JPanel {
     private String hatchPattern = "linear";
     private double hatchGapMm = 2.0;
     private double hatchAngleDeg = 45.0;
+    // Command ids of hatch strokes we've added, so "Clear hatch in this area" knows which strokes are
+    // fill (vs. real artwork). In-session only — a re-import or load-from-disk clears it.
+    private final java.util.Set<Integer> hatchCommandIds = new java.util.HashSet<>();
 
     /**
      * Fills a clicked closed region (in raw model mm space) with the current hatch style, added to
@@ -2933,12 +2949,35 @@ public class PlotterPanel extends JPanel {
         }
         snapshotForUndo();
         currentOutput = RegionHatch.appendToLayer(currentOutput, layerIndex, strokes);
+        for (DrawCommand d : strokes) {
+            hatchCommandIds.add(d.id);
+        }
         visPanel.loadPathsPreservingOverlay(currentOutput);
         refreshLayerSelector();
         refreshTimeEstimate();
         refreshGuidance();
         log(String.format("Hatched region (%s, %.1fmm, %.0f°): +%d stroke(s) into layer %d.",
                 hatchPattern, hatchGapMm, hatchAngleDeg, strokes.size(), layerIndex + 1));
+    }
+
+    /** Removes hatch fill previously added inside the clicked region (canvas "Clear hatch here"). */
+    private void onClearHatchRegion(java.awt.geom.Path2D region) {
+        if (currentOutput == null) {
+            return;
+        }
+        RegionHatch.RemoveResult r = RegionHatch.removeHatchInRegion(currentOutput, hatchCommandIds, region);
+        if (r.removed() == 0) {
+            log("No hatch fill from this session to clear in that area.");
+            return;
+        }
+        snapshotForUndo();
+        currentOutput = r.output();
+        hatchCommandIds.removeAll(r.removedIds());
+        visPanel.loadPathsPreservingOverlay(currentOutput);
+        refreshLayerSelector();
+        refreshTimeEstimate();
+        refreshGuidance();
+        log(String.format("Cleared hatch: removed %d stroke(s).", r.removed()));
     }
 
     /**

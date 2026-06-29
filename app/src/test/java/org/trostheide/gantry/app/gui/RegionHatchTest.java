@@ -97,6 +97,47 @@ class RegionHatchTest {
                 "out-of-range layer → unchanged");
     }
 
+    @Test
+    void clearRemovesOnlyTrackedHatchStrokesInsideTheRegion() {
+        // Boundary stroke (id 1, not a hatch) + hatch fill (ids 8…) inside a 100mm square, plus one
+        // tracked stroke OUTSIDE the region that must survive.
+        Path2D square = square(0, 0, 100);
+        List<DrawCommand> fill = RegionHatch.hatchCommands(square, "linear", 0.0, 10.0, 8);
+        DrawCommand boundary = new DrawCommand(1, List.of(new org.trostheide.gantry.model.Point(0, 0),
+                new org.trostheide.gantry.model.Point(100, 0)));
+        DrawCommand far = new DrawCommand(999, List.of(new org.trostheide.gantry.model.Point(500, 500),
+                new org.trostheide.gantry.model.Point(510, 510)));
+        List<Command> cmds = new ArrayList<>();
+        cmds.add(boundary);
+        cmds.addAll(fill);
+        cmds.add(far);
+        Layer layer = new Layer("l", null, "#000", cmds);
+        Metadata md = new Metadata("t", Instant.EPOCH, null, "mm", cmds.size(), Bounds.empty());
+        ProcessorOutput out = new ProcessorOutput(md, new ArrayList<>(List.of(layer)));
+
+        java.util.Set<Integer> hatchIds = new java.util.HashSet<>();
+        for (DrawCommand d : fill) {
+            hatchIds.add(d.id);
+        }
+        hatchIds.add(999); // tracked, but its centroid is outside the region
+
+        RegionHatch.RemoveResult r = RegionHatch.removeHatchInRegion(out, hatchIds, square);
+        assertEquals(fill.size(), r.removed(), "only the in-region hatch strokes are removed");
+        List<Command> after = r.output().layers().get(0).commands();
+        assertTrue(after.contains(boundary), "the boundary (not a hatch id) survives");
+        assertTrue(after.contains(far), "a tracked stroke outside the region survives");
+        assertEquals(2, after.size());
+        assertEquals(2, r.output().metadata().totalCommands(), "metadata count decremented");
+    }
+
+    @Test
+    void clearIsANoOpWhenNothingMatches() {
+        ProcessorOutput out = oneLayerOutput();
+        RegionHatch.RemoveResult r = RegionHatch.removeHatchInRegion(out, java.util.Set.of(), square(0, 0, 100));
+        assertEquals(0, r.removed());
+        assertSame(out, r.output());
+    }
+
     private static ProcessorOutput oneLayerOutput() {
         List<Command> cmds = new ArrayList<>();
         cmds.add(new DrawCommand(7, List.of(new org.trostheide.gantry.model.Point(0, 0),

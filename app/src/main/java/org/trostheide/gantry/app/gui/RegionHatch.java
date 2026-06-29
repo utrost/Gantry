@@ -104,6 +104,52 @@ final class RegionHatch {
         }
     }
 
+    /** Outcome of {@link #removeHatchInRegion}: the new output, count removed, and the ids removed. */
+    record RemoveResult(ProcessorOutput output, int removed, java.util.Set<Integer> removedIds) {
+    }
+
+    /**
+     * Removes previously-added hatch strokes that fall inside {@code region}: a command is removed
+     * when its id is in {@code hatchIds} and its centroid lies within the region. Returns the new
+     * output (with {@code metadata.totalCommands} decremented) and what was removed; if nothing
+     * matched, the original output is returned with {@code removed == 0}.
+     */
+    static RemoveResult removeHatchInRegion(ProcessorOutput out, java.util.Set<Integer> hatchIds,
+                                            java.awt.geom.Path2D region) {
+        java.util.Set<Integer> removed = new java.util.HashSet<>();
+        List<Layer> layers = new ArrayList<>();
+        for (Layer layer : out.layers()) {
+            List<Command> kept = new ArrayList<>();
+            for (Command c : layer.commands()) {
+                if (c instanceof DrawCommand d && hatchIds.contains(d.id) && centroidInside(d, region)) {
+                    removed.add(d.id);
+                } else {
+                    kept.add(c);
+                }
+            }
+            layers.add(new Layer(layer.id(), layer.stationId(), layer.color(), kept));
+        }
+        if (removed.isEmpty()) {
+            return new RemoveResult(out, 0, removed);
+        }
+        Metadata m = out.metadata();
+        Metadata m2 = new Metadata(m.source(), m.generatedAt(), m.stationId(), m.units(),
+                Math.max(0, m.totalCommands() - removed.size()), m.bounds());
+        return new RemoveResult(new ProcessorOutput(m2, layers), removed.size(), removed);
+    }
+
+    private static boolean centroidInside(DrawCommand d, java.awt.geom.Path2D region) {
+        if (d.points.isEmpty()) {
+            return false;
+        }
+        double sx = 0, sy = 0;
+        for (Point p : d.points) {
+            sx += p.x();
+            sy += p.y();
+        }
+        return region.contains(sx / d.points.size(), sy / d.points.size());
+    }
+
     /** The highest command id across all layers, or 0 if there are none. */
     static int maxCommandId(ProcessorOutput out) {
         int max = 0;

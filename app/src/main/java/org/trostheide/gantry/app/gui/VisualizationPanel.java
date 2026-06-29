@@ -137,30 +137,69 @@ public class VisualizationPanel extends JPanel {
     // fires {@link #regionHatchListener} with that region instead of moving/resizing the drawing.
     private boolean hatchRegionMode = false;
     private RegionHatchListener regionHatchListener;
+    private Runnable hatchStyleAction;
+    // Closed region currently under the cursor in hatch mode, highlighted as a pick preview (-1 none).
+    private int hoverRegionIndex = -1;
+    // Pixel position of the last context-menu trigger, for "Hatch area here" / "Clear hatch here".
+    private int lastPopupX, lastPopupY;
 
-    /** Notified when the user clicks a closed region in hatch mode. */
+    /** Notified when the user picks a region to hatch or clear (click in hatch mode, or context menu). */
     public interface RegionHatchListener {
         /**
-         * @param region     the clicked region as a closed path in raw model (mm) space
+         * @param region     the picked region as a closed path in raw model (mm) space
          * @param layerIndex the index (into the loaded output's layers) the region belongs to, so
          *                   the fill can be added to the same pen/layer
          */
         void onHatchRegion(Path2D region, int layerIndex);
+
+        /** Removes any previously-added hatch fill whose strokes fall inside {@code region}. */
+        void onClearHatchRegion(Path2D region);
     }
 
     public void setRegionHatchListener(RegionHatchListener listener) {
         this.regionHatchListener = listener;
     }
 
+    /** Action invoked by the canvas "Hatch style…" menu item (opens the style picker). */
+    public void setHatchStyleAction(Runnable action) {
+        this.hatchStyleAction = action;
+    }
+
     /** Enables/disables click-to-hatch mode and reflects it in the cursor. */
     public void setHatchRegionMode(boolean on) {
         this.hatchRegionMode = on;
         setCursor(on ? Cursor.getPredefinedCursor(Cursor.CROSSHAIR_CURSOR) : Cursor.getDefaultCursor());
+        if (!on) {
+            hoverRegionIndex = -1;
+        }
         repaint();
     }
 
     public boolean isHatchRegionMode() {
         return hatchRegionMode;
+    }
+
+    /**
+     * Resolves the hatch target under a pixel: the smallest closed path containing it, or — if none —
+     * an area flood-filled from the point and bounded by all strokes. Returns {@code null} if nothing
+     * encloses the point. Shared by the left-click handler and the context menu.
+     */
+    private HatchTarget resolveHatchTarget(int px, int py) {
+        int ri = findClosedRegionAt(px, py);
+        if (ri >= 0) {
+            return new HatchTarget(rawRegionPath(allPaths.get(ri)), pathLayer.get(ri));
+        }
+        double[] seed = screenToModel(px, py);
+        if (seed != null) {
+            Path2D enclosed = EnclosedRegion.fromSeed(strokesAsModel(), seed[0], seed[1]);
+            if (enclosed != null) {
+                return new HatchTarget(enclosed, nearestStrokeLayer(seed[0], seed[1]));
+            }
+        }
+        return null;
+    }
+
+    private record HatchTarget(Path2D region, int layerIndex) {
     }
 
     // Interactive drag state
@@ -430,22 +469,14 @@ public class VisualizationPanel extends JPanel {
                     draggingStation = st;
                     return;
                 }
-                // Click-to-hatch: a left click fills the region under it. First try a single closed
-                // path; if none, flood-fill an area enclosed by several separate strokes. A click on
-                // empty space falls through so the user can still pan while in hatch mode.
+                // Click-to-hatch: a left click fills the region under it (a single closed path, else
+                // an area enclosed by several separate strokes). A click on empty space falls through
+                // so the user can still pan while in hatch mode.
                 if (hatchRegionMode && SwingUtilities.isLeftMouseButton(e) && regionHatchListener != null) {
-                    int ri = findClosedRegionAt(e.getX(), e.getY());
-                    if (ri >= 0) {
-                        regionHatchListener.onHatchRegion(rawRegionPath(allPaths.get(ri)), pathLayer.get(ri));
+                    HatchTarget t = resolveHatchTarget(e.getX(), e.getY());
+                    if (t != null) {
+                        regionHatchListener.onHatchRegion(t.region(), t.layerIndex());
                         return;
-                    }
-                    double[] seed = screenToModel(e.getX(), e.getY());
-                    if (seed != null) {
-                        Path2D enclosed = EnclosedRegion.fromSeed(strokesAsModel(), seed[0], seed[1]);
-                        if (enclosed != null) {
-                            regionHatchListener.onHatchRegion(enclosed, nearestStrokeLayer(seed[0], seed[1]));
-                            return;
-                        }
                     }
                 }
                 int handle = allPaths.isEmpty() ? HANDLE_NONE : hitTestHandle(e.getX(), e.getY());
@@ -523,6 +554,8 @@ public class VisualizationPanel extends JPanel {
 
             private boolean maybeShowPopup(MouseEvent e) {
                 if (!e.isPopupTrigger()) return false;
+                lastPopupX = e.getX();
+                lastPopupY = e.getY();
                 lastPopupMm = screenToPhysical(e.getX(), e.getY());
                 boolean hasDrawing = !allPaths.isEmpty();
                 for (Component item : drawingMenuItems) {
@@ -534,6 +567,13 @@ public class VisualizationPanel extends JPanel {
 
             @Override
             public void mouseMoved(MouseEvent e) {
+                // In hatch mode the crosshair stays put (don't let the drag-handle hit-test swap it to
+                // a move/resize cursor), and the region under the cursor is highlighted as a preview.
+                if (hatchRegionMode) {
+                    setCursor(Cursor.getPredefinedCursor(Cursor.CROSSHAIR_CURSOR));
+                    updateHoverRegion(e.getX(), e.getY());
+                    return;
+                }
                 if (hitTestStation(e.getX(), e.getY()) != HANDLE_NONE) {
                     setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
                     return;
@@ -583,6 +623,37 @@ public class VisualizationPanel extends JPanel {
         menu.add(resetView);
         menu.addSeparator();
 
+        // Hatch the region under the click — fill it, clear a previous fill, or pick the style —
+        // without switching into hatch mode first. Disabled when no drawing is loaded.
+        JMenuItem hatchHere = new JMenuItem("Hatch area here");
+        hatchHere.addActionListener(e -> {
+            if (regionHatchListener != null) {
+                HatchTarget t = resolveHatchTarget(lastPopupX, lastPopupY);
+                if (t != null) {
+                    regionHatchListener.onHatchRegion(t.region(), t.layerIndex());
+                }
+            }
+        });
+        menu.add(hatchHere);
+        JMenuItem clearHatchHere = new JMenuItem("Clear hatch in this area");
+        clearHatchHere.addActionListener(e -> {
+            if (regionHatchListener != null) {
+                HatchTarget t = resolveHatchTarget(lastPopupX, lastPopupY);
+                if (t != null) {
+                    regionHatchListener.onClearHatchRegion(t.region());
+                }
+            }
+        });
+        menu.add(clearHatchHere);
+        JMenuItem hatchStyle = new JMenuItem("Hatch style...");
+        hatchStyle.addActionListener(e -> {
+            if (hatchStyleAction != null) {
+                hatchStyleAction.run();
+            }
+        });
+        menu.add(hatchStyle);
+        menu.addSeparator();
+
         // Drawing-only items: disabled when the bed is empty (toggled in maybeShowPopup).
         JMenuItem remove = new JMenuItem("Remove Drawing");
         remove.addActionListener(e -> {
@@ -603,7 +674,7 @@ public class VisualizationPanel extends JPanel {
         mirror.addActionListener(e -> toggleMirror());
         menu.add(mirror);
 
-        drawingMenuItems = List.of(remove, reset, rotate, mirror);
+        drawingMenuItems = List.of(remove, reset, rotate, mirror, hatchHere, clearHatchHere);
         return menu;
     }
 
@@ -1180,6 +1251,26 @@ public class VisualizationPanel extends JPanel {
             }
         }
 
+        // --- Hatch-mode hover highlight: tint the closed region the next click would fill ---
+        if (hatchRegionMode && hoverRegionIndex >= 0 && hoverRegionIndex < allPaths.size()) {
+            List<Point2D> hp = allPaths.get(hoverRegionIndex);
+            if (hp.size() >= 3) {
+                Path2D hi = new Path2D.Double();
+                double[] h0 = transformPoint(hp.get(0));
+                hi.moveTo(h0[0], h0[1]);
+                for (int j = 1; j < hp.size(); j++) {
+                    double[] hj = transformPoint(hp.get(j));
+                    hi.lineTo(hj[0], hj[1]);
+                }
+                hi.closePath();
+                g2.setColor(new Color(255, 210, 80, 70));
+                g2.fill(hi);
+                g2.setColor(new Color(255, 200, 50));
+                g2.setStroke(new BasicStroke((float) (1.5 / scale)));
+                g2.draw(hi);
+            }
+        }
+
         // --- Draw Interactive Bounding Box ---
         if (!allPaths.isEmpty()) {
             // Transform raw content corners through the full pipeline
@@ -1408,6 +1499,15 @@ public class VisualizationPanel extends JPanel {
     }
 
     // ----- Click-to-hatch region hit-test -----
+
+    /** Updates the highlighted hover region (closed paths only, cheap) and repaints on change. */
+    private void updateHoverRegion(int px, int py) {
+        int ri = allPaths.isEmpty() ? -1 : findClosedRegionAt(px, py);
+        if (ri != hoverRegionIndex) {
+            hoverRegionIndex = ri;
+            repaint();
+        }
+    }
 
     /**
      * Index (into {@link #allPaths}) of the smallest closed region whose on-screen shape contains
