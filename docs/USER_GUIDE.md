@@ -373,7 +373,9 @@ with hatching:
 
 1. Enable **Edit ▸ Hatch Region (click areas to fill)**. The cursor becomes a
    crosshair, and the region under it is **highlighted** so you can see what a
-   click will fill before you commit.
+   click will fill before you commit — both single closed shapes and areas
+   *enclosed by several separate strokes* (the latter previews after a brief
+   pause). If nothing highlights, that area isn't sealed (look for a gap).
 2. Click inside a region. It's filled with hatch strokes added to that region's
    own layer/pen, so they plot together. Tip: zoom in first (mouse wheel) to
    click small regions precisely.
@@ -413,9 +415,12 @@ right-click menu (one mode active at a time — hatch, delete, or add):
   remove it. Or right-click → **Delete nearest line** for a one-off without
   entering the mode. Good for clearing stray strokes a trace left behind.
 - **Add Line** mode — click a **start** point then an **end** point to drop a
-  straight line (a green rubber-band previews it). Tip: use this to **bridge a
-  gap** in an outline so an area becomes enclosed — then hatch-fill it (the
-  flood fill needs a sealed boundary).
+  straight line (a green rubber-band previews it). Endpoints **snap** onto nearby
+  strokes, so a gap-bridging line connects cleanly. Tip: use this to **bridge a
+  gap** in an outline so an area becomes enclosed — then hatch-fill it. The seal
+  must actually close (the flood fill leaks through even a small gap, which is
+  why snapping matters); if hatch mode doesn't highlight the area afterwards, the
+  boundary isn't sealed yet.
 - **Move Line** mode — the line under the cursor highlights **cyan**; drag it to
   reposition (it moves with the cursor). Pan still works (middle-drag or
   Shift+drag) so you can navigate mid-edit.

@@ -393,7 +393,11 @@ added to the region's own layer, undoable, with the time estimate refreshed.
   (unit-tested) flood-fills from the click bounded by all strokes and Moore-traces
   the blob to a polygon, then the same hatch pipeline fills it; a leaky boundary
   escapes ⇒ nothing filled. The click pixel is mapped to model space by an exact
-  affine inverse (`screenToModel`).
+  affine inverse (`screenToModel`). Enclosures also **hover-highlight** now (a
+  debounced flood-fill preview), so the user sees whether an area is sealed before
+  clicking; and **Add Line snaps** its endpoints onto nearby strokes (`snapPoint`)
+  so a gap-bridge connects exactly — the fix for "closed an area with a line but
+  it wouldn't fill" (the flood fill leaks through even a ~1 mm gap).
 
 **Sibling — stroke editing Tier A+B ✅ (shipped).** The hatch machinery (canvas
 hit-test, screen↔model inverse, add/remove `DrawCommand`s, undo) made light

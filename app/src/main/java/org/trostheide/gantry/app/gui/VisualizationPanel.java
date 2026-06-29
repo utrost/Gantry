@@ -151,6 +151,11 @@ public class VisualizationPanel extends JPanel {
     private JCheckBoxMenuItem ctxHatchItem, ctxDeleteItem, ctxAddLineItem, ctxMoveItem;
     // Closed region currently under the cursor in hatch mode, highlighted as a pick preview (-1 none).
     private int hoverRegionIndex = -1;
+    // Flood-filled enclosure under the cursor (model space) when not over a closed path — computed on
+    // a short debounce so the multi-stroke "fill this area" target also previews. Null when none.
+    private Path2D hoverEnclosedModel;
+    private javax.swing.Timer enclosedHoverTimer;
+    private int enclosedHoverX, enclosedHoverY;
     // Stroke under the cursor in delete mode (index into allPaths), highlighted in red (-1 none).
     private int hoverStrokeIndex = -1;
     // First clicked point (model mm) while drawing a line in ADD_LINE mode, or null between lines.
@@ -217,6 +222,10 @@ public class VisualizationPanel extends JPanel {
         interactionMode = mode;
         hoverRegionIndex = -1;
         hoverStrokeIndex = -1;
+        hoverEnclosedModel = null;
+        if (enclosedHoverTimer != null) {
+            enclosedHoverTimer.stop();
+        }
         lineStart = null;
         dragStrokeIndex = -1;
         dragStrokeOrig = null;
@@ -555,7 +564,7 @@ public class VisualizationPanel extends JPanel {
                             return;
                         }
                     } else if (interactionMode == InteractionMode.ADD_LINE && strokeEditListener != null) {
-                        double[] p = screenToModel(e.getX(), e.getY());
+                        double[] p = snapPoint(e.getX(), e.getY());
                         if (p != null) {
                             if (lineStart == null) {
                                 lineStart = p;
@@ -1455,6 +1464,14 @@ public class VisualizationPanel extends JPanel {
                 g2.setStroke(new BasicStroke((float) (1.5 / scale)));
                 g2.draw(hi);
             }
+        } else if (interactionMode == InteractionMode.HATCH && hoverEnclosedModel != null) {
+            // Multi-stroke enclosure preview (debounced flood fill) — same tint as a closed region.
+            Path2D hi = modelPathToContent(hoverEnclosedModel);
+            g2.setColor(new Color(255, 210, 80, 70));
+            g2.fill(hi);
+            g2.setColor(new Color(255, 200, 50));
+            g2.setStroke(new BasicStroke((float) (1.5 / scale)));
+            g2.draw(hi);
         }
 
         // --- Stroke-edit hover highlight: outline the stroke the next click would act on
@@ -1480,7 +1497,7 @@ public class VisualizationPanel extends JPanel {
         // --- Add-line preview: marker at the first point + rubber-band to the cursor ---
         if (interactionMode == InteractionMode.ADD_LINE && lineStart != null) {
             double[] a = transformPoint(new Point2D(lineStart[0], lineStart[1]));
-            double[] b = screenToModel(lineHoverX, lineHoverY);
+            double[] b = snapPoint(lineHoverX, lineHoverY); // snaps the preview end onto nearby strokes
             g2.setColor(new Color(120, 220, 150));
             double rr = 3 / scale;
             g2.fill(new java.awt.geom.Ellipse2D.Double(a[0] - rr, a[1] - rr, rr * 2, rr * 2));
@@ -1728,13 +1745,67 @@ public class VisualizationPanel extends JPanel {
         setCursor(Cursor.getPredefinedCursor(Cursor.MOVE_CURSOR));
     }
 
-    /** Updates the highlighted hover region (closed paths only, cheap) and repaints on change. */
+    /**
+     * Updates the hatch-mode pick preview: the closed path under the cursor (cheap) or, if none, a
+     * debounced flood-fill enclosure (so multi-stroke "fill this area" targets — e.g. a freshly
+     * bridged region — also highlight, and a leaky boundary visibly shows no highlight).
+     */
     private void updateHoverRegion(int px, int py) {
         int ri = allPaths.isEmpty() ? -1 : findClosedRegionAt(px, py);
         if (ri != hoverRegionIndex) {
             hoverRegionIndex = ri;
             repaint();
         }
+        if (ri >= 0) {
+            if (enclosedHoverTimer != null) {
+                enclosedHoverTimer.stop();
+            }
+            if (hoverEnclosedModel != null) {
+                hoverEnclosedModel = null;
+                repaint();
+            }
+        } else {
+            enclosedHoverX = px;
+            enclosedHoverY = py;
+            if (enclosedHoverTimer == null) {
+                enclosedHoverTimer = new javax.swing.Timer(160, e -> computeEnclosedHover());
+                enclosedHoverTimer.setRepeats(false);
+            }
+            enclosedHoverTimer.restart();
+        }
+    }
+
+    private void computeEnclosedHover() {
+        Path2D enc = null;
+        if (interactionMode == InteractionMode.HATCH && !allPaths.isEmpty()) {
+            double[] seed = screenToModel(enclosedHoverX, enclosedHoverY);
+            if (seed != null) {
+                enc = EnclosedRegion.fromSeed(strokesAsModel(), seed[0], seed[1]);
+            }
+        }
+        hoverEnclosedModel = enc;
+        repaint();
+    }
+
+    /** Maps a model-space path to content space (for drawing the enclosure highlight). */
+    private Path2D modelPathToContent(Path2D modelPath) {
+        Path2D content = new Path2D.Double();
+        java.awt.geom.PathIterator it = modelPath.getPathIterator(null);
+        double[] c = new double[6];
+        while (!it.isDone()) {
+            int t = it.currentSegment(c);
+            if (t == java.awt.geom.PathIterator.SEG_MOVETO) {
+                double[] p = transformPoint(new Point2D(c[0], c[1]));
+                content.moveTo(p[0], p[1]);
+            } else if (t == java.awt.geom.PathIterator.SEG_LINETO) {
+                double[] p = transformPoint(new Point2D(c[0], c[1]));
+                content.lineTo(p[0], p[1]);
+            } else if (t == java.awt.geom.PathIterator.SEG_CLOSE) {
+                content.closePath();
+            }
+            it.next();
+        }
+        return content;
     }
 
     /** Pixel-distance threshold for clicking/hovering a stroke in stroke-edit modes. */
@@ -1780,14 +1851,52 @@ public class VisualizationPanel extends JPanel {
     }
 
     private static double distToSegment(double px, double py, double x1, double y1, double x2, double y2) {
+        double[] c = closestOnSegment(px, py, x1, y1, x2, y2);
+        return Math.hypot(px - c[0], py - c[1]);
+    }
+
+    private static double[] closestOnSegment(double px, double py, double x1, double y1, double x2, double y2) {
         double dx = x2 - x1, dy = y2 - y1;
         double len2 = dx * dx + dy * dy;
         if (len2 < 1e-9) {
-            return Math.hypot(px - x1, py - y1);
+            return new double[]{x1, y1};
         }
         double t = ((px - x1) * dx + (py - y1) * dy) / len2;
         t = Math.max(0, Math.min(1, t));
-        return Math.hypot(px - (x1 + t * dx), py - (y1 + t * dy));
+        return new double[]{x1 + t * dx, y1 + t * dy};
+    }
+
+    /** Pixel snap radius when placing an added line, so a bridge actually touches existing strokes. */
+    private static final double SNAP_PX = 10.0;
+
+    /**
+     * The model point a click at {@code (px, py)} should use when adding a line: snapped to the
+     * nearest point on any existing stroke if within {@link #SNAP_PX} (so a gap-bridging line
+     * connects exactly and the area seals), otherwise the plain {@link #screenToModel}.
+     */
+    private double[] snapPoint(int px, int py) {
+        double bestD = SNAP_PX;
+        double bestX = 0, bestY = 0;
+        boolean found = false;
+        for (List<Point2D> path : allPaths) {
+            if (path.isEmpty()) {
+                continue;
+            }
+            double[] prev = pixelOf(path.get(0));
+            for (int j = 1; j < path.size(); j++) {
+                double[] cur = pixelOf(path.get(j));
+                double[] cp = closestOnSegment(px, py, prev[0], prev[1], cur[0], cur[1]);
+                double d = Math.hypot(px - cp[0], py - cp[1]);
+                if (d < bestD) {
+                    bestD = d;
+                    bestX = cp[0];
+                    bestY = cp[1];
+                    found = true;
+                }
+                prev = cur;
+            }
+        }
+        return screenToModel((int) Math.round(found ? bestX : px), (int) Math.round(found ? bestY : py));
     }
 
     /**

@@ -50,4 +50,23 @@ class EnclosedRegionTest {
     void emptyInputYieldsNull() {
         assertNull(EnclosedRegion.fromSeed(List.of(), 0, 0));
     }
+
+    @Test
+    void aBridgingStrokeMustConnectToSeal() {
+        // An open "C" (top, left, bottom) sealed by a right-edge bridge. This is why added-line
+        // endpoints snap onto existing strokes: a bridge even a couple mm short leaves a gap and the
+        // fill leaks out.
+        java.util.List<double[][]> c = java.util.List.of(
+                new double[][]{{0, 0}, {100, 0}},
+                new double[][]{{0, 0}, {0, 100}},
+                new double[][]{{0, 100}, {100, 100}});
+
+        java.util.List<double[][]> sealed = new java.util.ArrayList<>(c);
+        sealed.add(new double[][]{{100, 0}, {100, 100}}); // exact bridge, corner to corner
+        assertNotNull(EnclosedRegion.fromSeed(sealed, 50, 50), "an exact bridge seals the area");
+
+        java.util.List<double[][]> leaky = new java.util.ArrayList<>(c);
+        leaky.add(new double[][]{{100, 3}, {100, 97}}); // 3mm short at each end
+        assertNull(EnclosedRegion.fromSeed(leaky, 50, 50), "a short bridge leaves a gap that leaks");
+    }
 }
