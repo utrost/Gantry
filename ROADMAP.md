@@ -1366,6 +1366,88 @@ first when enabled.
 
 ---
 
+## Backlog — unplanned candidate features (operator value)
+
+Captured from a feature review (not yet scheduled). Each carries a short
+**Assessment** — my read on value, accuracy of the premise against the current
+code, effort, risk, and where I'd sequence it.
+
+### B1 — Live plot progress: bar + time-remaining
+
+**Proposal.** During a plot show % complete, time remaining, and the current
+layer (e.g. a `JProgressBar` + "Layer 2/5 — ~8 min remaining"). Add a
+`progressCallback(done, total, layerId)` from `PlotService`; refine the ETA live
+from actual elapsed-vs-completed rather than only the pre-plot estimate.
+
+**Assessment — strongest pick; cheaper than it looks because it's half-built.**
+One premise needs correcting: it's *not* true that there's no live tracking
+today. `PlotterPanel.updateTimeLabelDuringPlot()` already runs on a 500 ms
+`plotClockTimer` showing **"Elapsed: … / Est: … | layer: …/…"**;
+`PlotService` already fires `layerStartedCallback` (sets `currentLayerId`) and
+logs per-layer **"N/M commands (P%)"** to the console; `TimeEstimator` already
+produces per-layer estimates. So the missing piece is narrow and high-leverage:
+a *visual* progress bar, a *global* %-complete, and a *pace-extrapolated* ETA.
+The only new plumbing is a per-command progress count surfaced to the GUI
+(today the count exists only inside `executeLayer`'s log line, and
+`commandedPositionCallback` fires per point, not per command). Verdict: **do this
+first.** Universal benefit, near-zero risk (additive UI + one callback), no
+pipeline/coords/backend changes. The live-extrapolated ETA is the genuinely new
+value over today's static estimate — it absorbs feed-rate overrides and dwell.
+
+### B2 — Plot history / "re-plot last job"
+
+**Proposal.** Persist a `PlotRecord` (timestamp, source file, import options,
+overlay transform, selected layers, est/actual duration, outcome) to
+`plot_history.json`; a **File ▸ Recent Jobs** submenu reloads one. Bonus:
+actual-vs-estimated duration to calibrate expectations.
+
+**Assessment — high value, split it.** The premise is accurate: nothing is
+persisted, and pen plotting is iterative (tune → re-plot). But there are two
+sizes hiding here. (a) **"Re-plot last job"** is nearly free — `PlotterPanel`
+already holds `lastImportedSvgFile`, `lastImportOptions`, the overlay transform,
+and the selected layers in memory; a one-click "plot that again" needs almost no
+new state. (b) **Persistent multi-entry history** (survives restart, Recent-Jobs
+menu, restoring an *old* job by re-importing + re-applying options/overlay/layers)
+is the moderate part — the restore path is the fiddly bit (re-run import with the
+saved toolbox options, reapply overlay/layer selection). Recommend shipping (a)
+first as a quick win, then (b). The "actual vs estimated" capture pairs naturally
+with B1 (B1 already measures elapsed). Verdict: **second**, (a) before (b).
+
+### B3 — Pen-travel visualization / efficiency
+
+**Proposal.** A "Show Travel" overlay drawing pen-up moves as dashed red lines
+(thickness/colour ∝ distance), plus a travel-efficiency % (pen-down / total).
+
+**Assessment — valuable and feasible, but more occasional-use.** Premise is
+accurate: `VisualizationPanel.loadPathsPreservingOverlay` keeps only
+`DrawCommand`s, so pen-up travel is invisible today; `OptimizeStage.Stats`
+computes `travelDistanceMm`/`strokeCount` but only reports them. Good news on
+effort: the overlay needs **no model change** — travel segments are just the gaps
+between consecutive strokes *in plot order*, and `allPaths` already preserves
+that order per layer, so the panel can draw end[i]→start[i+1] dashed segments
+coloured by length, and show pen-down/total in the HUD. It's a real, differentiating
+tuning aid ("a 200 mm jump here — rotate 90° and it shrinks"). But unlike B1/B2 it
+helps occasionally (when optimizing), not every job. Verdict: **third**; lands
+cleanly after B1/B2 and reuses the existing paint loop + travel math.
+
+### Honourable mentions
+
+| Feature | My take | Effort / risk |
+|---|---|---|
+| **Pause/resume across sessions** (checkpoint mid-plot to disk, resume after crash/close) | Genuinely valuable for multi-hour watercolor, but the hard one. Note in-session pause/resume *already exists* (`PlotService.pause()/resume()`); the new cost is command-level checkpointing **plus** GRBL/backend state recovery (where exactly did the head stop?), which is error-prone on real hardware. | High effort, **high risk** — defer until there's a concrete ruined-job case. |
+| **Pen-pressure / per-stroke speed** | Niche-artistic. Needs new model fields (per-point/per-stroke feed) threaded through `DrawCommand` → G-code, plus careful backend support. | Moderate model+backend change; demand-driven. |
+| **DXF/HPGL import** | Opens CAD/legacy workflows, but SVG covers most art sources. A second parser alongside `SvgImportStage`, feeding the same `ProcessorOutput`. | Moderate, self-contained; build when a real DXF need appears. |
+| **Network/WiFi backend (TCP)** | The cleanest of these — a new `PlotterBackend` over a socket transport, no model/UI churn. Nice ergonomics (untether the laptop). | Low–moderate, **low risk**; the best "honourable mention" to pick up. |
+| **Auto pen-up Z optimization** | Marginal: only Z-axis machines, and it needs a "safe-Z"/obstacle-awareness concept for little gain on flat media. | Niche; lowest priority. |
+
+**Overall recommendation.** Sequence **B1 → B2(a) → B3**, then B2(b). B1 is the
+clear top pick (universal, near-free, already scaffolded). Among honourable
+mentions, the **network backend** is the most attractive low-risk add; **pause/
+resume across sessions** is the one to be wary of (hardware-state recovery). None
+of these block the existing phases; all are additive.
+
+---
+
 ## Features in scope (chosen)
 
 - **Path optimization in pipeline** — PathOptimize (min travel) + Simplify as a
