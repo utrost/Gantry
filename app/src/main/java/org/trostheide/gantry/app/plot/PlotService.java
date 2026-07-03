@@ -35,6 +35,12 @@ public class PlotService {
         LayerGate IMMEDIATE = layer -> { };
     }
 
+    /** Fired after each command with the global (across-all-layers) done and total command counts. */
+    @FunctionalInterface
+    public interface ProgressCallback {
+        void update(int done, int total);
+    }
+
     private final PlotterBackend backend;
     private final PlotSettings settings;
 
@@ -42,6 +48,7 @@ public class PlotService {
     private Consumer<String> logCallback = line -> { };
     private BiConsumer<Double, Double> commandedPositionCallback = (x, y) -> { };
     private Consumer<Layer> layerStartedCallback = layer -> { };
+    private ProgressCallback progressCallback = (d, t) -> { };
 
     private volatile boolean cancelled;
     private volatile boolean paused;
@@ -74,6 +81,11 @@ public class PlotService {
     /** Registers a callback fired right before each layer's commands start executing (after the layer gate). */
     public void setLayerStartedCallback(Consumer<Layer> callback) {
         this.layerStartedCallback = callback != null ? callback : (layer -> { });
+    }
+
+    /** Registers a callback fired after each command with global (all-layers) done/total counts. */
+    public void setProgressCallback(ProgressCallback callback) {
+        this.progressCallback = callback != null ? callback : ((d, t) -> { });
     }
 
     /** Requests that the current/upcoming {@link #plot} call stop as soon as possible. */
@@ -135,6 +147,8 @@ public class PlotService {
         double machineH = settings.resolveMachineHeight();
 
         double[] contentBounds = computeContentBounds(layers);
+        int totalCommands = layers.stream().mapToInt(l -> l.commands().size()).sum();
+        int[] doneCommands = {0};
 
         double offsetX = 0;
         double offsetY = 0;
@@ -180,7 +194,7 @@ public class PlotService {
                 if (rinseStation != null && layerIndex > 1) {
                     performRinse(rinseStation);
                 }
-                executeLayer(layer, machineW, machineH, offsetX, offsetY, contentBounds);
+                executeLayer(layer, machineW, machineH, offsetX, offsetY, contentBounds, doneCommands, totalCommands);
 
                 if (!cancelled) {
                     parkAtOrigin();
@@ -335,13 +349,14 @@ public class PlotService {
     private static final int PROGRESS_LOG_INTERVAL = 100;
 
     private void executeLayer(Layer layer, double machineW, double machineH,
-            double offsetX, double offsetY, double[] contentBounds) {
+            double offsetX, double offsetY, double[] contentBounds,
+            int[] doneCommands, int totalCommands) {
         int[] oobCount = {0};
-        int totalCommands = layer.commands().size();
-        int commandIndex = 0;
+        int layerTotal = layer.commands().size();
+        int layerIndex = 0;
 
         for (Command cmd : layer.commands()) {
-            commandIndex++;
+            layerIndex++;
             if (cancelled) {
                 return;
             }
@@ -369,9 +384,11 @@ public class PlotService {
             } else if (cmd instanceof RefillCommand refill) {
                 performRefill(refill.stationId);
             }
-            if (commandIndex % PROGRESS_LOG_INTERVAL == 0 || commandIndex == totalCommands) {
+            doneCommands[0]++;
+            progressCallback.update(doneCommands[0], totalCommands);
+            if (layerIndex % PROGRESS_LOG_INTERVAL == 0 || layerIndex == layerTotal) {
                 logCallback.accept(String.format("Layer '%s': %d/%d commands (%.0f%%)",
-                        layer.id(), commandIndex, totalCommands, 100.0 * commandIndex / totalCommands));
+                        layer.id(), layerIndex, layerTotal, 100.0 * layerIndex / layerTotal));
             }
         }
 

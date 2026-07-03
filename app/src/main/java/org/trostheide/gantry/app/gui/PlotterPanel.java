@@ -125,6 +125,11 @@ public class PlotterPanel extends JPanel {
     private long layerStartMillis;
     private String currentLayerId;
     private volatile boolean plotting;
+    private volatile int progressDone;
+    private volatile int progressTotal;
+    private volatile int currentLayerIndex;
+    private volatile int totalLayers;
+    private JProgressBar plotProgressBar;
     private java.awt.KeyEventDispatcher jogKeyDispatcher;
 
     /** Controls that should be disabled while a plot is running (jog, pen, speed, edit actions). */
@@ -1798,6 +1803,12 @@ public class PlotterPanel extends JPanel {
         row2.add(Box.createHorizontalStrut(4));
         row2.add(pauseBtn);
 
+        plotProgressBar = new JProgressBar(0, 100);
+        plotProgressBar.setStringPainted(true);
+        plotProgressBar.setString("");
+        plotProgressBar.setVisible(false);
+        plotProgressBar.setAlignmentX(LEFT_ALIGNMENT);
+
         // Layer header: label + All/None quick toggles.
         JPanel row3 = new JPanel();
         row3.setLayout(new BoxLayout(row3, BoxLayout.X_AXIS));
@@ -1840,6 +1851,7 @@ public class PlotterPanel extends JPanel {
         row4.setAlignmentX(LEFT_ALIGNMENT);
         panel.add(row1);
         panel.add(row2);
+        panel.add(plotProgressBar);
         panel.add(row3);
         panel.add(layerScroll);
         panel.add(row4);
@@ -1939,26 +1951,30 @@ public class PlotterPanel extends JPanel {
         timeLabel.setToolTipText(tooltip.toString());
     }
 
-    /** Updates {@link #timeLabel} with live elapsed/estimated time while a plot is running. */
+    /** Updates {@link #timeLabel} with live elapsed/remaining time while a plot is running. */
     private void updateTimeLabelDuringPlot() {
-        if (currentEstimate == null) {
-            return;
-        }
-        double speedFactor = 100.0 / speedPercent;
         double elapsed = (System.currentTimeMillis() - plotStartMillis) / 1000.0;
-        StringBuilder text = new StringBuilder("Elapsed: ")
-                .append(TimeEstimator.format(elapsed))
-                .append(" / Est: ")
-                .append(TimeEstimator.format(currentEstimate.totalSeconds() * speedFactor));
-        if (currentLayerId != null) {
-            double layerElapsed = (System.currentTimeMillis() - layerStartMillis) / 1000.0;
-            double layerEstimate = currentEstimate.layers().stream()
-                    .filter(le -> le.layerId().equals(currentLayerId))
-                    .mapToDouble(TimeEstimator.LayerEstimate::estimatedSeconds)
-                    .findFirst().orElse(0);
-            text.append(" | ").append(currentLayerId).append(": ")
-                    .append(TimeEstimator.format(layerElapsed)).append(" / ").append(TimeEstimator.format(layerEstimate * speedFactor));
+        int done = progressDone;
+        int total = progressTotal;
+
+        StringBuilder text = new StringBuilder();
+
+        // Layer X/N prefix once we know which layer we're on.
+        if (currentLayerIndex > 0 && totalLayers > 0) {
+            text.append("Layer ").append(currentLayerIndex).append('/').append(totalLayers).append("  ·  ");
         }
+
+        text.append("Elapsed: ").append(TimeEstimator.format(elapsed));
+
+        // Pace-extrapolated remaining time (once we have meaningful progress).
+        if (done > 0 && total > 0 && elapsed > 0) {
+            double remaining = elapsed * (total - done) / (double) done;
+            text.append("  ·  ~").append(TimeEstimator.format(remaining)).append(" remaining");
+        } else if (currentEstimate != null) {
+            double speedFactor = 100.0 / speedPercent;
+            text.append(" / Est: ").append(TimeEstimator.format(currentEstimate.totalSeconds() * speedFactor));
+        }
+
         timeLabel.setText(text.toString());
     }
 
@@ -2493,15 +2509,32 @@ public class PlotterPanel extends JPanel {
             log("Layer '" + layer.id() + "' ready. Click Confirm Layer to start.");
             confirmGate.acquire();
         });
+        int[] layerCounter = {0};
+        int totalLayersCount = toPlot.layers().size();
         service.setLayerStartedCallback(layer -> SwingUtilities.invokeLater(() -> {
             currentLayerId = layer.id();
+            currentLayerIndex = ++layerCounter[0];
+            totalLayers = totalLayersCount;
             layerStartMillis = System.currentTimeMillis();
         }));
+        service.setProgressCallback((done, total) -> {
+            progressDone = done;
+            progressTotal = total;
+            int pct = total > 0 ? done * 100 / total : 0;
+            SwingUtilities.invokeLater(() -> {
+                plotProgressBar.setValue(pct);
+                plotProgressBar.setString(pct + "%");
+            });
+        });
 
         confirmGate.drainPermits();
         activeService = service;
         currentEstimate = TimeEstimator.estimate(toPlot, config.gcode, config.stations);
         currentLayerId = null;
+        currentLayerIndex = 0;
+        totalLayers = totalLayersCount;
+        progressDone = 0;
+        progressTotal = 0;
         plotStartMillis = System.currentTimeMillis();
         setPlottingState(true);
         plotClockTimer = new javax.swing.Timer(500, e -> updateTimeLabelDuringPlot());
@@ -2563,6 +2596,11 @@ public class PlotterPanel extends JPanel {
         for (JCheckBox box : layerChecks) {
             box.setEnabled(!plotting);
         }
+        plotProgressBar.setVisible(plotting);
+        if (plotting) {
+            plotProgressBar.setValue(0);
+            plotProgressBar.setString("0%");
+        }
         if (!plotting) {
             paused = false;
             pauseBtn.setText("Pause");
@@ -2571,6 +2609,8 @@ public class PlotterPanel extends JPanel {
                 plotClockTimer = null;
             }
             currentLayerId = null;
+            progressDone = 0;
+            progressTotal = 0;
             refreshTimeEstimate();
         }
         refreshGuidance();
