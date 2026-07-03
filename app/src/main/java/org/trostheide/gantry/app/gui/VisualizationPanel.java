@@ -42,6 +42,13 @@ public class VisualizationPanel extends JPanel {
      *  its {@code DrawCommand} for deletion (Tier A stroke editing). */
     private final List<Integer> pathCommandId = new ArrayList<>();
 
+    /** When true, draw dashed pen-up travel segments between consecutive strokes in the same layer. */
+    private boolean showTravelOverlay = false;
+    /** Cached pen-down distance (mm) across all paths; 0 until paths are loaded. */
+    private double travelPenDownMm;
+    /** Cached total travel distance (pen-down + pen-up mm); 0 until paths are loaded. */
+    private double travelTotalMm;
+
     /**
      * Indices of the layers currently selected for display. Selected layers draw in full colour;
      * unselected layers are ghosted (dimmed) for context. Defaults to "all layers" on load; the
@@ -304,6 +311,8 @@ public class VisualizationPanel extends JPanel {
     /** Clears the loaded drawing and resets the overlay transform, leaving an empty bed. */
     public void clearDrawing() {
         allPaths.clear();
+        travelPenDownMm = 0;
+        travelTotalMm = 0;
         overlayOffsetX = 0;
         overlayOffsetY = 0;
         overlayScale = 1.0;
@@ -931,6 +940,7 @@ public class VisualizationPanel extends JPanel {
             selectedLayers.add(li);
         }
 
+        computeTravelStats();
         recalculateTransform();
         repaint();
     }
@@ -974,6 +984,17 @@ public class VisualizationPanel extends JPanel {
     public void setColorByLayer(boolean enabled) {
         this.colorByLayer = enabled;
         repaint();
+    }
+
+    /** Shows or hides dashed pen-up travel lines between consecutive strokes (same layer). */
+    public void setShowTravelOverlay(boolean show) {
+        showTravelOverlay = show;
+        repaint();
+    }
+
+    /** Whether the travel overlay is currently on. */
+    public boolean isShowTravelOverlay() {
+        return showTravelOverlay;
     }
 
     /** The colour a given layer index is drawn in (used e.g. for legend swatches). */
@@ -1103,6 +1124,27 @@ public class VisualizationPanel extends JPanel {
 
     private double[] contentBoundsArray() {
         return new double[] { rawMinX, rawMaxX, rawMinY, rawMaxY };
+    }
+
+    /** Computes and caches pen-down and total travel distances (mm) across all loaded paths. */
+    private void computeTravelStats() {
+        travelPenDownMm = 0;
+        double penUpMm = 0;
+        for (int i = 0; i < allPaths.size(); i++) {
+            List<Point2D> path = allPaths.get(i);
+            for (int j = 1; j < path.size(); j++) {
+                Point2D a = path.get(j - 1), b = path.get(j);
+                travelPenDownMm += Math.hypot(b.x() - a.x(), b.y() - a.y());
+            }
+            if (i + 1 < allPaths.size()
+                    && pathLayer.get(i).equals(pathLayer.get(i + 1))
+                    && !path.isEmpty() && !allPaths.get(i + 1).isEmpty()) {
+                Point2D end = path.get(path.size() - 1);
+                Point2D next = allPaths.get(i + 1).get(0);
+                penUpMm += Math.hypot(next.x() - end.x(), next.y() - end.y());
+            }
+        }
+        travelTotalMm = travelPenDownMm + penUpMm;
     }
 
     /**
@@ -1445,6 +1487,38 @@ public class VisualizationPanel extends JPanel {
             }
         }
 
+        // --- Travel overlay: dashed pen-up segments coloured by distance ---
+        if (showTravelOverlay) {
+            float[] dash = {8.0f / (float) scale, 5.0f / (float) scale};
+            for (int i = 0; i < allPaths.size() - 1; i++) {
+                if (!pathLayer.get(i).equals(pathLayer.get(i + 1))) {
+                    continue;
+                }
+                List<Point2D> cur = allPaths.get(i);
+                List<Point2D> nxt = allPaths.get(i + 1);
+                if (cur.isEmpty() || nxt.isEmpty()) {
+                    continue;
+                }
+                Point2D endPt = cur.get(cur.size() - 1);
+                Point2D startPt = nxt.get(0);
+                double distMm = Math.hypot(endPt.x() - startPt.x(), endPt.y() - startPt.y());
+                Color travelColor;
+                if (distMm < 20) {
+                    travelColor = new Color(80, 200, 80, 160);
+                } else if (distMm < 80) {
+                    travelColor = new Color(220, 170, 50, 160);
+                } else {
+                    travelColor = new Color(220, 60, 60, 180);
+                }
+                g2.setColor(travelColor);
+                g2.setStroke(new BasicStroke((float) (1.0 / scale), BasicStroke.CAP_BUTT,
+                        BasicStroke.JOIN_MITER, 10.0f, dash, 0.0f));
+                double[] from = transformPoint(endPt);
+                double[] to = transformPoint(startPt);
+                g2.draw(new java.awt.geom.Line2D.Double(from[0], from[1], to[0], to[1]));
+            }
+        }
+
         // --- Hatch-mode hover highlight: tint the closed region the next click would fill ---
         if (interactionMode == InteractionMode.HATCH
                 && hoverRegionIndex >= 0 && hoverRegionIndex < allPaths.size()) {
@@ -1562,10 +1636,13 @@ public class VisualizationPanel extends JPanel {
         // --- HUD ---
         g2.setColor(new Color(180, 180, 180));
         g2.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 11));
+        String travelHud = (travelTotalMm > 0)
+                ? String.format(" | Travel: %.0f%%", 100.0 * travelPenDownMm / travelTotalMm)
+                : "";
         g2.drawString(String.format(
-                "Pos: %.1f, %.1f | Speed: %d%% | View: %.0f%% | Align: %s | Rot: %d | Origin: %s | %s",
+                "Pos: %.1f, %.1f | Speed: %d%% | View: %.0f%% | Align: %s | Rot: %d | Origin: %s | %s%s",
                 currentX, currentY, speedPercent, viewZoom * 100, canvasAlignment, dataRotation,
-                machineOrigin, orientation), 10, h - 10);
+                machineOrigin, orientation, travelHud), 10, h - 10);
         if (hasOverlayTransform()) {
             g2.drawString(String.format(
                     "Drag: dX=%.1f dY=%.1f Scale=%.0f%% | Bed: %.0fx%.0f",

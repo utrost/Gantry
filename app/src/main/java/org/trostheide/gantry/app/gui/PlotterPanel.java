@@ -118,6 +118,10 @@ public class PlotterPanel extends JPanel {
     private volatile PlotService activeService;
     private final Semaphore confirmGate = new Semaphore(0);
     private boolean paused;
+    private JMenuItem replotMenuItem;
+    private JCheckBoxMenuItem showTravelItem;
+    /** True after a plot has completed at least once for the current drawing; enables Re-plot. */
+    private boolean canReplot;
     private TimeEstimator.PlotEstimate currentEstimate;
     private volatile int speedPercent = 100;
     private javax.swing.Timer plotClockTimer;
@@ -410,6 +414,12 @@ public class PlotterPanel extends JPanel {
         fileMenu.add(tip(menuItem("Replay G-code...", e -> onReplayGcode(), true),
                 "Stream an existing G-code file (.gcode) straight to the plotter, bypassing the "
                         + "command model."));
+        replotMenuItem = accel(tip(menuItem("Re-plot Last Job", e -> onStartPlot(), false),
+                "Start the exact same plot again immediately — same drawing, layer selection, and settings. "
+                        + "Available after a plot completes or is stopped."),
+                KeyEvent.VK_R, shortcut);
+        replotMenuItem.setEnabled(false);
+        fileMenu.add(replotMenuItem);
         fileMenu.addSeparator();
         fileMenu.add(accel(menuItem("Exit", e -> onExit(), false), KeyEvent.VK_Q, shortcut));
         menuBar.add(fileMenu);
@@ -492,6 +502,15 @@ public class PlotterPanel extends JPanel {
                 "Drive the head to each refill station to confirm the brush lands over the pot; "
                         + "nudge any that are off and save the corrected position."));
         menuBar.add(machineMenu);
+
+        JMenu viewMenu = new JMenu("View");
+        viewMenu.setMnemonic(KeyEvent.VK_V);
+        showTravelItem = new JCheckBoxMenuItem("Show Travel Overlay");
+        showTravelItem.setToolTipText("Draw pen-up moves as dashed lines coloured by distance "
+                + "(green=short, orange=medium, red=long). Shows travel efficiency % in the HUD.");
+        showTravelItem.addActionListener(e -> visPanel.setShowTravelOverlay(showTravelItem.isSelected()));
+        viewMenu.add(showTravelItem);
+        menuBar.add(viewMenu);
 
         JMenu settingsMenu = new JMenu("Settings");
         settingsMenu.setMnemonic(KeyEvent.VK_S);
@@ -2057,6 +2076,7 @@ public class PlotterPanel extends JPanel {
                 undoMenuItem.setEnabled(false);
             }
             hatchCommandIds.clear(); // a freshly loaded drawing has no session hatch strokes
+            resetReplot();
             visPanel.loadFromOutput(currentOutput);
             visPanel.setContentMotorMin(0, 0);
             refreshLayerSelector();
@@ -2097,6 +2117,7 @@ public class PlotterPanel extends JPanel {
                 undoMenuItem.setEnabled(false);
             }
             hatchCommandIds.clear(); // a freshly loaded drawing has no session hatch strokes
+            resetReplot();
             visPanel.loadFromOutput(currentOutput);
             visPanel.setContentMotorMin(0, 0);
             refreshLayerSelector();
@@ -2202,6 +2223,7 @@ public class PlotterPanel extends JPanel {
                 undoMenuItem.setEnabled(false);
             }
             hatchCommandIds.clear(); // a freshly loaded drawing has no session hatch strokes
+            resetReplot();
             visPanel.loadFromOutput(currentOutput);
             visPanel.setContentMotorMin(0, 0);
             refreshLayerSelector();
@@ -2474,6 +2496,19 @@ public class PlotterPanel extends JPanel {
         for (JComponent c : connectionRequiredControls) {
             c.setEnabled(enabled);
         }
+        updateReplotMenuItem();
+    }
+
+    private void updateReplotMenuItem() {
+        if (replotMenuItem != null) {
+            replotMenuItem.setEnabled(canReplot && !plotting && backend != null && currentOutput != null);
+        }
+    }
+
+    /** Called whenever a new drawing replaces the current one; invalidates the stored re-plot offer. */
+    private void resetReplot() {
+        canReplot = false;
+        updateReplotMenuItem();
     }
 
     private void onStartPlot() {
@@ -2544,7 +2579,17 @@ public class PlotterPanel extends JPanel {
         new Thread(() -> {
             try {
                 service.plot(finalOutput);
-                log("--- Plot finished ---");
+                long actualMs = System.currentTimeMillis() - plotStartMillis;
+                double actualSec = actualMs / 1000.0;
+                TimeEstimator.PlotEstimate est = currentEstimate;
+                if (est != null) {
+                    String estFmt = TimeEstimator.format(est.totalSeconds() * (100.0 / speedPercent));
+                    log("--- Plot finished: actual " + TimeEstimator.format(actualSec)
+                            + " / estimated " + estFmt + " ---");
+                } else {
+                    log("--- Plot finished: " + TimeEstimator.format(actualSec) + " ---");
+                }
+                SwingUtilities.invokeLater(() -> { canReplot = true; updateReplotMenuItem(); });
             } finally {
                 activeService = null;
                 SwingUtilities.invokeLater(() -> setPlottingState(false));
@@ -2613,6 +2658,7 @@ public class PlotterPanel extends JPanel {
             progressTotal = 0;
             refreshTimeEstimate();
         }
+        updateReplotMenuItem();
         refreshGuidance();
     }
 
@@ -3007,6 +3053,7 @@ public class PlotterPanel extends JPanel {
         lastImportedSvgFile = null;
         lastImportOptions = null;
         hatchCommandIds.clear();
+        resetReplot();
         undoSnapshot = null;
         if (undoMenuItem != null) {
             undoMenuItem.setEnabled(false);
