@@ -5,17 +5,22 @@ import java.util.List;
 import java.util.Locale;
 import java.util.function.Consumer;
 
-/** A {@link PlotterBackend} that just logs every call and tracks a simulated XY position. */
+/** A {@link PlotterBackend} that logs every call, simulates XY position, and sleeps for
+ *  realistic durations derived from the configured feed rates and pen delays. */
 public class MockPlotterBackend implements PlotterBackend {
 
+    private final GcodeOptions options;
     private final Consumer<String> log;
-    private double x;
-    private double y;
-    private int feedOverride = 100;
-    // Simulated GRBL steps/mm ($100 = X, $101 = Y), so the axis-calibration wizard can be exercised
-    // against the mock: a "$$" query reports these and "$100="/"$101=" writes update them.
+
+    private volatile double x;
+    private volatile double y;
+    private volatile int feedOverride = 100;
+
+    // Simulated GRBL steps/mm ($100 = X, $101 = Y), so the axis-calibration wizard can be
+    // exercised against the mock: a "$$" query reports these and "$100="/"$101=" writes update them.
     private double stepsPerMmX = 80.0;
     private double stepsPerMmY = 80.0;
+
     // Simulated GRBL homing/limit settings ($20–$23) and the active limit pins reported by "?".
     private int softLimits = 0;
     private int hardLimits = 0;
@@ -28,12 +33,17 @@ public class MockPlotterBackend implements PlotterBackend {
         this.simulatedPins = pins == null ? "" : pins;
     }
 
-    public MockPlotterBackend(Consumer<String> log) {
+    public MockPlotterBackend(GcodeOptions options, Consumer<String> log) {
+        this.options = options != null ? options : new GcodeOptions();
         this.log = log != null ? log : message -> { };
     }
 
+    public MockPlotterBackend(Consumer<String> log) {
+        this(new GcodeOptions(), log);
+    }
+
     public MockPlotterBackend() {
-        this(null);
+        this(new GcodeOptions(), null);
     }
 
     @Override
@@ -49,23 +59,20 @@ public class MockPlotterBackend implements PlotterBackend {
 
     @Override
     public void moveto(double x, double y) {
-        this.x = x;
-        this.y = y;
         log.accept(String.format(Locale.ROOT, "[Mock] Move to (%.2f, %.2f) [pen up]", x, y));
+        simulatedMove(x, y, options.feedRateTravel);
     }
 
     @Override
     public void lineto(double x, double y) {
-        this.x = x;
-        this.y = y;
         log.accept(String.format(Locale.ROOT, "[Mock] Draw to (%.2f, %.2f) [pen down]", x, y));
+        simulatedMove(x, y, options.feedRateDraw);
     }
 
     @Override
     public void move(double dx, double dy) {
-        this.x += dx;
-        this.y += dy;
         log.accept(String.format(Locale.ROOT, "[Mock] Relative move (%.2f, %.2f)", dx, dy));
+        simulatedMove(x + dx, y + dy, options.feedRateTravel);
     }
 
     @Override
@@ -76,6 +83,7 @@ public class MockPlotterBackend implements PlotterBackend {
     @Override
     public void pendown() {
         log.accept("[Mock] Pen DOWN");
+        sleepQuietly(options.penDownDelayMillis);
     }
 
     @Override
@@ -150,5 +158,47 @@ public class MockPlotterBackend implements PlotterBackend {
             default -> { return; }
         }
         log.accept("[Mock] Feed override -> " + feedOverride + "%");
+    }
+
+    /**
+     * Sleeps for the time the real machine would take to travel from the current position to
+     * (toX, toY) at the given feed rate, adjusted by the current {@link #feedOverride}.
+     * Updates x/y in 50 ms increments so position queries during a move return interpolated values.
+     */
+    private void simulatedMove(double toX, double toY, int feedRateMmMin) {
+        double distMm = Math.hypot(toX - x, toY - y);
+        if (distMm < 0.001) {
+            x = toX;
+            y = toY;
+            return;
+        }
+        double effectiveFeedMmMin = feedRateMmMin * (feedOverride / 100.0);
+        long totalMs = Math.round(distMm / effectiveFeedMmMin * 60_000.0);
+        if (totalMs <= 0) {
+            x = toX;
+            y = toY;
+            return;
+        }
+        double fromX = x, fromY = y;
+        long elapsed = 0;
+        while (elapsed < totalMs) {
+            long step = Math.min(50, totalMs - elapsed);
+            sleepQuietly(step);
+            elapsed += step;
+            double progress = (double) elapsed / totalMs;
+            x = fromX + (toX - fromX) * progress;
+            y = fromY + (toY - fromY) * progress;
+        }
+    }
+
+    private static void sleepQuietly(long millis) {
+        if (millis <= 0) {
+            return;
+        }
+        try {
+            Thread.sleep(millis);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
     }
 }

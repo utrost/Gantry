@@ -2414,7 +2414,7 @@ public class PlotterPanel extends JPanel {
 
     private void onConnectToggle() {
         if (backend == null) {
-            PlotterBackend newBackend = config.mock ? new MockPlotterBackend(this::log) : new GcodeBackend(config.gcode);
+            PlotterBackend newBackend = config.mock ? new MockPlotterBackend(config.gcode, this::log) : new GcodeBackend(config.gcode);
             if (newBackend instanceof GcodeBackend gcode) {
                 gcode.setPositionCallback((x, y) -> {
                     onJogPositionReport(x, y);
