@@ -2388,8 +2388,12 @@ public class PlotterPanel extends JPanel {
         JPanel wrapper = new JPanel(new BorderLayout(0, 6));
         wrapper.add(header, BorderLayout.NORTH);
         wrapper.add(settingsPanel, BorderLayout.CENTER);
+        // Cap height to the screen so the dialog never overflows on small laptop displays.
+        // Each tab already handles internal scrolling, so no outer JScrollPane is needed.
+        int screenH = java.awt.Toolkit.getDefaultToolkit().getScreenSize().height;
+        wrapper.setPreferredSize(new java.awt.Dimension(560, Math.min(500, screenH - 160)));
 
-        JOptionPane pane = new JOptionPane(new JScrollPane(wrapper), JOptionPane.PLAIN_MESSAGE,
+        JOptionPane pane = new JOptionPane(wrapper, JOptionPane.PLAIN_MESSAGE,
                 JOptionPane.OK_CANCEL_OPTION);
         JDialog dialog = pane.createDialog(this, "Settings");
         wizardBtn.addActionListener(e -> { launchWizard[0] = true; dialog.dispose(); });
