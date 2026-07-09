@@ -57,6 +57,13 @@ final class ToolboxOptionsPanel extends JPanel {
     private final JCheckBox reloopCheck = new JCheckBox("Reloop closed paths");
     private final JCheckBox printStatsCheck = new JCheckBox("Print statistics");
 
+    // --- Hand-drawn ---
+    private final JCheckBox handdrawnCheck = new JCheckBox("Hand-drawn look (jitter)");
+    private final JSpinner handdrawnMagnitudeSpinner = new JSpinner(new SpinnerNumberModel(2.0, 0.0, 100.0, 0.5));
+    private final JSpinner handdrawnSegmentSpinner = new JSpinner(new SpinnerNumberModel(4.0, 0.5, 100.0, 0.5));
+    private final JSpinner handdrawnWavelengthSpinner = new JSpinner(new SpinnerNumberModel(30.0, 1.0, 1000.0, 5.0));
+    private final JSpinner handdrawnSeedSpinner = new JSpinner(new SpinnerNumberModel(1337, 0, Integer.MAX_VALUE, 1));
+
     /** Remembered values, shared across both dialogs and across reopens. */
     private static State savedState;
 
@@ -98,6 +105,13 @@ final class ToolboxOptionsPanel extends JPanel {
         addWide(gbc, linesortTwoOptCheck);
         addWide(gbc, reloopCheck);
         addWide(gbc, printStatsCheck);
+
+        addSection(gbc, "Hand-drawn");
+        addWide(gbc, handdrawnCheck);
+        addRow(gbc, "Jitter magnitude (px)", handdrawnMagnitudeSpinner);
+        addRow(gbc, "Resample segment (px)", handdrawnSegmentSpinner);
+        addRow(gbc, "Wobble wavelength (px)", handdrawnWavelengthSpinner);
+        addRow(gbc, "Random seed", handdrawnSeedSpinner);
 
         cropCustomField.setEnabled(false);
         cropCombo.addActionListener(e -> cropCustomField.setEnabled("Custom".equals(cropCombo.getSelectedItem())));
@@ -172,6 +186,11 @@ final class ToolboxOptionsPanel extends JPanel {
                 .linesort(linesortCheck.isSelected())
                 .linesortTwoOpt(linesortTwoOptCheck.isSelected())
                 .reloop(reloopCheck.isSelected())
+                .handdrawn(handdrawnCheck.isSelected())
+                .handdrawnMagnitude(((Number) handdrawnMagnitudeSpinner.getValue()).doubleValue())
+                .handdrawnSegment(((Number) handdrawnSegmentSpinner.getValue()).doubleValue())
+                .handdrawnWavelength(((Number) handdrawnWavelengthSpinner.getValue()).doubleValue())
+                .handdrawnSeed(((Number) handdrawnSeedSpinner.getValue()).longValue())
                 .build();
 
         savedState = State.capture(this);
@@ -254,6 +273,11 @@ final class ToolboxOptionsPanel extends JPanel {
         final boolean linesortTwoOpt;
         final boolean reloop;
         final boolean printStats;
+        final boolean handdrawn;
+        final double handdrawnMagnitude;
+        final double handdrawnSegment;
+        final double handdrawnWavelength;
+        final int handdrawnSeed;
 
         private State(ToolboxOptionsPanel p) {
             strokeWidth = p.strokeWidthField.getText();
@@ -279,6 +303,11 @@ final class ToolboxOptionsPanel extends JPanel {
             linesortTwoOpt = p.linesortTwoOptCheck.isSelected();
             reloop = p.reloopCheck.isSelected();
             printStats = p.printStatsCheck.isSelected();
+            handdrawn = p.handdrawnCheck.isSelected();
+            handdrawnMagnitude = ((Number) p.handdrawnMagnitudeSpinner.getValue()).doubleValue();
+            handdrawnSegment = ((Number) p.handdrawnSegmentSpinner.getValue()).doubleValue();
+            handdrawnWavelength = ((Number) p.handdrawnWavelengthSpinner.getValue()).doubleValue();
+            handdrawnSeed = ((Number) p.handdrawnSeedSpinner.getValue()).intValue();
         }
 
         static State capture(ToolboxOptionsPanel p) {
@@ -310,6 +339,11 @@ final class ToolboxOptionsPanel extends JPanel {
             p.linesortTwoOptCheck.setSelected(linesortTwoOpt);
             p.reloopCheck.setSelected(reloop);
             p.printStatsCheck.setSelected(printStats);
+            p.handdrawnCheck.setSelected(handdrawn);
+            p.handdrawnMagnitudeSpinner.setValue(handdrawnMagnitude);
+            p.handdrawnSegmentSpinner.setValue(handdrawnSegment);
+            p.handdrawnWavelengthSpinner.setValue(handdrawnWavelength);
+            p.handdrawnSeedSpinner.setValue(handdrawnSeed);
         }
     }
 }

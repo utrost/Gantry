@@ -30,7 +30,12 @@ public record Config(
         double linemergeTolerance,
         boolean linesort,
         boolean linesortTwoOpt,
-        boolean reloop) {
+        boolean reloop,
+        boolean handdrawn,
+        double handdrawnMagnitude,
+        double handdrawnSegment,
+        double handdrawnWavelength,
+        long handdrawnSeed) {
 
     public static class Builder {
         private String inputPath;
@@ -59,6 +64,11 @@ public record Config(
         private boolean linesort = false;
         private boolean linesortTwoOpt = false;
         private boolean reloop = false;
+        private boolean handdrawn = false;
+        private double handdrawnMagnitude = 2.0;
+        private double handdrawnSegment = 4.0;
+        private double handdrawnWavelength = 30.0;
+        private long handdrawnSeed = 1337L;
 
         public Builder inputPath(String inputPath) {
             this.inputPath = inputPath;
@@ -190,13 +200,38 @@ public record Config(
             return this;
         }
 
+        public Builder handdrawn(boolean handdrawn) {
+            this.handdrawn = handdrawn;
+            return this;
+        }
+
+        public Builder handdrawnMagnitude(double handdrawnMagnitude) {
+            this.handdrawnMagnitude = handdrawnMagnitude;
+            return this;
+        }
+
+        public Builder handdrawnSegment(double handdrawnSegment) {
+            this.handdrawnSegment = handdrawnSegment;
+            return this;
+        }
+
+        public Builder handdrawnWavelength(double handdrawnWavelength) {
+            this.handdrawnWavelength = handdrawnWavelength;
+            return this;
+        }
+
+        public Builder handdrawnSeed(long handdrawnSeed) {
+            this.handdrawnSeed = handdrawnSeed;
+            return this;
+        }
+
         public Config build() {
             return new Config(
                     inputPath, outputPath, strokeWidth, palette, enableHatching,
                     globalStyle, overrides, strokeWidthOverrides, hiddenLayers, noHatchColors, minHatchArea, simplifyTolerance,
                     hatchPattern, hatchAngle, hatchGap, rotationDegrees, printStats, cropBounds, optimizePaths,
                     linesimplify, linesimplifyTolerance, linemerge, linemergeTolerance, linesort, linesortTwoOpt,
-                    reloop
+                    reloop, handdrawn, handdrawnMagnitude, handdrawnSegment, handdrawnWavelength, handdrawnSeed
             );
         }
     }

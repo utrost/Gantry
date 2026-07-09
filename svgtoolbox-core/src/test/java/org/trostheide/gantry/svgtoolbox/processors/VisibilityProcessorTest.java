@@ -41,7 +41,7 @@ class VisibilityProcessorTest {
                 HatchStyle.of(45, 5), Collections.emptyMap(), Collections.emptyMap(), 
                 List.of("#ff0000", "#0000ff"), // hidden layers
                 Collections.emptyList(), 0.0,
-                1.0, "linear", 45.0, 5.0, 0.0, false, null, false, false, 0.378, false, 1.89, false, false, false
+                1.0, "linear", 45.0, 5.0, 0.0, false, null, false, false, 0.378, false, 1.89, false, false, false, false, 2.0, 4.0, 30.0, 1337L
         );
 
         VisibilityProcessor processor = new VisibilityProcessor();
@@ -66,7 +66,7 @@ class VisibilityProcessorTest {
                 HatchStyle.of(45, 5), Collections.emptyMap(), Collections.emptyMap(),
                 Collections.emptyList(), // empty hidden layers
                 Collections.emptyList(), 0.0,
-                1.0, "linear", 45.0, 5.0, 0.0, false, null, false, false, 0.378, false, 1.89, false, false, false
+                1.0, "linear", 45.0, 5.0, 0.0, false, null, false, false, 0.378, false, 1.89, false, false, false, false, 2.0, 4.0, 30.0, 1337L
         );
 
         VisibilityProcessor processor = new VisibilityProcessor();
@@ -90,7 +90,7 @@ class VisibilityProcessorTest {
                 HatchStyle.of(45, 5), Collections.emptyMap(), Collections.emptyMap(),
                 List.of("#ff0000"), // hide red
                 Collections.emptyList(), 0.0,
-                1.0, "linear", 45.0, 5.0, 0.0, false, null, false, false, 0.378, false, 1.89, false, false, false
+                1.0, "linear", 45.0, 5.0, 0.0, false, null, false, false, 0.378, false, 1.89, false, false, false, false, 2.0, 4.0, 30.0, 1337L
         );
 
         VisibilityProcessor processor = new VisibilityProcessor();
@@ -121,7 +121,7 @@ class VisibilityProcessorTest {
                 HatchStyle.of(45, 5), Collections.emptyMap(), Collections.emptyMap(),
                 List.of("#ff0000"),
                 Collections.emptyList(), 0.0,
-                1.0, "linear", 45.0, 5.0, 0.0, false, null, false, false, 0.378, false, 1.89, false, false, false
+                1.0, "linear", 45.0, 5.0, 0.0, false, null, false, false, 0.378, false, 1.89, false, false, false, false, 2.0, 4.0, 30.0, 1337L
         );
 
         VisibilityProcessor processor = new VisibilityProcessor();

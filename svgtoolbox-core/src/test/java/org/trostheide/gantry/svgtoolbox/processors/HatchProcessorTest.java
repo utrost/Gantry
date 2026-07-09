@@ -32,7 +32,7 @@ class HatchProcessorTest {
         Config config = new Config(
                 "in", "out", 1.0f, Collections.emptyList(), true,
                 new HatchStyle(45.0, 10.0, "linear"),
-                Collections.emptyMap(), Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), 1.0, 0.0, "linear", 45.0, 5.0, 0.0, false, null, false, false, 0.378, false, 1.89, false, false, false);
+                Collections.emptyMap(), Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), 1.0, 0.0, "linear", 45.0, 5.0, 0.0, false, null, false, false, 0.378, false, 1.89, false, false, false, false, 2.0, 4.0, 30.0, 1337L);
 
         HatchProcessor processor = new HatchProcessor();
         processor.process(doc, config);
@@ -77,7 +77,7 @@ class HatchProcessorTest {
         Config config = new Config(
                 "in", "out", 1.0f, Collections.emptyList(), true,
                 new HatchStyle(0.0, 2.0, "linear"),
-                Collections.emptyMap(), Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), 100.0, 0.0, "linear", 45.0, 5.0, 0.0, false, null, false, false, 0.378, false, 1.89, false, false, false);
+                Collections.emptyMap(), Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), 100.0, 0.0, "linear", 45.0, 5.0, 0.0, false, null, false, false, 0.378, false, 1.89, false, false, false, false, 2.0, 4.0, 30.0, 1337L);
 
         HatchProcessor processor = new HatchProcessor();
         processor.process(doc, config);
@@ -121,7 +121,7 @@ class HatchProcessorTest {
         Config config = new Config(
                 "in", "out", 2.0f, Collections.emptyList(), true,
                 new HatchStyle(45.0, 10.0, "empty"),
-                Collections.emptyMap(), Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), 1.0, 0.0, "empty", 45.0, 5.0, 0.0, false, null, false, false, 0.378, false, 1.89, false, false, false);
+                Collections.emptyMap(), Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), 1.0, 0.0, "empty", 45.0, 5.0, 0.0, false, null, false, false, 0.378, false, 1.89, false, false, false, false, 2.0, 4.0, 30.0, 1337L);
 
         HatchProcessor processor = new HatchProcessor();
         processor.process(doc, config);
@@ -154,7 +154,7 @@ class HatchProcessorTest {
         Config config = new Config(
                 "in", "out", 1.0f, Collections.emptyList(), true,
                 new HatchStyle(45.0, 10.0, "none"),
-                Collections.emptyMap(), Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), 1.0, 0.0, "none", 45.0, 5.0, 0.0, false, null, false, false, 0.378, false, 1.89, false, false, false);
+                Collections.emptyMap(), Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), 1.0, 0.0, "none", 45.0, 5.0, 0.0, false, null, false, false, 0.378, false, 1.89, false, false, false, false, 2.0, 4.0, 30.0, 1337L);
 
         HatchProcessor processor = new HatchProcessor();
         processor.process(doc, config);
@@ -198,7 +198,7 @@ class HatchProcessorTest {
         Config config = new Config(
                 "in", "out", 1.0f, Collections.emptyList(), true,
                 new HatchStyle(0.0, 10.0, "dot", 0.0, 0.0, dotRadius),
-                Collections.emptyMap(), Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), 1.0, 0.0, "dot", 45.0, 5.0, 0.0, false, null, false, false, 0.378, false, 1.89, false, false, false);
+                Collections.emptyMap(), Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), 1.0, 0.0, "dot", 45.0, 5.0, 0.0, false, null, false, false, 0.378, false, 1.89, false, false, false, false, 2.0, 4.0, 30.0, 1337L);
 
         new HatchProcessor().process(doc, config);
 

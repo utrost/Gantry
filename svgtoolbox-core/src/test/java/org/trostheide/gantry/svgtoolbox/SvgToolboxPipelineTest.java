@@ -18,7 +18,7 @@ class SvgToolboxPipelineTest {
         Config config = new Config.Builder().inputPath("in").outputPath("out").build();
         List<Processor> pipeline = SvgToolboxPipeline.buildPipeline(config);
 
-        assertEquals(13, pipeline.size(), "Base pipeline should have 13 processors");
+        assertEquals(14, pipeline.size(), "Base pipeline should have 14 processors");
         assertInstanceOf(VisibilityProcessor.class, pipeline.get(0));
         assertInstanceOf(StyleNormalizerProcessor.class, pipeline.get(1));
         assertInstanceOf(RotateProcessor.class, pipeline.get(2));
@@ -26,12 +26,13 @@ class SvgToolboxPipelineTest {
         assertInstanceOf(PaletteProcessor.class, pipeline.get(4));
         assertInstanceOf(SimplifyProcessor.class, pipeline.get(5));
         assertInstanceOf(HatchProcessor.class, pipeline.get(6));
-        assertInstanceOf(LinesimplifyProcessor.class, pipeline.get(7));
-        assertInstanceOf(LinemergeProcessor.class, pipeline.get(8));
-        assertInstanceOf(LinesortProcessor.class, pipeline.get(9));
-        assertInstanceOf(ReloopProcessor.class, pipeline.get(10));
-        assertInstanceOf(LayerProcessor.class, pipeline.get(11));
-        assertInstanceOf(CropProcessor.class, pipeline.get(12));
+        assertInstanceOf(HandDrawnProcessor.class, pipeline.get(7));
+        assertInstanceOf(LinesimplifyProcessor.class, pipeline.get(8));
+        assertInstanceOf(LinemergeProcessor.class, pipeline.get(9));
+        assertInstanceOf(LinesortProcessor.class, pipeline.get(10));
+        assertInstanceOf(ReloopProcessor.class, pipeline.get(11));
+        assertInstanceOf(LayerProcessor.class, pipeline.get(12));
+        assertInstanceOf(CropProcessor.class, pipeline.get(13));
     }
 
     @Test
@@ -41,8 +42,8 @@ class SvgToolboxPipelineTest {
                 .build();
         List<Processor> pipeline = SvgToolboxPipeline.buildPipeline(config);
 
-        assertEquals(14, pipeline.size());
-        assertInstanceOf(PathOptimizeProcessor.class, pipeline.get(13), "PathOptimizeProcessor should be last");
+        assertEquals(15, pipeline.size());
+        assertInstanceOf(PathOptimizeProcessor.class, pipeline.get(14), "PathOptimizeProcessor should be last");
     }
 
     @Test
@@ -87,11 +88,11 @@ class SvgToolboxPipelineTest {
         int[] calls = {0};
         SvgToolboxPipeline.process(doc, config, (step, total, name) -> {
             calls[0]++;
-            assertEquals(13, total);
+            assertEquals(14, total);
             assertTrue(step >= 1 && step <= total);
             assertNotNull(name);
         });
 
-        assertEquals(13, calls[0]);
+        assertEquals(14, calls[0]);
     }
 }

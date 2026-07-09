@@ -237,7 +237,7 @@ Check **Run SVGToolBox processing** to run the SVGToolBox pre-processing pipelin
 on the SVG before importing. The pipeline runs in this order:
 
 > Visibility → StyleNormalizer → Rotate → StrokeWidth → Palette →
-> Simplify → Hatch → Linesimplify → Linemerge → Linesort → Reloop →
+> Simplify → Hatch → HandDrawn → Linesimplify → Linemerge → Linesort → Reloop →
 > Layer → Crop → PathOptimize (if enabled)
 
 | Field | Description |
@@ -261,6 +261,11 @@ on the SVG before importing. The pipeline runs in this order:
 | Linesort | Reorder paths within each layer to minimise pen travel. |
 | Linesort 2-opt | Enable 2-opt improvement pass on linesort (slower, better result). |
 | Reloop closed paths | Rotate the start point of closed paths to minimise pen-lift distance. |
+| Hand-drawn look (jitter) | Give lines a hand-drawn waver by resampling each path and nudging samples sideways (along the normal), keeping endpoints pinned so shapes still meet. Runs before Linesimplify so the wobble isn't straightened out. |
+| Jitter magnitude | Wobble amplitude in px (default 2.0). |
+| Resample segment | Sample spacing in px (default 4.0); shorter = finer, more faithful curves. |
+| Wobble wavelength | Distance between wobbles in px (default 30.0); long = lazy sweep, short = shaky. |
+| Random seed | Seed for the jitter so a given input plots the same way every time (default 1337). |
 | Print statistics | Print element count and total path length to the console after processing. |
 
 These fall into three groups: **style** (stroke width, palette, hidden layers),
@@ -536,6 +541,11 @@ Key flags:
 | `--linesort` | Sort paths for minimum travel |
 | `--linesort-twoopt` | Add 2-opt pass |
 | `--reloop` | Rotate closed-path start points |
+| `--handdrawn` | Hand-drawn waver (jitter along the normal) |
+| `--handdrawn-magnitude PX` | Jitter amplitude (default 2.0) |
+| `--handdrawn-segment PX` | Resample spacing (default 4.0) |
+| `--handdrawn-wavelength PX` | Wobble wavelength (default 30.0) |
+| `--handdrawn-seed N` | Random seed for reproducible output (default 1337) |
 | `--optimize` | Greedy path reorder |
 | `--toolbox-crop FORMAT` | Crop: A4 / Letter / WxH |
 | `--toolbox-stats` | Print statistics |

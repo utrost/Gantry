@@ -24,7 +24,7 @@ class SimplifyProcessorTest {
         Config config = new Config(
                 "in", "out", 1.0f, Collections.emptyList(), false,
                 HatchStyle.of(45, 5), Collections.emptyMap(), Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), 0.0,
-                1.0, "linear", 45.0, 5.0, 0.0, false, null, false, false, 0.378, false, 1.89, false, false, false
+                1.0, "linear", 45.0, 5.0, 0.0, false, null, false, false, 0.378, false, 1.89, false, false, false, false, 2.0, 4.0, 30.0, 1337L
         );
 
         SimplifyProcessor processor = new SimplifyProcessor();
@@ -58,7 +58,7 @@ class SimplifyProcessorTest {
         Config config = new Config(
                 "in", "out", 1.0f, Collections.emptyList(), false,
                 HatchStyle.of(45, 5), Collections.emptyMap(), Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), 0.0,
-                1.0, "linear", 45.0, 5.0, 0.0, false, null, false, false, 0.378, false, 1.89, false, false, false
+                1.0, "linear", 45.0, 5.0, 0.0, false, null, false, false, 0.378, false, 1.89, false, false, false, false, 2.0, 4.0, 30.0, 1337L
         );
 
         SimplifyProcessor processor = new SimplifyProcessor();
