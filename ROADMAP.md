@@ -893,6 +893,66 @@ ordering as Phases 15→16.
 
 ---
 
+### Phase 18 — On-canvas drawing + command-level geometry transforms (not started)
+
+**Problem.** The `HandDrawnProcessor` (jitter/hand-drawn look) and every other
+`svgtoolbox` `Processor` operate on the **SVG DOM** (`org.w3c.dom.Document`,
+`<path>` elements, px units) and run only *before import*. A line a user draws
+directly on the canvas would be a **`DrawCommand`** — a polyline of `Point`s in
+physical mm, living in the **command model**, which never touches the SVG DOM.
+So none of the SVG processors can be pointed at canvas-drawn geometry, and today
+there is no freehand drawing tool at all: `VisualizationPanel`'s mouse handlers
+only place/resize the drawing overlay and drag stations — they don't create
+geometry.
+
+**Precedent.** Gantry already runs geometry transforms at the command level and
+already exposes them via **Edit → Optimize Commands (JSON)**: `RamerDouglasPeucker`
+/ `OptimizeStage` (the command-level twin of `LinesimplifyProcessor`),
+`PathOptimizer` (sort/merge/reorder), and `MultipassStage`. The established
+pattern is that the same algorithm is implemented once per layer and the two are
+kept from drifting by sharing the underlying math. A command-level hand-drawn
+transform slots in next to `OptimizeStage`.
+
+**Goal — two halves over the one `ProcessorOutput` command model:**
+
+1. **Half A — a freehand/line drawing tool on the canvas.** Extend
+   `VisualizationPanel` so the user can draw new strokes (mouse → build a
+   `DrawCommand` of mm `Point`s) and select existing strokes. This is the larger
+   lift; applying transforms is trivial once lines are `DrawCommand`s.
+2. **Half B — command-level geometry transforms, including hand-drawn jitter.**
+   Extract the jitter math (resample → offset along the normal → pinned
+   endpoints) out of `HandDrawnProcessor` into a **model-agnostic helper over
+   `List<Point>`**, and add a command-level transform (a "Roughen selection"
+   Edit action) that calls it. `HandDrawnProcessor` (SVG side) and the new
+   transform then share one implementation — exactly the `RamerDouglasPeucker` ↔
+   `LinesimplifyProcessor` split.
+
+**Which transforms apply to freehand lines:**
+- **Jitter (hand-drawn)** — the natural fit.
+- **Simplify (RDP)** — already at command level; cleans up shaky mouse input
+  *before* jittering.
+- **Sort / merge / reorder / multipass** — already at command level.
+- *Not applicable:* hatch (needs closed fills + SVG semantics), palette /
+  stroke-width / visibility (colour/style, meaningless for a single-pen freehand
+  line), rotate / crop (the canvas already does placement/resize).
+
+**Design decisions to settle:**
+- **Units.** Command-level magnitude is in **mm**, not px — physically meaningful
+  on a plotter ("wobble by 0.5 mm").
+- **When to apply.** A one-shot "Roughen" action on a selection with a *fixed*
+  seed — never live per-mouse-move (reseeding every frame makes the line crawl).
+  It **bakes into the `DrawCommand` points**, since those are what the plotter
+  streams.
+
+**Out of scope:** bringing hatch/palette/style processors to the command model;
+curve/Bézier drawing tools (polylines only to start); pressure/tilt input.
+
+**Sequencing.** Half B's shared jitter helper can be extracted independently and
+reused first; Half A (the drawing/selection tool) is the gating work for making
+it interactive on user-drawn lines.
+
+---
+
 ### Phase 6 — done
 
 All 13 SVGToolBox SVG→SVG processors (Visibility, StyleNormalizer, Rotate,
