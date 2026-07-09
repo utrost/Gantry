@@ -58,7 +58,7 @@ only an SVG-to-JSON wrapper.
 | Module | Package root | Responsibility | Key types |
 |---|---|---|---|
 | `model` | `org.trostheide.gantry.model` | Shared DTOs and the coordinate-transform math. No logic dependencies. | `ProcessorOutput`, `Layer`, `Command` (+ subtypes), `Point`, `Bounds`, `Metadata`, `CoordinateTransform` |
-| `svgtoolbox-core` | `…svgtoolbox` | SVG→SVG DOM processors (operate on a Batik `org.w3c.dom.Document` in place): hatch, palette, crop, rotate, simplify, line-merge/sort, etc. | `SvgToolboxPipeline`, `Processor`, `Config`, `HatchStyle`, `processors/*`, `patterns/*` |
+| `svgtoolbox-core` | `…svgtoolbox` | SVG→SVG DOM processors (operate on a Batik `org.w3c.dom.Document` in place): hatch, palette, crop, rotate, simplify, line-merge/sort, hand-drawn jitter, etc. | `SvgToolboxPipeline`, `Processor`, `Config`, `HatchStyle`, `processors/*`, `patterns/*` |
 | `pipeline-core` | `…pipeline` | SVG→command-model import and command-model→command-model transforms. | `SvgImportStage`, `SvgImportOptions`, `PaperFormat`, `OptimizeStage`, `MultipassStage`, `PathOptimizer`, `RamerDouglasPeucker`, `ProcessorOutputIO` |
 | `watercolor` | `…watercolor` | Optional colour→paint-station assignment. | `StationMapper`, `PaintStation`, `ColorUtil` |
 | `plotter` | `…plotter` | Pluggable plotter backends + G-code formatting/replay/serial transport. | `PlotterBackend` (interface), `GcodeBackend`, `MockPlotterBackend`, `GcodeFileBackend`, `GcodeFormatter`, `GcodeFileReplay`, `SerialTransport`/`JSerialCommTransport` |

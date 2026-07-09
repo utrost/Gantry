@@ -33,6 +33,11 @@ class ConfigBuilderTest {
         assertTrue(config.palette().isEmpty());
         assertEquals(100.0, config.minHatchArea());
         assertEquals(0.0, config.simplifyTolerance());
+        assertFalse(config.handdrawn());
+        assertEquals(2.0, config.handdrawnMagnitude());
+        assertEquals(4.0, config.handdrawnSegment());
+        assertEquals(30.0, config.handdrawnWavelength());
+        assertEquals(1337L, config.handdrawnSeed());
 
         HatchStyle gs = config.globalStyle();
         assertEquals(45.0, gs.angle());
