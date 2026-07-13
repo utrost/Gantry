@@ -746,9 +746,9 @@ and mock plotting.
 | Watercolor mapping | TS-N1 |
 | Plotting / passes / pause | TS-O1, TS-O2, TS-O3, TS-O4 |
 | Time estimate | TS-P1, TS-P2 |
-| Export / replay / persistence | TS-Q1, TS-Q2, TS-Q3 |
+| Export / replay / persistence | TS-Q1, TS-Q2, TS-Q3, TS-Q4, TS-Q5 |
 | Help / About | TS-R1, TS-R2 |
-| CLI | TS-S1, TS-S2, TS-S3 |
+| CLI | TS-S1, TS-S2, TS-S3, TS-S4 |
 
 ### Not covered by automated unit tests
 

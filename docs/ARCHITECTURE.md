@@ -39,23 +39,21 @@ Maven modules, declared in the root `pom.xml`, with a strictly one-directional
 dependency graph (no cycles). Arrows mean "depends on".
 
 ```
-            ┌─────────────────────────────────────────────┐
-            │                    app                       │  Swing GUI + orchestration
-            └───┬───────┬───────────┬──────────┬───────────┘
-                │       │           │          │
-                ▼       ▼           ▼          ▼
-           pipeline-  plotter   watercolor   model
-            core         │          │          ▲
-              │          └──────────┴──────────┘
-              ▼
-        svgtoolbox-core ───▶ model
-              │
-              ▼
-            model
+app ─┐
+     ├──▶ model, svgtoolbox-core, pipeline-core, watercolor, plotter, vectorize
+cli ─┘
 
-   cli ──▶ pipeline-core (+ svgtoolbox-core, model)
-   cli, app ──▶ vectorize     (optional raster→SVG front stage; no other internal deps)
+svgtoolbox-core ──▶ model
+pipeline-core   ──▶ model, svgtoolbox-core
+watercolor      ──▶ model, pipeline-core
+plotter         ──▶ model
+vectorize       ──▶ no internal Gantry module
 ```
+
+`app` and `cli` are the two assembly modules and therefore declare the same six
+internal dependencies directly. The CLI uses `watercolor` for station mapping,
+`plotter` for G-code artifacts, and `vectorize` for raster input; it is no longer
+only an SVG-to-JSON wrapper.
 
 | Module | Package root | Responsibility | Key types |
 |---|---|---|---|
@@ -65,8 +63,8 @@ dependency graph (no cycles). Arrows mean "depends on".
 | `watercolor` | `…watercolor` | Optional colour→paint-station assignment. | `StationMapper`, `PaintStation`, `ColorUtil` |
 | `plotter` | `…plotter` | Pluggable plotter backends + G-code formatting/replay/serial transport. | `PlotterBackend` (interface), `GcodeBackend`, `MockPlotterBackend`, `GcodeFileBackend`, `GcodeFormatter`, `GcodeFileReplay`, `SerialTransport`/`JSerialCommTransport` |
 | `vectorize` | `…vectorize` | Optional front stage: raster image (JPG/PNG)→SVG via BoofCV edge detection + multiple tracing strategies. Emits an SVG consumed by `SvgImportStage`; depends on no other Gantry module. DrPTrace (in-project `maven-repo`) and the vendored public-domain ImageTracer (`jankovicsandras/imagetracer`) power the two whole-image tracers. | `BoofcvBatikVector`, `Main#runSingleFile`, `VectorizationStrategy` (+ `strategies/*`), `PaintByNumbersProcessor` |
-| `cli` | `…cli` | Headless SVG→JSON converter, plus image→SVG[→JSON] vectorization. | `SvgImportCli`, `VectorizeCli` |
-| `app` | `…app` | Swing GUI, plot orchestration, settings persistence, live visualization. | `GantryApp`, `gui/PlotterPanel`, `gui/VisualizationPanel`, `gui/SvgImportDialog`, `gui/VectorizeDialog`, `gui/EditProcessDialog`, `gui/SettingsPanel`, `plot/PlotService`, `plot/*Config`/`*Settings` |
+| `cli` | `…cli` | Headless SVG/image conversion to flattened command JSON and optional G-code, including optimization, multipass, and station mapping. | `SvgImportCli`, `VectorizeCli`, `CliBatchConfig`, `CliGcodeExporter` |
+| `app` | `…app` | Swing GUI, plot orchestration, project/settings persistence, recovery, job history, and live visualization. | `GantryApp`, `gui/PlotterPanel`, `gui/VisualizationPanel`, `gui/SvgImportDialog`, `gui/VectorizeStudioDialog`, `gui/EditProcessDialog`, `gui/SettingsPanel`, `session/GantryProjectIO`, `plot/PlotJobHistory`, `plot/PlotService` |
 
 **Invariant:** dependencies only ever point "down/right" in the table. `model`
 depends on nothing internal. Never introduce a back-edge (e.g. `model` importing
@@ -369,7 +367,7 @@ Implementations:
 Swing + FlatLaf dark theme. `GantryApp#main` sets up `FlatDarkLaf`, builds a
 `PlotterPanel`, attaches its menu bar, and shows the frame.
 
-- **`PlotterPanel`** (~1,180 lines) — the composition root for the main window.
+- **`PlotterPanel`** (~1,390 lines) — the composition root for the main window.
   It lays out the preview, console, extracted control panels, menus, and workflow
   entry points, then wires their callbacks to document and plot controllers.
   The completed decomposition and its safety invariants are tracked in
@@ -397,7 +395,7 @@ Swing + FlatLaf dark theme. `GantryApp#main` sets up `FlatDarkLaf`, builds a
 - **`PlotJobController`** — Swing-free owner of the connected `PlotterBackend`,
   active `PlotService`, plot worker, pause/resume/cancel, completion cleanup,
   progress state, and re-plot eligibility.
-- **`VisualizationPanel`** (~960 lines) — the live-canvas scene and transform
+- **`VisualizationPanel`** (~950 lines) — the live-canvas scene and transform
   facade. It retains the public canvas API and delegates painting to
   `CanvasRenderer`, mouse gestures to `CanvasInteractionController`, hit testing,
   snapping, viewport inversion, and resize calculations to

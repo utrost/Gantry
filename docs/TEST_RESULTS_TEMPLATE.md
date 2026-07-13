@@ -52,6 +52,7 @@ while executing the scripts in [`TESTING.md`](TESTING.md). One row per script ID
 | TS-L2 | Stroke welding | | |
 | TS-M1 | Jog & pen | | |
 | TS-M2 | Raw G-code field | | |
+| TS-M3 | Soft limits | | |
 | TS-N1 | Map Colors to Stations | | |
 | TS-O1 | Basic plot | | |
 | TS-O2 | Refill / confirm-layer pauses | | |
@@ -60,16 +61,22 @@ while executing the scripts in [`TESTING.md`](TESTING.md). One row per script ID
 | TS-P1 | Pre-plot estimate | | |
 | TS-P2 | Live tracking | | |
 | TS-Q1 | G-code export & replay | | |
-| TS-Q2 | Save/Open command JSON | | |
+| TS-Q2 | Export/Open flattened command JSON | | |
 | TS-Q3 | File-chooser folder memory | | |
+| TS-Q4 | Project round-trip and recovery | | |
+| TS-Q5 | Persistent exact-job history | | |
 | TS-R1 | User Guide dialog | | |
 | TS-R2 | About dialog | | |
 | TS-S1 | CLI basic conversion | | |
 | TS-S2 | CLI toolbox + stats | | |
+| TS-S3 | CLI image vectorization | | |
+| TS-S4 | CLI batch config and G-code | | |
 | TS-T1 | Add station on canvas | | |
 | TS-T2 | Drag station marker | | |
 | TS-T3 | Test-run wizard guards | | |
 | TS-T4 | Test-run: move/wet/nudge/persist | | |
+| TS-U1 | Vectorize studio live preview | | |
+| TS-U2 | Re-vectorize an image | | |
 
 ## Defects raised
 

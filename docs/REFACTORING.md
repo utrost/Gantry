@@ -1,19 +1,19 @@
-# Architecture stabilization — complete
+# Architecture stabilization — complete; composition-root growth monitored
 
 This document records the completed stabilization of Gantry's desktop
 application. Product features remain in `ROADMAP.md`; this document preserves
 the structural boundaries, behavioral invariants, and tests that future work
 must keep intact.
 
-## Why this work is needed
+## Why this work was needed
 
 The Maven modules provide useful boundaries, but two Swing classes have grown
 far beyond a maintainable size:
 
 | Class | Current size | Responsibilities concentrated there |
 |---|---:|---|
-| `PlotterPanel` | 1,183 lines | window composition and delegation to focused workflows, controllers, and views |
-| `VisualizationPanel` | 935 lines | canvas scene/overlay state delegating rendering, interaction, geometry, and context actions |
+| `PlotterPanel` | 1,388 lines | window composition and delegation to focused workflows, controllers, views, project recovery, and recent-job history |
+| `VisualizationPanel` | 951 lines | canvas scene/overlay state delegating rendering, interaction, geometry, and context actions |
 
 `SvgImportStage` (~840 lines), `VectorizeStudioDialog` (~690 lines), and the
 vectorizer controls remain larger classes, but their responsibilities are more
@@ -84,9 +84,10 @@ selection logic should be deterministic and independently tested.
 6. Reassess `SvgImportStage`, vectorizer GUI, and remaining classes over roughly
    500 lines.
 
-## Completion criteria
+## Original completion criteria
 
-- `PlotterPanel` is primarily composition and is below roughly 1,200 lines.
+- `PlotterPanel` is primarily composition and was below roughly 1,200 lines at
+  stabilization completion.
 - `VisualizationPanel` delegates deterministic geometry and state management and
   is below roughly 1,000 lines.
 - Plot/document controllers have no Swing dependencies and have direct tests.
@@ -95,9 +96,13 @@ selection logic should be deterministic and independently tested.
 - `docs/ARCHITECTURE.md` describes the resulting boundaries, not an aspirational
   design.
 
-All criteria above were met on 2026-07-13. Further structural changes should be
-driven by roadmap work—for example, Phase 9's per-item scene model—rather than a
-second general refactoring campaign.
+All criteria above were met on 2026-07-13. The subsequent project persistence,
+recovery, and recent-job milestones grew `PlotterPanel` from 1,183 to 1,388
+lines without reversing the controller/view boundaries. That composition root
+is again a maintenance watch item: extract a focused project/recovery or job
+history coordinator when the next feature materially touches those workflows.
+Multi-document composition is deferred pending a validated user workflow, so it
+is not a reason by itself to start another general refactoring campaign.
 
 ## Working log
 
