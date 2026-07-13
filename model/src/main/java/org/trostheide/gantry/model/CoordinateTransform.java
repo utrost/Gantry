@@ -116,6 +116,10 @@ public class CoordinateTransform {
 
     /**
      * Calculate alignment offset to position content on the machine canvas.
+     * Alignment names always refer to visible canvas corners. The content is first
+     * projected through the effective axis mapping, origin corner and optional final
+     * Flip Y; the resulting screen displacement is then converted back to the motor-space
+     * offset consumed by the plot pipeline.
      *
      * @param canvasAlign  "top-left", "top-right", "bottom-left", "bottom-right", "center"
      * @param contentBounds {minX, maxX, minY, maxY}
@@ -124,7 +128,8 @@ public class CoordinateTransform {
             String canvasAlign, double[] contentBounds,
             double machineW, double machineH,
             boolean swapXY, boolean invertX, boolean invertY,
-            int dataRotation, boolean originRight,
+            int dataRotation, boolean originRight, boolean originBottom,
+            boolean flipY,
             double paddingX, double paddingY) {
 
         double minX = contentBounds[0], maxX = contentBounds[1];
@@ -134,68 +139,77 @@ public class CoordinateTransform {
             {minX, minY}, {maxX, minY}, {minX, maxY}, {maxX, maxY}
         };
 
-        double tMinX = Double.MAX_VALUE, tMaxX = -Double.MAX_VALUE;
-        double tMinY = Double.MAX_VALUE, tMaxY = -Double.MAX_VALUE;
+        double sMinX = Double.MAX_VALUE, sMaxX = -Double.MAX_VALUE;
+        double sMinY = Double.MAX_VALUE, sMaxY = -Double.MAX_VALUE;
 
         for (double[] c : corners) {
             double[] t = transformPoint(c[0], c[1],
                     swapXY, invertX, invertY, machineW, machineH,
                     dataRotation, contentBounds);
-            tMinX = Math.min(tMinX, t[0]);
-            tMaxX = Math.max(tMaxX, t[0]);
-            tMinY = Math.min(tMinY, t[1]);
-            tMaxY = Math.max(tMaxY, t[1]);
+            if (flipY) {
+                t[1] = machineH - t[1];
+            }
+            double[] s = physicalToScreen(t[0], t[1], swapXY,
+                    originRight, originBottom, machineW, machineH);
+            sMinX = Math.min(sMinX, s[0]);
+            sMaxX = Math.max(sMaxX, s[0]);
+            sMinY = Math.min(sMinY, s[1]);
+            sMaxY = Math.max(sMaxY, s[1]);
         }
 
-        double contentLeftEdge, contentRightEdge, targetLeft, targetRight;
-        if (originRight) {
-            contentRightEdge = tMinX;
-            contentLeftEdge = tMaxX;
-            targetLeft = machineW - paddingX;
-            targetRight = paddingX;
-        } else {
-            contentLeftEdge = tMinX;
-            contentRightEdge = tMaxX;
-            targetLeft = paddingX;
-            targetRight = machineW - paddingX;
-        }
+        double displayW = swapXY ? machineH : machineW;
+        double displayH = swapXY ? machineW : machineH;
+        double targetLeft = paddingX;
+        double targetRight = displayW - paddingX;
         double targetTop = paddingY;
-        double targetBottom = machineH - paddingY;
+        double targetBottom = displayH - paddingY;
 
-        double offsetX = 0, offsetY = 0;
+        double screenOffsetX = 0, screenOffsetY = 0;
 
         // Normalize to lowercase for matching
         String align = canvasAlign.toLowerCase().replace(" ", "-");
         switch (align) {
             case "top-left":
             case "top left":
-                offsetX = targetLeft - contentLeftEdge;
-                offsetY = targetTop - tMinY;
+                screenOffsetX = targetLeft - sMinX;
+                screenOffsetY = targetTop - sMinY;
                 break;
             case "top-right":
             case "top right":
-                offsetX = targetRight - contentRightEdge;
-                offsetY = targetTop - tMinY;
+                screenOffsetX = targetRight - sMaxX;
+                screenOffsetY = targetTop - sMinY;
                 break;
             case "bottom-left":
             case "bottom left":
-                offsetX = targetLeft - contentLeftEdge;
-                offsetY = targetBottom - tMaxY;
+                screenOffsetX = targetLeft - sMinX;
+                screenOffsetY = targetBottom - sMaxY;
                 break;
             case "bottom-right":
             case "bottom right":
-                offsetX = targetRight - contentRightEdge;
-                offsetY = targetBottom - tMaxY;
+                screenOffsetX = targetRight - sMaxX;
+                screenOffsetY = targetBottom - sMaxY;
                 break;
             case "center":
-                double tWidth = tMaxX - tMinX;
-                double tHeight = tMaxY - tMinY;
-                offsetX = (machineW - tWidth) / 2.0 - tMinX;
-                offsetY = (machineH - tHeight) / 2.0 - tMinY;
+                screenOffsetX = displayW / 2.0 - (sMinX + sMaxX) / 2.0;
+                screenOffsetY = displayH / 2.0 - (sMinY + sMaxY) / 2.0;
                 break;
         }
 
-        return new double[] { offsetX, offsetY };
+        // Convert the desired screen-space displacement back to the motor-space offset
+        // that PlotService adds before its optional final Flip Y operation.
+        double motorOffsetX;
+        double motorOffsetY;
+        if (swapXY) {
+            motorOffsetY = originRight ? -screenOffsetX : screenOffsetX;
+            motorOffsetX = originBottom ? -screenOffsetY : screenOffsetY;
+        } else {
+            motorOffsetX = originRight ? -screenOffsetX : screenOffsetX;
+            motorOffsetY = originBottom ? -screenOffsetY : screenOffsetY;
+        }
+        if (flipY) {
+            motorOffsetY = -motorOffsetY;
+        }
+        return new double[] { motorOffsetX, motorOffsetY };
     }
 
     /**
@@ -219,5 +233,20 @@ public class CoordinateTransform {
         double screenX = originRight ? (machineW - motorX) : motorX;
         double screenY = originBottom ? (machineH - motorY) : motorY;
         return new double[] { screenX, screenY };
+    }
+
+    /** Exact inverse of {@link #physicalToScreen}. */
+    public static double[] screenToPhysical(double screenX, double screenY,
+            boolean axisSwap, boolean originRight, boolean originBottom,
+            double machineW, double machineH) {
+
+        if (axisSwap) {
+            double motorY = originRight ? (machineH - screenX) : screenX;
+            double motorX = originBottom ? (machineW - screenY) : screenY;
+            return new double[] { motorX, motorY };
+        }
+        double motorX = originRight ? (machineW - screenX) : screenX;
+        double motorY = originBottom ? (machineH - screenY) : screenY;
+        return new double[] { motorX, motorY };
     }
 }

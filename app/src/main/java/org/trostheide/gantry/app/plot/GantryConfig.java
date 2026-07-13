@@ -61,9 +61,10 @@ public class GantryConfig {
      * <ul>
      *   <li>{@code invertX}/{@code originRight} default from "Right" in {@link #machineOrigin}</li>
      *   <li>{@code invertY} defaults from "Bottom" in {@link #machineOrigin}</li>
-     *   <li>extra {@link #invertX}/{@link #invertY}/{@link #swapXY} flags are OR'd in</li>
+     *   <li>extra {@link #invertX}/{@link #invertY} flags correct the origin baseline via XOR;
+     *       {@link #swapXY} is composed with the orientation-derived swap</li>
      *   <li>if {@link #orientation} is "Portrait" and the bed is wider than it is tall, invertX/invertY
-     *       swap with each other, swapXY toggles, and the canvas alignment corner is translated</li>
+     *       swap with each other and swapXY toggles</li>
      * </ul>
      */
     public PlotSettings toPlotSettings() {
@@ -88,41 +89,25 @@ public class GantryConfig {
         boolean effInvertY = originBottom ^ invertY;
         boolean effSwapXY = swapXY;
 
-        String align = canvasAlignment;
-
         boolean needsAxisSwap = "Portrait".equals(orientation) && gcode.machineWidth > gcode.machineHeight;
         if (needsAxisSwap) {
             boolean tmp = effInvertX;
             effInvertX = effInvertY;
             effInvertY = tmp;
             effSwapXY = !effSwapXY;
-            if (align != null) {
-                align = translateAlignmentForPortrait(align, originRight, originBottom);
-            }
         }
 
         settings.invertX = effInvertX;
         settings.invertY = effInvertY;
         settings.swapXY = effSwapXY;
         settings.originRight = originRight;
-        settings.canvasAlign = align;
+        settings.originBottom = originBottom;
+        // Alignment labels describe physical screen corners. CoordinateTransform resolves
+        // those labels after projecting through the effective axis/origin mapping, so they
+        // must not be pre-translated for portrait mode here.
+        settings.canvasAlign = canvasAlignment;
 
         return settings;
     }
 
-    /**
-     * In portrait mode, the alignment corners sharing exactly one component with the origin
-     * corner swap with each other; the origin corner and its diagonal are unchanged.
-     */
-    public static String translateAlignmentForPortrait(String label, boolean originRight, boolean originBottom) {
-        boolean xor = originRight ^ originBottom;
-        if (xor) {
-            if ("Top Left".equals(label)) return "Bottom Right";
-            if ("Bottom Right".equals(label)) return "Top Left";
-        } else {
-            if ("Top Right".equals(label)) return "Bottom Left";
-            if ("Bottom Left".equals(label)) return "Top Right";
-        }
-        return label;
-    }
 }

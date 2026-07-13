@@ -1366,6 +1366,22 @@ first when enabled.
 
 ---
 
+## Architecture stabilization — complete
+
+The product modules remain appropriately separated, but the Swing application
+had accumulated two maintenance hotspots: `PlotterPanel` (~3,270 lines) and
+`VisualizationPanel` (~2,110 lines). Their state, hardware lifecycle, workflows,
+rendering, interaction, geometry, and hit-testing responsibilities have now been
+split into focused controllers and components. The composition shells are about
+1,180 and 960 lines respectively, with controller and deterministic canvas tests.
+
+The detailed boundaries, invariants, delivery sequence, and completion criteria
+are maintained in [`docs/REFACTORING.md`](docs/REFACTORING.md). This roadmap keeps
+only the product-level milestone so architectural work does not become mixed
+with feature history.
+
+---
+
 ## Backlog — unplanned candidate features (operator value)
 
 Captured from a feature review (not yet scheduled). Each carries a short

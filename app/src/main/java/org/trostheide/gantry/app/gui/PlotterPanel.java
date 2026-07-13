@@ -5,9 +5,12 @@ import org.trostheide.gantry.app.plot.CommandFile;
 import org.trostheide.gantry.app.plot.ConfigStore;
 import org.trostheide.gantry.app.plot.GantryConfig;
 import org.trostheide.gantry.app.plot.PlotService;
+import org.trostheide.gantry.app.plot.PlotJobController;
+import org.trostheide.gantry.app.plot.PlotProgressState;
 import org.trostheide.gantry.app.plot.PlotSettings;
 import org.trostheide.gantry.app.plot.StationConfig;
 import org.trostheide.gantry.app.plot.TimeEstimator;
+import org.trostheide.gantry.app.session.DocumentSession;
 import org.trostheide.gantry.model.CoordinateTransform;
 import org.trostheide.gantry.model.Layer;
 import org.trostheide.gantry.model.Point;
@@ -15,7 +18,6 @@ import org.trostheide.gantry.model.ProcessorOutput;
 import org.trostheide.gantry.model.command.Command;
 import org.trostheide.gantry.model.command.DrawCommand;
 import org.trostheide.gantry.pipeline.io.ProcessorOutputIO;
-import org.trostheide.gantry.pipeline.optimize.MultipassStage;
 import org.trostheide.gantry.pipeline.optimize.OptimizeStage;
 import org.trostheide.gantry.pipeline.svgimport.SvgImportStage;
 import org.trostheide.gantry.plotter.GcodeBackend;
@@ -63,77 +65,38 @@ public class PlotterPanel extends JPanel {
 
     private final JButton connectBtn = new JButton("Connect");
     private JMenuItem connectMenuItem;
-    private final JButton startBtn = new JButton("Start Plot");
-    private final JButton preflightBtn = new JButton("Pre-flight...");
-    private final JButton confirmBtn = new JButton("Confirm Layer");
-    private final JButton pauseBtn = new JButton("Pause");
-    private final JButton stopBtn = new JButton("Stop");
     private final JLabel statusLabel = new JLabel("Disconnected");
     private final JLabel guidanceLabel = new JLabel();
     private JPanel guidancePanel;
     private boolean guidanceDismissed;
-    private final JLabel speedLabel = new JLabel("100%");
-    private final JSpinner jogStepSpinner = new JSpinner(new SpinnerNumberModel(10.0, 0.1, 1000.0, 1.0));
+    private PlotControlsPanel plotControls;
+    private DocumentEditor documentEditor;
+    private DocumentFileWorkflow fileWorkflow;
+    private BusyTaskRunner busyTasks;
+    private GcodeFileWorkflow gcodeFiles;
+    private JogPanel jogPanel;
+    private BackendConnectionCoordinator connections;
+    private OverlayControlsPanel overlayControls;
+    private ApplicationDialogs dialogs;
+    private RawCommandPanel rawCommands;
 
-    /** Per-iteration distance for hold-to-jog continuous motion (small ⇒ smooth + prompt stop). */
-    private static final double CONTINUOUS_JOG_MM = 1.0;
-    /** How long a jog button must be held before continuous motion starts (vs a single-step tap). */
-    private static final int JOG_HOLD_DELAY_MS = 300;
-    /** Commanded jog position (mm, work coords) for soft-limit clamping; tracked from home + reports. */
-    private volatile double jogX;
-    private volatile double jogY;
-    private volatile boolean jogPosKnown;
-    /** True while a jog button is held past the threshold (continuous motion in progress). */
-    private volatile boolean jogHolding;
-    private final JTextField rawCommandField = new JTextField(16);
-    private final JSpinner simplifyToleranceSpinner = new JSpinner(new SpinnerNumberModel(0.2, 0.0, 10.0, 0.1));
-    private final JCheckBox reorderStrokesCheckBox = new JCheckBox("Reorder", true);
-    private final JSpinner mergeToleranceSpinner = new JSpinner(new SpinnerNumberModel(0.2, 0.0, 10.0, 0.1));
-    private final JSpinner multipassSpinner = new JSpinner(new SpinnerNumberModel(1, 1, 10, 1));
-    private final JSpinner posXSpinner = new JSpinner(new SpinnerNumberModel(0.0, -2000.0, 2000.0, 1.0));
-    private final JSpinner posYSpinner = new JSpinner(new SpinnerNumberModel(0.0, -2000.0, 2000.0, 1.0));
-    private final JLabel timeLabel = new JLabel("Est: --:--");
-    /** One checkbox per layer (built on load); a ticked box means the layer is shown and plotted. */
-    private final JPanel layerListPanel = new JPanel();
-    private final List<JCheckBox> layerChecks = new ArrayList<>();
-    private final JCheckBox colorByLayerCheck = new JCheckBox("Colour layers", true);
-    /** Guards the layer checkboxes' listeners while we rebuild them programmatically. */
-    private boolean repopulatingLayers;
-
-    private PlotterBackend backend;
-    private ProcessorOutput currentOutput;
-    private File lastImportedSvgFile;
-    private org.trostheide.gantry.pipeline.svgimport.SvgImportOptions lastImportOptions;
-    /** Source image + vectorize options of the last image import, for "Re-vectorize Image…". */
-    private File lastVectorizeImage;
-    private List<String> lastVectorizeArgs;
+    private final PlotJobController plotJobController = new PlotJobController();
+    /** Authoritative Swing-free state for the currently loaded drawing. */
+    private final DocumentSession documentSession = new DocumentSession();
     private JMenuItem reVectorizeMenuItem;
     private JCheckBoxMenuItem hatchRegionModeItem;
     private JCheckBoxMenuItem deleteStrokeModeItem;
     private JCheckBoxMenuItem addLineModeItem;
     private JCheckBoxMenuItem moveStrokeModeItem;
-    /** Single-level undo snapshot of {@link #currentOutput} before the last destructive transform. */
-    private ProcessorOutput undoSnapshot;
     private JMenuItem undoMenuItem;
-    private volatile PlotService activeService;
     private final Semaphore confirmGate = new Semaphore(0);
-    private boolean paused;
     private JMenuItem replotMenuItem;
     private JCheckBoxMenuItem showTravelItem;
     /** True after a plot has completed at least once for the current drawing; enables Re-plot. */
-    private boolean canReplot;
-    private TimeEstimator.PlotEstimate currentEstimate;
+    private final PlotProgressState plotProgress = new PlotProgressState();
     private volatile int speedPercent = 100;
     private javax.swing.Timer plotClockTimer;
-    private long plotStartMillis;
-    private long layerStartMillis;
-    private String currentLayerId;
     private volatile boolean plotting;
-    private volatile int progressDone;
-    private volatile int progressTotal;
-    private volatile int currentLayerIndex;
-    private volatile int totalLayers;
-    private JProgressBar plotProgressBar;
     private java.awt.KeyEventDispatcher jogKeyDispatcher;
 
     /** Controls that should be disabled while a plot is running (jog, pen, speed, edit actions). */
@@ -158,15 +121,51 @@ public class PlotterPanel extends JPanel {
         consoleScroll.setBorder(section("Console"));
         consoleScroll.setPreferredSize(new Dimension(260, 160));
 
+        plotControls = new PlotControlsPanel(new PlotControlsPanel.Actions(
+                () -> { if (config.preflightBeforeStart) onPreflightWizard(); else onStartPlot(); },
+                this::onPreflightWizard, () -> confirmGate.release(), this::onPauseToggle,
+                this::onStopPlot, this::onLayerSelectionChanged, visPanel::setColorByLayer));
+        documentEditor = new DocumentEditor(documentSession, this, this::onDocumentEdited,
+                this::setUndoAvailable, this::log);
+        busyTasks = new BusyTaskRunner(this, this::log, this::error);
+        fileWorkflow = new DocumentFileWorkflow(this, configFile, documentSession, documentEditor,
+                visPanel, new DocumentFileWorkflow.Actions(() -> config, this::resetReplot,
+                this::refreshDocumentUi, enabled -> { if (reVectorizeMenuItem != null) reVectorizeMenuItem.setEnabled(enabled); },
+                this::log, this::error, this::info, this::runBusy));
+        gcodeFiles = new GcodeFileWorkflow(this, configFile, () -> config, this::preparePlotOutput,
+                () -> !selectedLayerIndices().isEmpty(), plotJobController::backend,
+                visPanel::getAlignOffsetX, visPanel::getAlignOffsetY, this::log, this::error, this::info);
+        jogPanel = new JogPanel(() -> config, plotJobController, visPanel, this::runOnBackend, this::log, this);
+        connections = new BackendConnectionCoordinator(plotJobController, this, new BackendConnectionCoordinator.Listener() {
+            public void connectionState(boolean connecting, boolean connected, boolean failed){showConnectionState(connecting,connected,failed);}
+            public void position(double x,double y){onJogPositionReport(x,y);SwingUtilities.invokeLater(()->visPanel.updatePosition(x,y));}
+            public void speed(int percent){SwingUtilities.invokeLater(()->onSpeedChanged(percent));}
+            public void sent(String line){log("> "+line);} public void log(String line){PlotterPanel.this.log(line);}
+            public void stopPlot(){onStopPlot();} public void refreshGuidance(){PlotterPanel.this.refreshGuidance();}
+        });
+        overlayControls = new OverlayControlsPanel(visPanel, new OverlayControlsPanel.Actions() {
+            public boolean hasDocument(){return documentSession.currentOutput()!=null;} public void remove(){onRemoveDrawing();}
+            public void hatch(java.awt.geom.Path2D r,int l){onHatchRegion(r,l);} public void clearHatch(java.awt.geom.Path2D r){onClearHatchRegion(r);}
+            public void hatchStyle(){onHatchStyleDialog();} public void delete(int id){onDeleteStroke(id);}
+            public void add(double x1,double y1,double x2,double y2,int l){onAddLine(x1,y1,x2,y2,l);}
+            public void move(int id,double[][]p){onMoveStroke(id,p);} public void duplicate(int id){onDuplicateStroke(id);}
+            public void mode(VisualizationPanel.InteractionMode mode){syncInteractionMode(mode);}
+            public void stationMoved(String n,double x,double y){onStationMovedOnCanvas(n,x,y);} public void stationAdded(double x,double y){onStationAddedOnCanvas(x,y);}
+            public void log(String line){PlotterPanel.this.log(line);}
+        });
+        dialogs = new ApplicationDialogs(this, () -> config, this::saveSettings, this::onSetupWizard,
+                this::onOptimize, () -> documentSession.currentOutput() != null);
+        rawCommands = new RawCommandPanel(this::runOnBackend, this::log);
+
         JPanel right = new JPanel();
         right.setLayout(new BoxLayout(right, BoxLayout.Y_AXIS));
-        right.add(capHeight(jogSection()));
+        right.add(capHeight(jogPanel));
         right.add(Box.createVerticalStrut(3));
-        right.add(capHeight(overlaySection()));
+        right.add(capHeight(overlayControls));
         right.add(Box.createVerticalStrut(3));
-        right.add(capHeight(plotSection()));
+        right.add(capHeight(plotControls));
         right.add(Box.createVerticalStrut(3));
-        right.add(capHeight(rawCommandSection()));
+        right.add(capHeight(rawCommands));
         right.add(Box.createVerticalStrut(3));
         // Console absorbs any leftover vertical space; the fixed sections stay at their natural height.
         right.add(consoleScroll);
@@ -189,13 +188,6 @@ public class PlotterPanel extends JPanel {
         });
         JSplitPane split = controlSplit;
         add(split, BorderLayout.CENTER);
-
-        startBtn.setBackground(ACTION_GREEN);
-        startBtn.setForeground(Color.WHITE);
-        startBtn.setOpaque(true);
-        stopBtn.setBackground(ACTION_RED);
-        stopBtn.setForeground(Color.WHITE);
-        stopBtn.setOpaque(true);
 
         applyConfigToVis();
         setPlottingState(false);
@@ -289,12 +281,12 @@ public class PlotterPanel extends JPanel {
      */
     private void refreshGuidance() {
         String text;
-        if (backend == null) {
+        if (!plotJobController.isConnected()) {
             text = "Step 1: Click Connect to talk to the plotter.";
-        } else if (currentOutput == null) {
+        } else if (documentSession.currentOutput() == null) {
             text = "Step 2: Open Commands (JSON) or Import SVG to load a drawing.";
         } else if (plotting) {
-            text = paused
+            text = plotJobController.isPaused()
                     ? "Plot paused. Click Resume to continue, or Stop to cancel."
                     : "Plotting... Confirm Layer when prompted, or Pause/Stop as needed.";
         } else {
@@ -566,232 +558,20 @@ public class PlotterPanel extends JPanel {
      * second code path.
      */
     private void onPreflightWizard() {
-        if (currentOutput == null) {
-            JOptionPane.showMessageDialog(this, "Load or import a drawing first.",
-                    "Pre-Plot Checklist", JOptionPane.INFORMATION_MESSAGE);
-            return;
-        }
-        List<WizardStep> steps = new ArrayList<>();
-        PreflightConnectStep connectStep = new PreflightConnectStep();
-        steps.add(connectStep);
-        steps.add(new PreflightHomeStep());
-        steps.add(new PreflightFrameStep());
-        PreflightChecklistStep checklistStep = new PreflightChecklistStep();
-        steps.add(checklistStep);
-        steps.add(new PreflightConfirmStep());
-        WizardDialog wizard = new WizardDialog(SwingUtilities.getWindowAncestor(this),
-                "Pre-Plot Checklist", steps);
-        connectStep.attachOwner(wizard);
-        checklistStep.attachOwner(wizard);
-        wizard.setVisible(true);
-        if (wizard.finishedSuccessfully()) {
-            onStartPlot();
-        }
-    }
-
-    /** Step: connect to the plotter, or auto-advance if already connected. */
-    private final class PreflightConnectStep implements WizardStep {
-        private final JPanel panel;
-        private final JLabel status = new JLabel();
-        private WizardDialog owner;
-        private javax.swing.Timer poll;
-
-        PreflightConnectStep() {
-            panel = new JPanel(new BorderLayout(0, 10));
-            panel.setBorder(BorderFactory.createEmptyBorder(16, 16, 16, 16));
-            panel.add(new JLabel("<html>Connect to the plotter before continuing.</html>"), BorderLayout.NORTH);
-            JButton connect = new JButton("Connect");
-            connect.addActionListener(e -> {
-                onConnectToggle();
-                refresh();
-            });
-            JPanel row = new JPanel(new FlowLayout(FlowLayout.LEFT));
-            row.add(connect);
-            row.add(status);
-            panel.add(row, BorderLayout.CENTER);
-        }
-
-        void attachOwner(WizardDialog dialog) {
-            this.owner = dialog;
-        }
-
-        private void refresh() {
-            status.setText(backend != null ? "Connected." : "Not connected.");
-            if (owner != null) {
-                owner.updateNextEnabled();
-            }
-        }
-
-        @Override public String title() {
-            return "Connect";
-        }
-
-        @Override public JComponent panel() {
-            return panel;
-        }
-
-        @Override public boolean canAdvance() {
-            return backend != null;
-        }
-
-        @Override public void onEnter() {
-            refresh();
-            // Connecting happens on a background thread (see onConnectToggle), so poll briefly to
-            // pick up the moment it finishes instead of leaving Next stuck disabled until some
-            // unrelated click happens to call refresh() again.
-            poll = new javax.swing.Timer(300, e -> refresh());
-            poll.start();
-        }
-
-        @Override public void onLeave() {
-            if (poll != null) {
-                poll.stop();
-                poll = null;
-            }
-        }
-    }
-
-    /** Step: run the homing cycle (existing {@code $H} + zero-origin flow). */
-    private final class PreflightHomeStep implements WizardStep {
-        private final JPanel panel;
-        private final JLabel status = new JLabel("Not homed yet.");
-
-        PreflightHomeStep() {
-            panel = new JPanel(new BorderLayout(0, 10));
-            panel.setBorder(BorderFactory.createEmptyBorder(16, 16, 16, 16));
-            panel.add(new JLabel("<html>Run the homing cycle so the machine knows where it is.</html>"),
-                    BorderLayout.NORTH);
-            JButton home = new JButton("Home");
-            home.addActionListener(e -> {
-                onHome();
-                status.setText("Homing requested - check the console for completion.");
-            });
-            JPanel row = new JPanel(new FlowLayout(FlowLayout.LEFT));
-            row.add(home);
-            row.add(status);
-            panel.add(row, BorderLayout.CENTER);
-        }
-
-        @Override public String title() {
-            return "Home";
-        }
-
-        @Override public JComponent panel() {
-            return panel;
-        }
-
-        @Override public boolean isOptional() {
-            return true;
-        }
-    }
-
-    /** Step: trace the job's bounding box pen-up so the operator can check paper placement. */
-    private final class PreflightFrameStep implements WizardStep {
-        private final JPanel panel;
-        private final JLabel status = new JLabel(" ");
-
-        PreflightFrameStep() {
-            panel = new JPanel(new BorderLayout(0, 10));
-            panel.setBorder(BorderFactory.createEmptyBorder(16, 16, 16, 16));
-            panel.add(new JLabel("<html>Trace the job's outline with the pen up, to check it lines up "
-                    + "with the taped-down paper. Repeat as many times as you like.</html>"), BorderLayout.NORTH);
-            JButton frame = new JButton("Frame the job");
-            frame.addActionListener(e -> {
-                frameJob();
-                status.setText("Tracing outline...");
-            });
-            JPanel row = new JPanel(new FlowLayout(FlowLayout.LEFT));
-            row.add(frame);
-            row.add(status);
-            panel.add(row, BorderLayout.CENTER);
-        }
-
-        @Override public String title() {
-            return "Frame the job";
-        }
-
-        @Override public JComponent panel() {
-            return panel;
-        }
-
-        @Override public boolean isOptional() {
-            return true;
-        }
-    }
-
-    /** Step: operator-attested physical checks (not machine-verified). */
-    private final class PreflightChecklistStep implements WizardStep {
-        private final JPanel panel;
-        private final List<JCheckBox> checks = new ArrayList<>();
-        private WizardDialog owner;
-
-        PreflightChecklistStep() {
-            panel = new JPanel();
-            panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
-            panel.setBorder(BorderFactory.createEmptyBorder(16, 16, 16, 16));
-            String penDesc = switch (config.gcode.penMode) {
-                case "zaxis" -> "Z-axis pen holder";
-                case "m3m5" -> "spindle-driven pen holder";
-                default -> "servo pen lift";
-            };
-            for (String label : List.of(
-                    "Correct pen installed for the configured " + penDesc,
-                    "Pen lifts and lowers correctly (jog it once if unsure)",
-                    "Paper is taped down flat at the framed area",
-                    "Correct layers/stations are selected for this job")) {
-                JCheckBox box = new JCheckBox(label);
-                box.addActionListener(e -> { if (owner != null) owner.updateNextEnabled(); });
-                checks.add(box);
-                panel.add(box);
-                panel.add(Box.createVerticalStrut(6));
-            }
-        }
-
-        void attachOwner(WizardDialog dialog) {
-            this.owner = dialog;
-        }
-
-        @Override public String title() {
-            return "Physical checklist";
-        }
-
-        @Override public JComponent panel() {
-            return panel;
-        }
-
-        @Override public boolean canAdvance() {
-            return checks.stream().allMatch(JCheckBox::isSelected);
-        }
-    }
-
-    /** Step: summary + time estimate, then Finish hands off to the existing Start action. */
-    private final class PreflightConfirmStep implements WizardStep {
-        private final JPanel panel;
-        private final JLabel summary = new JLabel();
-
-        PreflightConfirmStep() {
-            panel = new JPanel(new BorderLayout());
-            panel.setBorder(BorderFactory.createEmptyBorder(16, 16, 16, 16));
-            panel.add(summary, BorderLayout.NORTH);
-        }
-
-        @Override public String title() {
-            return "Confirm & start";
-        }
-
-        @Override public JComponent panel() {
-            return panel;
-        }
-
-        @Override public void onEnter() {
-            summary.setText("<html>Everything checks out. Click Finish to start plotting "
-                    + "(this triggers the same Start Plot action as the main toolbar button).</html>");
-        }
+        new PreflightWorkflow(new PreflightWorkflow.Actions(
+                () -> documentSession.currentOutput() != null,
+                plotJobController::isConnected,
+                this::onConnectToggle,
+                this::onHome,
+                this::frameJob,
+                this::onStartPlot,
+                config.gcode.penMode))
+                .show(SwingUtilities.getWindowAncestor(this), this);
     }
 
     /** Sends a pen-up rectangle around the job's current bounds, reusing the existing baked overlay. */
     private void frameJob() {
-        if (currentOutput == null) {
+        if (documentSession.currentOutput() == null) {
             log("ERROR: No drawing loaded.");
             return;
         }
@@ -801,7 +581,7 @@ public class PlotterPanel extends JPanel {
         ProcessorOutput toFrame = preparePlotOutput();
         PlotSettings settings = config.toPlotSettings();
         settings.alignmentOffsetOverride = new double[] { visPanel.getAlignOffsetX(), visPanel.getAlignOffsetY() };
-        double[] bounds = new PlotService(backend, settings).computeFrameBounds(toFrame);
+        double[] bounds = new PlotService(plotJobController.backend(), settings).computeFrameBounds(toFrame);
         if (bounds == null) {
             log("ERROR: Nothing to frame (no drawable points in the selected layers).");
             return;
@@ -825,72 +605,19 @@ public class PlotterPanel extends JPanel {
      * it commits, persists and applies the config exactly like {@code Settings > Preferences…}.
      */
     private void onSetupWizard() {
-        SettingsPanel settings = new SettingsPanel();
-        settings.loadConfig(config);
+        new SetupWorkflow(config, this::saveSetupConfig, this::onCalibrateAxesWizard)
+                .show(SwingUtilities.getWindowAncestor(this));
+    }
 
-        List<WizardStep> steps = new ArrayList<>();
-        steps.add(new PanelStep("Welcome", wrapStep(
-                "<html><h3>Machine setup</h3>This wizard walks the machine settings in the order "
-                        + "you'd set up a new plotter: <b>connection</b>, then <b>bed geometry &amp; "
-                        + "origin</b>, then <b>pen &amp; speeds</b>. You can also reach all of these "
-                        + "any time via <i>Settings &gt; Preferences…</i>.<br><br>Tip: once connected, "
-                        + "use the Jog pad on the main window to confirm the geometry/origin match the "
-                        + "machine before plotting.</html>")));
-        steps.add(new PanelStep("Connection", wrapStep(settings.connectionPanel())));
-        steps.add(new PanelStep("Geometry & origin", wrapStep(settings.geometryPanel())));
-        steps.add(new PanelStep("Pen & speeds", wrapStep(settings.penPanel())));
-
-        // Done step carries an opt-in hand-off into axis calibration, so a first run flows
-        // settings → connect → calibrate as one journey (calibration connects itself).
-        JCheckBox calibrateNext = new JCheckBox(
-                "Continue to axis calibration now (connects to the machine)", true);
-        JPanel donePanel = new JPanel();
-        donePanel.setLayout(new BoxLayout(donePanel, BoxLayout.Y_AXIS));
-        JLabel doneBlurb = new JLabel("<html><body style='width:430px'><h3>All set</h3>Click "
-                + "<b>Finish</b> to save these settings and apply them. Refill stations weren't touched "
-                + "here — edit those under <i>Settings &gt; Preferences…</i> if you use them.</body></html>");
-        doneBlurb.setAlignmentX(JComponent.LEFT_ALIGNMENT);
-        calibrateNext.setAlignmentX(JComponent.LEFT_ALIGNMENT);
-        donePanel.add(doneBlurb);
-        donePanel.add(Box.createVerticalStrut(12));
-        donePanel.add(calibrateNext);
-        steps.add(new PanelStep("Done", wrapStep(donePanel)));
-
-        WizardDialog wizard = new WizardDialog(SwingUtilities.getWindowAncestor(this),
-                "Machine Setup", steps);
-        wizard.setVisible(true);
-        if (wizard.finishedSuccessfully()) {
-            config = settings.toConfig();
-            try {
-                ConfigStore.save(config, configFile);
-            } catch (IOException ex) {
-                log("WARNING: Failed to save config: " + ex.getMessage());
-            }
-            applyConfigToVis();
-            log("Machine setup saved and applied.");
-            if (calibrateNext.isSelected()) {
-                onCalibrateAxesWizard();
-            }
+    private void saveSetupConfig(GantryConfig updated) {
+        config = updated;
+        try {
+            ConfigStore.save(config, configFile);
+        } catch (IOException ex) {
+            log("WARNING: Failed to save config: " + ex.getMessage());
         }
-    }
-
-    /** Wraps a settings section (or an HTML blurb) in a padded, scrollable wizard-step panel. */
-    private static JComponent wrapStep(JComponent content) {
-        JPanel panel = new JPanel(new BorderLayout());
-        panel.setBorder(BorderFactory.createEmptyBorder(8, 8, 8, 8));
-        panel.add(content, BorderLayout.NORTH);
-        JScrollPane scroll = new JScrollPane(panel);
-        scroll.setBorder(BorderFactory.createEmptyBorder());
-        return scroll;
-    }
-
-    private static JComponent wrapStep(String html) {
-        // Constrain the HTML body width so the prose wraps to the dialog instead of forcing a
-        // horizontal scrollbar (a bare <html> JLabel lays out at its single-line preferred width).
-        String constrained = html.replaceFirst("(?i)<html>", "<html><body style='width:430px'>");
-        JLabel label = new JLabel(constrained);
-        label.setVerticalAlignment(SwingConstants.TOP);
-        return wrapStep(label);
+        applyConfigToVis();
+        log("Machine setup saved and applied.");
     }
 
     /**
@@ -901,422 +628,17 @@ public class PlotterPanel extends JPanel {
      * it). Requires a live connection — the scale half reads/writes GRBL settings over serial.
      */
     private void onCalibrateAxesWizard() {
-        // No "connect first" dead-end: the wizard's own Connect step establishes the link (using the
-        // saved connection settings / mock) before any step that drives the machine.
-        List<WizardStep> steps = new ArrayList<>();
-        steps.add(new PanelStep("Intro", wrapStep(
-                "<html><h3>Axis calibration</h3>First this connects to the plotter, then:<br>"
-                        + "<b>1. Direction</b> — jog each motor axis and click the way the pen actually "
-                        + "moved; the wizard derives the right swap/invert settings (it catches "
-                        + "swapped axes, not just reversed ones).<br>"
-                        + "<b>2. Scale</b> — command a known distance on each axis, measure what the "
-                        + "machine actually moved with a ruler, and the wizard computes and writes the "
-                        + "corrected steps/mm (<code>$100</code>/<code>$101</code>).<br>"
-                        + "<b>3. Limit switches</b> — record whether the machine has them, enable homing, "
-                        + "and watch each switch register as you press it.<br>"
-                        + "<b>4. Pen lift</b> — pick the lift type (servo / Z / M3-M5) and test it.<br><br>"
-                        + "<b>Clear the bed and make sure the pen is up</b> — this moves the head.</html>")));
-        PreflightConnectStep connectStep = new PreflightConnectStep();
-        steps.add(connectStep);
-        steps.add(new CalibDirectionStep());
-        steps.add(new CalibScaleStep('X', GrblSettings.X_STEPS_PER_MM));
-        steps.add(new CalibScaleStep('Y', GrblSettings.Y_STEPS_PER_MM));
-        steps.add(new CalibLimitsStep());
-        steps.add(new CalibZStep());
-        steps.add(new PanelStep("Done", wrapStep(
-                "<html><h3>Calibration complete</h3>Any direction fix, corrected steps/mm, limit "
-                        + "settings and pen-lift values have been applied. Re-run this any time from "
-                        + "<i>Machine &gt; Calibrate Axes…</i>.</html>")));
-
-        WizardDialog wizard = new WizardDialog(SwingUtilities.getWindowAncestor(this), "Calibrate Axes", steps);
-        connectStep.attachOwner(wizard);
-        wizard.setVisible(true);
-        if (wizard.finishedSuccessfully()) {
-            try {
-                ConfigStore.save(config, configFile);
-            } catch (IOException ex) {
-                log("WARNING: Failed to save config: " + ex.getMessage());
-            }
-            applyConfigToVis();
-            log("Axis calibration finished.");
-        }
+        new CalibrationWorkflow(SwingUtilities.getWindowAncestor(this), config,
+                plotJobController::isConnected, this::onConnectToggle, this::runOnBackend,
+                this::log, this::applyConfigToVis, this::saveCalibrationConfig).show();
     }
 
-    /**
-     * Direction sanity-check step: jog +X / +Y a fixed amount and let the operator say whether the
-     * machine moved the expected way; "moved the wrong way" toggles the matching invert flag on
-     * {@link #config} (applied for real on Finish). Uses the existing {@link #jog} action so the
-     * test reflects exactly how plotting will move the head.
-     */
-    /** How far each raw-motor calibration jog moves (mm) — big enough to read the direction clearly. */
-    private static final double CALIB_JOG_MM = 20.0;
-
-    /**
-     * Direction calibration by observation (Phase 16b): centre the pen, jog each <em>raw motor</em>
-     * axis, and click the arrow for the way the pen actually moved. {@link AxisDirectionSolver}
-     * derives swap + invert in one shot — catching an axis <em>swap</em> the old two-checkbox step
-     * couldn't — and applies it to the config (and the live preview) immediately.
-     */
-    private final class CalibDirectionStep implements WizardStep {
-        private final JPanel panel;
-        private final JLabel result = new JLabel(" ");
-        private AxisDirectionSolver.Dir observedX;
-        private AxisDirectionSolver.Dir observedY;
-
-        CalibDirectionStep() {
-            panel = new JPanel();
-            panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
-            panel.setBorder(BorderFactory.createEmptyBorder(12, 12, 12, 12));
-            panel.add(new JLabel("<html><b>1.</b> Jog the head to roughly the <b>middle of the bed</b> "
-                    + "(use the main Jog pad) so it has room to move in every direction.</html>"));
-            panel.add(Box.createVerticalStrut(10));
-            panel.add(new JLabel("<html><b>2.</b> Move each motor axis and click the arrow for the way "
-                    + "the pen <b>actually</b> moved. Right/Up are the on-screen +X/+Y senses.</html>"));
-            panel.add(Box.createVerticalStrut(10));
-            panel.add(axisRow("Move motor X +", CALIB_JOG_MM, 0, d -> { observedX = d; recompute(); }));
-            panel.add(Box.createVerticalStrut(8));
-            panel.add(axisRow("Move motor Y +", 0, CALIB_JOG_MM, d -> { observedY = d; recompute(); }));
-            panel.add(Box.createVerticalStrut(12));
-            result.setForeground(new Color(0, 110, 60));
-            panel.add(result);
+    private void saveCalibrationConfig() {
+        try {
+            ConfigStore.save(config, configFile);
+        } catch (IOException ex) {
+            log("WARNING: Failed to save config: " + ex.getMessage());
         }
-
-        private JPanel axisRow(String jogLabel, double dxMm, double dyMm,
-                java.util.function.Consumer<AxisDirectionSolver.Dir> onObserved) {
-            JPanel row = new JPanel(new FlowLayout(FlowLayout.LEFT));
-            JButton jogBtn = new JButton(jogLabel);
-            jogBtn.addActionListener(e -> runOnBackend(b -> b.move(dxMm, dyMm)));
-            row.add(jogBtn);
-            row.add(new JLabel("moved:"));
-            ButtonGroup group = new ButtonGroup();
-            for (AxisDirectionSolver.Dir d : new AxisDirectionSolver.Dir[]{
-                    AxisDirectionSolver.Dir.RIGHT, AxisDirectionSolver.Dir.LEFT,
-                    AxisDirectionSolver.Dir.UP, AxisDirectionSolver.Dir.DOWN}) {
-                JToggleButton b = new JToggleButton(arrow(d));
-                b.setToolTipText(d.toString());
-                b.addActionListener(e -> onObserved.accept(d));
-                group.add(b);
-                row.add(b);
-            }
-            return row;
-        }
-
-        private String arrow(AxisDirectionSolver.Dir d) {
-            return switch (d) {
-                case RIGHT -> "→"; case LEFT -> "←"; case UP -> "↑"; case DOWN -> "↓";
-            };
-        }
-
-        /** Once both axes are observed, solve and apply (or report an inconsistent pair). */
-        private void recompute() {
-            if (observedX == null || observedY == null) {
-                return;
-            }
-            var solved = AxisDirectionSolver.solveEffective(observedX, observedY);
-            if (solved.isEmpty()) {
-                result.setForeground(new Color(180, 60, 60));
-                result.setText("Those two directions can't both be right (the axes are perpendicular) — re-check.");
-                return;
-            }
-            boolean originRight = config.machineOrigin.toLowerCase().contains("right");
-            boolean originBottom = config.machineOrigin.toLowerCase().contains("bottom");
-            AxisDirectionSolver.AxisConfig stored =
-                    AxisDirectionSolver.toStoredExtra(solved.get(), originRight, originBottom);
-            config.swapXY = stored.swapXY();
-            config.invertX = stored.invertX();
-            config.invertY = stored.invertY();
-            applyConfigToVis(); // live preview now matches the machine
-            result.setForeground(new Color(0, 110, 60));
-            result.setText(String.format("Applied: swap=%s, invert X=%s, invert Y=%s.",
-                    stored.swapXY() ? "yes" : "no", stored.invertX() ? "yes" : "no",
-                    stored.invertY() ? "yes" : "no"));
-        }
-
-        @Override public String title() { return "Direction check"; }
-        @Override public JComponent panel() { return panel; }
-    }
-
-    /**
-     * Scale-calibration step for one axis: reads the current GRBL steps/mm, commands a known move,
-     * takes the measured distance, previews the corrected steps/mm, and writes it back. Optional —
-     * an operator who only needed the direction check can Skip it.
-     */
-    private final class CalibScaleStep implements WizardStep {
-        private final char axis;
-        private final int setting;
-        private final JPanel panel;
-        private final JLabel currentLabel = new JLabel("Current steps/mm: (read on entry)");
-        private final JSpinner commandedSpinner = new JSpinner(new SpinnerNumberModel(100.0, 1.0, 1000.0, 10.0));
-        private final JSpinner measuredSpinner = new JSpinner(new SpinnerNumberModel(100.0, 0.1, 2000.0, 1.0));
-        private final JLabel previewLabel = new JLabel("Corrected: —");
-        private Double currentStepsPerMm;
-
-        CalibScaleStep(char axis, int setting) {
-            this.axis = axis;
-            this.setting = setting;
-            panel = new JPanel();
-            panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
-            panel.setBorder(BorderFactory.createEmptyBorder(12, 12, 12, 12));
-
-            panel.add(new JLabel("<html><b>" + axis + " axis</b> scale calibration (GRBL $" + setting + ").</html>"));
-            panel.add(Box.createVerticalStrut(6));
-            panel.add(left(currentLabel));
-
-            JButton moveBtn = new JButton("Move " + axis + " by commanded distance");
-            moveBtn.addActionListener(e -> {
-                double d = ((Number) commandedSpinner.getValue()).doubleValue();
-                runOnBackend(b -> {
-                    b.penup();
-                    if (axis == 'X') { b.move(d, 0); } else { b.move(0, d); }
-                    log(String.format("Calibration: commanded %c move of %.1f mm.", axis, d));
-                });
-            });
-            panel.add(Box.createVerticalStrut(8));
-            panel.add(rowOf(new JLabel("Commanded (mm):"), commandedSpinner, moveBtn));
-            panel.add(Box.createVerticalStrut(4));
-            JButton measureBtn = new JButton("Compute corrected steps/mm");
-            measureBtn.addActionListener(e -> updatePreview());
-            measuredSpinner.addChangeListener(e -> updatePreview());
-            panel.add(rowOf(new JLabel("Measured (mm):"), measuredSpinner, measureBtn));
-            panel.add(Box.createVerticalStrut(8));
-            panel.add(left(previewLabel));
-
-            JButton writeBtn = new JButton("Write $" + setting + " to the machine");
-            writeBtn.addActionListener(e -> writeCorrected());
-            panel.add(Box.createVerticalStrut(6));
-            panel.add(left(writeBtn));
-        }
-
-        private void updatePreview() {
-            if (currentStepsPerMm == null) {
-                previewLabel.setText("Corrected: (read current value first)");
-                return;
-            }
-            double commanded = ((Number) commandedSpinner.getValue()).doubleValue();
-            double measured = ((Number) measuredSpinner.getValue()).doubleValue();
-            Double corrected = GrblSettings.correctedStepsPerMm(currentStepsPerMm, commanded, measured);
-            previewLabel.setText(corrected == null ? "Corrected: (enter a measured distance > 0)"
-                    : String.format("Corrected: %.3f steps/mm (was %.3f)", corrected, currentStepsPerMm));
-        }
-
-        private void writeCorrected() {
-            if (currentStepsPerMm == null) {
-                log("Calibration: no current steps/mm read yet; cannot write.");
-                return;
-            }
-            double commanded = ((Number) commandedSpinner.getValue()).doubleValue();
-            double measured = ((Number) measuredSpinner.getValue()).doubleValue();
-            Double corrected = GrblSettings.correctedStepsPerMm(currentStepsPerMm, commanded, measured);
-            if (corrected == null) {
-                log("Calibration: measured distance must be > 0 to compute a correction.");
-                return;
-            }
-            String cmd = GrblSettings.writeCommand(setting, corrected);
-            runOnBackend(b -> {
-                b.sendRaw(cmd);
-                log(String.format("Calibration: wrote %s ($%d %c steps/mm).", cmd, setting, axis));
-                currentStepsPerMm = corrected;
-                SwingUtilities.invokeLater(() -> {
-                    currentLabel.setText(String.format("Current steps/mm: %.3f", corrected));
-                    updatePreview();
-                });
-            });
-        }
-
-        @Override public String title() { return axis + "-axis scale"; }
-        @Override public JComponent panel() { return panel; }
-        @Override public boolean isOptional() { return true; }
-
-        @Override public void onEnter() {
-            currentLabel.setText("Current steps/mm: reading…");
-            runOnBackend(b -> {
-                Double v = GrblSettings.findSetting(b.sendRaw("$$"), setting);
-                SwingUtilities.invokeLater(() -> {
-                    currentStepsPerMm = v;
-                    currentLabel.setText(v == null ? "Current steps/mm: (couldn't read $" + setting + ")"
-                            : String.format("Current steps/mm: %.3f", v));
-                    updatePreview();
-                });
-            });
-        }
-    }
-
-    /**
-     * Limit/stop-switch step (Phase 16b). Records whether the machine has switches, reads the GRBL
-     * homing/limit settings ($20–$23), lets the operator enable the homing cycle, and — the real
-     * "test" — polls the GRBL status report so pressing each limit switch by hand lights it up live.
-     * Read-only except the explicit homing-enable toggle, so it can't misconfigure the machine.
-     */
-    private final class CalibLimitsStep implements WizardStep {
-        private final JPanel panel;
-        private final JCheckBox hasSwitches = new JCheckBox("My machine has limit / homing switches");
-        private final JCheckBox homingEnabled = new JCheckBox("Homing cycle enabled (GRBL $22)");
-        private final JLabel settingsLabel = new JLabel("GRBL limits: (read on entry)");
-        private final JLabel pinsLabel = new JLabel("Triggered pins: —");
-        private final javax.swing.Timer pollTimer;
-        private boolean syncing;
-
-        CalibLimitsStep() {
-            panel = new JPanel();
-            panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
-            panel.setBorder(BorderFactory.createEmptyBorder(12, 12, 12, 12));
-            panel.add(new JLabel("<html><b>Limit / stop switches.</b> Optional, but they enable homing "
-                    + "(a repeatable origin) and hard limits (over-travel protection).</html>"));
-            panel.add(Box.createVerticalStrut(8));
-
-            hasSwitches.setSelected(config.hasLimitSwitches);
-            hasSwitches.addActionListener(e -> config.hasLimitSwitches = hasSwitches.isSelected());
-            panel.add(left(hasSwitches));
-            panel.add(Box.createVerticalStrut(6));
-            panel.add(left(settingsLabel));
-
-            homingEnabled.addActionListener(e -> {
-                if (syncing) {
-                    return;
-                }
-                String cmd = "$22=" + (homingEnabled.isSelected() ? 1 : 0);
-                runOnBackend(b -> {
-                    b.sendRaw(cmd);
-                    log("Limit setup: wrote " + cmd + (homingEnabled.isSelected()
-                            ? " (homing enabled)" : " (homing disabled)"));
-                });
-            });
-            panel.add(Box.createVerticalStrut(6));
-            panel.add(left(homingEnabled));
-
-            panel.add(Box.createVerticalStrut(12));
-            panel.add(new JLabel("<html><b>Test:</b> press each limit switch by hand — it should appear "
-                    + "below within a second. (Nothing moves.)</html>"));
-            panel.add(Box.createVerticalStrut(4));
-            pinsLabel.setFont(pinsLabel.getFont().deriveFont(Font.BOLD));
-            panel.add(left(pinsLabel));
-
-            pollTimer = new javax.swing.Timer(500, e -> runOnBackend(b -> {
-                String pins = GrblSettings.parsePins(b.sendRaw("?"));
-                SwingUtilities.invokeLater(() -> pinsLabel.setText(pins == null
-                        ? "Triggered pins: (no status from machine)"
-                        : "Triggered pins: " + (pins.isEmpty() ? "none" : pins)));
-            }));
-            pollTimer.setRepeats(true);
-        }
-
-        @Override public String title() { return "Limit switches"; }
-        @Override public JComponent panel() { return panel; }
-        @Override public boolean isOptional() { return true; }
-
-        @Override public void onEnter() {
-            settingsLabel.setText("GRBL limits: reading…");
-            runOnBackend(b -> {
-                List<String> dump = b.sendRaw("$$");
-                Double soft = GrblSettings.findSetting(dump, GrblSettings.SOFT_LIMITS);
-                Double hard = GrblSettings.findSetting(dump, GrblSettings.HARD_LIMITS);
-                Double homing = GrblSettings.findSetting(dump, GrblSettings.HOMING_ENABLE);
-                SwingUtilities.invokeLater(() -> {
-                    settingsLabel.setText(String.format("GRBL limits: soft=$20=%s, hard=$21=%s, homing=$22=%s",
-                            fmtFlag(soft), fmtFlag(hard), fmtFlag(homing)));
-                    syncing = true;
-                    homingEnabled.setSelected(homing != null && homing != 0);
-                    syncing = false;
-                });
-            });
-            pollTimer.start();
-        }
-
-        @Override public void onLeave() {
-            pollTimer.stop();
-        }
-
-        private String fmtFlag(Double v) {
-            return v == null ? "?" : String.valueOf(v.intValue());
-        }
-    }
-
-    /**
-     * Pen-lift (Z) step (Phase 16b): pick the lift type — servo, Z-axis, or M3/M5 spindle — set its
-     * up/down values, and Test them live. Because the connected backend shares {@code config.gcode}
-     * and reads it per pen command, edits here take effect on the very next Test with no reconnect.
-     */
-    private final class CalibZStep implements WizardStep {
-        private final JPanel panel;
-        private final JComboBox<String> modeCombo = new JComboBox<>(new String[]{"servo", "zaxis", "m3m5"});
-        private final JPanel cards = new JPanel(new CardLayout());
-
-        CalibZStep() {
-            panel = new JPanel();
-            panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
-            panel.setBorder(BorderFactory.createEmptyBorder(12, 12, 12, 12));
-            panel.add(new JLabel("<html><b>Pen lift.</b> How does this machine raise and lower the pen?</html>"));
-            panel.add(Box.createVerticalStrut(8));
-
-            modeCombo.setSelectedItem(config.gcode.penMode);
-            modeCombo.addActionListener(e -> {
-                config.gcode.penMode = (String) modeCombo.getSelectedItem();
-                ((CardLayout) cards.getLayout()).show(cards, config.gcode.penMode);
-            });
-            panel.add(rowOf(new JLabel("Lift type:"), modeCombo));
-            panel.add(Box.createVerticalStrut(8));
-
-            cards.add(servoCard(), "servo");
-            cards.add(zCard(), "zaxis");
-            cards.add(m3Card(), "m3m5");
-            ((CardLayout) cards.getLayout()).show(cards, config.gcode.penMode);
-            panel.add(left(cards));
-
-            JButton testBtn = new JButton("Test pen (up → down → up)");
-            testBtn.addActionListener(e -> runOnBackend(b -> {
-                log("Pen test: lifting, lowering, lifting…");
-                b.penup();
-                sleepQuietly(700);
-                b.pendown();
-                sleepQuietly(700);
-                b.penup();
-            }));
-            panel.add(Box.createVerticalStrut(12));
-            panel.add(left(testBtn));
-            panel.add(Box.createVerticalStrut(4));
-            panel.add(new JLabel("<html><i>Adjust the values and re-test until the pen clears the paper "
-                    + "when up and presses firmly when down.</i></html>"));
-        }
-
-        private JPanel servoCard() {
-            JSpinner up = intSpinner(config.gcode.penServoUp, 0, 180, v -> config.gcode.penServoUp = v);
-            JSpinner down = intSpinner(config.gcode.penServoDown, 0, 180, v -> config.gcode.penServoDown = v);
-            JPanel p = new JPanel(new GridLayout(0, 2, 6, 6));
-            p.add(new JLabel("Servo up angle (°)")); p.add(up);
-            p.add(new JLabel("Servo down angle (°)")); p.add(down);
-            return p;
-        }
-
-        private JPanel zCard() {
-            JSpinner up = dblSpinner(config.gcode.zUp, -50, 50, v -> config.gcode.zUp = v);
-            JSpinner down = dblSpinner(config.gcode.zDown, -50, 50, v -> config.gcode.zDown = v);
-            JPanel p = new JPanel(new GridLayout(0, 2, 6, 6));
-            p.add(new JLabel("Z up (mm)")); p.add(up);
-            p.add(new JLabel("Z down (mm)")); p.add(down);
-            return p;
-        }
-
-        private JPanel m3Card() {
-            JPanel p = new JPanel(new FlowLayout(FlowLayout.LEFT));
-            p.add(new JLabel("M3 (down) / M5 (up) spindle control — no extra parameters."));
-            return p;
-        }
-
-        private JSpinner intSpinner(int value, int min, int max, java.util.function.IntConsumer set) {
-            JSpinner s = new JSpinner(new SpinnerNumberModel(value, min, max, 1));
-            s.addChangeListener(e -> set.accept(((Number) s.getValue()).intValue()));
-            return s;
-        }
-
-        private JSpinner dblSpinner(double value, double min, double max, java.util.function.DoubleConsumer set) {
-            JSpinner s = new JSpinner(new SpinnerNumberModel(value, min, max, 0.5));
-            s.addChangeListener(e -> set.accept(((Number) s.getValue()).doubleValue()));
-            return s;
-        }
-
-        @Override public String title() { return "Pen lift (Z)"; }
-        @Override public JComponent panel() { return panel; }
-        @Override public boolean isOptional() { return true; }
     }
 
     /**
@@ -1327,165 +649,9 @@ public class PlotterPanel extends JPanel {
      * {@code config.stations} on Finish, so a misplaced pot found here is fixed for good.
      */
     private void onTestStationsWizard() {
-        if (backend == null) {
-            JOptionPane.showMessageDialog(this, "Connect to the plotter first — the test run drives the\n"
-                            + "head to each station to confirm it's over the pot.",
-                    "Test Color Stations", JOptionPane.INFORMATION_MESSAGE);
-            return;
-        }
-        if (config.stations.isEmpty()) {
-            JOptionPane.showMessageDialog(this, "No refill stations configured yet. Add one by right-clicking\n"
-                            + "the bed (\"Add station here\") or in Settings, then run this wizard.",
-                    "Test Color Stations", JOptionPane.INFORMATION_MESSAGE);
-            return;
-        }
-        List<WizardStep> steps = new ArrayList<>();
-        steps.add(new PanelStep("Intro", wrapStep(
-                "<html><h3>Test color stations</h3>This drives the head to each refill station so you "
-                        + "can confirm the brush lands over the right pot before committing a watercolor "
-                        + "run.<br><br>For each station you can: <b>Move here</b> (pen-up dry visit), run a "
-                        + "<b>Wet test</b> (the station's real dip/swirl), and <b>nudge</b> the position if "
-                        + "it's off — nudges move the head and update the stored coordinates, saved on "
-                        + "Finish.<br><br><b>Make sure the pots are in place and the pen/brush is mounted.</b></html>")));
-        List<StationTestStep> stationSteps = new ArrayList<>();
-        for (Map.Entry<String, StationConfig> e : config.stations.entrySet()) {
-            StationTestStep step = new StationTestStep(e.getKey(), e.getValue());
-            stationSteps.add(step);
-            steps.add(step);
-        }
-        steps.add(new PanelStep("Done", wrapStep(
-                "<html><h3>Test run complete</h3>Any nudged station positions will be saved. Re-run any "
-                        + "time from <i>Machine &gt; Test Color Stations…</i>.</html>")));
-
-        WizardDialog wizard = new WizardDialog(SwingUtilities.getWindowAncestor(this), "Test Color Stations", steps);
-        wizard.setVisible(true);
-        if (wizard.finishedSuccessfully()) {
-            for (StationTestStep step : stationSteps) {
-                StationConfig base = config.stations.get(step.name);
-                if (base == null) continue;
-                config.stations.put(step.name, new StationConfig(round2(step.curX), round2(step.curY),
-                        base.zDown(), base.behavior(), base.color(), base.dwellMs(), base.swirlRadius()));
-            }
-            persistStationsAndRefresh();
-            log("Station test run finished; positions saved.");
-        }
-    }
-
-    /**
-     * One station's step in the test-run wizard: move-here / wet-test / nudge, over a single
-     * {@link StationConfig}. Optional (an operator can Skip a station). Nudges keep {@link #curX}/
-     * {@link #curY} in sync with the head so the saved coordinates match where the brush ended up.
-     */
-    private final class StationTestStep implements WizardStep {
-        private final String name;
-        private final StationConfig base;
-        private double curX;
-        private double curY;
-        private final JPanel panel;
-        private final JLabel coordLabel = new JLabel();
-        private final JSpinner nudgeSpinner = new JSpinner(new SpinnerNumberModel(1.0, 0.1, 50.0, 0.5));
-
-        StationTestStep(String name, StationConfig station) {
-            this.name = name;
-            this.base = station;
-            this.curX = station.x();
-            this.curY = station.y();
-            panel = new JPanel();
-            panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
-            panel.setBorder(BorderFactory.createEmptyBorder(12, 12, 12, 12));
-
-            String colourNote = (station.color() == null || station.color().isBlank())
-                    ? "no colour set" : station.color();
-            panel.add(capHeight(new JLabel("<html><b>Station '" + name + "'</b> — " + colourNote
-                    + ", behaviour <i>" + station.behavior() + "</i>.</html>")));
-            panel.add(Box.createVerticalStrut(6));
-            updateCoordLabel();
-            panel.add(capHeight(left(coordLabel)));
-            panel.add(Box.createVerticalStrut(8));
-
-            JButton moveBtn = new JButton("Move here (pen up)");
-            moveBtn.addActionListener(e -> runOnBackend(b -> {
-                PlotService svc = serviceFor(b);
-                svc.dryVisitStation(currentStation());
-            }));
-            JButton wetBtn = new JButton("Wet test (dip)");
-            wetBtn.addActionListener(e -> runOnBackend(b -> {
-                PlotService svc = serviceFor(b);
-                svc.wetTestStation(currentStation());
-            }));
-            panel.add(capHeight(rowOf(moveBtn, wetBtn)));
-            panel.add(Box.createVerticalStrut(10));
-
-            panel.add(capHeight(left(new JLabel("Nudge the station position (mm), then re-Move to check:"))));
-            JButton xMinus = new JButton("−X");
-            JButton xPlus = new JButton("+X");
-            JButton yMinus = new JButton("−Y");
-            JButton yPlus = new JButton("+Y");
-            xMinus.addActionListener(e -> nudge(-step(), 0));
-            xPlus.addActionListener(e -> nudge(step(), 0));
-            yMinus.addActionListener(e -> nudge(0, -step()));
-            yPlus.addActionListener(e -> nudge(0, step()));
-            panel.add(capHeight(rowOf(new JLabel("Step:"), nudgeSpinner, xMinus, xPlus, yMinus, yPlus)));
-        }
-
-        private double step() {
-            return ((Number) nudgeSpinner.getValue()).doubleValue();
-        }
-
-        /** Moves the head by a machine-space delta and tracks it in the stored coordinates. */
-        private void nudge(double dx, double dy) {
-            curX += dx;
-            curY += dy;
-            updateCoordLabel();
-            runOnBackend(b -> {
-                b.penup();
-                b.move(dx, dy);
-            });
-        }
-
-        private StationConfig currentStation() {
-            return new StationConfig(curX, curY, base.zDown(), base.behavior(), base.color(),
-                    base.dwellMs(), base.swirlRadius());
-        }
-
-        private PlotService serviceFor(PlotterBackend b) {
-            PlotService svc = new PlotService(b, config.toPlotSettings());
-            svc.setLogCallback(PlotterPanel.this::log);
-            return svc;
-        }
-
-        private void updateCoordLabel() {
-            coordLabel.setText(String.format("Position: (%.1f, %.1f) mm", round2(curX), round2(curY)));
-        }
-
-        @Override public String title() { return "Station " + name; }
-        @Override public JComponent panel() { return panel; }
-        @Override public boolean isOptional() { return true; }
-    }
-
-    /** A left-aligned single-component row that won't stretch vertically in a BoxLayout column. */
-    private static JComponent left(JComponent c) {
-        JPanel row = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
-        row.add(c);
-        return row;
-    }
-
-    /** A left-aligned row of components. */
-    private static JComponent rowOf(JComponent... cs) {
-        JPanel row = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        for (JComponent c : cs) {
-            row.add(c);
-        }
-        return row;
-    }
-
-    /** Sleeps without propagating interruption — used to space out a pen test on a worker thread. */
-    private static void sleepQuietly(long millis) {
-        try {
-            Thread.sleep(millis);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
+        new StationTestWorkflow(config, plotJobController::isConnected, this::runOnBackend,
+                this::persistStationsAndRefresh, this::log)
+                .show(SwingUtilities.getWindowAncestor(this), this);
     }
 
     /**
@@ -1514,206 +680,20 @@ public class PlotterPanel extends JPanel {
         return component;
     }
 
-    private static final Dimension JOG_BUTTON_SIZE = new Dimension(54, 54);
-
-    private JButton jogButton(String label) {
-        JButton b = new JButton(label);
-        b.setFont(b.getFont().deriveFont(Font.BOLD, 22f));
-        b.setPreferredSize(JOG_BUTTON_SIZE);
-        b.setMargin(new Insets(0, 0, 0, 0));
-        return b;
-    }
-
-    private JPanel jogSection() {
-        JPanel panel = new JPanel(new GridBagLayout());
-        panel.setBorder(section("Jog"));
-        GridBagConstraints gbc = new GridBagConstraints();
-        gbc.insets = new Insets(2, 2, 2, 2);
-
-        JButton up = requireConnection(disableDuringPlot(jogButton("▲")));
-        JButton down = requireConnection(disableDuringPlot(jogButton("▼")));
-        JButton left = requireConnection(disableDuringPlot(jogButton("◄")));
-        JButton right = requireConnection(disableDuringPlot(jogButton("►")));
-        // Tap = one Step move; press-and-hold = continuous jog until released.
-        wireJogButton(up, 0, 1);
-        wireJogButton(down, 0, -1);
-        wireJogButton(left, -1, 0);
-        wireJogButton(right, 1, 0);
-
-        gbc.gridx = 1; gbc.gridy = 0; panel.add(up, gbc);
-        gbc.gridx = 0; gbc.gridy = 1; panel.add(left, gbc);
-        gbc.gridx = 2; gbc.gridy = 1; panel.add(right, gbc);
-        gbc.gridx = 1; gbc.gridy = 2; panel.add(down, gbc);
-
-        // Step + pen controls tuck into the empty space to the right of the jog cross.
-        JButton penUpBtn = requireConnection(disableDuringPlot(new JButton("Pen Up")));
-        JButton penDownBtn = requireConnection(disableDuringPlot(new JButton("Pen Down")));
-        penUpBtn.addActionListener(e -> runOnBackend(PlotterBackend::penup));
-        penDownBtn.addActionListener(e -> runOnBackend(PlotterBackend::pendown));
-
-        JPanel stepRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 0));
-        jogStepSpinner.setToolTipText("Distance per jog tap (mm). Hold a jog button to move continuously.");
-        stepRow.add(new JLabel("Step (mm)"));
-        stepRow.add(disableDuringPlot(jogStepSpinner));
-
-        JPanel side = new JPanel();
-        side.setLayout(new BoxLayout(side, BoxLayout.Y_AXIS));
-        stepRow.setAlignmentX(LEFT_ALIGNMENT);
-        penUpBtn.setAlignmentX(LEFT_ALIGNMENT);
-        penDownBtn.setAlignmentX(LEFT_ALIGNMENT);
-        penUpBtn.setMaximumSize(new Dimension(Integer.MAX_VALUE, penUpBtn.getPreferredSize().height));
-        penDownBtn.setMaximumSize(new Dimension(Integer.MAX_VALUE, penDownBtn.getPreferredSize().height));
-        side.add(stepRow);
-        side.add(Box.createVerticalStrut(4));
-        side.add(penUpBtn);
-        side.add(Box.createVerticalStrut(2));
-        side.add(penDownBtn);
-
-        gbc.gridx = 3; gbc.gridy = 0; gbc.gridheight = 3;
-        gbc.insets = new Insets(2, 10, 2, 2);
-        gbc.anchor = GridBagConstraints.CENTER;
-        panel.add(side, gbc);
-        gbc.gridheight = 1; gbc.anchor = GridBagConstraints.WEST; gbc.insets = new Insets(2, 2, 2, 2);
-
-        gbc.gridx = 0; gbc.gridy = 3; gbc.gridwidth = 4;
-        JPanel speedRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 0));
-        speedRow.add(new JLabel("Speed"));
-        JButton speedDown = requireConnection(new JButton("-"));
-        JButton speedUp = requireConnection(new JButton("+"));
-        JButton speedReset = requireConnection(new JButton("Reset"));
-        speedDown.addActionListener(e -> runOnBackend(b -> b.adjustSpeed("down")));
-        speedUp.addActionListener(e -> runOnBackend(b -> b.adjustSpeed("up")));
-        speedReset.addActionListener(e -> runOnBackend(b -> b.adjustSpeed("reset")));
-        speedRow.add(speedDown);
-        speedRow.add(speedLabel);
-        speedRow.add(speedUp);
-        speedRow.add(speedReset);
-        panel.add(speedRow, gbc);
-
-        gbc.gridx = 0; gbc.gridy = 4; gbc.gridwidth = 4;
-        gbc.fill = GridBagConstraints.HORIZONTAL;
-        JButton homeBtn = requireConnection(disableDuringPlot(new JButton("⌂ Home (limit switches)")));
-        homeBtn.setFont(homeBtn.getFont().deriveFont(Font.BOLD));
-        homeBtn.setToolTipText("Run the homing cycle against the limit switches");
-        homeBtn.addActionListener(e -> onHome());
-        panel.add(homeBtn, gbc);
-
-        return panel;
-    }
-
     /**
      * Edit > Optimize Loaded Commands...: prompts for simplify tolerance / reorder, then runs
      * {@link #onOptimize()}. Was previously a permanent panel in the command column; moved here
      * since it's an occasional, destructive transform like Process SVG and Map Colors, not
      * something needed at a glance.
      */
-    private void onOptimizeDialog() {
-        if (currentOutput == null) {
-            info("Open a Commands (JSON) file or Import SVG first.");
-            return;
-        }
-        simplifyToleranceSpinner.setToolTipText("Simplify tolerance (mm)");
-        mergeToleranceSpinner.setToolTipText("Merge tolerance (mm): weld strokes that touch "
-                + "end-to-end into one continuous line. 0 disables merging.");
-        JPanel form = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 2));
-        form.add(new JLabel("Tolerance"));
-        form.add(simplifyToleranceSpinner);
-        form.add(reorderStrokesCheckBox);
-        form.add(new JLabel("Merge"));
-        form.add(mergeToleranceSpinner);
+    private void onOptimizeDialog() { dialogs.optimize(); }
 
-        int choice = JOptionPane.showConfirmDialog(this, form, "Optimize Commands (JSON)",
-                JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
-        if (choice == JOptionPane.OK_OPTION) {
-            onOptimize();
-        }
-    }
-
-    private JPanel overlaySection() {
-        JPanel panel = new JPanel();
-        panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
-        panel.setBorder(section("Overlay / Position"));
-
-        JButton resetBtn = disableDuringPlot(new JButton("Reset Position"));
-        JButton rotateBtn = disableDuringPlot(new JButton("Rotate 90°"));
-        JButton mirrorBtn = disableDuringPlot(new JButton("Mirror"));
-        resetBtn.addActionListener(e -> visPanel.resetOverlay());
-        rotateBtn.addActionListener(e -> visPanel.rotateOverlay());
-        mirrorBtn.addActionListener(e -> visPanel.toggleMirror());
-
-        JPanel buttons = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 2));
-        buttons.add(resetBtn);
-        buttons.add(rotateBtn);
-        buttons.add(mirrorBtn);
-
-        JPanel posRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 2));
-        posXSpinner.setToolTipText("X offset in mm from the machine origin");
-        posYSpinner.setToolTipText("Y offset in mm from the machine origin");
-        posRow.add(new JLabel("X"));
-        posXSpinner.setPreferredSize(new Dimension(64, posXSpinner.getPreferredSize().height));
-        posRow.add(disableDuringPlot(posXSpinner));
-        posRow.add(new JLabel("Y"));
-        posYSpinner.setPreferredSize(new Dimension(64, posYSpinner.getPreferredSize().height));
-        posRow.add(disableDuringPlot(posYSpinner));
-        posRow.add(new JLabel("mm"));
-        JButton setPosBtn = disableDuringPlot(new JButton("Set"));
-        setPosBtn.addActionListener(e -> applyPositionFromFields());
-        posRow.add(setPosBtn);
-
-        buttons.setAlignmentX(LEFT_ALIGNMENT);
-        posRow.setAlignmentX(LEFT_ALIGNMENT);
-        panel.add(buttons);
-        panel.add(posRow);
-
-        // Keep the numeric fields in sync as the drawing is dragged/positioned interactively.
-        visPanel.setOverlayChangeListener(this::refreshPositionFields);
-        // "Remove Drawing" in the canvas context menu drops the loaded output too.
-        visPanel.setRemoveDrawingListener(this::onRemoveDrawing);
-        // Click-to-hatch (Edit ▸ Hatch Region, or the canvas right-click menu): fill or clear the
-        // region under the cursor, and open the style picker.
-        visPanel.setRegionHatchListener(new VisualizationPanel.RegionHatchListener() {
-            @Override public void onHatchRegion(java.awt.geom.Path2D region, int layerIndex) {
-                PlotterPanel.this.onHatchRegion(region, layerIndex);
-            }
-            @Override public void onClearHatchRegion(java.awt.geom.Path2D region) {
-                PlotterPanel.this.onClearHatchRegion(region);
-            }
-        });
-        visPanel.setHatchStyleAction(this::onHatchStyleDialog);
-        // Stroke editing (Tier A): delete a clicked line, or add a straight line.
-        visPanel.setStrokeEditListener(new VisualizationPanel.StrokeEditListener() {
-            @Override public void onDeleteStroke(int commandId) {
-                PlotterPanel.this.onDeleteStroke(commandId);
-            }
-            @Override public void onAddLine(double x1, double y1, double x2, double y2, int layerIndex) {
-                PlotterPanel.this.onAddLine(x1, y1, x2, y2, layerIndex);
-            }
-            @Override public void onMoveStroke(int commandId, double[][] points) {
-                PlotterPanel.this.onMoveStroke(commandId, points);
-            }
-            @Override public void onDuplicateStroke(int commandId) {
-                PlotterPanel.this.onDuplicateStroke(commandId);
-            }
-        });
-        // Keep all three Edit-menu mode checkboxes in sync when the mode changes from the canvas.
-        visPanel.setInteractionModeChangeListener(mode -> {
-            if (hatchRegionModeItem != null) {
-                hatchRegionModeItem.setSelected(mode == VisualizationPanel.InteractionMode.HATCH);
-                deleteStrokeModeItem.setSelected(mode == VisualizationPanel.InteractionMode.DELETE_STROKE);
-                addLineModeItem.setSelected(mode == VisualizationPanel.InteractionMode.ADD_LINE);
-                moveStrokeModeItem.setSelected(mode == VisualizationPanel.InteractionMode.MOVE_STROKE);
-            }
-        });
-        // Drag a station marker / "Add station here" on the canvas edits config.stations directly.
-        visPanel.setStationEditListener(new VisualizationPanel.StationEditListener() {
-            @Override public void onStationMoved(String name, double x, double y) {
-                onStationMovedOnCanvas(name, x, y);
-            }
-            @Override public void onStationAdded(double x, double y) {
-                onStationAddedOnCanvas(x, y);
-            }
-        });
-        return panel;
+    private void syncInteractionMode(VisualizationPanel.InteractionMode mode) {
+        if (hatchRegionModeItem == null) return;
+        hatchRegionModeItem.setSelected(mode == VisualizationPanel.InteractionMode.HATCH);
+        deleteStrokeModeItem.setSelected(mode == VisualizationPanel.InteractionMode.DELETE_STROKE);
+        addLineModeItem.setSelected(mode == VisualizationPanel.InteractionMode.ADD_LINE);
+        moveStrokeModeItem.setSelected(mode == VisualizationPanel.InteractionMode.MOVE_STROKE);
     }
 
     /**
@@ -1760,204 +740,35 @@ public class PlotterPanel extends JPanel {
         applyConfigToVis();
     }
 
-    /** Moves the drawing so its origin-nearest corner sits at the X/Y entered in the fields. */
-    private void applyPositionFromFields() {
-        if (currentOutput == null) {
-            log("ERROR: Load or import commands first.");
-            return;
-        }
-        double x = ((Number) posXSpinner.getValue()).doubleValue();
-        double y = ((Number) posYSpinner.getValue()).doubleValue();
-        visPanel.setContentMotorMin(x, y);
-    }
-
-    /** Reflects the drawing's current origin-nearest corner position into the X/Y fields. */
-    private void refreshPositionFields() {
-        double[] pos = visPanel.getContentMotorMin();
-        posXSpinner.setValue(Math.round(pos[0] * 10.0) / 10.0);
-        posYSpinner.setValue(Math.round(pos[1] * 10.0) / 10.0);
-    }
-
-    private JPanel plotSection() {
-        JPanel panel = new JPanel();
-        panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
-        panel.setBorder(section("Plot"));
-
-        requireConnection(startBtn);
-        startBtn.addActionListener(e -> {
-            if (config.preflightBeforeStart) {
-                onPreflightWizard();
-            } else {
-                onStartPlot();
-            }
-        });
-        confirmBtn.addActionListener(e -> confirmGate.release());
-        pauseBtn.addActionListener(e -> onPauseToggle());
-        stopBtn.addActionListener(e -> onStopPlot());
-        startBtn.setText("Start");
-        startBtn.setToolTipText("Start Plot");
-        confirmBtn.setText("Confirm");
-        confirmBtn.setToolTipText("Confirm Layer");
-
-        preflightBtn.setToolTipText("Walk through the Pre-Plot Checklist (connect, home, frame, physical checks) before plotting.");
-        preflightBtn.addActionListener(e -> onPreflightWizard());
-
-        // Non-wrapping horizontal rows: a FlowLayout would wrap onto a second line once the
-        // control column is narrow, and the wrapped line then gets clipped by capHeight().
-        JPanel row1 = new JPanel();
-        row1.setLayout(new BoxLayout(row1, BoxLayout.X_AXIS));
-        row1.add(new JLabel("Passes"));
-        row1.add(Box.createHorizontalStrut(4));
-        row1.add(multipassSpinner);
-        row1.add(Box.createHorizontalStrut(4));
-        row1.add(preflightBtn);
-        row1.add(Box.createHorizontalStrut(4));
-        row1.add(startBtn);
-        row1.add(Box.createHorizontalStrut(4));
-        row1.add(stopBtn);
-
-        JPanel row2 = new JPanel();
-        row2.setLayout(new BoxLayout(row2, BoxLayout.X_AXIS));
-        row2.add(confirmBtn);
-        row2.add(Box.createHorizontalStrut(4));
-        row2.add(pauseBtn);
-
-        plotProgressBar = new JProgressBar(0, 100);
-        plotProgressBar.setStringPainted(true);
-        plotProgressBar.setString("");
-        plotProgressBar.setVisible(false);
-        plotProgressBar.setAlignmentX(LEFT_ALIGNMENT);
-
-        // Layer header: label + All/None quick toggles.
-        JPanel row3 = new JPanel();
-        row3.setLayout(new BoxLayout(row3, BoxLayout.X_AXIS));
-        row3.add(new JLabel("Layers"));
-        row3.add(Box.createHorizontalStrut(4));
-        JButton allBtn = new JButton("All");
-        JButton noneBtn = new JButton("None");
-        allBtn.setToolTipText("Select every layer");
-        noneBtn.setToolTipText("Deselect every layer");
-        allBtn.addActionListener(e -> setAllLayersChecked(true));
-        noneBtn.addActionListener(e -> setAllLayersChecked(false));
-        disableDuringPlot(allBtn);
-        disableDuringPlot(noneBtn);
-        row3.add(allBtn);
-        row3.add(Box.createHorizontalStrut(2));
-        row3.add(noneBtn);
-
-        // The checkboxes themselves (one per layer), in a height-bounded scroll pane so a drawing
-        // with many layers doesn't push the rest of the controls off-screen.
-        layerListPanel.setLayout(new BoxLayout(layerListPanel, BoxLayout.Y_AXIS));
-        JScrollPane layerScroll = new JScrollPane(layerListPanel);
-        layerScroll.setToolTipText("Tick the layers to show and plot (e.g. one pen colour at a time); "
-                + "unticked layers are ghosted in the preview and skipped when plotting/exporting.");
-        layerScroll.setPreferredSize(new Dimension(180, 84));
-        layerScroll.setMaximumSize(new Dimension(Integer.MAX_VALUE, 84));
-        layerScroll.setAlignmentX(LEFT_ALIGNMENT);
-
-        JPanel row4 = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 2));
-        timeLabel.setToolTipText("Per-layer time estimate (hover after loading/importing commands)");
-        row4.add(timeLabel);
-        colorByLayerCheck.setToolTipText("Draw each layer in its own colour (from the layer's source "
-                + "colour) so layers/pens are easy to tell apart. Off = one uniform colour.");
-        colorByLayerCheck.addActionListener(e -> visPanel.setColorByLayer(colorByLayerCheck.isSelected()));
-        disableDuringPlot(colorByLayerCheck);
-        row4.add(colorByLayerCheck);
-
-        row1.setAlignmentX(LEFT_ALIGNMENT);
-        row2.setAlignmentX(LEFT_ALIGNMENT);
-        row3.setAlignmentX(LEFT_ALIGNMENT);
-        row4.setAlignmentX(LEFT_ALIGNMENT);
-        panel.add(row1);
-        panel.add(row2);
-        panel.add(plotProgressBar);
-        panel.add(row3);
-        panel.add(layerScroll);
-        panel.add(row4);
-
-        return panel;
-    }
-
-    /**
-     * Rebuilds the layer checklist to match the current drawing: one checkbox per layer, labelled
-     * with its id and source colour and tinted with the layer's preview colour so the list doubles
-     * as a legend. All layers start ticked. Called whenever {@link #currentOutput} is replaced.
-     */
     private void refreshLayerSelector() {
-        repopulatingLayers = true;
-        try {
-            layerChecks.clear();
-            layerListPanel.removeAll();
-            if (currentOutput != null) {
-                List<Layer> layers = currentOutput.layers();
-                for (int i = 0; i < layers.size(); i++) {
-                    Layer layer = layers.get(i);
-                    String colour = layer.color() == null || layer.color().isEmpty() ? "no colour" : layer.color();
-                    JCheckBox box = new JCheckBox(layer.id() + " — " + colour, true);
-                    box.setForeground(visPanel.colorForLayer(i));
-                    box.setAlignmentX(LEFT_ALIGNMENT);
-                    box.addActionListener(e -> onLayerSelectionChanged());
-                    box.setEnabled(!plotting);
-                    layerChecks.add(box);
-                    layerListPanel.add(box);
-                }
-            }
-        } finally {
-            repopulatingLayers = false;
-        }
-        layerListPanel.revalidate();
-        layerListPanel.repaint();
-        // Push the (all-ticked) selection to the preview.
-        applyLayerFilter();
+        plotControls.rebuild(documentSession.currentOutput(), visPanel, plotting);
     }
 
     private void onLayerSelectionChanged() {
-        if (repopulatingLayers) {
-            return;
-        }
         applyLayerFilter();
         refreshTimeEstimate();
     }
 
-    /** Ticks or unticks every layer checkbox, then applies the change once. */
-    private void setAllLayersChecked(boolean checked) {
-        repopulatingLayers = true;
-        try {
-            for (JCheckBox box : layerChecks) {
-                box.setSelected(checked);
-            }
-        } finally {
-            repopulatingLayers = false;
-        }
-        onLayerSelectionChanged();
-    }
-
-    /** Pushes the currently ticked layers to the visualization. */
     private void applyLayerFilter() {
         visPanel.setSelectedLayers(selectedLayerIndices());
     }
 
-    /** Indices (into {@code currentOutput.layers()}) of the ticked layers. */
     private List<Integer> selectedLayerIndices() {
-        List<Integer> indices = new ArrayList<>();
-        for (int i = 0; i < layerChecks.size(); i++) {
-            if (layerChecks.get(i).isSelected()) {
-                indices.add(i);
-            }
-        }
-        return indices;
+        return plotControls.selectedLayers();
     }
 
     /** Recomputes and displays the pre-plot time estimate (total + per-layer, via tooltip). */
     private void refreshTimeEstimate() {
-        if (currentOutput == null) {
-            currentEstimate = null;
-            timeLabel.setText("Est: --:--");
+        if (documentSession.currentOutput() == null) {
+            plotProgress.setEstimate(null);
+            plotControls.setTime("Est: --:--");
             return;
         }
-        currentEstimate = TimeEstimator.estimate(preparePlotOutput(), config.gcode, config.stations);
+        TimeEstimator.PlotEstimate currentEstimate =
+                TimeEstimator.estimate(preparePlotOutput(), config.gcode, config.stations);
+        plotProgress.setEstimate(currentEstimate);
         double speedFactor = 100.0 / speedPercent;
-        timeLabel.setText("Est: " + TimeEstimator.format(currentEstimate.totalSeconds() * speedFactor));
+        String estimateText = "Est: " + TimeEstimator.format(currentEstimate.totalSeconds() * speedFactor);
         StringBuilder tooltip = new StringBuilder("<html>Per-layer estimate:<br>");
         for (TimeEstimator.LayerEstimate le : currentEstimate.layers()) {
             tooltip.append(le.layerId()).append(": ").append(TimeEstimator.format(le.estimatedSeconds() * speedFactor)).append("<br>");
@@ -1967,60 +778,12 @@ public class PlotterPanel extends JPanel {
             tooltip.append(" (at ").append(speedPercent).append("% speed)");
         }
         tooltip.append("</html>");
-        timeLabel.setToolTipText(tooltip.toString());
+        plotControls.setTime(estimateText, tooltip.toString());
     }
 
-    /** Updates {@link #timeLabel} with live elapsed/remaining time while a plot is running. */
+    /** Updates the plot view with live elapsed/remaining time while a plot is running. */
     private void updateTimeLabelDuringPlot() {
-        double elapsed = (System.currentTimeMillis() - plotStartMillis) / 1000.0;
-        int done = progressDone;
-        int total = progressTotal;
-
-        StringBuilder text = new StringBuilder();
-
-        // Layer X/N prefix once we know which layer we're on.
-        if (currentLayerIndex > 0 && totalLayers > 0) {
-            text.append("Layer ").append(currentLayerIndex).append('/').append(totalLayers).append("  ·  ");
-        }
-
-        text.append("Elapsed: ").append(TimeEstimator.format(elapsed));
-
-        // Pace-extrapolated remaining time (once we have meaningful progress).
-        if (done > 0 && total > 0 && elapsed > 0) {
-            double remaining = elapsed * (total - done) / (double) done;
-            text.append("  ·  ~").append(TimeEstimator.format(remaining)).append(" remaining");
-        } else if (currentEstimate != null) {
-            double speedFactor = 100.0 / speedPercent;
-            text.append(" / Est: ").append(TimeEstimator.format(currentEstimate.totalSeconds() * speedFactor));
-        }
-
-        timeLabel.setText(text.toString());
-    }
-
-    private JPanel rawCommandSection() {
-        JPanel panel = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 4));
-        panel.setBorder(section("Raw G-code"));
-
-        JButton sendBtn = requireConnection(disableDuringPlot(new JButton("Send")));
-        requireConnection(disableDuringPlot(rawCommandField));
-        ActionListener send = e -> {
-            String cmd = rawCommandField.getText().trim();
-            if (cmd.isEmpty()) {
-                return;
-            }
-            rawCommandField.setText("");
-            runOnBackend(b -> {
-                for (String line : b.sendRaw(cmd)) {
-                    log(line);
-                }
-            });
-        };
-        sendBtn.addActionListener(send);
-        rawCommandField.addActionListener(send);
-
-        panel.add(rawCommandField);
-        panel.add(sendBtn);
-        return panel;
+        plotControls.setTime(plotProgress.liveText(System.currentTimeMillis(), speedPercent));
     }
 
     private static TitledBorder section(String title) {
@@ -2032,336 +795,31 @@ public class PlotterPanel extends JPanel {
     // --- Actions ---------------------------------------------------------
 
     /** Creates a file chooser starting in the last directory a file was opened/saved in. */
-    private JFileChooser newFileChooser() {
-        JFileChooser chooser = new JFileChooser();
-        if (config.lastDirectory != null) {
-            File dir = new File(config.lastDirectory);
-            if (dir.isDirectory()) {
-                chooser.setCurrentDirectory(dir);
-            }
-        }
-        return chooser;
-    }
+    private void onLoadCommands() { fileWorkflow.loadCommands(); }
+    private void onImportSvg() { fileWorkflow.importSvg(); }
+    private void onImportImage() { fileWorkflow.importImage(); }
+    private void onReVectorizeImage() { fileWorkflow.revectorize(); }
+    private void onEditProcessSvg() { fileWorkflow.reprocessSvg(); }
+    private void onMapColorsToStations() { fileWorkflow.mapColors(); }
+    private void onSaveCommands() { fileWorkflow.saveCommands(); }
 
-    /** Remembers {@code file}'s parent directory in the config so the next chooser starts there. */
-    private void rememberDirectory(File file) {
-        File parent = file.getParentFile();
-        if (parent == null) {
-            return;
-        }
-        config.lastDirectory = parent.getAbsolutePath();
-        try {
-            ConfigStore.save(config, configFile);
-        } catch (IOException ex) {
-            log("WARNING: Failed to save config: " + ex.getMessage());
-        }
-    }
-
-    private void onLoadCommands() {
-        JFileChooser chooser = newFileChooser();
-        chooser.setFileFilter(new javax.swing.filechooser.FileNameExtensionFilter("Gantry commands — JSON (*.json)", "json"));
-        if (chooser.showOpenDialog(this) != JFileChooser.APPROVE_OPTION) {
-            return;
-        }
-        File file = chooser.getSelectedFile();
-        rememberDirectory(file);
-        try {
-            currentOutput = CommandFile.load(file);
-            // A loaded command file has no source SVG, so Edit > Re-process Source SVG must not reprocess a
-            // previously-imported one. Clear the stale import state (and any cross-file undo).
-            lastImportedSvgFile = null;
-            lastImportOptions = null;
-            undoSnapshot = null;
-            if (undoMenuItem != null) {
-                undoMenuItem.setEnabled(false);
-            }
-            hatchCommandIds.clear(); // a freshly loaded drawing has no session hatch strokes
-            resetReplot();
-            visPanel.loadFromOutput(currentOutput);
-            visPanel.setContentMotorMin(0, 0);
-            refreshLayerSelector();
-            refreshPositionFields();
-            refreshTimeEstimate();
-            refreshGuidance();
-            log("Loaded " + file.getName());
-        } catch (IOException ex) {
-            error("Failed to load " + file.getName() + ": " + ex.getMessage());
-        }
-    }
-
-    private void onImportSvg() {
-        JFileChooser chooser = newFileChooser();
-        chooser.setFileFilter(new javax.swing.filechooser.FileNameExtensionFilter("Vector artwork — SVG (*.svg)", "svg"));
-        if (chooser.showOpenDialog(this) != JFileChooser.APPROVE_OPTION) {
-            return;
-        }
-        File file = chooser.getSelectedFile();
-        rememberDirectory(file);
-
-        SvgImportDialog.Result dialogResult = new SvgImportDialog(SwingUtilities.getWindowAncestor(this)).showDialog();
-        if (dialogResult == null) {
-            return;
-        }
-
-        runBusy("Import", () -> {
-            ProcessorOutput out = dialogResult.toolboxConfig() != null
-                    ? SvgImportStage.importSvg(file, dialogResult.toolboxConfig(), dialogResult.importOptions())
-                    : SvgImportStage.importSvg(file, dialogResult.importOptions());
-            return autoMapColors(out);
-        }, out -> {
-            currentOutput = out;
-            lastImportedSvgFile = file;
-            lastImportOptions = dialogResult.importOptions();
-            undoSnapshot = null;
-            if (undoMenuItem != null) {
-                undoMenuItem.setEnabled(false);
-            }
-            hatchCommandIds.clear(); // a freshly loaded drawing has no session hatch strokes
-            resetReplot();
-            visPanel.loadFromOutput(currentOutput);
-            visPanel.setContentMotorMin(0, 0);
-            refreshLayerSelector();
-            refreshPositionFields();
-            refreshTimeEstimate();
-            refreshGuidance();
-            log(String.format("Imported %s: %d layer(s), %d command(s)",
-                    file.getName(), currentOutput.layers().size(), currentOutput.metadata().totalCommands()));
-        });
-    }
-
-    /**
-     * "Import Image (vectorize)": trace a raster image into an SVG with the {@code vectorize}
-     * module, then route that SVG through the exact same import path as {@link #onImportSvg()}.
-     * The generated SVG is the only boundary — scaling, refill and SVGToolBox processing all
-     * apply unchanged via {@link SvgImportDialog}.
-     */
-    private void onImportImage() {
-        JFileChooser chooser = newFileChooser();
-        chooser.setFileFilter(new javax.swing.filechooser.FileNameExtensionFilter(
-                "Raster image — PNG/JPG (*.png, *.jpg, *.jpeg, *.bmp)", "png", "jpg", "jpeg", "bmp"));
-        if (chooser.showOpenDialog(this) != JFileChooser.APPROVE_OPTION) {
-            return;
-        }
-        File imageFile = chooser.getSelectedFile();
-        rememberDirectory(imageFile);
-        vectorizeAndImport(imageFile, null);
-    }
-
-    /**
-     * "Re-vectorize Image": reopens the studio on the same source image as the last image
-     * import, pre-populated with the parameters used, so the trace can be re-tuned without
-     * re-importing from scratch (the raster analogue of {@code Re-process Source SVG}).
-     */
-    private void onReVectorizeImage() {
-        if (lastVectorizeImage == null || !lastVectorizeImage.exists()) {
-            JOptionPane.showMessageDialog(this,
-                    "No vectorized image to re-tune. Use File > Import Image (vectorize)… first.",
-                    "Re-vectorize", JOptionPane.INFORMATION_MESSAGE);
-            return;
-        }
-        vectorizeAndImport(lastVectorizeImage, lastVectorizeArgs);
-    }
-
-    /**
-     * Shared image→SVG→commands flow: tune in the live studio (optionally pre-populated with
-     * {@code initialArgs}), route the produced SVG through the same {@link SvgImportDialog}
-     * import as a hand-authored SVG, and remember the source + parameters for re-vectorising.
-     */
-    private void vectorizeAndImport(File imageFile, List<String> initialArgs) {
-        VectorizeStudioDialog.Result vec;
-        try {
-            vec = new VectorizeStudioDialog(SwingUtilities.getWindowAncestor(this), imageFile, initialArgs)
-                    .showDialog();
-        } catch (IOException ex) {
-            error("Vectorize failed: could not open the image (" + ex.getMessage() + ")");
-            return;
-        }
-        if (vec == null) {
-            return;
-        }
-        SvgImportDialog.Result dialogResult =
-                new SvgImportDialog(SwingUtilities.getWindowAncestor(this)).showDialog();
-        if (dialogResult == null) {
-            return;
-        }
-
-        final File svgFile;
-        try {
-            svgFile = File.createTempFile("gantry-vectorize-", ".svg");
-            svgFile.deleteOnExit();
-        } catch (IOException ex) {
-            error("Vectorize failed: could not create a temporary SVG (" + ex.getMessage() + ")");
-            return;
-        }
-
-        runBusy("Vectorize", () -> {
-            // image -> SVG, reusing the vectorize engine (non-exiting programmatic entry).
-            List<String> args = new ArrayList<>();
-            args.add("-i");
-            args.add(imageFile.getAbsolutePath());
-            args.add("-o");
-            args.add(svgFile.getAbsolutePath());
-            args.addAll(vec.vectorizeArgs());
-            org.trostheide.gantry.vectorize.Main.runSingleFile(args.toArray(new String[0]));
-
-            // SVG -> command model, identical to Import SVG.
-            ProcessorOutput out = dialogResult.toolboxConfig() != null
-                    ? SvgImportStage.importSvg(svgFile, dialogResult.toolboxConfig(), dialogResult.importOptions())
-                    : SvgImportStage.importSvg(svgFile, dialogResult.importOptions());
-            return autoMapColors(out);
-        }, out -> {
-            currentOutput = out;
-            lastImportedSvgFile = svgFile;
-            lastImportOptions = dialogResult.importOptions();
-            lastVectorizeImage = imageFile;
-            lastVectorizeArgs = vec.vectorizeArgs();
-            if (reVectorizeMenuItem != null) {
-                reVectorizeMenuItem.setEnabled(true);
-            }
-            undoSnapshot = null;
-            if (undoMenuItem != null) {
-                undoMenuItem.setEnabled(false);
-            }
-            hatchCommandIds.clear(); // a freshly loaded drawing has no session hatch strokes
-            resetReplot();
-            visPanel.loadFromOutput(currentOutput);
-            visPanel.setContentMotorMin(0, 0);
-            refreshLayerSelector();
-            refreshPositionFields();
-            refreshTimeEstimate();
-            refreshGuidance();
-            log(String.format("Vectorized %s (%s): %d layer(s), %d command(s)",
-                    imageFile.getName(), vec.strategyLabel(),
-                    currentOutput.layers().size(), currentOutput.metadata().totalCommands()));
-        });
-    }
-
-    /**
-     * Re-runs a subset of the SVGToolBox processors (Crop, Hatch, Palette, Rotate, Optimize)
-     * against the originally imported SVG file, replacing {@link #currentOutput}. Unlike the
-     * "Optimize" button (which only reorders/simplifies the already-imported paths), these
-     * processors operate on the SVG document itself, so they need to re-import from the source
-     * file using the same fit/position options chosen at import time.
-     */
-    private void onEditProcessSvg() {
-        if (lastImportedSvgFile == null || lastImportOptions == null) {
-            info("Import an SVG file first — Edit > Re-process Source SVG only applies to SVG imports.");
-            return;
-        }
-        org.trostheide.gantry.svgtoolbox.Config config =
-                new EditProcessDialog(SwingUtilities.getWindowAncestor(this)).showDialog();
-        if (config == null) {
-            return;
-        }
-        File source = lastImportedSvgFile;
-        org.trostheide.gantry.pipeline.svgimport.SvgImportOptions options = lastImportOptions;
-        snapshotForUndo();
-        runBusy("Process SVG", () -> SvgImportStage.importSvg(source, config, options), out -> {
-            currentOutput = out;
-            visPanel.loadPathsPreservingOverlay(currentOutput);
-            refreshLayerSelector();
-            refreshPositionFields();
-            refreshTimeEstimate();
-            refreshGuidance();
-            log("Reprocessed " + source.getName());
-        });
-    }
-
-    /**
-     * Reassigns each layer to the paint pot whose configured colour best matches the layer's
-     * source colour (read from the SVG stroke/fill). Replaces fragile positional layer↔station
-     * naming with a colour-driven mapping, so the operator only has to fill pots by colour.
-     */
-    private void onMapColorsToStations() {
-        if (currentOutput == null) {
-            info("Load or import a drawing first.");
-            return;
-        }
-        List<PaintStation> stations = paintStations();
-        if (stations.isEmpty()) {
-            info("No stations have a colour configured. Set station colours in Settings > Refill Stations first.");
-            return;
-        }
-        snapshotForUndo();
-        currentOutput = StationMapper.assignByColor(currentOutput, stations);
-        visPanel.loadPathsPreservingOverlay(currentOutput);
-        refreshLayerSelector();
-        logColorMapping();
-        refreshTimeEstimate();
-        refreshGuidance();
-    }
-
-    /** Stations that have a paint colour configured, as colour-matching targets. */
-    private List<PaintStation> paintStations() {
-        List<PaintStation> list = new ArrayList<>();
-        for (Map.Entry<String, StationConfig> e : config.stations.entrySet()) {
-            String color = e.getValue().color();
-            if (color != null && !color.isBlank()) {
-                list.add(new PaintStation(e.getKey(), color));
-            }
-        }
-        return list;
-    }
-
-    /**
-     * Applies colour→station mapping automatically right after an import, but only if the operator
-     * has actually configured station colours; otherwise the drawing keeps its positional stations.
-     */
-    private ProcessorOutput autoMapColors(ProcessorOutput output) {
-        if (paintStations().isEmpty()) {
-            return output;
-        }
-        ProcessorOutput mapped = StationMapper.assignByColor(output, paintStations());
-        return mapped;
-    }
-
-    private void logColorMapping() {
-        for (Layer layer : currentOutput.layers()) {
-            log(String.format("  %s (%s) -> station %s",
-                    layer.id(), layer.color() == null ? "no colour" : layer.color(), layer.stationId()));
-        }
-    }
-
-    private void onSaveCommands() {
-        if (currentOutput == null) {
-            info("Nothing to save. Load or import commands first.");
-            return;
-        }
-        JFileChooser chooser = newFileChooser();
-        chooser.setFileFilter(new javax.swing.filechooser.FileNameExtensionFilter("Gantry commands — JSON (*.json)", "json"));
-        if (chooser.showSaveDialog(this) != JFileChooser.APPROVE_OPTION) {
-            return;
-        }
-        File file = chooser.getSelectedFile();
-        if (!confirmOverwrite(file)) {
-            return;
-        }
-        rememberDirectory(file);
-        try {
-            ProcessorOutputIO.save(currentOutput, file);
-            log("Saved " + file.getName());
-        } catch (IOException ex) {
-            error("Failed to save " + file.getName() + ": " + ex.getMessage());
-        }
-    }
-
-    private void onOptimize() {
-        if (currentOutput == null) {
+    private void onOptimize(ApplicationDialogs.OptimizeOptions options) {
+        if (documentSession.currentOutput() == null) {
             info("Open a Commands (JSON) file or Import SVG first.");
             return;
         }
-        double tolerance = ((Number) simplifyToleranceSpinner.getValue()).doubleValue();
-        boolean reorder = reorderStrokesCheckBox.isSelected();
-        double mergeTolerance = ((Number) mergeToleranceSpinner.getValue()).doubleValue();
+        double tolerance = options.tolerance();
+        boolean reorder = options.reorder();
+        double mergeTolerance = options.mergeTolerance();
 
         snapshotForUndo();
-        OptimizeStage.Stats before = OptimizeStage.computeStats(currentOutput);
-        currentOutput = OptimizeStage.optimize(currentOutput, tolerance, reorder, mergeTolerance);
-        OptimizeStage.Stats after = OptimizeStage.computeStats(currentOutput);
+        OptimizeStage.Stats before = OptimizeStage.computeStats(documentSession.currentOutput());
+        updateDocument(OptimizeStage.optimize(documentSession.currentOutput(), tolerance, reorder, mergeTolerance));
+        OptimizeStage.Stats after = OptimizeStage.computeStats(documentSession.currentOutput());
 
-        visPanel.loadPathsPreservingOverlay(currentOutput);
+        visPanel.loadPathsPreservingOverlay(documentSession.currentOutput());
         refreshLayerSelector();
-        refreshPositionFields();
+        overlayControls.refreshPosition();
         refreshTimeEstimate();
 
         double travelSavedPct = before.travelDistanceMm() <= 0 ? 0
@@ -2373,116 +831,29 @@ public class PlotterPanel extends JPanel {
                 before.strokeCount(), after.strokeCount()));
     }
 
-    private void onOpenSettings() {
-        SettingsPanel settingsPanel = new SettingsPanel();
-        settingsPanel.loadConfig(config);
+    private void onOpenSettings() { dialogs.settings(); }
 
-        // "Run Setup Wizard…" closes this all-at-once dialog and hands off to the guided wizard,
-        // which keeps its own settings copy and applies its own result on Finish — so there's never
-        // two live copies of the same fields fighting to save.
-        boolean[] launchWizard = {false};
-        JButton wizardBtn = new JButton("Run Setup Wizard...");
-        wizardBtn.setToolTipText("Walk these settings step by step in setup order instead of all at once.");
-        JPanel header = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
-        header.add(wizardBtn);
-        JPanel wrapper = new JPanel(new BorderLayout(0, 6));
-        wrapper.add(header, BorderLayout.NORTH);
-        wrapper.add(settingsPanel, BorderLayout.CENTER);
-        // Cap height to the screen so the dialog never overflows on small laptop displays.
-        // Each tab already handles internal scrolling, so no outer JScrollPane is needed.
-        int screenH = java.awt.Toolkit.getDefaultToolkit().getScreenSize().height;
-        wrapper.setPreferredSize(new java.awt.Dimension(560, Math.min(500, screenH - 160)));
-
-        JOptionPane pane = new JOptionPane(wrapper, JOptionPane.PLAIN_MESSAGE,
-                JOptionPane.OK_CANCEL_OPTION);
-        JDialog dialog = pane.createDialog(this, "Settings");
-        wizardBtn.addActionListener(e -> { launchWizard[0] = true; dialog.dispose(); });
-        dialog.setVisible(true);
-        dialog.dispose();
-
-        if (launchWizard[0]) {
-            onSetupWizard();
-            return;
-        }
-        if (!Integer.valueOf(JOptionPane.OK_OPTION).equals(pane.getValue())) {
-            return;
-        }
-        config = settingsPanel.toConfig();
-        try {
-            ConfigStore.save(config, configFile);
-        } catch (IOException ex) {
-            log("WARNING: Failed to save config: " + ex.getMessage());
-        }
+    private void saveSettings(GantryConfig updated) {
+        config = updated;
+        try { ConfigStore.save(config, configFile); }
+        catch (IOException ex) { log("WARNING: Failed to save config: " + ex.getMessage()); }
         applyConfigToVis();
     }
 
-    private void onConnectToggle() {
-        if (backend == null) {
-            PlotterBackend newBackend = config.mock ? new MockPlotterBackend(config.gcode, this::log) : new GcodeBackend(config.gcode);
-            if (newBackend instanceof GcodeBackend gcode) {
-                gcode.setPositionCallback((x, y) -> {
-                    onJogPositionReport(x, y);
-                    SwingUtilities.invokeLater(() -> visPanel.updatePosition(x, y));
-                });
-                gcode.setSpeedCallback(percent -> SwingUtilities.invokeLater(() -> {
-                    speedLabel.setText(percent + "%");
-                    visPanel.setSpeedPercent(percent);
-                    speedPercent = percent;
-                    if (plotClockTimer == null) {
-                        refreshTimeEstimate();
-                    } else {
-                        updateTimeLabelDuringPlot();
-                    }
-                }));
-                gcode.setSentCommandCallback(line -> log("> " + line));
-            }
-            connectBtn.setEnabled(false);
-            statusLabel.setText("Connecting...");
-            new Thread(() -> {
-                boolean ok = newBackend.connect();
-                SwingUtilities.invokeLater(() -> {
-                    connectBtn.setEnabled(true);
-                    if (ok) {
-                        backend = newBackend;
-                        connectBtn.setText("Disconnect");
-                        if (connectMenuItem != null) {
-                            connectMenuItem.setText("Disconnect");
-                        }
-                        setConnectButtonColor(false);
-                        setConnectionRequiredControlsEnabled(true);
-                        statusLabel.setText("Connected");
-                        log("Connected.");
-                    } else {
-                        statusLabel.setText("Connection failed");
-                        log("ERROR: Connection failed.");
-                    }
-                    refreshGuidance();
-                });
-            }, "backend-connect").start();
-        } else {
-            // Disconnecting mid-plot would orphan the plot thread and leave the machine moving with
-            // the pen down — confirm, then stop the plot cleanly before tearing down the backend.
-            if (plotting) {
-                int choice = JOptionPane.showConfirmDialog(this,
-                        "A plot is still running. Stop it and disconnect?",
-                        "Plot in progress", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
-                if (choice != JOptionPane.YES_OPTION) {
-                    return;
-                }
-                onStopPlot();
-            }
-            PlotterBackend toClose = backend;
-            backend = null;
-            connectBtn.setText("Connect");
-            if (connectMenuItem != null) {
-                connectMenuItem.setText("Connect");
-            }
-            setConnectButtonColor(true);
-            setConnectionRequiredControlsEnabled(false);
-            statusLabel.setText("Disconnected");
-            new Thread(toClose::disconnect, "backend-disconnect").start();
-            refreshGuidance();
-        }
+    private void onConnectToggle() { connections.toggle(config, plotting); }
+
+    private void showConnectionState(boolean connecting, boolean connected, boolean failed) {
+        connectBtn.setEnabled(!connecting);
+        connectBtn.setText(connected ? "Disconnect" : "Connect");
+        if (connectMenuItem != null) connectMenuItem.setText(connected ? "Disconnect" : "Connect");
+        setConnectButtonColor(!connected);
+        setConnectionRequiredControlsEnabled(connected);
+        statusLabel.setText(connecting ? "Connecting..." : failed ? "Connection failed" : connected ? "Connected" : "Disconnected");
+    }
+
+    private void onSpeedChanged(int percent) {
+        jogPanel.setSpeed(percent); visPanel.setSpeedPercent(percent); speedPercent = percent;
+        if (plotClockTimer == null) refreshTimeEstimate(); else updateTimeLabelDuringPlot();
     }
 
     /**
@@ -2500,26 +871,35 @@ public class PlotterPanel extends JPanel {
         for (JComponent c : connectionRequiredControls) {
             c.setEnabled(enabled);
         }
+        plotControls.setConnected(enabled);
+        jogPanel.setConnected(enabled);
+        rawCommands.setConnected(enabled);
         updateReplotMenuItem();
     }
 
     private void updateReplotMenuItem() {
         if (replotMenuItem != null) {
-            replotMenuItem.setEnabled(canReplot && !plotting && backend != null && currentOutput != null);
+            replotMenuItem.setEnabled(plotJobController.canReplot() && !plotting && plotJobController.isConnected()
+                    && documentSession.currentOutput() != null);
         }
     }
 
     /** Called whenever a new drawing replaces the current one; invalidates the stored re-plot offer. */
     private void resetReplot() {
-        canReplot = false;
+        plotJobController.resetReplot();
         updateReplotMenuItem();
     }
 
     private void onStartPlot() {
-        if (currentOutput == null) {
+        if (plotJobController.isPlotting()) {
+            log("Plot start ignored: a plot is already active.");
+            return;
+        }
+        if (documentSession.currentOutput() == null) {
             log("ERROR: Load a commands file first.");
             return;
         }
+        PlotterBackend backend = plotJobController.backend();
         if (backend == null) {
             log("ERROR: Connect to the plotter first.");
             return;
@@ -2548,44 +928,27 @@ public class PlotterPanel extends JPanel {
             log("Layer '" + layer.id() + "' ready. Click Confirm Layer to start.");
             confirmGate.acquire();
         });
-        int[] layerCounter = {0};
         int totalLayersCount = toPlot.layers().size();
-        service.setLayerStartedCallback(layer -> SwingUtilities.invokeLater(() -> {
-            currentLayerId = layer.id();
-            currentLayerIndex = ++layerCounter[0];
-            totalLayers = totalLayersCount;
-            layerStartMillis = System.currentTimeMillis();
-        }));
+        service.setLayerStartedCallback(layer -> plotProgress.layerStarted());
         service.setProgressCallback((done, total) -> {
-            progressDone = done;
-            progressTotal = total;
-            int pct = total > 0 ? done * 100 / total : 0;
+            plotProgress.update(done, total);
+            int pct = plotProgress.percent();
             SwingUtilities.invokeLater(() -> {
-                plotProgressBar.setValue(pct);
-                plotProgressBar.setString(pct + "%");
+                plotControls.setProgress(pct);
             });
         });
 
         confirmGate.drainPermits();
-        activeService = service;
-        currentEstimate = TimeEstimator.estimate(toPlot, config.gcode, config.stations);
-        currentLayerId = null;
-        currentLayerIndex = 0;
-        totalLayers = totalLayersCount;
-        progressDone = 0;
-        progressTotal = 0;
-        plotStartMillis = System.currentTimeMillis();
+        plotProgress.setEstimate(TimeEstimator.estimate(toPlot, config.gcode, config.stations));
+        plotProgress.start(totalLayersCount, System.currentTimeMillis());
         setPlottingState(true);
         plotClockTimer = new javax.swing.Timer(500, e -> updateTimeLabelDuringPlot());
         plotClockTimer.start();
 
-        ProcessorOutput finalOutput = toPlot;
-        new Thread(() -> {
-            try {
-                service.plot(finalOutput);
-                long actualMs = System.currentTimeMillis() - plotStartMillis;
-                double actualSec = actualMs / 1000.0;
-                TimeEstimator.PlotEstimate est = currentEstimate;
+        plotJobController.startPlot(service, toPlot, (completed, failure) -> {
+            if (completed) {
+                double actualSec = plotProgress.elapsedSeconds(System.currentTimeMillis());
+                TimeEstimator.PlotEstimate est = plotProgress.estimate();
                 if (est != null) {
                     String estFmt = TimeEstimator.format(est.totalSeconds() * (100.0 / speedPercent));
                     log("--- Plot finished: actual " + TimeEstimator.format(actualSec)
@@ -2593,19 +956,16 @@ public class PlotterPanel extends JPanel {
                 } else {
                     log("--- Plot finished: " + TimeEstimator.format(actualSec) + " ---");
                 }
-                SwingUtilities.invokeLater(() -> { canReplot = true; updateReplotMenuItem(); });
-            } finally {
-                activeService = null;
-                SwingUtilities.invokeLater(() -> setPlottingState(false));
+                SwingUtilities.invokeLater(this::updateReplotMenuItem);
+            } else if (failure != null) {
+                log("ERROR: Plot failed: " + failure.getMessage());
             }
-        }, "plot-thread").start();
+            SwingUtilities.invokeLater(() -> setPlottingState(false));
+        });
     }
 
     private void onStopPlot() {
-        PlotService service = activeService;
-        if (service != null) {
-            service.cancel();
-        }
+        plotJobController.cancelPlot();
         confirmGate.release();
         // Cancelling only stops further commands from being sent; the backend may already have
         // queued motion in flight (e.g. GRBL's planner buffer), so halt it immediately too.
@@ -2614,299 +974,81 @@ public class PlotterPanel extends JPanel {
     }
 
     private void onPauseToggle() {
-        PlotService service = activeService;
-        if (service == null) {
+        if (!plotJobController.isPlotting()) {
             return;
         }
-        if (!paused) {
-            service.pause();
-            paused = true;
-            pauseBtn.setText("Resume");
+        if (plotJobController.togglePause()) {
+            plotControls.setPaused(true);
         } else {
-            service.resume();
-            paused = false;
-            pauseBtn.setText("Pause");
+            plotControls.setPaused(false);
         }
         refreshGuidance();
     }
 
     private void setPlottingState(boolean plotting) {
         this.plotting = plotting;
-        startBtn.setEnabled(!plotting && backend != null);
-        confirmBtn.setEnabled(plotting);
-        pauseBtn.setEnabled(plotting);
-        stopBtn.setEnabled(plotting);
+        plotControls.setConnected(plotJobController.isConnected());
+        plotControls.setPlotting(plotting);
+        jogPanel.setPlotting(plotting);
+        overlayControls.setPlotting(plotting);
+        rawCommands.setPlotting(plotting);
         // Jog/pen/edit controls are unsafe to use mid-plot — disable them while plotting.
         for (JComponent c : plotDisabledControls) {
             c.setEnabled(!plotting);
         }
         // The per-layer checkboxes are rebuilt on every load, so they aren't in the list above;
         // toggle them here so the layer selection can't change mid-plot.
-        for (JCheckBox box : layerChecks) {
-            box.setEnabled(!plotting);
-        }
-        plotProgressBar.setVisible(plotting);
-        if (plotting) {
-            plotProgressBar.setValue(0);
-            plotProgressBar.setString("0%");
-        }
         if (!plotting) {
-            paused = false;
-            pauseBtn.setText("Pause");
+            plotControls.setPaused(false);
             if (plotClockTimer != null) {
                 plotClockTimer.stop();
                 plotClockTimer = null;
             }
-            currentLayerId = null;
-            progressDone = 0;
-            progressTotal = 0;
+            plotProgress.resetProgress();
             refreshTimeEstimate();
         }
         updateReplotMenuItem();
         refreshGuidance();
     }
 
-    /** Single-step jog (one tap) in the given screen-space direction, by the Step (mm) distance. */
-    private void jog(int dxDir, int dyDir) {
-        if (backend == null) {
-            return;
-        }
-        double[] d = transformDelta(dxDir, dyDir, ((Number) jogStepSpinner.getValue()).doubleValue());
-        runOnBackend(b -> jogMove(b, d[0], d[1]));
-    }
-
-    /** Maps a screen-space jog direction + magnitude to a machine-space (dx, dy) relative move. */
-    private double[] transformDelta(int dxDir, int dyDir, double mm) {
-        PlotSettings settings = config.toPlotSettings();
-        double dx = dxDir;
-        double dy = dyDir;
-        if (settings.swapXY) {
-            double t = dx;
-            dx = dy;
-            dy = t;
-        }
-        if (settings.invertX) {
-            dx = -dx;
-        }
-        if (settings.invertY) {
-            dy = -dy;
-        }
-        return new double[] {dx * mm, dy * mm};
-    }
-
-    /**
-     * Sends one relative jog move, clamped to the bed when soft limits are on, and tracks the
-     * commanded position. Returns {@code false} when nothing moved (e.g. already at a soft wall),
-     * which lets continuous jogging stop at the edge.
-     */
-    private boolean jogMove(PlotterBackend b, double mdx, double mdy) {
-        if (config.softLimits && jogPosKnown) {
-            // Clamp the target motor position to the bed using the visualization's composited
-            // swap/invert/origin geometry, so soft stops track the physical edges regardless of
-            // inverted/swapped axes or which corner is home.
-            double[] target = visPanel.clampMotorToBed(jogX + mdx, jogY + mdy);
-            mdx = target[0] - jogX;
-            mdy = target[1] - jogY;
-        }
-        if (mdx == 0 && mdy == 0) {
-            return false;
-        }
-        b.move(mdx, mdy);
-        // Commanded estimate; the live position report corrects any drift.
-        jogX += mdx;
-        jogY += mdy;
-        return true;
-    }
-
-    /**
-     * Wires a jog button so a quick tap does a single {@link #jog} step while holding it past
-     * {@link #JOG_HOLD_DELAY_MS} jogs continuously (in {@link #CONTINUOUS_JOG_MM} increments) until
-     * released. Disabled buttons receive no mouse events, so connection/plot gating still applies.
-     */
-    private void wireJogButton(JButton btn, int dxDir, int dyDir) {
-        Timer hold = new Timer(JOG_HOLD_DELAY_MS, e -> startContinuousJog(dxDir, dyDir));
-        hold.setRepeats(false);
-        btn.addMouseListener(new java.awt.event.MouseAdapter() {
-            @Override
-            public void mousePressed(java.awt.event.MouseEvent e) {
-                if (btn.isEnabled() && SwingUtilities.isLeftMouseButton(e)) {
-                    hold.restart();
-                }
-            }
-
-            @Override
-            public void mouseReleased(java.awt.event.MouseEvent e) {
-                if (hold.isRunning()) {
-                    hold.stop();
-                    jog(dxDir, dyDir); // it was a tap → one Step move
-                } else {
-                    stopContinuousJog(); // continuous was running → stop it
-                }
-            }
-        });
-    }
-
-    /** Begins continuous jogging on a dedicated thread; moves self-pace via the backend's ok-wait. */
-    private void startContinuousJog(int dxDir, int dyDir) {
-        final PlotterBackend b = backend;
-        if (b == null || jogHolding) {
-            return;
-        }
-        jogHolding = true;
-        new Thread(() -> {
-            try {
-                while (jogHolding) {
-                    double[] d = transformDelta(dxDir, dyDir, CONTINUOUS_JOG_MM);
-                    if (!jogMove(b, d[0], d[1])) {
-                        break; // reached a soft wall
-                    }
-                }
-            } catch (RuntimeException ex) {
-                log("Jog stopped: " + ex.getMessage());
-            } finally {
-                jogHolding = false;
-            }
-        }, "jog-continuous").start();
-    }
-
-    private void stopContinuousJog() {
-        jogHolding = false;
-    }
-
-    /** Records a live work-position report so soft limits clamp against the real position. */
-    private void onJogPositionReport(double x, double y) {
-        jogX = x;
-        jogY = y;
-        jogPosKnown = true;
-    }
-
-    private void onHome() {
-        if (backend == null) {
-            log("ERROR: Not connected.");
-            return;
-        }
-        int choice = JOptionPane.showConfirmDialog(this,
-                "Run the homing cycle? The plotter will drive toward the limit switches at 0/0.",
-                "Home plotter", JOptionPane.OK_CANCEL_OPTION, JOptionPane.WARNING_MESSAGE);
-        if (choice != JOptionPane.OK_OPTION) {
-            return;
-        }
-        log("Homing...");
-        runOnBackend(b -> {
-            b.home();
-            onJogPositionReport(0, 0); // origin zeroed at the homed corner
-            log("Homed. Origin zeroed at (0, 0).");
-        });
-    }
+    private void onJogPositionReport(double x, double y) { jogPanel.reportPosition(x, y); }
+    private void onHome() { jogPanel.home(); }
+    private void jog(int dx, int dy) { jogPanel.jog(dx, dy); }
 
     private void runOnBackend(java.util.function.Consumer<PlotterBackend> action) {
-        PlotterBackend b = backend;
-        if (b == null) {
+        if (!plotJobController.isConnected()) {
             log("ERROR: Not connected.");
             return;
         }
-        new Thread(() -> action.accept(b), "backend-action").start();
+        new Thread(() -> plotJobController.withBackend(action), "backend-action").start();
     }
 
     /**
-     * The output that will actually be plotted/exported: {@link #currentOutput}, narrowed to the
+     * The output that will actually be plotted/exported: the session document, narrowed to the
      * layers ticked in the layer checklist. This is what lets the operator plot a chosen subset of
      * layers (e.g. one pen's worth of strokes), swap the pen, then plot the next.
      */
     private ProcessorOutput selectedOutput() {
-        if (currentOutput == null) {
-            return null;
-        }
-        List<Integer> selected = selectedLayerIndices();
-        if (selected.size() == currentOutput.layers().size()) {
-            return currentOutput;
-        }
-        List<Layer> kept = new ArrayList<>();
-        for (int idx : selected) {
-            kept.add(currentOutput.layers().get(idx));
-        }
-        return new ProcessorOutput(currentOutput.metadata(), kept);
+        documentSession.selectLayers(selectedLayerIndices());
+        return documentSession.selectedOutput();
     }
 
     /** Applies overlay baking and the configured multipass count to the selected output for plotting/export. */
     private ProcessorOutput preparePlotOutput() {
-        ProcessorOutput result = selectedOutput();
-        if (visPanel.hasOverlayTransform()) {
-            result = bakeOverlay(result);
-        }
-        int passes = ((Number) multipassSpinner.getValue()).intValue();
-        result = MultipassStage.apply(result, passes);
-        return result;
+        selectedOutput(); // Synchronize the session's selection with the layer checkboxes.
+        int passes = plotControls.passes();
+        return documentSession.prepareOutput(
+                output -> visPanel.hasOverlayTransform() ? bakeOverlay(output) : output,
+                passes);
     }
 
-    private void onExportGcode() {
-        if (currentOutput == null) {
-            info("Open a Commands (JSON) file or Import SVG first.");
-            return;
-        }
-        if (selectedLayerIndices().isEmpty()) {
-            info("No layers selected. Tick at least one layer to export.");
-            return;
-        }
-        JFileChooser chooser = newFileChooser();
-        chooser.setFileFilter(new javax.swing.filechooser.FileNameExtensionFilter("Plotter G-code (*.gcode)", "gcode"));
-        if (chooser.showSaveDialog(this) != JFileChooser.APPROVE_OPTION) {
-            return;
-        }
-        File file = chooser.getSelectedFile();
-        if (!confirmOverwrite(file)) {
-            return;
-        }
-        rememberDirectory(file);
-
-        ProcessorOutput toExport = preparePlotOutput();
-        PlotSettings settings = config.toPlotSettings();
-        settings.alignmentOffsetOverride = new double[] { visPanel.getAlignOffsetX(), visPanel.getAlignOffsetY() };
-
-        new Thread(() -> {
-            GcodeFileBackend fileBackend = new GcodeFileBackend(config.gcode, file);
-            PlotService service = new PlotService(fileBackend, settings);
-            service.setLogCallback(this::log);
-            if (fileBackend.connect()) {
-                try {
-                    service.plot(toExport);
-                } finally {
-                    fileBackend.disconnect();
-                }
-                log("Exported G-code to " + file.getName());
-            } else {
-                error("Failed to open " + file.getName() + " for writing.");
-            }
-        }, "gcode-export").start();
-    }
-
-    private void onReplayGcode() {
-        if (!(backend instanceof GcodeBackend gcodeBackend)) {
-            log("ERROR: Connect to a real G-code backend first (not available in mock mode).");
-            return;
-        }
-        JFileChooser chooser = newFileChooser();
-        chooser.setFileFilter(new javax.swing.filechooser.FileNameExtensionFilter("Plotter G-code (*.gcode)", "gcode"));
-        if (chooser.showOpenDialog(this) != JFileChooser.APPROVE_OPTION) {
-            return;
-        }
-        File file = chooser.getSelectedFile();
-        rememberDirectory(file);
-        new Thread(() -> {
-            try {
-                log("Replaying " + file.getName() + "...");
-                GcodeFileReplay.replay(file, gcodeBackend, this::log);
-                log("--- Replay finished ---");
-            } catch (IOException ex) {
-                log("ERROR: Failed to replay " + file.getName() + ": " + ex.getMessage());
-            }
-        }, "gcode-replay").start();
-    }
+    private void onExportGcode() { gcodeFiles.export(); }
+    private void onReplayGcode() { gcodeFiles.replay(); }
 
     /**
      * Returns a copy of {@code output} with the interactive overlay transform
      * (drag/resize/rotate/mirror) baked into raw content coordinates. Does not mutate the
-     * input, so {@link #currentOutput} stays in its original (un-baked) frame and can be
+     * input, so the session document stays in its original (un-baked) frame and can be
      * re-plotted or re-positioned without compounding the transform.
      */
     private ProcessorOutput bakeOverlay(ProcessorOutput output) {
@@ -2982,66 +1124,9 @@ public class PlotterPanel extends JPanel {
                 JOptionPane.showMessageDialog(this, message, "Gantry", JOptionPane.INFORMATION_MESSAGE));
     }
 
-    /** Returns true if {@code file} may be written: it doesn't exist, or the user confirms overwrite. */
-    private boolean confirmOverwrite(File file) {
-        if (!file.exists()) {
-            return true;
-        }
-        return JOptionPane.showConfirmDialog(this,
-                file.getName() + " already exists. Overwrite it?", "Confirm overwrite",
-                JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE) == JOptionPane.YES_OPTION;
-    }
-
-    /**
-     * Runs a potentially slow command-model transform off the EDT with a wait cursor, then applies
-     * the result back on the EDT. Keeps the UI responsive during import/optimize/process and routes
-     * any failure to an error dialog.
-     */
-    private void runBusy(String description, Callable<ProcessorOutput> task, Consumer<ProcessorOutput> onSuccess) {
-        Window window = SwingUtilities.getWindowAncestor(this);
-        if (window != null) {
-            window.setCursor(Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR));
-        }
-        // A dimmed, animated overlay so a slow step (e.g. vectorization) is obviously in progress,
-        // not a silent wait-cursor; plus a console breadcrumb at start.
-        BusyOverlay overlay = BusyOverlay.show(this, busyMessage(description));
-        log(busyMessage(description));
-        new javax.swing.SwingWorker<ProcessorOutput, Void>() {
-            @Override
-            protected ProcessorOutput doInBackground() throws Exception {
-                return task.call();
-            }
-
-            @Override
-            protected void done() {
-                // Keep the overlay up through onSuccess: applying the result (rebuilding the
-                // visualization for a large drawing) runs on the EDT and can take a while, so
-                // dismissing first would leave a frozen UI with no feedback during that phase.
-                try {
-                    onSuccess.accept(get());
-                } catch (Exception ex) {
-                    Throwable cause = ex.getCause() != null ? ex.getCause() : ex;
-                    error(description + " failed: " + cause.getMessage());
-                } finally {
-                    if (overlay != null) {
-                        overlay.dismiss();
-                    }
-                    if (window != null) {
-                        window.setCursor(Cursor.getDefaultCursor());
-                    }
-                }
-            }
-        }.execute();
-    }
-
-    /** A present-tense, user-facing phrase for an in-progress {@link #runBusy} operation. */
-    private static String busyMessage(String description) {
-        return switch (description) {
-            case "Vectorize" -> "Vectorizing image…";
-            case "Import" -> "Importing…";
-            case "Process SVG" -> "Processing SVG…";
-            default -> description + "…";
-        };
+    private void runBusy(String description, Callable<ProcessorOutput> task,
+            Consumer<ProcessorOutput> onSuccess) {
+        busyTasks.run(description, task, onSuccess);
     }
 
     /**
@@ -3050,219 +1135,49 @@ public class PlotterPanel extends JPanel {
      * dependent state so a subsequent plot/export has nothing stale to act on.
      */
     private void onRemoveDrawing() {
-        if (currentOutput == null) {
-            return;
-        }
-        currentOutput = null;
-        lastImportedSvgFile = null;
-        lastImportOptions = null;
-        hatchCommandIds.clear();
+        if (documentSession.currentOutput() == null) return;
+        documentEditor.clear();
         resetReplot();
-        undoSnapshot = null;
-        if (undoMenuItem != null) {
-            undoMenuItem.setEnabled(false);
-        }
-        refreshLayerSelector();
-        refreshPositionFields();
-        refreshTimeEstimate();
-        refreshGuidance();
+        refreshLayerSelector(); overlayControls.refreshPosition(); refreshTimeEstimate(); refreshGuidance();
         log("Removed the loaded drawing.");
     }
 
-    // Current click-to-hatch style, applied to each clicked region (so different areas can be
-    // hatched differently by changing it between clicks). Defaults: linear, 2 mm spacing, 45°.
-    private String hatchPattern = "linear";
-    private double hatchGapMm = 2.0;
-    private double hatchAngleDeg = 45.0;
-    // Command ids of hatch strokes we've added, so "Clear hatch in this area" knows which strokes are
-    // fill (vs. real artwork). In-session only — a re-import or load-from-disk clears it.
-    private final java.util.Set<Integer> hatchCommandIds = new java.util.HashSet<>();
-
-    /**
-     * Fills a clicked closed region (in raw model mm space) with the current hatch style, added to
-     * the region's own layer/pen so they plot with it. Undoable; refreshes the view and estimate.
-     */
-    private void onHatchRegion(java.awt.geom.Path2D region, int layerIndex) {
-        if (currentOutput == null) {
-            return;
-        }
-        int startId = RegionHatch.maxCommandId(currentOutput) + 1;
-        List<DrawCommand> strokes =
-                RegionHatch.hatchCommands(region, hatchPattern, hatchAngleDeg, hatchGapMm, startId);
-        if (strokes.isEmpty()) {
-            log(String.format("Region too small to hatch at %.1f mm spacing.", hatchGapMm));
-            return;
-        }
-        snapshotForUndo();
-        currentOutput = RegionHatch.appendToLayer(currentOutput, layerIndex, strokes);
-        for (DrawCommand d : strokes) {
-            hatchCommandIds.add(d.id);
-        }
-        visPanel.loadPathsPreservingOverlay(currentOutput);
-        refreshLayerSelector();
-        refreshTimeEstimate();
-        refreshGuidance();
-        log(String.format("Hatched region (%s, %.1fmm, %.0f°): +%d stroke(s) into layer %d.",
-                hatchPattern, hatchGapMm, hatchAngleDeg, strokes.size(), layerIndex + 1));
-    }
-
-    /** Deletes the clicked line from the model (Tier A stroke editing). Undoable. */
-    private void onDeleteStroke(int commandId) {
-        if (currentOutput == null) {
-            return;
-        }
-        RegionHatch.RemoveResult r = RegionHatch.removeCommandById(currentOutput, commandId);
-        if (r.removed() == 0) {
-            return;
-        }
-        snapshotForUndo();
-        currentOutput = r.output();
-        hatchCommandIds.removeAll(r.removedIds());
-        visPanel.loadPathsPreservingOverlay(currentOutput);
-        refreshLayerSelector();
-        refreshTimeEstimate();
-        refreshGuidance();
-        log("Deleted 1 line.");
-    }
-
-    /** Adds a straight line to the model, into {@code layerIndex} (the nearest pen). Undoable. */
+    private void onHatchRegion(java.awt.geom.Path2D region, int layerIndex) { documentEditor.hatch(region, layerIndex); }
+    private void onDeleteStroke(int commandId) { documentEditor.delete(commandId); }
     private void onAddLine(double x1, double y1, double x2, double y2, int layerIndex) {
-        if (currentOutput == null) {
-            return;
-        }
-        int id = RegionHatch.maxCommandId(currentOutput) + 1;
-        DrawCommand line = new DrawCommand(id, List.of(new Point(x1, y1), new Point(x2, y2)));
-        ProcessorOutput next = RegionHatch.appendToLayer(currentOutput, layerIndex, List.of(line));
-        if (next == currentOutput) {
-            log("Couldn't add the line (no target layer).");
-            return;
-        }
-        snapshotForUndo();
-        currentOutput = next;
-        visPanel.loadPathsPreservingOverlay(currentOutput);
-        refreshLayerSelector();
-        refreshTimeEstimate();
-        refreshGuidance();
-        log(String.format("Added line (%.1f, %.1f) → (%.1f, %.1f).", x1, y1, x2, y2));
+        documentEditor.addLine(x1, y1, x2, y2, layerIndex);
+    }
+    private void onMoveStroke(int commandId, double[][] points) { documentEditor.move(commandId, points); }
+    private void onDuplicateStroke(int commandId) { documentEditor.duplicate(commandId); }
+    private void onClearHatchRegion(java.awt.geom.Path2D region) { documentEditor.clearHatch(region); }
+    private void onHatchStyleDialog() { documentEditor.chooseHatchStyle(); }
+    private void snapshotForUndo() { documentEditor.snapshot(); }
+    private void onUndo() { documentEditor.undo(); }
+
+    private void onDocumentEdited() {
+        visPanel.loadPathsPreservingOverlay(documentSession.currentOutput());
+        refreshDocumentUi();
     }
 
-    /** Replaces a dragged line's points in the model (Tier B move). Undoable. */
-    private void onMoveStroke(int commandId, double[][] points) {
-        if (currentOutput == null) {
-            return;
-        }
-        java.util.List<Point> pts = new ArrayList<>(points.length);
-        for (double[] p : points) {
-            pts.add(new Point(p[0], p[1]));
-        }
-        ProcessorOutput next = RegionHatch.replaceCommand(currentOutput, new DrawCommand(commandId, pts));
-        if (next == currentOutput) {
-            return;
-        }
-        snapshotForUndo();
-        currentOutput = next;
-        visPanel.loadPathsPreservingOverlay(currentOutput);
-        refreshTimeEstimate();
-        refreshGuidance();
-        log("Moved 1 line.");
+    private void refreshDocumentUi() {
+        refreshLayerSelector(); overlayControls.refreshPosition(); refreshTimeEstimate(); refreshGuidance();
     }
 
-    /** Duplicates a line: a copy nudged a few mm, into the same layer (Tier B). Undoable. */
-    private void onDuplicateStroke(int commandId) {
-        if (currentOutput == null) {
-            return;
-        }
-        DrawCommand src = RegionHatch.findDrawCommand(currentOutput, commandId);
-        int layer = RegionHatch.layerOfCommand(currentOutput, commandId);
-        if (src == null || layer < 0) {
-            return;
-        }
-        final double nudge = 3.0; // mm offset so the copy is visibly separate
-        java.util.List<Point> pts = new ArrayList<>(src.points.size());
-        for (Point p : src.points) {
-            pts.add(new Point(p.x() + nudge, p.y() + nudge));
-        }
-        DrawCommand copy = new DrawCommand(RegionHatch.maxCommandId(currentOutput) + 1, pts);
-        snapshotForUndo();
-        currentOutput = RegionHatch.appendToLayer(currentOutput, layer, List.of(copy));
-        visPanel.loadPathsPreservingOverlay(currentOutput);
-        refreshLayerSelector();
-        refreshTimeEstimate();
-        refreshGuidance();
-        log("Duplicated 1 line.");
+    private void setUndoAvailable(boolean available) {
+        if (undoMenuItem != null) undoMenuItem.setEnabled(available);
     }
 
-    /** Removes hatch fill previously added inside the clicked region (canvas "Clear hatch here"). */
-    private void onClearHatchRegion(java.awt.geom.Path2D region) {
-        if (currentOutput == null) {
-            return;
-        }
-        RegionHatch.RemoveResult r = RegionHatch.removeHatchInRegion(currentOutput, hatchCommandIds, region);
-        if (r.removed() == 0) {
-            log("No hatch fill from this session to clear in that area.");
-            return;
-        }
-        snapshotForUndo();
-        currentOutput = r.output();
-        hatchCommandIds.removeAll(r.removedIds());
-        visPanel.loadPathsPreservingOverlay(currentOutput);
-        refreshLayerSelector();
-        refreshTimeEstimate();
-        refreshGuidance();
-        log(String.format("Cleared hatch: removed %d stroke(s).", r.removed()));
+    /** Starts a new document history. */
+    private void replaceDocument(ProcessorOutput output) {
+        documentEditor.replace(output);
     }
 
-    /**
-     * Prompts for the click-to-hatch style (pattern, spacing, angle) applied to subsequently
-     * clicked regions. Changing it between clicks lets different areas get different fills.
-     */
-    private void onHatchStyleDialog() {
-        JComboBox<String> patternCombo = new JComboBox<>(RegionHatch.PATTERNS.toArray(new String[0]));
-        patternCombo.setSelectedItem(hatchPattern);
-        JSpinner gapSpinner = new JSpinner(new SpinnerNumberModel(hatchGapMm, 0.2, 50.0, 0.2));
-        JSpinner angleSpinner = new JSpinner(new SpinnerNumberModel(hatchAngleDeg, 0.0, 180.0, 5.0));
-
-        JPanel form = new JPanel(new GridLayout(0, 2, 6, 6));
-        form.add(new JLabel("Pattern"));
-        form.add(patternCombo);
-        form.add(new JLabel("Spacing (mm)"));
-        form.add(gapSpinner);
-        form.add(new JLabel("Angle (°)"));
-        form.add(angleSpinner);
-
-        int result = JOptionPane.showConfirmDialog(this, form, "Hatch Region Style",
-                JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
-        if (result != JOptionPane.OK_OPTION) {
-            return;
-        }
-        hatchPattern = (String) patternCombo.getSelectedItem();
-        hatchGapMm = ((Number) gapSpinner.getValue()).doubleValue();
-        hatchAngleDeg = ((Number) angleSpinner.getValue()).doubleValue();
-        log(String.format("Hatch style set: %s, %.1fmm, %.0f°.", hatchPattern, hatchGapMm, hatchAngleDeg));
+    /** Updates an edited document without discarding its source provenance or undo snapshot. */
+    private void updateDocument(ProcessorOutput output) {
+        documentEditor.update(output);
     }
 
-    /** Snapshots {@link #currentOutput} so the next destructive transform can be undone. */
-    private void snapshotForUndo() {
-        undoSnapshot = currentOutput;
-        if (undoMenuItem != null) {
-            undoMenuItem.setEnabled(true);
-        }
-    }
-
-    private void onUndo() {
-        if (undoSnapshot == null) {
-            return;
-        }
-        currentOutput = undoSnapshot;
-        undoSnapshot = null;
-        if (undoMenuItem != null) {
-            undoMenuItem.setEnabled(false);
-        }
-        visPanel.loadPathsPreservingOverlay(currentOutput);
-        refreshLayerSelector();
-        refreshPositionFields();
-        refreshTimeEstimate();
-        refreshGuidance();
-        log("Undo: reverted the last transform.");
+    private void clearDocument() {
+        documentEditor.clear();
     }
 }

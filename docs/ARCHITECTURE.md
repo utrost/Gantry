@@ -123,7 +123,9 @@ coordinate math. There are distinct spaces:
    `CoordinateTransform.transformPoint(...)` applying, in order:
    `rotate → swap → invertX → invertY` (configurable per machine).
 4. **Screen space** — `physicalToScreen(...)` for the live preview (Y-down,
-   top-left origin).
+   top-left origin). Canvas alignment is solved in this final projected space,
+   so Top/Bottom/Left/Right retain their visible meaning for every machine origin,
+   axis swap/inversion, portrait orientation, and final Flip Y.
 5. **Overlay space** — the interactive positioning transform
    (`applyOverlayRaw(...)`: mirror → quarter-turn → uniform scale → translate,
    all about the content center). The GUI preview and the JSON "bake" call the
@@ -361,13 +363,11 @@ Implementations:
 Swing + FlatLaf dark theme. `GantryApp#main` sets up `FlatDarkLaf`, builds a
 `PlotterPanel`, attaches its menu bar, and shows the frame.
 
-- **`PlotterPanel`** (~2200 lines) — the main window and de-facto controller. Holds
-  the current `ProcessorOutput` (`currentOutput`), the right-hand control column
-  (Jog, Overlay/Position, Plot, Raw G-code sections — each wrapped in
-  `capHeight(...)` which also left-aligns to avoid BoxLayout center-clipping), the
-  console, the menu bar, and wires user actions to the pipeline/PlotService. It is
-  a known **god-class** and the prime candidate for extracting a `PlotSession`
-  controller (see ROADMAP). Menu actions: Import SVG (artwork), Re-process Source
+- **`PlotterPanel`** (~1,180 lines) — the composition root for the main window.
+  It lays out the preview, console, extracted control panels, menus, and workflow
+  entry points, then wires their callbacks to document and plot controllers.
+  The completed decomposition and its safety invariants are tracked in
+  `docs/REFACTORING.md`. Menu actions include Import SVG (artwork), Re-process Source
   SVG (`EditProcessDialog`), Optimize Commands (JSON), Map Layer Colors to Stations,
   Open/Save Commands (JSON), Export/Replay G-code. Every File/Edit menu item names
   its file format (SVG / JSON / G-code) in the label and has a tooltip (`tip()`
@@ -379,9 +379,24 @@ Swing + FlatLaf dark theme. `GantryApp#main` sets up `FlatDarkLaf`, builds a
   `Layer`s before `preparePlotOutput()` bakes the overlay and applies multipass, so
   Start Plot / Export / the time estimate all operate on just those layers (the
   per-pen workflow). The ticked set is pushed to the preview via
-  `VisualizationPanel.setSelectedLayers(...)`.
-- **`VisualizationPanel`** (~1140 lines) — the live canvas: draws the bed, the
-  drawing, the moving cursor, and the interactive positioning overlay
+  `VisualizationPanel.setSelectedLayers(...)`. File handling lives in
+  `DocumentFileWorkflow`/`GcodeFileWorkflow`; guided machine operations live in
+  `PreflightWorkflow`, `SetupWorkflow`, `CalibrationWorkflow`, and
+  `StationTestWorkflow`; jog, plot, overlay, and raw-command widgets are separate
+  panels.
+- **`DocumentSession`** — Swing-free owner of the current command model, selected
+  layers, source provenance, single-level undo, and plot/export preparation.
+- **`PlotJobController`** — Swing-free owner of the connected `PlotterBackend`,
+  active `PlotService`, plot worker, pause/resume/cancel, completion cleanup,
+  progress state, and re-plot eligibility.
+- **`VisualizationPanel`** (~960 lines) — the live-canvas scene and transform
+  facade. It retains the public canvas API and delegates painting to
+  `CanvasRenderer`, mouse gestures to `CanvasInteractionController`, hit testing,
+  snapping, viewport inversion, and resize calculations to
+  `CanvasInteractionGeometry`, and popup construction to `CanvasContextMenu`.
+  Deterministic colour and segment calculations live in the directly tested
+  `CanvasPalette` and `CanvasGeometry`. The canvas draws the bed, drawing, moving
+  cursor, and interactive positioning overlay
   (`overlayOffsetX/Y`, `overlayScale`, `overlayRotation`, `overlayMirror` — a
   **single global transform**, i.e. exactly one drawing today; multi-document is
   roadmap Phase 9). Drag/scale/rotate/mirror + a right-click context menu. Uses
@@ -586,11 +601,12 @@ live serial, full G-code file-content correctness, the CLI `--style` flag.
 | Add a plotter type | implement `plotter:PlotterBackend` |
 | Change G-code output | `plotter:GcodeFormatter` / `GcodeBackend` |
 | Change plotting/safety/sequencing | `app:plot/PlotService.java` |
-| Change the canvas/positioning UX | `app:gui/VisualizationPanel.java` |
-| Change menus/controls/orchestration | `app:gui/PlotterPanel.java` |
-| Change/add a guided wizard | `app:gui/PlotterPanel.java` (`onSetupWizard`/`onPreflightWizard`/`onCalibrateAxesWizard`/`onTestStationsWizard`) + `WizardDialog`/`WizardStep`/`PanelStep` |
+| Change canvas rendering | `app:gui/CanvasRenderer.java` + `VisualizationPanel.java` scene/transform API |
+| Change canvas gestures or hit testing | `CanvasInteractionController.java` / `CanvasInteractionGeometry.java` |
+| Change menus/controls/orchestration | `PlotterPanel.java` plus the relevant extracted `*Panel` or `*Workflow` |
+| Change/add a guided wizard | the relevant `PreflightWorkflow` / `SetupWorkflow` / `CalibrationWorkflow` / `StationTestWorkflow` + `WizardDialog`/`WizardStep`/`PanelStep` |
 | Change refill-station test-run / dip behaviour | `app:plot/PlotService.java` (`dryVisitStation`/`wetTestStation`/`dip`) |
-| Change canvas station placement (drag / add) | `app:gui/VisualizationPanel.java` (`hitTestStation`/`screenToPhysical`/`StationEditListener`) |
+| Change canvas station placement (drag / add) | `CanvasInteractionController.java`, `CanvasInteractionGeometry.java`, and `VisualizationPanel.StationEditListener` |
 | Change GRBL settings read/write (steps/mm) | `plotter:GrblSettings.java` (+ `MockPlotterBackend` emulation) |
 | Change persisted settings | `app:plot/ConfigStore` + `*Config`/`*Settings` |
 | Headless/batch behavior | `cli:SvgImportCli.java` |

@@ -85,6 +85,28 @@ class PlotServiceTest {
     }
 
     @Test
+    void bottomOriginAlignmentUsesVisibleCanvasCornerAndStaysInBounds() {
+        FakePlotterBackend backend = new FakePlotterBackend();
+        PlotSettings settings = new PlotSettings();
+        settings.machineWidth = 100.0;
+        settings.machineHeight = 80.0;
+        settings.invertY = true;
+        settings.originBottom = true;
+        settings.canvasAlign = "bottom-left";
+        settings.paddingX = 5;
+        settings.paddingY = 7;
+        PlotService service = new PlotService(backend, settings);
+
+        Layer layer = new Layer("L1", "default_station", List.of(
+                new DrawCommand(1, List.of(new Point(10, 20), new Point(30, 50)))));
+
+        service.plot(output(layer));
+
+        assertEquals(List.of("LINETO 5.000 37.000", "LINETO 25.000 7.000",
+                "PENUP", "MOVETO 0.000 0.000"), backend.calls);
+    }
+
+    @Test
     void refillSimpleDipMovesDipsAndLifts() {
         FakePlotterBackend backend = new FakePlotterBackend();
         PlotSettings settings = new PlotSettings();

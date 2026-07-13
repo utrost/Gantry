@@ -160,7 +160,8 @@ public class PlotService {
             double[] offset = CoordinateTransform.calculateAlignmentOffset(
                     settings.canvasAlign, contentBounds, machineW, machineH,
                     settings.swapXY, settings.invertX, settings.invertY,
-                    settings.dataRotation, settings.originRight,
+                    settings.dataRotation, settings.originRight, settings.originBottom,
+                    settings.flipY,
                     settings.paddingX, settings.paddingY);
             offsetX = offset[0];
             offsetY = offset[1];
@@ -275,7 +276,8 @@ public class PlotService {
             double[] offset = CoordinateTransform.calculateAlignmentOffset(
                     settings.canvasAlign, contentBounds, machineW, machineH,
                     settings.swapXY, settings.invertX, settings.invertY,
-                    settings.dataRotation, settings.originRight,
+                    settings.dataRotation, settings.originRight, settings.originBottom,
+                    settings.flipY,
                     settings.paddingX, settings.paddingY);
             offsetX = offset[0];
             offsetY = offset[1];

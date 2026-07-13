@@ -233,6 +233,14 @@
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-surefire-plugin</artifactId>
                     <version>3.2.3</version>
+                    <configuration>
+                        <!-- Tests render into BufferedImages but never need a native desktop.
+                             Keeping AWT headless avoids an OpenJDK 26/macOS JVM abort after the
+                             vectorizer image tests and makes scripts/build.{sh,cmd} reliable. -->
+                        <systemPropertyVariables>
+                            <java.awt.headless>true</java.awt.headless>
+                        </systemPropertyVariables>
+                    </configuration>
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
