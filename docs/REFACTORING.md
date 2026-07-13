@@ -1,9 +1,9 @@
-# Architecture stabilization
+# Architecture stabilization — complete
 
-This document is the working plan for reducing maintenance risk in Gantry's
-desktop application. Product features remain in `ROADMAP.md`; this document
-tracks structural work, behavioral invariants, extraction boundaries, and the
-tests required to change the structure safely.
+This document records the completed stabilization of Gantry's desktop
+application. Product features remain in `ROADMAP.md`; this document preserves
+the structural boundaries, behavioral invariants, and tests that future work
+must keep intact.
 
 ## Why this work is needed
 
@@ -12,12 +12,14 @@ far beyond a maintainable size:
 
 | Class | Current size | Responsibilities concentrated there |
 |---|---:|---|
-| `PlotterPanel` | ~3,270 lines | window composition, document state, file workflows, connection and plot lifecycle, jog controls, progress, wizards, editing, undo, and user messaging |
-| `VisualizationPanel` | ~2,110 lines | scene data, transforms, rendering, viewport control, overlays, hit testing, snapping, stations, and editing tools |
+| `PlotterPanel` | 1,183 lines | window composition and delegation to focused workflows, controllers, and views |
+| `VisualizationPanel` | 935 lines | canvas scene/overlay state delegating rendering, interaction, geometry, and context actions |
 
-`SvgImportStage` (~840 lines) and the vectorizer GUI also merit later review,
-but they are lower priority because their responsibilities are more cohesive
-and their deterministic behavior has stronger test coverage.
+`SvgImportStage` (~840 lines), `VectorizeStudioDialog` (~690 lines), and the
+vectorizer controls remain larger classes, but their responsibilities are more
+cohesive and their deterministic behavior has stronger test coverage. Revisit
+them only when feature work exposes a concrete boundary; size alone is not a
+reason for another extraction pass.
 
 ## Constraints and invariants
 
@@ -91,6 +93,10 @@ selection logic should be deterministic and independently tested.
 - The full supported-JDK reactor build is green.
 - `docs/ARCHITECTURE.md` describes the resulting boundaries, not an aspirational
   design.
+
+All criteria above were met on 2026-07-13. Further structural changes should be
+driven by roadmap work—for example, Phase 9's per-item scene model—rather than a
+second general refactoring campaign.
 
 ## Working log
 

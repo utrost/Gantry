@@ -7,8 +7,11 @@ import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
+import java.io.IOException;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class GcodeBackendTest {
@@ -206,6 +209,117 @@ class GcodeBackendTest {
         // Recovery clears the post-soft-reset alarm, then lifts the pen as the final action.
         assertTrue(afterHalt.contains("$X"), "expected $X alarm-clear, got " + afterHalt);
         assertEquals("M280 P0 S60", afterHalt.get(afterHalt.size() - 1)); // penup is last
+    }
+
+    @Test
+    void holdStatusBlocksCommandsUntilGrblResumes() throws Exception {
+        GcodeOptions options = new GcodeOptions();
+        options.positionPollIntervalSeconds = 0.02;
+        GcodeBackend b = newBackend(options);
+        assertTrue(b.connect());
+        fake.setMachineState("Hold:0");
+        awaitState(b, GcodeBackend.MachineState.HOLD);
+
+        Thread move = new Thread(() -> b.moveto(9, 7), "held-move-test");
+        move.start();
+        Thread.sleep(100);
+        assertTrue(move.isAlive(), "move should wait while GRBL reports Hold");
+        assertFalse(fake.sentCommands().contains("G0 X9.000 Y7.000 F3000"));
+
+        fake.setMachineState("Run");
+        awaitState(b, GcodeBackend.MachineState.RUN);
+        move.join(2000);
+        assertFalse(move.isAlive(), "move did not resume after GRBL left Hold");
+        assertTrue(fake.sentCommands().contains("G0 X9.000 Y7.000 F3000"));
+    }
+
+    @Test
+    void alarmUnblocksAndAbortsAnInFlightCommand() throws Exception {
+        GcodeBackend b = connected();
+        fake.setAutoAck(false);
+        AtomicReference<Throwable> failure = new AtomicReference<>();
+        Thread move = new Thread(() -> {
+            try {
+                b.moveto(4, 5);
+            } catch (Throwable thrown) {
+                failure.set(thrown);
+            }
+        }, "alarm-move-test");
+        move.start();
+        awaitCommand("G0 X4.000 Y5.000 F3000");
+
+        fake.injectLine("ALARM:1");
+        move.join(2000);
+
+        assertFalse(move.isAlive(), "alarm did not unblock the waiting plot command");
+        assertTrue(failure.get() instanceof GcodeBackendException, "expected fatal alarm failure");
+        assertTrue(failure.get().getMessage().contains("ALARM:1"));
+        assertEquals(GcodeBackend.MachineState.ALARM, b.getMachineState());
+    }
+
+    @Test
+    void alarmStatusReportAlsoAbortsPlotCommands() throws Exception {
+        GcodeOptions options = new GcodeOptions();
+        options.positionPollIntervalSeconds = 0.02;
+        GcodeBackend b = newBackend(options);
+        assertTrue(b.connect());
+
+        fake.setMachineState("Alarm");
+        awaitState(b, GcodeBackend.MachineState.ALARM);
+
+        GcodeBackendException failure = assertThrows(GcodeBackendException.class,
+                () -> b.moveto(3, 4));
+        assertTrue(failure.getMessage().contains("GRBL status: Alarm"));
+    }
+
+    @Test
+    void serialWriteFailureIsThrownAndMarksBackendDisconnected() {
+        GcodeOptions options = new GcodeOptions();
+        options.positionPollIntervalSeconds = 60;
+        GcodeBackend b = newBackend(options);
+        assertTrue(b.connect());
+        fake.failNextWrite(new IOException("cable unplugged"));
+
+        GcodeBackendException failure = assertThrows(GcodeBackendException.class,
+                () -> b.moveto(1, 2));
+
+        assertTrue(failure.getMessage().contains("cable unplugged"));
+        assertEquals(GcodeBackend.MachineState.DISCONNECTED, b.getMachineState());
+    }
+
+    @Test
+    void serialReadFailureAbortsTheNextPlotCommand() throws Exception {
+        GcodeBackend b = connected();
+        fake.failReads(new IOException("adapter vanished"));
+        awaitState(b, GcodeBackend.MachineState.DISCONNECTED);
+
+        GcodeBackendException failure = assertThrows(GcodeBackendException.class,
+                () -> b.moveto(1, 2));
+
+        assertTrue(failure.getMessage().contains("adapter vanished"));
+    }
+
+    private void awaitState(GcodeBackend b, GcodeBackend.MachineState expected) throws Exception {
+        long deadline = System.currentTimeMillis() + 2000;
+        while (System.currentTimeMillis() < deadline) {
+            if (b.getMachineState() == expected) {
+                return;
+            }
+            Thread.sleep(10);
+        }
+        throw new AssertionError("timed out waiting for GRBL state " + expected
+                + ", last=" + b.getMachineState());
+    }
+
+    private void awaitCommand(String expected) throws Exception {
+        long deadline = System.currentTimeMillis() + 2000;
+        while (System.currentTimeMillis() < deadline) {
+            if (fake.sentCommands().contains(expected)) {
+                return;
+            }
+            Thread.sleep(10);
+        }
+        throw new AssertionError("timed out waiting for command " + expected);
     }
 
     /** Last command sent that isn't a "?" status poll response handler artifact. */

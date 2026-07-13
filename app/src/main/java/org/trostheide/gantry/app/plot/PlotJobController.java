@@ -7,11 +7,10 @@ import java.util.Objects;
 import java.util.function.Consumer;
 
 /**
- * Owns the backend used by the current application session.
+ * Swing-free owner of the application session's backend and plot lifecycle.
  *
- * <p>This first extraction deliberately covers connection ownership only. Plot execution remains
- * in the existing caller until its cancellation and pen-safety behavior has dedicated controller
- * tests.</p>
+ * <p>Connection adoption, plot worker execution, pause/resume/cancel, lifecycle cleanup, and
+ * re-plot eligibility live here. Presentation and EDT dispatch remain the caller's concern.</p>
  */
 public final class PlotJobController {
 

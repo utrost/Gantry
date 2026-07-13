@@ -104,7 +104,7 @@ oracle until Phase 3.
 | **5. New features** ✅ | Multipass/pigment (`pipeline-core`, benefits pen *and* watercolor) · G-code file export + re-plot (`plotter`) · refill stays in `watercolor` | Each behind a tested toggle in the GUI |
 | **6. SVG ingestion & processing pipeline** ✅ | Port the SVG→command-model pipeline (`legacy/SVG2WaterColor`'s `ProcessorService`) into `pipeline-core`/`svgtoolbox-core`, plus the SVGToolBox SVG→SVG processors not yet covered by Phase 4; add "Process SVG"/"Draw SVG" GUI entry points and a headless CLI | An SVG file can be loaded in the GUI/CLI and produce a plottable command model with no external tooling; `legacy/` no longer the only path from SVG to plot |
 | **7. Cutover** ✅ | Delete `legacy/`; docs; single-artifact release | One JAR, no Python anywhere |
-| **8. Hardening & watercolor completion** ✅ | Post-cutover audit fixes: plotting-safety (Stop/disconnect) ✅, watercolor completion (colour→station mapping) ✅, UX polish ✅, cleanup ✅ | Stop/disconnect always leave the machine in a safe state ✅; SVG colours drive station assignment ✅; errors are visible to the operator ✅; UX polish ✅; cleanup ✅ |
+| **8. Hardening & watercolor completion** ✅ | Post-cutover audit fixes: plotting safety, GRBL state/failure handling, watercolor completion (colour→station mapping), UX polish, and cleanup | Stop/disconnect leave the machine safe; serial/GRBL failures abort the plot; alarm/hold states are surfaced and handled; SVG colours drive station assignment |
 | **9. Multi-document canvas** 🚧 NOT STARTED | Replace the single-drawing canvas with a list of independently placed/edited SVG imports (`SvgItem`s), each with its own transform, selectable and removable on its own | Two+ SVGs can be imported, independently positioned/scaled/rotated/mirrored, individually removed, and combined into one plottable/exportable job |
 | **10. Per-area hatch styling** 🚧 NOT STARTED | Let different regions of the *same* SVG hatch differently: surface the existing per-colour override map in the GUI, then add per-element/per-group overrides for same-colour regions that need different patterns | A single SVG with two same-colour regions can be hatched with two different patterns/angles/gaps, set up entirely from the GUI, with CLI parity |
 | **11. CLI/GUI parity** 🚧 NOT STARTED | Close the plot-affecting capability gaps between the headless CLI and the GUI in both directions: CLI gains G-code export, multipass, the post-import Optimize stage, and colour→station mapping; GUI gains the CLI-only per-colour hatch/stroke-width/no-hatch/min-area knobs (folded into Phase 10 Tier 1) | A batch CLI run can produce a plot-ready G-code file with multipass/station-mapping applied, with no GUI session involved; the GUI exposes every per-colour toolbox knob the CLI already has |
@@ -115,16 +115,16 @@ oracle until Phase 3.
 | **16. Axis calibration wizard** ✅ | Guided axis-direction sanity check (does +X/+Y on screen match +X/+Y on the machine?) and a measure-and-correct scale calibration (command a known travel distance, let the user enter what was actually measured, compute and offer to write corrected GRBL `$100`/`$101` steps/mm) | A user can detect and fix a reversed axis without reading GRBL docs, and can correct a steps/mm mismatch (e.g. commanded 200 mm, actual 195 mm) by entering one measured number, with the computed `$10x` value previewed before it's sent |
 | **17. Visual station placement + watercolor test-run** ✅ | Two reinforcing halves over the same `StationConfig` data: (A) make the refill-station dots already drawn on the canvas *draggable*, and right-click-on-bed *adds* a station at that mm position, syncing live with the `SettingsPanel` station table; (B) a `Machine > Test Color Stations…` wizard that physically drives the brush to each station (pen-up dry visit → optional wet dip with the station's real behaviour/dwell/swirl), with jog-to-nudge writing corrections back to the same station — placement and verification edit one backing model | A station can be positioned by dragging its marker on the canvas (table updates live, and vice-versa) and added by right-clicking the bed; a connected operator can walk every configured station, confirm the brush lands over the right pot, nudge any that miss, and have the correction persist — all without typing raw mm coordinates |
 | **18. Raster vectorization (image → SVG front stage)** ✅ | Absorb the standalone **Vectorize** (BoofCV-Batik Vectorizer) tool as a new `vectorize` module that turns a raster image (JPG/PNG) into an SVG, then hands that SVG to the *existing* `SvgImportStage` — a new optional front stage *before* `svgtoolbox-core`, opening the full **image → SVG → process → plot** path. Ported by copying source into Gantry (the Vectorize repo stays untouched); re-homed under `org.trostheide.gantry.vectorize`; wired into both the CLI and a GUI "Import Image…" entry point | A JPG/PNG can be loaded in the GUI or CLI, vectorized with a chosen strategy, and flow straight into the existing import → toolbox → plot pipeline with no external tooling; Gantry ships as one AGPLv3 artifact and the standalone Vectorize repo is unmodified |
-| **19. Vectorize live-preview studio** 🚧 Tiers 1–3 landed (GUI verify pending) | Replace Phase 18's blind two-dialog Import-Image flow with a single live-preview workspace: source image and vector preview side by side, **debounced re-trace** as you change strategy/parameters, preset-first controls, and plotter-aware readouts (stroke/point counts, single-stroke vs filled). Tuned SVG still hands off to the existing `SvgImportStage`; the source image + parameters are remembered so the drawing can be **re-vectorized** later without starting over | A user can load an image and watch the trace update live as they tune (no commit-to-see), judge plottability from on-screen metrics, then import into the existing positioning/plot pipeline; re-opening a vectorized drawing restores the studio pre-populated for re-tuning |
+| **19. Vectorize live-preview studio** ✅ | Replace Phase 18's blind two-dialog Import-Image flow with a single live-preview workspace: source image and vector preview side by side, **debounced re-trace** as you change strategy/parameters, preset-first controls, and plotter-aware readouts (stroke/point counts, single-stroke vs filled). Tuned SVG still hands off to the existing `SvgImportStage`; the source image + parameters are remembered so the drawing can be **re-vectorized** later without starting over | A user can load an image and watch the trace update live as they tune (no commit-to-see), judge plottability from on-screen metrics, then import into the existing positioning/plot pipeline; re-opening a vectorized drawing restores the studio pre-populated for re-tuning |
 
-### Phase 8 — in progress (post-cutover self-audit)
+### Phase 8 — complete (post-cutover self-audit)
 
 A three-track audit (GUI/UX, watercolor-feature completeness, backend
 robustness) of the shipped Phase-7 build surfaced the following. Items are
 tagged 🔴 critical (can damage hardware / ruin a print), 🟠 high (the
 watercolor vision is structurally incomplete), 🟡 medium (UX), 🟢 low (cleanup).
 
-**🔴 Plotting safety — STARTED (this is the first work item)**
+**🔴 Plotting safety — DONE**
 - **Stop left the pen down.** `PlotService.cancel()` only set a flag; `plot()`
   returned early and skipped `parkAtOrigin()`/`penup()`. Now fixed: `plot()`
   lifts the pen in a `finally` on cancel, independent of backend type.
@@ -139,8 +139,12 @@ watercolor vision is structurally incomplete), 🟡 medium (UX), 🟢 low (clean
   successful plot. Now surfaced as ERROR, and backend diagnostics are teed into
   the GUI log (previously only `System.out`, invisible in the app).
 - **Disconnect mid-plot** now confirms and cancels the active plot first.
-- *Remaining:* full GRBL alarm/hold state handling and propagating a hard
-  serial-failure up to abort the plot (not just log it).
+- **GRBL state/failure handling is complete.** Realtime Alarm reports and
+  command errors abort the active plot; Hold and safety-door states pause
+  command progression until GRBL resumes. Read/write/poll failures and response
+  timeouts propagate to `PlotJobController`, disable re-plot eligibility, and
+  surface in the GUI status, console, and error dialog. Focused fake-transport
+  tests cover in-flight Alarm wakeup, Hold/resume, and read/write loss.
 
 **🟠 Watercolor completion — DONE**
 - The `watercolor/` module is now real: `ColorUtil` (hex parsing + redmean
@@ -616,7 +620,7 @@ interpret amplitude/wavelength the obvious way.
 
 ---
 
-### Phases 13–16 — Guided workflows (not started)
+### Phases 13–16 — Guided workflows ✅
 
 **Why this group exists.** Phases 0–12 are all about *preparing geometry*
 correctly. None of them help with the surrounding physical process: is the
@@ -1089,7 +1093,7 @@ ordering as Phases 15→16.
 
 ---
 
-### Phase 18 — Raster vectorization (image → SVG front stage) 🚧 NOT STARTED
+### Phase 18 — Raster vectorization (image → SVG front stage) ✅
 
 **Problem.** Gantry starts from an SVG. Everything upstream of that — turning a
 photo, scan, logo or sketch into vector paths — happens in a *separate* tool,
@@ -1231,7 +1235,7 @@ artifacts. Reactor `mvn clean install` is green across all nine modules and the
 
 ---
 
-### Phase 19 — Vectorize live-preview studio (best-UX raster tuning) 🚧 NOT STARTED
+### Phase 19 — Vectorize live-preview studio (best-UX raster tuning) ✅
 
 **Problem.** Phase 18 made image→SVG *possible*, but the UX is "tune blind": two
 sequential modal dialogs (`VectorizeDialog` → `SvgImportDialog`) with **no
@@ -1303,7 +1307,7 @@ parts — `VectorizationWorker` (background trace with cancel + progress) and a
 `JSVGCanvas` live preview with debounced updates — so Tier 1 is largely a
 port/adapt of proven code rather than a green-field build.
 
-**Status — Tier 1 implemented (GUI verification pending).**
+**Status — Tier 1 implemented and GUI-verified.**
 - ✅ `app/gui/VectorizeStudioDialog` — source `ImagePanel` and a `JSVGCanvas`
   vector preview side by side; a 400 ms debounced, cancellable `SwingWorker`
   re-traces via `Main.runSingleFile` on any control change; preset row
@@ -1326,17 +1330,19 @@ port/adapt of proven code rather than a green-field build.
 - ⏳ The "as it will plot" stroke-order preview is deferred (heavier, pure GUI).
 
 **Status — Tier 3 (re-vectorize round-trip) implemented.**
-- ✅ `PlotterPanel` remembers the source image + vectorize args on import and
+- ✅ `DocumentSession` remembers the source image + vectorize args on import and
   enables **Edit ▸ Re-vectorize Image…**, which reopens the studio on the same
   image pre-populated with those parameters (`VectorizeStudioDialog.applyArgs`,
   the inverse of `buildParams`) so the trace can be re-tuned without
-  re-importing. The import flow is refactored into a shared `vectorizeAndImport`.
+  re-importing. `DocumentFileWorkflow` owns the shared import/re-vectorize path.
 
-**Verification.** Reactor build green; `app` tests pass (22, incl. the new
-`StudioMetrics` math). The live GUI surface across all three tiers — preview
-updates, debounce, presets, crop, the readouts/hint, and the re-vectorize
-round-trip — needs a manual run (TESTING.md **TS-U1**/**TS-U2**) before Phase 19
-is marked done; it cannot be exercised headlessly.
+**Verification.** Completed 2026-07-13 with the real Swing dialogs in a scoped
+in-process GUI harness: preview updates, debounce, strategy-specific controls,
+presets, crop, metrics/hints, cancellation, and restoration of non-default
+Centerline settings all passed on `test_mixed_shapes.png`. `config.json` stayed
+byte-identical and no debug images were left behind. The reactor suite covers
+the vector engines, SVG handoff, document provenance, and downstream plot path;
+see TESTING.md **TS-U1**/**TS-U2**.
 
 ---
 

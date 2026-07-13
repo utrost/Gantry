@@ -28,6 +28,13 @@ import java.util.function.IntConsumer;
  */
 public class GcodeBackend implements PlotterBackend {
 
+    /** Coarse GRBL controller states surfaced by realtime {@code <...>} reports. */
+    public enum MachineState {
+        UNKNOWN, IDLE, RUN, HOLD, ALARM, JOG, HOME, CHECK, DOOR, SLEEP, DISCONNECTED, OTHER
+    }
+
+    private static final String FAILURE_SENTINEL = "\u0000failure";
+
     private final GcodeOptions options;
     private final SerialTransportFactory transportFactory;
 
@@ -38,8 +45,11 @@ public class GcodeBackend implements PlotterBackend {
     /** Set while {@link #haltMotion()} is aborting, so the plot thread's in-flight/straggler
      * commands short-circuit instead of fighting the halt for the write lock and "ok" acks. */
     private volatile boolean aborting;
+    private volatile GcodeBackendException terminalFailure;
+    private volatile MachineState machineState = MachineState.UNKNOWN;
 
     private final Object writeLock = new Object();
+    private final Object stateLock = new Object();
     private final BlockingQueue<String> ackQueue = new LinkedBlockingQueue<>();
     private final BlockingQueue<String> rawQueue = new LinkedBlockingQueue<>();
 
@@ -53,6 +63,7 @@ public class GcodeBackend implements PlotterBackend {
     private BiConsumer<Double, Double> positionCallback;
     private IntConsumer speedCallback;
     private java.util.function.Consumer<String> sentCommandCallback;
+    private java.util.function.Consumer<MachineState> stateCallback;
 
     private Thread readerThread;
     private Thread pollerThread;
@@ -88,6 +99,16 @@ public class GcodeBackend implements PlotterBackend {
         this.sentCommandCallback = callback;
     }
 
+    /** Register a callback invoked when the controller enters a different GRBL state. */
+    public void setStateCallback(java.util.function.Consumer<MachineState> callback) {
+        this.stateCallback = callback;
+    }
+
+    /** Returns the latest state reported by GRBL. */
+    public MachineState getMachineState() {
+        return machineState;
+    }
+
     /**
      * Change the plot speed in realtime via GRBL feed-rate override. These are
      * single-byte realtime commands processed immediately, without disturbing the
@@ -116,8 +137,8 @@ public class GcodeBackend implements PlotterBackend {
         synchronized (writeLock) {
             try {
                 t.writeBytes(command);
-            } catch (IOException ignored) {
-                // realtime commands are fire-and-forget
+            } catch (IOException e) {
+                throw recordSerialFailure("Serial realtime-command write failed", e);
             }
         }
     }
@@ -125,6 +146,11 @@ public class GcodeBackend implements PlotterBackend {
     @Override
     public boolean connect() {
         try {
+            terminalFailure = null;
+            aborting = false;
+            ackQueue.clear();
+            rawQueue.clear();
+            updateMachineState(MachineState.UNKNOWN);
             transport = transportFactory.open(options.serialPort, options.baudRate);
             Thread.sleep(options.bootDelayMillis);
 
@@ -163,6 +189,7 @@ public class GcodeBackend implements PlotterBackend {
                 t.close();
             }
             transport = null;
+            updateMachineState(MachineState.DISCONNECTED);
             return false;
         }
     }
@@ -170,20 +197,30 @@ public class GcodeBackend implements PlotterBackend {
     @Override
     public void disconnect() {
         SerialTransport t = transport;
-        if (t != null && t.isOpen()) {
-            penup();
-            send(GcodeFormatter.home());
-            waitForOk();
-            running = false;
-            synchronized (writeLock) {
-                t.close();
+        try {
+            if (t != null && t.isOpen() && terminalFailure == null) {
+                penup();
+                send(GcodeFormatter.home());
+                waitForOk();
             }
-        } else {
+        } catch (GcodeBackendException e) {
+            System.out.println("ERROR: Graceful disconnect failed: " + e.getMessage());
+        } finally {
             running = false;
+            if (t != null) {
+                synchronized (writeLock) {
+                    t.close();
+                }
+            }
         }
+        wakeStateWaiters();
         joinQuietly(readerThread);
         joinQuietly(pollerThread);
         transport = null;
+        // The connection coordinator already presents a normal user-requested disconnect. Keep
+        // the backend state accurate without misreporting it to the UI as an unexpected loss.
+        machineState = MachineState.DISCONNECTED;
+        wakeStateWaiters();
     }
 
     @Override
@@ -296,6 +333,7 @@ public class GcodeBackend implements PlotterBackend {
         // Phase 2 — recover on this single thread now that the plot thread has stood down.
         ackQueue.clear();
         rawQueue.clear();
+        terminalFailure = null;
         aborting = false;
         send("$X");      // clear the post-reset alarm state
         waitForOk(5);
@@ -325,6 +363,7 @@ public class GcodeBackend implements PlotterBackend {
             send(command);
             long deadline = System.currentTimeMillis() + 2000;
             while (System.currentTimeMillis() < deadline) {
+                throwIfFailed();
                 String response;
                 try {
                     response = rawQueue.poll(100, TimeUnit.MILLISECONDS);
@@ -334,6 +373,9 @@ public class GcodeBackend implements PlotterBackend {
                 }
                 if (response == null) {
                     continue;
+                }
+                if (FAILURE_SENTINEL.equals(response)) {
+                    throwIfFailed();
                 }
                 responses.add(response);
                 String low = response.toLowerCase(Locale.ROOT);
@@ -355,20 +397,24 @@ public class GcodeBackend implements PlotterBackend {
             // into a machine that's being soft-reset.
             return;
         }
+        throwIfFailed();
+        awaitNotHeld();
         SerialTransport t = transport;
-        if (t != null && t.isOpen()) {
-            synchronized (writeLock) {
-                try {
-                    t.writeLine(cmd);
-                    if (sentCommandCallback != null) {
-                        sentCommandCallback.accept(cmd);
-                    }
-                } catch (IOException e) {
-                    // A failed write almost always means the port vanished (cable unplugged, adapter
-                    // reset). Surface it instead of swallowing it, so the operator doesn't think a
-                    // plot finished cleanly when it actually died mid-stroke.
-                    System.out.println("ERROR: Serial write failed (lost connection to plotter?): " + e.getMessage());
+        if (t == null || !t.isOpen()) {
+            throw recordSerialFailure("Lost connection to plotter",
+                    new IOException("serial port closed"));
+        }
+        synchronized (writeLock) {
+            try {
+                t.writeLine(cmd);
+                if (sentCommandCallback != null) {
+                    sentCommandCallback.accept(cmd);
                 }
+            } catch (IOException e) {
+                // A failed write almost always means the port vanished (cable unplugged, adapter
+                // reset). Surface it instead of swallowing it, so the operator doesn't think a
+                // plot finished cleanly when it actually died mid-stroke.
+                throw recordSerialFailure("Serial write failed (lost connection to plotter?)", e);
             }
         }
     }
@@ -381,28 +427,31 @@ public class GcodeBackend implements PlotterBackend {
         if (transport == null || aborting) {
             return;
         }
+        throwIfFailed();
         String line;
         try {
             line = ackQueue.poll(timeoutSeconds, TimeUnit.SECONDS);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            return;
+            throw new GcodeBackendException("Interrupted while waiting for GRBL response", e);
         }
         if (line == null) {
             // No ack within the timeout. Distinguish a genuine lost connection (port closed) from a
             // slow machine, so a mid-plot disconnect reads as an ERROR rather than a soft warning
             // that the plot loop quietly plows through.
             SerialTransport t = transport;
-            if (t == null || !t.isOpen()) {
-                System.out.println("ERROR: Lost connection to plotter (serial port closed).");
-            } else {
-                System.out.println("WARNING: G-code response timeout");
-            }
-            return;
+            String message = t == null || !t.isOpen()
+                    ? "Lost connection to plotter (serial port closed)"
+                    : "G-code response timeout after " + timeoutSeconds + "s";
+            GcodeBackendException failure = new GcodeBackendException(message);
+            terminalFailure = failure;
+            throw failure;
         }
+        throwIfFailed();
         if (line.toLowerCase(Locale.ROOT).startsWith("error")) {
-            System.out.println("WARNING: G-code error: " + line);
+            throw new GcodeBackendException("GRBL rejected a command: " + line);
         }
+        awaitNotHeld();
     }
 
     /**
@@ -413,19 +462,26 @@ public class GcodeBackend implements PlotterBackend {
         while (running) {
             SerialTransport t = transport;
             if (t == null || !t.isOpen()) {
+                if (running && !aborting) {
+                    recordSerialFailure("Lost connection to plotter",
+                            new IOException("serial port closed"));
+                }
                 break;
             }
             String line;
             try {
                 line = t.readLine();
             } catch (IOException e) {
+                recordSerialFailure("Serial read failed (lost connection to plotter?)", e);
                 break;
             }
             if (line == null || line.isEmpty()) {
                 continue;
             }
             String low = line.toLowerCase(Locale.ROOT);
-            if (low.startsWith("ok") || low.startsWith("error")) {
+            if (low.startsWith("alarm:")) {
+                handleAlarm(line);
+            } else if (low.startsWith("ok") || low.startsWith("error")) {
                 if (collectRaw) {
                     rawQueue.add(line);
                 } else {
@@ -452,6 +508,10 @@ public class GcodeBackend implements PlotterBackend {
         while (running) {
             SerialTransport t = transport;
             if (t == null || !t.isOpen()) {
+                if (running && !aborting) {
+                    recordSerialFailure("Lost connection to plotter",
+                            new IOException("serial port closed"));
+                }
                 break;
             }
             try {
@@ -459,6 +519,7 @@ public class GcodeBackend implements PlotterBackend {
                     t.writeBytes(new byte[] { '?' });
                 }
             } catch (IOException e) {
+                recordSerialFailure("Serial status polling failed (lost connection to plotter?)", e);
                 break;
             }
             sleepQuietly(intervalMs);
@@ -471,7 +532,16 @@ public class GcodeBackend implements PlotterBackend {
      * work position via the position callback.
      */
     private void handleStatus(String line) {
+        if (line.length() < 2 || !line.endsWith(">")) {
+            return;
+        }
         String body = line.substring(1, line.length() - 1);
+        String stateToken = body.split("\\|", 2)[0];
+        MachineState state = parseMachineState(stateToken);
+        updateMachineState(state);
+        if (state == MachineState.ALARM) {
+            handleAlarm("GRBL status: " + stateToken);
+        }
         double[] mpos = null;
         double[] wpos = null;
         for (String field : body.split("\\|")) {
@@ -516,6 +586,103 @@ public class GcodeBackend implements PlotterBackend {
                 // callbacks must not break the reader thread
             }
         }
+    }
+
+    private void handleAlarm(String detail) {
+        updateMachineState(MachineState.ALARM);
+        if (aborting) {
+            return;
+        }
+        GcodeBackendException failure = new GcodeBackendException("GRBL alarm: " + detail);
+        if (terminalFailure == null) {
+            terminalFailure = failure;
+            System.out.println("ERROR: " + failure.getMessage());
+        }
+        ackQueue.offer(FAILURE_SENTINEL);
+        rawQueue.offer(detail);
+        wakeStateWaiters();
+    }
+
+    private GcodeBackendException recordSerialFailure(String message, IOException cause) {
+        GcodeBackendException failure = terminalFailure;
+        if (failure == null) {
+            failure = new GcodeBackendException(message + ": " + cause.getMessage(), cause);
+            terminalFailure = failure;
+            System.out.println("ERROR: " + failure.getMessage());
+        }
+        running = false;
+        SerialTransport t = transport;
+        if (t != null) {
+            t.close();
+        }
+        updateMachineState(MachineState.DISCONNECTED);
+        ackQueue.offer(FAILURE_SENTINEL);
+        rawQueue.offer(FAILURE_SENTINEL);
+        wakeStateWaiters();
+        return failure;
+    }
+
+    private void throwIfFailed() {
+        GcodeBackendException failure = terminalFailure;
+        if (failure != null && !aborting) {
+            throw failure;
+        }
+    }
+
+    /** A controller feed-hold pauses plot progression until GRBL reports a resumable state. */
+    private void awaitNotHeld() {
+        synchronized (stateLock) {
+            while (isPausedMachineState(machineState) && !aborting) {
+                throwIfFailed();
+                try {
+                    stateLock.wait(250);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    throw new GcodeBackendException("Interrupted while waiting for GRBL Hold to clear", e);
+                }
+            }
+        }
+        throwIfFailed();
+    }
+
+    private static boolean isPausedMachineState(MachineState state) {
+        return state == MachineState.HOLD || state == MachineState.DOOR;
+    }
+
+    private void updateMachineState(MachineState state) {
+        MachineState previous = machineState;
+        machineState = state;
+        wakeStateWaiters();
+        if (state != previous && stateCallback != null) {
+            try {
+                stateCallback.accept(state);
+            } catch (Exception ignored) {
+                // presentation callbacks must not break serial handling
+            }
+        }
+    }
+
+    private void wakeStateWaiters() {
+        synchronized (stateLock) {
+            stateLock.notifyAll();
+        }
+    }
+
+    private static MachineState parseMachineState(String token) {
+        String base = token.split(":", 2)[0].toLowerCase(Locale.ROOT);
+        return switch (base) {
+            case "idle" -> MachineState.IDLE;
+            case "run" -> MachineState.RUN;
+            case "hold" -> MachineState.HOLD;
+            case "alarm" -> MachineState.ALARM;
+            case "jog" -> MachineState.JOG;
+            case "home" -> MachineState.HOME;
+            case "check" -> MachineState.CHECK;
+            case "door" -> MachineState.DOOR;
+            case "sleep" -> MachineState.SLEEP;
+            case "" -> MachineState.UNKNOWN;
+            default -> MachineState.OTHER;
+        };
     }
 
     private static double[] parseXY(String s) {
