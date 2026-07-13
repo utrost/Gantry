@@ -15,8 +15,6 @@ covering both the automated test suite and manual acceptance checks.
 - **Hardware-marked scripts on the mock backend are smoke tests**, not proof of
   real motion/serial behaviour — repeat them on a real plotter before a hardware
   release.
-- **CLI per-colour hatch override (`--style`)** is not wired up; only the GUI
-  Process-SVG tab exposes per-colour hatch styling.
 - **No undo/redo** for canvas edits (drawing moves, station placement) — changes
   apply immediately; revert by re-importing or editing Settings.
 - The **mock backend emulates** `$$`/`$100`/`$101`, pen and motion commands well
@@ -49,6 +47,7 @@ Expected output: `BUILD SUCCESS` with zero failures across all modules.
 | `app` | `TimeEstimatorTest` (7) | Travel/draw distances use their respective feed rates; refill travel + fixed dip overhead; unknown station falls back to default; pen-down settle overhead charged once per `DrawCommand` and driven by the configurable `penDownDelayMillis` (0 removes it); multi-layer totals; `H:MM:SS` formatting |
 | `vectorize` | `IntegrationTest`, `BoofcvBatikVectorTest`, `StrategiesTest`, `PaintByNumbersTest` (86) | Raster→SVG engine: contour extraction, all eight strategies, polyline/Bézier geometry, auto-Canny, crop, SVG optimisation, Paint-by-Numbers quantisation/regions/labels |
 | `cli` | `VectorizeCliTest` (2) | `VectorizeCli` wiring: image→SVG, and the `--`-separated image→SVG→command-JSON chain (argument split, SVG-path derivation, `-i` injection) |
+| `cli` | `SvgImportCliTest` (2) | SVG→command CLI wiring: `--passes N` expands strokes and command metadata; `--style` applies a per-colour hatch override end to end |
 | `svgtoolbox-core` | `ConfigBuilderTest` | Config builder defaults and overrides |
 | `svgtoolbox-core` | `VisibilityProcessorTest` (4) | Remove hidden layers by colour |
 | `svgtoolbox-core` | `StyleNormalizerProcessorTest` (2) | Move inline `style` attributes to presentation attributes |
@@ -733,7 +732,6 @@ These rely on the manual scripts above (Swing/serial/file behaviour that isn't u
 - The Help/User Guide dialog rendering and table-of-contents navigation.
 - Live serial communication and real motion on hardware.
 - G-code export file content beyond basic format (see `GcodeBackendTest`).
-- Per-colour hatch-override `--style` flag in the CLI.
 
 These are candidates for future integration tests; until then, run the relevant
 `TS-*` scripts before each release (the hardware-marked ones on a real plotter).

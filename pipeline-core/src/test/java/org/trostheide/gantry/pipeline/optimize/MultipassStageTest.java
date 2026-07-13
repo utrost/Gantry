@@ -52,5 +52,6 @@ class MultipassStageTest {
             assertEquals(MoveCommand.class, commands.get(1 + i * 2).getClass());
             assertEquals(DrawCommand.class, commands.get(2 + i * 2).getClass());
         }
+        assertEquals(commands.size(), optimized.metadata().totalCommands());
     }
 }

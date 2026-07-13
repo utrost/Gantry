@@ -530,11 +530,12 @@ for import; `--toolbox` + per-processor flags (`--hatch`, `--pattern`,
 `--hatch-angle/-gap`, the new `--hatch-amplitude/--hatch-wavelength/--dot-radius`,
 `--style` per-colour overrides, `--no-hatch`, `--min-area`, `--layer-width`,
 `--rotate`, `--crop`, `--palette`, `--linesimplify/-merge/-sort`, `--reloop`,
-`--optimize`, `--toolbox-stats`). Output is a command-model JSON file via
+`--optimize`, `--toolbox-stats`). The post-import `--passes N` flag applies
+`MultipassStage` before output. Output is a command-model JSON file via
 `ProcessorOutputIO`.
 
-**Current CLI vs GUI gap (roadmap Phase 11):** the CLI has no G-code export, no
-multipass, no post-import `OptimizeStage`, and no station mapping; the GUI lacks
+**Current CLI vs GUI gap (roadmap Phase 11):** the CLI has no G-code export,
+post-import `OptimizeStage`, or station mapping; the GUI lacks
 the per-colour hatch knobs the CLI exposes. Plotting/jog/replay are GUI-only by
 design.
 
@@ -555,7 +556,7 @@ expected). Coverage is strongest where logic is pure:
   position callbacks), `TimeEstimatorTest`.
 
 Not unit-tested (manual checklist in `docs/TESTING.md`): Swing rendering/interaction,
-live serial, full G-code file-content correctness, the CLI `--style` flag.
+live serial and full G-code file-content correctness.
 
 ---
 

@@ -1,6 +1,7 @@
 package org.trostheide.gantry.pipeline.optimize;
 
 import org.trostheide.gantry.model.Layer;
+import org.trostheide.gantry.model.Metadata;
 import org.trostheide.gantry.model.ProcessorOutput;
 import org.trostheide.gantry.model.command.Command;
 import org.trostheide.gantry.model.command.DrawCommand;
@@ -27,7 +28,13 @@ public final class MultipassStage {
         for (Layer layer : input.layers()) {
             layers.add(applyToLayer(layer, passes));
         }
-        return new ProcessorOutput(input.metadata(), layers);
+        Metadata metadata = input.metadata();
+        if (metadata != null) {
+            int totalCommands = layers.stream().mapToInt(layer -> layer.commands().size()).sum();
+            metadata = new Metadata(metadata.source(), metadata.generatedAt(), metadata.stationId(),
+                    metadata.units(), totalCommands, metadata.bounds());
+        }
+        return new ProcessorOutput(metadata, layers);
     }
 
     private static Layer applyToLayer(Layer layer, int passes) {

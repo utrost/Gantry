@@ -8,6 +8,7 @@ import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
 import org.trostheide.gantry.model.ProcessorOutput;
 import org.trostheide.gantry.pipeline.io.ProcessorOutputIO;
+import org.trostheide.gantry.pipeline.optimize.MultipassStage;
 import org.trostheide.gantry.pipeline.svgimport.PaperFormat;
 import org.trostheide.gantry.pipeline.svgimport.SvgImportOptions;
 import org.trostheide.gantry.pipeline.svgimport.SvgImportStage;
@@ -51,6 +52,8 @@ public final class SvgImportCli {
                 .desc("Padding for --fit-to (mm, default 10.0).").build());
         options.addOption(Option.builder("m").longOpt("mirror")
                 .desc("Mirror the drawing horizontally.").build());
+        options.addOption(Option.builder().longOpt("passes").hasArg()
+                .desc("Repeat every stroke N times for multipass plotting (default 1, minimum 1).").build());
         options.addOption(Option.builder("h").longOpt("help").desc("Show help.").build());
 
         // SVGToolBox pre-processing options
@@ -131,6 +134,10 @@ public final class SvgImportCli {
             String defaultStationId = cmd.getOptionValue("station", "default_station");
             double padding = Double.parseDouble(cmd.getOptionValue("padding", "10.0"));
             boolean mirror = cmd.hasOption("mirror");
+            int passes = Integer.parseInt(cmd.getOptionValue("passes", "1"));
+            if (passes < 1) {
+                throw new IllegalArgumentException("Passes must be at least 1.");
+            }
             PaperFormat fitTo = PaperFormat.fromString(cmd.getOptionValue("fit-to"));
 
             SvgImportOptions importOptions = fitTo != null
@@ -140,6 +147,7 @@ public final class SvgImportCli {
             ProcessorOutput output = cmd.hasOption("toolbox")
                     ? SvgImportStage.importSvg(inputFile, buildToolboxConfig(cmd, inputFile, outputFile), importOptions)
                     : SvgImportStage.importSvg(inputFile, importOptions);
+            output = MultipassStage.apply(output, passes);
             ProcessorOutputIO.save(output, outputFile);
 
             System.out.printf("Wrote %d layer(s), %d command(s) to %s%n",
