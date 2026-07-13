@@ -232,6 +232,12 @@ holding every toolbox knob: `enableHatching`, `globalStyle` (a `HatchStyle`),
 `noHatchColors`, `minHatchArea`, palette, hidden layers, crop bounds, rotation,
 the line-* tolerances, etc.
 
+The shared `ToolboxOptionsPanel` used by Import SVG and Edit > Process SVG
+includes a per-colour hatch table. `SvgFillColors` pre-populates it from
+explicit `#RRGGBB` fill attributes/inline styles when a source file is
+available; selected rows are converted directly to `Config.overrides`, while
+"Use global" rows are omitted.
+
 ### Hatching (relevant to recent work)
 
 - **`HatchStyle(angle, gap, patternName, amplitude, wavelength, dotRadius)`** —
@@ -368,11 +374,11 @@ Swing + FlatLaf dark theme. `GantryApp#main` sets up `FlatDarkLaf`, builds a
   entry points, then wires their callbacks to document and plot controllers.
   The completed decomposition and its safety invariants are tracked in
   `docs/REFACTORING.md`. Menu actions include Import SVG (artwork), Re-process Source
-  SVG (`EditProcessDialog`), Optimize Commands (JSON), Map Layer Colors to Stations,
-  Open/Save Commands (JSON), Export/Replay G-code. Every File/Edit menu item names
-  its file format (SVG / JSON / G-code) in the label and has a tooltip (`tip()`
-  helper) explaining which of the three formats it reads or writes, so the three
-  distinct formats stay legible to the user. The Plot section's **Layers** checklist
+  SVG (`EditProcessDialog`), Optimize Commands, Map Layer Colors to Stations,
+  Open/Save Project, Open/Export Flattened Commands, Export/Replay G-code, and
+  persistent Recent Plot Jobs. Every File/Edit menu item names its format in the
+  label and has a tooltip (`tip()` helper) explaining what it reads or writes.
+  The Plot section's **Layers** checklist
   (`layerChecks`, one `JCheckBox` per layer, rebuilt by `refreshLayerSelector()`
   whenever `currentOutput` is replaced) selects any subset of layers to
   preview/plot/export: `selectedOutput()` narrows `currentOutput` to the ticked
@@ -385,7 +391,9 @@ Swing + FlatLaf dark theme. `GantryApp#main` sets up `FlatDarkLaf`, builds a
   `StationTestWorkflow`; jog, plot, overlay, and raw-command widgets are separate
   panels.
 - **`DocumentSession`** — Swing-free owner of the current command model, selected
-  layers, source provenance, single-level undo, and plot/export preparation.
+  layers, source provenance, bounded multi-level undo/redo, dirty state, and
+  plot/export preparation. `GantryProjectIO` persists that state plus canvas
+  placement, passes, and import/vectorizer provenance in `.gantry` files.
 - **`PlotJobController`** — Swing-free owner of the connected `PlotterBackend`,
   active `PlotService`, plot worker, pause/resume/cancel, completion cleanup,
   progress state, and re-plot eligibility.
@@ -399,7 +407,7 @@ Swing + FlatLaf dark theme. `GantryApp#main` sets up `FlatDarkLaf`, builds a
   cursor, and interactive positioning overlay
   (`overlayOffsetX/Y`, `overlayScale`, `overlayRotation`, `overlayMirror` — a
   **single global transform**, i.e. exactly one drawing today; multi-document is
-  roadmap Phase 9). Drag/scale/rotate/mirror + a right-click context menu. Uses
+  deliberately deferred pending a validated workflow). Drag/scale/rotate/mirror + a right-click context menu. Uses
   `CoordinateTransform.applyOverlayRaw` + `physicalToScreen` so preview matches
   plotted output. Tracks each rendered stroke's source layer (`pathLayer`) so
   `setSelectedLayers(indices)` can draw a chosen subset of layers in full colour and
@@ -530,14 +538,15 @@ for import; `--toolbox` + per-processor flags (`--hatch`, `--pattern`,
 `--hatch-angle/-gap`, the new `--hatch-amplitude/--hatch-wavelength/--dot-radius`,
 `--style` per-colour overrides, `--no-hatch`, `--min-area`, `--layer-width`,
 `--rotate`, `--crop`, `--palette`, `--linesimplify/-merge/-sort`, `--reloop`,
-`--optimize`, `--toolbox-stats`). The post-import `--passes N` flag applies
-`MultipassStage` before output. Output is a command-model JSON file via
-`ProcessorOutputIO`.
+`--optimize`, `--toolbox-stats`). Post-import flags provide simplification,
+reordering, merging, and `--passes N`. A shared JSON batch config can supply
+station mappings and G-code settings; `--map-stations` applies refill mapping
+and `--gcode FILE` emits a machine artifact alongside command JSON.
 
-**Current CLI vs GUI gap (roadmap Phase 11):** the CLI has no G-code export,
-post-import `OptimizeStage`, or station mapping; the GUI lacks
-the per-colour hatch knobs the CLI exposes. Plotting/jog/replay are GUI-only by
-design.
+The GUI and CLI intentionally differ at the machine-control boundary:
+plotting/jog/replay remain GUI-only. Both expose per-colour hatch styles; the
+CLI additionally retains automation-oriented no-hatch, minimum-area, and
+per-colour stroke-width controls.
 
 ---
 
@@ -613,9 +622,6 @@ live serial and full G-code file-content correctness.
 | Headless/batch behavior | `cli:SvgImportCli.java` |
 | Coordinate/transform math | `model:CoordinateTransform.java` |
 
-See `ROADMAP.md` for the phase history and rationale (Phases 13–17 — the Machine
-menu and the Setup / Pre-Plot Checklist / Calibrate Axes / Test Color Stations
-wizards plus visual station placement — are complete; remaining planned work
-includes the multi-document canvas, per-area hatch styling, and CLI/GUI parity)
-and `docs/LESSONS_LEARNED.md` for the recurring bugs, design principles, and
-gotchas distilled from building it.
+See `ROADMAP.md` for the active product plan and `docs/ROADMAP_HISTORY.md` for
+the deprecated phase diary. `docs/LESSONS_LEARNED.md` records recurring bugs,
+design principles, and gotchas distilled from building the system.

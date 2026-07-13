@@ -3,7 +3,7 @@ REM Launches the Gantry GUI. Builds the app jar first if it doesn't exist yet.
 setlocal
 cd "%~dp0\.."
 
-set JAR=app\target\app-1.0-SNAPSHOT.jar
+set JAR=app\target\app-1.0.0.jar
 
 where java >nul 2>nul
 if errorlevel 1 (

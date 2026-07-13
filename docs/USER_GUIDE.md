@@ -127,16 +127,16 @@ compensate.
 ```
 SVG file
    └─ Import SVG (optional: run SVGToolBox pre-processing)
-        └─ Command model (JSON)
+        └─ Editable Gantry project
              └─ Optimize (optional: simplify + reorder strokes)
                   └─ Position / scale / rotate / mirror on canvas
                        └─ Start Plot
 ```
 
-Alternatively, generate the command JSON headlessly with the CLI and load it
-into the GUI for positioning and plotting.
+Alternatively, generate flattened command JSON or G-code headlessly with the
+CLI. Command JSON can be opened in the GUI as a new project.
 
-### The three file formats
+### The four file formats
 
 Gantry deals with three different kinds of file, and every menu item now names
 which one it works on so you always know what you're handling:
@@ -144,12 +144,12 @@ which one it works on so you always know what you're handling:
 | Format | What it is | How Gantry uses it |
 |---|---|---|
 | **SVG** (`.svg`) | Vector *artwork* — the drawing you start from | **File > Import SVG (artwork)…** reads it and converts it into the command model. This is the only way artwork *enters* Gantry. **Edit > Re-process Source SVG…** re-runs the conversion against the same file. |
-| **Commands — JSON** (`.json`) | Gantry's own editable *working format*: layers, moves, draws and refills | **File > Open / Save Commands (JSON)…** loads and saves it; **Edit > Optimize Commands (JSON)…** edits it in place. This is the format you keep working on between sessions. |
+| **Gantry project** (`.gantry`) | The editable working session: commands, placement, selected layers, passes, and source/import/vectorizer provenance | **File > Open Project… / Save Project…** restores the state needed to continue the job later. This is the preferred working format. |
+| **Flattened commands — JSON** (`.json`) | Interchange output with the current placement, layer selection, and passes baked into commands | **File > Export Flattened Commands (JSON)…** writes it. **Open Commands (JSON)…** can still load existing command files, but JSON does not preserve the complete editable project. |
 | **G-code** (`.gcode`) | Machine instructions for the *plotter* | **File > Export G-code (for plotter)…** writes it; **File > Replay G-code…** streams an existing one straight to the machine. One-way output — G-code can't be reopened for editing. |
 
-Rule of thumb: **SVG comes in, JSON is what you edit, G-code goes out.** Importing
-an SVG and opening a JSON command file both land you at the same place (a drawing
-ready to position and plot); they just start from a different format. Hovering any
+Rule of thumb: **SVG comes in, `.gantry` is what you keep editing, flattened JSON
+integrates with other tools, and G-code goes to the plotter.** Hovering a
 File/Edit menu item shows a tooltip reminding you which format it touches.
 
 ---
@@ -248,6 +248,7 @@ on the SVG before importing. The pipeline runs in this order:
 | Stroke width override | Force all strokes to this width (px). 0 = no change. |
 | Palette | Quantize all colours to these hex values, e.g. `#000000,#FF0000`. Uses CIELAB distance. |
 | Enable hatching | Fill closed shapes with hatch lines. |
+| Per-colour hatch overrides | The table is pre-filled with `#RRGGBB` fill colours found in the selected SVG. Choose a pattern, angle, and gap for a colour, or leave it at **Use global**. Use **Add colour** for colours that cannot be discovered automatically. |
 | Hatch pattern | `linear` · `cross` · `zigzag` · `wave` · `dot` · `none` · `empty` |
 | Hatch angle | Global hatch angle in degrees (default 45). |
 | Hatch gap | Distance between hatch lines (default 5). |
@@ -643,20 +644,24 @@ Type any G-code command in the text field and press Enter to send it directly.
 
 ---
 
-## Opening / saving the command model (JSON)
+## Projects, recovery, and job history
 
-- **Open Commands (JSON)** — open a previously saved `.json` command model and pick up editing where you left off.
-- **Save Commands (JSON)** — save the current command model to `.json` for later. This is Gantry's working format, *not* G-code.
+- **Open Project / Save Project** — use `.gantry` for an editable session. Placement, layer selection, pass count, and available source provenance are retained.
+- **Open Commands (JSON)** — imports an existing command model as a new project.
+- **Export Flattened Commands (JSON)** — writes the currently prepared commands with placement, selected layers, and passes baked in.
+- **Undo / Redo** — model-changing edits use multi-level history. Unsaved changes are marked in the window title and protected by the close prompt.
+- **Recovery autosave** — while a project is dirty, Gantry writes a recovery snapshot and offers it after an interrupted session.
+- **Recent Plot Jobs** — the ten most recent successful prepared jobs remain available from the File menu. Re-plot uses the immutable prepared snapshot, not whatever is currently on the canvas.
 
-All file choosers (Import SVG, Open/Save Commands, Export/Replay G-code) remember the
-last folder you opened or saved a file in and reopen there next time, even across restarts.
+File choosers remember the last folder used and reopen there next time, even
+across restarts.
 
 ---
 
 ## Headless CLI
 
 ```bash
-java -jar cli/target/cli-1.0-SNAPSHOT.jar \
+java -jar cli/target/cli-1.0.0.jar \
   -i drawing.svg \
   -o output.json \
   --fit-to A4 \
@@ -690,6 +695,12 @@ Key flags:
 | `--linesort-twoopt` | Add 2-opt pass |
 | `--reloop` | Rotate closed-path start points |
 | `--optimize` | Greedy path reorder |
+| `--optimize-tolerance MM` | Simplify the imported command paths after SVG processing |
+| `--optimize-reorder` | Reorder imported command strokes after SVG processing |
+| `--optimize-merge MM` | Merge touching imported strokes within the given tolerance |
+| `--config FILE` | Read shared batch settings and station definitions from JSON |
+| `--map-stations` | Map layers to stations from the batch config |
+| `--gcode FILE` | Also emit a directly runnable G-code artifact |
 | `--toolbox-crop FORMAT` | Crop: A4 / Letter / WxH |
 | `--toolbox-stats` | Print statistics |
 
@@ -704,11 +715,11 @@ commands), with the produced SVG injected as the import's `-i`.
 
 ```bash
 # image -> SVG only
-java -cp cli/target/cli-1.0-SNAPSHOT.jar org.trostheide.gantry.cli.VectorizeCli \
+java -cp cli/target/cli-1.0.0.jar org.trostheide.gantry.cli.VectorizeCli \
   -i photo.jpg -o photo.svg -s dp --canny-auto
 
 # image -> SVG -> command JSON in one command (fit to A4)
-java -cp cli/target/cli-1.0-SNAPSHOT.jar org.trostheide.gantry.cli.VectorizeCli \
+java -cp cli/target/cli-1.0.0.jar org.trostheide.gantry.cli.VectorizeCli \
   -i photo.jpg -o photo.svg -s centerline -- -o photo.json --fit-to A4
 ```
 

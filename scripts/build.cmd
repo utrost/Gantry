@@ -18,4 +18,4 @@ call mvn %GOAL%
 if errorlevel 1 exit /b 1
 
 echo.
-echo Build complete. The standalone app jar is at app\target\app-1.0-SNAPSHOT.jar
+echo Build complete. The standalone app jar is at app\target\app-1.0.0.jar

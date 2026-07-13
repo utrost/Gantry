@@ -10,8 +10,8 @@ with the processing and plotter-driving of SVG2WaterColor into a single
 Java 17 / Maven multi-module project. Pen-plotting is the first-class, default
 path; watercolor (paint stations + refill) is an optional stage layered on top.
 
-See [ROADMAP.md](ROADMAP.md) for the full design, pipeline, module layout and
-phased delivery plan.
+See [ROADMAP.md](ROADMAP.md) for the active product plan. The original phased
+design diary is archived in [docs/ROADMAP_HISTORY.md](docs/ROADMAP_HISTORY.md).
 
 See [docs/USER_GUIDE.md](docs/USER_GUIDE.md) for operating instructions and
 [docs/TESTING.md](docs/TESTING.md) for the test suite and manual acceptance
@@ -58,7 +58,12 @@ Windows (`.cmd`), all run from the repo root:
 |---|---|
 | `update.sh` / `update.cmd` | `git pull` the current branch |
 | `build.sh` / `build.cmd` | `mvn clean install` everything (pass `--skip-tests` to skip tests) |
-| `start.sh` / `start.cmd` | Launch the Gantry GUI (`app/target/app-1.0-SNAPSHOT.jar`), building it first if missing |
+| `start.sh` / `start.cmd` | Launch the Gantry GUI (`app/target/app-1.0.0.jar`), building it first if missing |
+| `release.sh` / `release.cmd` | Build versioned GUI/CLI artifacts and checksums under `dist/` |
+
+Tagged releases are built by GitHub Actions. See
+[`docs/RELEASE_CHECKLIST.md`](docs/RELEASE_CHECKLIST.md) for the required mock
+and real-hardware acceptance record.
 
 Requires Java 17+ and Maven 3.8+ on `PATH`.
 

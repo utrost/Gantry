@@ -124,6 +124,12 @@ public class ImagePanel extends JPanel {
         return roiRect;
     }
 
+    public void setRoi(Rectangle roi) {
+        roiRect = roi == null ? null : new Rectangle(roi);
+        if (roiListener != null) roiListener.accept(roiRect);
+        repaint();
+    }
+
     public void clearRoi() {
         roiRect = null;
         if (roiListener != null) roiListener.accept(null);

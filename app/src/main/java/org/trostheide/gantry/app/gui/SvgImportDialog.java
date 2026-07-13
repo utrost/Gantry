@@ -34,7 +34,7 @@ public final class SvgImportDialog extends JDialog {
     // SVGToolBox pre-processing options
     private final JCheckBox toolboxEnableCheck = new JCheckBox("Run SVGToolBox processing before import");
     /** The full toolbox option set, shared verbatim with {@link EditProcessDialog}. */
-    private final ToolboxOptionsPanel optionsPanel = new ToolboxOptionsPanel();
+    private final ToolboxOptionsPanel optionsPanel;
 
     private Result result;
 
@@ -43,7 +43,12 @@ public final class SvgImportDialog extends JDialog {
     private final JButton okBtn = new JButton("Import");
 
     public SvgImportDialog(Window owner) {
+        this(owner, null);
+    }
+
+    public SvgImportDialog(Window owner, java.io.File sourceSvg) {
         super(owner, "Import SVG", ModalityType.APPLICATION_MODAL);
+        optionsPanel = new ToolboxOptionsPanel(SvgFillColors.read(sourceSvg));
 
         JTabbedPane tabs = new JTabbedPane();
         tabs.addTab("Import", buildImportPanel());

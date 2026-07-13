@@ -20,6 +20,7 @@ final class DocumentEditor {
     private final Component parent;
     private final Runnable changed;
     private final Consumer<Boolean> undoAvailable;
+    private final Consumer<Boolean> redoAvailable;
     private final Consumer<String> log;
     private final Set<Integer> hatchIds = new HashSet<>();
     private String pattern = "linear";
@@ -27,16 +28,23 @@ final class DocumentEditor {
     private double angle = 45.0;
 
     DocumentEditor(DocumentSession session, Component parent, Runnable changed,
-            Consumer<Boolean> undoAvailable, Consumer<String> log) {
+            Consumer<Boolean> undoAvailable, Consumer<Boolean> redoAvailable, Consumer<String> log) {
         this.session=session; this.parent=parent; this.changed=changed;
-        this.undoAvailable=undoAvailable; this.log=log;
+        this.undoAvailable=undoAvailable; this.redoAvailable=redoAvailable; this.log=log;
     }
 
-    void replace(ProcessorOutput output){session.replace(output);hatchIds.clear();undoAvailable.accept(false);}
+    void replace(ProcessorOutput output){session.replace(output);hatchIds.clear();historyAvailability();}
+    void restore(ProcessorOutput output, List<Integer> selectedLayers) {
+        session.restore(output, selectedLayers);
+        hatchIds.clear();
+        historyAvailability();
+    }
     void update(ProcessorOutput output){session.update(output);}
-    void clear(){session.clear();hatchIds.clear();undoAvailable.accept(false);}
-    void snapshot(){session.snapshotForUndo();undoAvailable.accept(true);}
-    void undo(){if(session.undo()!=null){undoAvailable.accept(false);changed.run();log.accept("Undo: reverted the last transform.");}}
+    void clear(){session.clear();hatchIds.clear();historyAvailability();}
+    void snapshot(){session.snapshotForUndo();historyAvailability();}
+    void undo(){if(session.undo()!=null){historyAvailability();changed.run();log.accept("Undo: reverted the last edit.");}}
+    void redo(){if(session.redo()!=null){historyAvailability();changed.run();log.accept("Redo: restored the next edit.");}}
+    void historyAvailability(){undoAvailable.accept(session.canUndo());redoAvailable.accept(session.canRedo());}
 
     void hatch(Path2D region,int layer){
         ProcessorOutput current=session.currentOutput(); if(current==null)return;

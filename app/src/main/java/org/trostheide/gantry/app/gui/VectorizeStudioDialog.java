@@ -507,7 +507,23 @@ public final class VectorizeStudioDialog extends JDialog {
                     case "--bezier-detail" -> { setInt(bezierDetailSpinner, v); i += 2; }
                     case "--b2-colors" -> { setInt(b2ColorsSpinner, v); i += 2; }
                     case "--pbn-num-colors" -> { setInt(pbnNumColorsSpinner, v); i += 2; }
-                    case "--crop" -> i += 2; // ROI restore unsupported; skip its value
+                    case "--crop" -> {
+                        if (v != null) {
+                            String[] parts = v.split(",");
+                            if (parts.length == 4) {
+                                try {
+                                    sourcePanel.setRoi(new Rectangle(Integer.parseInt(parts[0]),
+                                            Integer.parseInt(parts[1]), Integer.parseInt(parts[2]),
+                                            Integer.parseInt(parts[3])));
+                                    cropToggle.setSelected(true);
+                                    sourcePanel.setRoiMode(true);
+                                } catch (NumberFormatException ignored) {
+                                    // Ignore a stale malformed crop argument and restore the rest.
+                                }
+                            }
+                        }
+                        i += 2;
+                    }
                     case "--canny-auto" -> { cannyAutoCheck.setSelected(true); i += 1; }
                     case "--color-edges" -> { colorEdgesCheck.setSelected(true); i += 1; }
                     case "--smooth-curves" -> { smoothCurvesCheck.setSelected(true); i += 1; }

@@ -1,5 +1,6 @@
 package org.trostheide.gantry.app.gui;
 
+import org.trostheide.gantry.app.session.GantryProject;
 import org.trostheide.gantry.model.CoordinateTransform;
 import org.trostheide.gantry.model.Layer;
 import org.trostheide.gantry.model.ProcessorOutput;
@@ -375,6 +376,23 @@ public class VisualizationPanel extends JPanel {
                 || overlayRotation != 0 || overlayMirror;
     }
 
+    public GantryProject.Placement placement() {
+        return new GantryProject.Placement(overlayOffsetX, overlayOffsetY, overlayScale,
+                overlayRotation, overlayMirror, suppressAlignment);
+    }
+
+    public void applyPlacement(GantryProject.Placement placement) {
+        overlayOffsetX = placement.offsetX();
+        overlayOffsetY = placement.offsetY();
+        overlayScale = placement.scale();
+        overlayRotation = placement.rotation();
+        overlayMirror = placement.mirror();
+        suppressAlignment = placement.suppressAlignment();
+        clampOverlayToBed();
+        repaint();
+        fireOverlayChange();
+    }
+
     /** Rotate the drawing 90° clockwise (interactive overlay), re-clamping to the bed. */
     public void rotateOverlay() {
         overlayRotation = (overlayRotation + 90) % 360;
@@ -712,9 +730,7 @@ public class VisualizationPanel extends JPanel {
                 Point2D a = path.get(j - 1), b = path.get(j);
                 travelPenDownMm += Math.hypot(b.x() - a.x(), b.y() - a.y());
             }
-            if (i + 1 < allPaths.size()
-                    && pathLayer.get(i).equals(pathLayer.get(i + 1))
-                    && !path.isEmpty() && !allPaths.get(i + 1).isEmpty()) {
+            if (i + 1 < allPaths.size() && !path.isEmpty() && !allPaths.get(i + 1).isEmpty()) {
                 Point2D end = path.get(path.size() - 1);
                 Point2D next = allPaths.get(i + 1).get(0);
                 penUpMm += Math.hypot(next.x() - end.x(), next.y() - end.y());

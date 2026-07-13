@@ -4,7 +4,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-JAR="app/target/app-1.0-SNAPSHOT.jar"
+JAR="app/target/app-1.0.0.jar"
 
 if ! command -v java >/dev/null 2>&1; then
     echo "ERROR: Java was not found on PATH. Install Java 17+." >&2

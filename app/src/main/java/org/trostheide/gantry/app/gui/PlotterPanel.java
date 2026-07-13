@@ -7,10 +7,13 @@ import org.trostheide.gantry.app.plot.GantryConfig;
 import org.trostheide.gantry.app.plot.PlotService;
 import org.trostheide.gantry.app.plot.PlotJobController;
 import org.trostheide.gantry.app.plot.PlotProgressState;
+import org.trostheide.gantry.app.plot.PlotJobHistory;
 import org.trostheide.gantry.app.plot.PlotSettings;
 import org.trostheide.gantry.app.plot.StationConfig;
 import org.trostheide.gantry.app.plot.TimeEstimator;
 import org.trostheide.gantry.app.session.DocumentSession;
+import org.trostheide.gantry.app.session.GantryProject;
+import org.trostheide.gantry.app.session.GantryProjectIO;
 import org.trostheide.gantry.model.CoordinateTransform;
 import org.trostheide.gantry.model.Layer;
 import org.trostheide.gantry.model.Point;
@@ -43,6 +46,9 @@ import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.Semaphore;
 import java.util.function.Consumer;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 
 /**
  * Self-contained plotter window: live visualization, jog/pen/speed controls, raw G-code console
@@ -89,8 +95,12 @@ public class PlotterPanel extends JPanel {
     private JCheckBoxMenuItem addLineModeItem;
     private JCheckBoxMenuItem moveStrokeModeItem;
     private JMenuItem undoMenuItem;
+    private JMenuItem redoMenuItem;
     private final Semaphore confirmGate = new Semaphore(0);
     private JMenuItem replotMenuItem;
+    private JMenu recentJobsMenu;
+    private final PlotJobHistory plotHistory = new PlotJobHistory(new File("plot-history.json"));
+    private PlotJobHistory.Job pendingJob;
     private JCheckBoxMenuItem showTravelItem;
     /** True after a plot has completed at least once for the current drawing; enables Re-plot. */
     private final PlotProgressState plotProgress = new PlotProgressState();
@@ -98,6 +108,8 @@ public class PlotterPanel extends JPanel {
     private javax.swing.Timer plotClockTimer;
     private volatile boolean plotting;
     private java.awt.KeyEventDispatcher jogKeyDispatcher;
+    private final File recoveryFile = new File(".gantry-recovery");
+    private javax.swing.Timer recoveryTimer;
 
     /** Controls that should be disabled while a plot is running (jog, pen, speed, edit actions). */
     private final List<JComponent> plotDisabledControls = new ArrayList<>();
@@ -124,14 +136,15 @@ public class PlotterPanel extends JPanel {
         plotControls = new PlotControlsPanel(new PlotControlsPanel.Actions(
                 () -> { if (config.preflightBeforeStart) onPreflightWizard(); else onStartPlot(); },
                 this::onPreflightWizard, () -> confirmGate.release(), this::onPauseToggle,
-                this::onStopPlot, this::onLayerSelectionChanged, visPanel::setColorByLayer));
+                this::onStopPlot, this::onLayerSelectionChanged, this::onProjectSettingsChanged, visPanel::setColorByLayer));
         documentEditor = new DocumentEditor(documentSession, this, this::onDocumentEdited,
-                this::setUndoAvailable, this::log);
+                this::setUndoAvailable, this::setRedoAvailable, this::log);
         busyTasks = new BusyTaskRunner(this, this::log, this::error);
         fileWorkflow = new DocumentFileWorkflow(this, configFile, documentSession, documentEditor,
                 visPanel, new DocumentFileWorkflow.Actions(() -> config, this::resetReplot,
                 this::refreshDocumentUi, enabled -> { if (reVectorizeMenuItem != null) reVectorizeMenuItem.setEnabled(enabled); },
-                this::log, this::error, this::info, this::runBusy));
+                this::log, this::error, this::info, this::runBusy,
+                this::captureProject, this::openProject, this::preparePlotOutput));
         gcodeFiles = new GcodeFileWorkflow(this, configFile, () -> config, this::preparePlotOutput,
                 () -> !selectedLayerIndices().isEmpty(), plotJobController::backend,
                 visPanel::getAlignOffsetX, visPanel::getAlignOffsetY, this::log, this::error, this::info);
@@ -152,11 +165,15 @@ public class PlotterPanel extends JPanel {
             public void move(int id,double[][]p){onMoveStroke(id,p);} public void duplicate(int id){onDuplicateStroke(id);}
             public void mode(VisualizationPanel.InteractionMode mode){syncInteractionMode(mode);}
             public void stationMoved(String n,double x,double y){onStationMovedOnCanvas(n,x,y);} public void stationAdded(double x,double y){onStationAddedOnCanvas(x,y);}
+            public void overlayChanged(){documentSession.markDirty();scheduleRecovery();updateDirtyIndicator();}
             public void log(String line){PlotterPanel.this.log(line);}
         });
         dialogs = new ApplicationDialogs(this, () -> config, this::saveSettings, this::onSetupWizard,
                 this::onOptimize, () -> documentSession.currentOutput() != null);
         rawCommands = new RawCommandPanel(this::runOnBackend, this::log);
+        recoveryTimer = new javax.swing.Timer(900, e -> writeRecovery());
+        recoveryTimer.setRepeats(false);
+        SwingUtilities.invokeLater(this::offerRecovery);
 
         JPanel right = new JPanel();
         right.setLayout(new BoxLayout(right, BoxLayout.Y_AXIS));
@@ -383,10 +400,13 @@ public class PlotterPanel extends JPanel {
 
         JMenu fileMenu = new JMenu("File");
         fileMenu.setMnemonic(KeyEvent.VK_F);
+        fileMenu.add(accel(tip(menuItem("Open Project...", e -> onOpenProject(), true),
+                "Open an editable Gantry project with placement, layer selection, passes, and source provenance."),
+                KeyEvent.VK_O, shortcut));
         fileMenu.add(accel(tip(menuItem("Open Commands (JSON)...", e -> onLoadCommands(), true),
                 "Open a saved Gantry command file (.json) — the editable drawing model "
                         + "(layers, moves, draws, refills). Not an SVG and not G-code."),
-                KeyEvent.VK_O, shortcut));
+                KeyEvent.VK_O, shortcut | java.awt.event.InputEvent.SHIFT_DOWN_MASK));
         fileMenu.add(accel(tip(menuItem("Import SVG (artwork)...", e -> onImportSvg(), true),
                 "Read a vector drawing (.svg) and convert it into the editable command model. "
                         + "This is where artwork enters Gantry."),
@@ -395,10 +415,12 @@ public class PlotterPanel extends JPanel {
                 "Trace a raster image (.png/.jpg) into vector paths, then bring it in through the "
                         + "same SVG import. Lets photos, scans and logos enter Gantry."),
                 KeyEvent.VK_I, shortcut | java.awt.event.InputEvent.SHIFT_DOWN_MASK));
-        fileMenu.add(accel(tip(menuItem("Save Commands (JSON)...", e -> onSaveCommands(), true),
-                "Save the current drawing as a Gantry command file (.json) so you can reopen and "
-                        + "keep editing it later. This is Gantry's working format, not G-code."),
+        fileMenu.add(accel(tip(menuItem("Save Project...", e -> onSaveProject(), true),
+                "Save the complete editable session as a .gantry project."),
                 KeyEvent.VK_S, shortcut));
+        fileMenu.add(accel(tip(menuItem("Export Flattened Commands (JSON)...", e -> onExportCommands(), true),
+                "Export selected layers with placement and passes baked in. JSON is an interchange artifact, not a project."),
+                KeyEvent.VK_S, shortcut | java.awt.event.InputEvent.SHIFT_DOWN_MASK));
         fileMenu.addSeparator();
         fileMenu.add(accel(tip(menuItem("Export G-code (for plotter)...", e -> onExportGcode(), true),
                 "Write machine instructions (.gcode) for the plotter from the current drawing. "
@@ -407,12 +429,14 @@ public class PlotterPanel extends JPanel {
         fileMenu.add(tip(menuItem("Replay G-code...", e -> onReplayGcode(), true),
                 "Stream an existing G-code file (.gcode) straight to the plotter, bypassing the "
                         + "command model."));
-        replotMenuItem = accel(tip(menuItem("Re-plot Last Job", e -> onStartPlot(), false),
-                "Start the exact same plot again immediately — same drawing, layer selection, and settings. "
-                        + "Available after a plot completes or is stopped."),
+        replotMenuItem = accel(tip(menuItem("Re-plot Last Job", e -> onReplotLastJob(), false),
+                "Start the last successful prepared plot again — same baked drawing, layer selection, passes, and transform settings."),
                 KeyEvent.VK_R, shortcut);
         replotMenuItem.setEnabled(false);
         fileMenu.add(replotMenuItem);
+        recentJobsMenu = new JMenu("Recent Plot Jobs");
+        fileMenu.add(recentJobsMenu);
+        rebuildRecentJobsMenu();
         fileMenu.addSeparator();
         fileMenu.add(accel(menuItem("Exit", e -> onExit(), false), KeyEvent.VK_Q, shortcut));
         menuBar.add(fileMenu);
@@ -422,6 +446,10 @@ public class PlotterPanel extends JPanel {
         undoMenuItem = accel(menuItem("Undo", e -> onUndo(), true), KeyEvent.VK_Z, shortcut);
         undoMenuItem.setEnabled(false);
         editMenu.add(undoMenuItem);
+        redoMenuItem = accel(menuItem("Redo", e -> onRedo(), true), KeyEvent.VK_Z,
+                shortcut | java.awt.event.InputEvent.SHIFT_DOWN_MASK);
+        redoMenuItem.setEnabled(false);
+        editMenu.add(redoMenuItem);
         editMenu.addSeparator();
         editMenu.add(tip(menuItem("Re-process Source SVG...", e -> onEditProcessSvg(), true),
                 "Re-run the SVGToolBox processors against the SVG you imported, replacing the current "
@@ -539,7 +567,21 @@ public class PlotterPanel extends JPanel {
     }
 
     private void onExit() {
-        SwingUtilities.getWindowAncestor(this).dispose();
+        if (requestClose()) SwingUtilities.getWindowAncestor(this).dispose();
+    }
+
+    public boolean requestClose() {
+        if (!documentSession.isDirty()) return true;
+        int choice = JOptionPane.showConfirmDialog(this, "Save changes before closing?",
+                "Unsaved Gantry project", JOptionPane.YES_NO_CANCEL_OPTION,
+                JOptionPane.WARNING_MESSAGE);
+        if (choice == JOptionPane.CANCEL_OPTION || choice == JOptionPane.CLOSED_OPTION) return false;
+        if (choice == JOptionPane.YES_OPTION) {
+            onSaveProject();
+            if (documentSession.isDirty()) return false;
+        }
+        if (recoveryFile.exists()) recoveryFile.delete();
+        return true;
     }
 
     private void onShowHelp() {
@@ -547,7 +589,7 @@ public class PlotterPanel extends JPanel {
     }
 
     private void onShowAbout() {
-        String message = "Gantry\nVersion 1.0-SNAPSHOT\n\nA pen-plotter control and SVG-to-G-code pipeline.";
+        String message = "Gantry\nVersion 1.0.0\n\nA pen-plotter control and SVG-to-G-code pipeline.";
         JOptionPane.showMessageDialog(this, message, "About Gantry", JOptionPane.INFORMATION_MESSAGE);
     }
 
@@ -750,6 +792,12 @@ public class PlotterPanel extends JPanel {
         refreshTimeEstimate();
     }
 
+    private void onProjectSettingsChanged() {
+        documentSession.markDirty();
+        scheduleRecovery();
+        updateDirtyIndicator();
+    }
+
     private void applyLayerFilter() {
         visPanel.setSelectedLayers(selectedLayerIndices());
     }
@@ -802,7 +850,13 @@ public class PlotterPanel extends JPanel {
     private void onReVectorizeImage() { fileWorkflow.revectorize(); }
     private void onEditProcessSvg() { fileWorkflow.reprocessSvg(); }
     private void onMapColorsToStations() { fileWorkflow.mapColors(); }
-    private void onSaveCommands() { fileWorkflow.saveCommands(); }
+    private void onOpenProject() { fileWorkflow.openProject(); }
+    private void onSaveProject() {
+        fileWorkflow.saveProject();
+        if (!documentSession.isDirty() && recoveryFile.exists()) recoveryFile.delete();
+        updateDirtyIndicator();
+    }
+    private void onExportCommands() { fileWorkflow.exportCommands(); }
 
     private void onOptimize(ApplicationDialogs.OptimizeOptions options) {
         if (documentSession.currentOutput() == null) {
@@ -896,9 +950,47 @@ public class PlotterPanel extends JPanel {
 
     private void updateReplotMenuItem() {
         if (replotMenuItem != null) {
-            replotMenuItem.setEnabled(plotJobController.canReplot() && !plotting && plotJobController.isConnected()
-                    && documentSession.currentOutput() != null);
+            replotMenuItem.setEnabled(plotHistory.latest() != null && !plotting
+                    && plotJobController.isConnected());
         }
+        if (recentJobsMenu != null) {
+            recentJobsMenu.setEnabled(plotJobController.isConnected() && !plotting
+                    && !plotHistory.jobs().isEmpty());
+        }
+    }
+
+    private void onReplotLastJob() {
+        PlotJobHistory.Job job = plotHistory.latest();
+        if (job == null) {
+            info("No successful plot job is available yet.");
+            return;
+        }
+        pendingJob = job;
+        onStartPlot();
+    }
+
+    private void rebuildRecentJobsMenu() {
+        if (recentJobsMenu == null) return;
+        recentJobsMenu.removeAll();
+        DateTimeFormatter format = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
+                .withZone(ZoneId.systemDefault());
+        for (PlotJobHistory.Job job : plotHistory.jobs()) {
+            int layers = job.output().layers().size();
+            JMenuItem item = new JMenuItem(format.format(job.timestamp()) + " — "
+                    + layers + " layer(s)");
+            item.addActionListener(e -> {
+                pendingJob = job;
+                onStartPlot();
+            });
+            recentJobsMenu.add(item);
+        }
+        if (recentJobsMenu.getItemCount() == 0) {
+            JMenuItem empty = new JMenuItem("No successful jobs yet");
+            empty.setEnabled(false);
+            recentJobsMenu.add(empty);
+        }
+        recentJobsMenu.setEnabled(plotJobController.isConnected() && !plotting
+                && !plotHistory.jobs().isEmpty());
     }
 
     /** Called whenever a new drawing replaces the current one; invalidates the stored re-plot offer. */
@@ -912,7 +1004,7 @@ public class PlotterPanel extends JPanel {
             log("Plot start ignored: a plot is already active.");
             return;
         }
-        if (documentSession.currentOutput() == null) {
+        if (documentSession.currentOutput() == null && pendingJob == null) {
             log("ERROR: Load a commands file first.");
             return;
         }
@@ -921,19 +1013,25 @@ public class PlotterPanel extends JPanel {
             log("ERROR: Connect to the plotter first.");
             return;
         }
-        if (selectedLayerIndices().isEmpty()) {
+        if (pendingJob == null && selectedLayerIndices().isEmpty()) {
             log("ERROR: No layers selected. Tick at least one layer to plot.");
             return;
         }
 
-        ProcessorOutput toPlot = preparePlotOutput();
+        PlotJobHistory.Job requested = pendingJob;
+        pendingJob = null;
+        ProcessorOutput toPlot = requested == null ? preparePlotOutput() : requested.output();
 
-        PlotSettings settings = config.toPlotSettings();
+        PlotSettings settings = requested == null ? config.toPlotSettings() : requested.settings();
         settings.reportPosition = true;
         settings.realtimePosition = backend instanceof GcodeBackend;
         // Plot exactly what the preview shows: use the offset the visualization is displaying
         // (incl. any interactive drag/numeric positioning) rather than re-aligning baked content.
-        settings.alignmentOffsetOverride = new double[] { visPanel.getAlignOffsetX(), visPanel.getAlignOffsetY() };
+        if (requested == null) {
+            settings.alignmentOffsetOverride = new double[] {
+                    visPanel.getAlignOffsetX(), visPanel.getAlignOffsetY()
+            };
+        }
 
         PlotService service = new PlotService(backend, settings);
         service.setLogCallback(this::log);
@@ -956,7 +1054,7 @@ public class PlotterPanel extends JPanel {
         });
 
         confirmGate.drainPermits();
-        plotProgress.setEstimate(TimeEstimator.estimate(toPlot, config.gcode, config.stations));
+        plotProgress.setEstimate(TimeEstimator.estimate(toPlot, config.gcode, settings.stations));
         plotProgress.start(totalLayersCount, System.currentTimeMillis());
         setPlottingState(true);
         plotClockTimer = new javax.swing.Timer(500, e -> updateTimeLabelDuringPlot());
@@ -964,6 +1062,7 @@ public class PlotterPanel extends JPanel {
 
         plotJobController.startPlot(service, toPlot, (completed, failure) -> {
             if (completed) {
+                plotHistory.add(new PlotJobHistory.Job(Instant.now(), toPlot, settings));
                 double actualSec = plotProgress.elapsedSeconds(System.currentTimeMillis());
                 TimeEstimator.PlotEstimate est = plotProgress.estimate();
                 if (est != null) {
@@ -973,7 +1072,10 @@ public class PlotterPanel extends JPanel {
                 } else {
                     log("--- Plot finished: " + TimeEstimator.format(actualSec) + " ---");
                 }
-                SwingUtilities.invokeLater(this::updateReplotMenuItem);
+                SwingUtilities.invokeLater(() -> {
+                    updateReplotMenuItem();
+                    rebuildRecentJobsMenu();
+                });
             } else if (failure != null) {
                 error("Plot failed: " + failure.getMessage());
             }
@@ -1170,18 +1272,104 @@ public class PlotterPanel extends JPanel {
     private void onHatchStyleDialog() { documentEditor.chooseHatchStyle(); }
     private void snapshotForUndo() { documentEditor.snapshot(); }
     private void onUndo() { documentEditor.undo(); }
+    private void onRedo() { documentEditor.redo(); }
 
     private void onDocumentEdited() {
         visPanel.loadPathsPreservingOverlay(documentSession.currentOutput());
         refreshDocumentUi();
+        scheduleRecovery();
+        updateDirtyIndicator();
     }
 
     private void refreshDocumentUi() {
-        refreshLayerSelector(); overlayControls.refreshPosition(); refreshTimeEstimate(); refreshGuidance();
+        refreshLayerSelector();
+        overlayControls.refreshPosition();
+        refreshTimeEstimate();
+        refreshGuidance();
+        updateDirtyIndicator();
     }
 
     private void setUndoAvailable(boolean available) {
         if (undoMenuItem != null) undoMenuItem.setEnabled(available);
+    }
+    private void setRedoAvailable(boolean available) {
+        if (redoMenuItem != null) redoMenuItem.setEnabled(available);
+    }
+
+    private GantryProject captureProject() {
+        File svg = documentSession.sourceSvg();
+        File image = documentSession.sourceImage();
+        return new GantryProject(GantryProject.CURRENT_VERSION, documentSession.currentOutput(),
+                selectedLayerIndices(), visPanel.placement(), plotControls.passes(),
+                new GantryProject.Source(svg == null ? null : svg.getAbsolutePath(),
+                        documentSession.sourceSvgOptions(),
+                        image == null ? null : image.getAbsolutePath(),
+                        documentSession.vectorizeArgs()));
+    }
+
+    private void openProject(GantryProject project) {
+        documentEditor.restore(project.output(), project.selectedLayers());
+        GantryProject.Source source = project.source();
+        documentSession.restoreSource(source.svgPath() == null ? null : new File(source.svgPath()),
+                source.importOptions(), source.imagePath() == null ? null : new File(source.imagePath()),
+                source.vectorizeArgs());
+        visPanel.loadFromOutput(project.output());
+        visPanel.applyPlacement(project.placement());
+        refreshLayerSelector();
+        plotControls.setSelectedLayers(project.selectedLayers());
+        plotControls.setPasses(project.passes());
+        if (reVectorizeMenuItem != null) {
+            reVectorizeMenuItem.setEnabled(documentSession.sourceImage() != null);
+        }
+        resetReplot();
+        refreshDocumentUi();
+        documentEditor.historyAvailability();
+        documentSession.markSaved();
+        if (recoveryFile.exists()) recoveryFile.delete();
+        updateDirtyIndicator();
+    }
+
+    private void scheduleRecovery() {
+        if (documentSession.isDirty() && documentSession.currentOutput() != null
+                && recoveryTimer != null) {
+            recoveryTimer.restart();
+        }
+    }
+
+    private void writeRecovery() {
+        try {
+            if (documentSession.isDirty() && documentSession.currentOutput() != null) {
+                GantryProjectIO.save(captureProject(), recoveryFile);
+            }
+        } catch (IOException ex) {
+            log("WARNING: Recovery autosave failed: " + ex.getMessage());
+        }
+    }
+
+    private void offerRecovery() {
+        if (!recoveryFile.isFile()) return;
+        int choice = JOptionPane.showConfirmDialog(this,
+                "Recover the unsaved Gantry project from the previous session?",
+                "Recovery available", JOptionPane.YES_NO_OPTION);
+        if (choice == JOptionPane.YES_OPTION) {
+            try {
+                openProject(GantryProjectIO.load(recoveryFile));
+                documentSession.markDirty();
+                scheduleRecovery();
+                updateDirtyIndicator();
+            } catch (IOException ex) {
+                error("Recovery failed: " + ex.getMessage());
+            }
+        } else {
+            recoveryFile.delete();
+        }
+    }
+
+    private void updateDirtyIndicator() {
+        Window window = SwingUtilities.getWindowAncestor(this);
+        if (window instanceof JFrame frame) {
+            frame.setTitle(documentSession.isDirty() ? "Gantry — Unsaved changes" : "Gantry");
+        }
     }
 
     /** Starts a new document history. */

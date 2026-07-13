@@ -10,7 +10,9 @@ import java.awt.geom.Rectangle2D;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
@@ -39,6 +41,7 @@ final class ToolboxOptionsPanel extends JPanel {
     private final JSpinner hatchAmplitudeSpinner = new JSpinner(new SpinnerNumberModel(0.0, 0.0, 1000.0, 0.5));
     private final JSpinner hatchWavelengthSpinner = new JSpinner(new SpinnerNumberModel(0.0, 0.0, 1000.0, 0.5));
     private final JSpinner dotRadiusSpinner = new JSpinner(new SpinnerNumberModel(0.0, 0.0, 1000.0, 0.1));
+    private final HatchOverridesPanel hatchOverridesPanel;
 
     // --- Geometry ---
     private final JSpinner simplifyToleranceSpinner = new JSpinner(new SpinnerNumberModel(0.0, 0.0, 100.0, 0.1));
@@ -61,6 +64,11 @@ final class ToolboxOptionsPanel extends JPanel {
     private static State savedState;
 
     ToolboxOptionsPanel() {
+        this(List.of());
+    }
+
+    ToolboxOptionsPanel(Collection<String> fillColors) {
+        hatchOverridesPanel = new HatchOverridesPanel(fillColors);
         setLayout(new GridBagLayout());
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.insets = new Insets(3, 3, 3, 3);
@@ -81,6 +89,7 @@ final class ToolboxOptionsPanel extends JPanel {
         addRow(gbc, "Amplitude — wave/zigzag (0 = auto)", hatchAmplitudeSpinner);
         addRow(gbc, "Wavelength — wave/zigzag (0 = auto)", hatchWavelengthSpinner);
         addRow(gbc, "Dot radius — dot (0 = auto)", dotRadiusSpinner);
+        addWide(gbc, hatchOverridesPanel);
 
         addSection(gbc, "Geometry");
         addRow(gbc, "Simplify tolerance (0 = off)", simplifyToleranceSpinner);
@@ -104,6 +113,7 @@ final class ToolboxOptionsPanel extends JPanel {
 
         if (savedState != null) {
             savedState.applyTo(this);
+            fillColors.forEach(hatchOverridesPanel::addIfAbsent);
         }
     }
 
@@ -115,6 +125,11 @@ final class ToolboxOptionsPanel extends JPanel {
     /** Registers a listener on the hatch toggle (the import dialog ticks its master toolbox flag). */
     void addHatchActionListener(ActionListener l) {
         hatchCheck.addActionListener(l);
+    }
+
+    /** Sets or adds a colour-specific style; also provides a small testable GUI-to-Config seam. */
+    void setHatchOverride(String color, String pattern, double angle, double gap) {
+        hatchOverridesPanel.setOverride(color, pattern, angle, gap);
     }
 
     /**
@@ -145,6 +160,7 @@ final class ToolboxOptionsPanel extends JPanel {
         String hatchPattern = (String) hatchPatternCombo.getSelectedItem();
         HatchStyle globalStyle = new HatchStyle(hatchAngle, hatchGap, hatchPattern,
                 hatchAmplitude, hatchWavelength, dotRadius);
+        Map<String, HatchStyle> overrides = hatchOverridesPanel.buildOverrides();
 
         Rectangle2D cropBounds = PaperSizes.resolve((String) cropCombo.getSelectedItem(), cropCustomField.getText());
 
@@ -155,7 +171,7 @@ final class ToolboxOptionsPanel extends JPanel {
                 .palette(palette)
                 .enableHatching(hatchCheck.isSelected())
                 .globalStyle(globalStyle)
-                .overrides(Collections.emptyMap())
+                .overrides(overrides)
                 .strokeWidthOverrides(Collections.emptyMap())
                 .hiddenLayers(hiddenLayers)
                 .noHatchColors(Collections.emptyList())
@@ -241,6 +257,7 @@ final class ToolboxOptionsPanel extends JPanel {
         final double hatchAmplitude;
         final double hatchWavelength;
         final double dotRadius;
+        final List<HatchOverridesPanel.OverrideRow> hatchOverrides;
         final double simplifyTolerance;
         final double rotate;
         final String crop;
@@ -266,6 +283,7 @@ final class ToolboxOptionsPanel extends JPanel {
             hatchAmplitude = ((Number) p.hatchAmplitudeSpinner.getValue()).doubleValue();
             hatchWavelength = ((Number) p.hatchWavelengthSpinner.getValue()).doubleValue();
             dotRadius = ((Number) p.dotRadiusSpinner.getValue()).doubleValue();
+            hatchOverrides = p.hatchOverridesPanel.rows();
             simplifyTolerance = ((Number) p.simplifyToleranceSpinner.getValue()).doubleValue();
             rotate = ((Number) p.rotateSpinner.getValue()).doubleValue();
             crop = (String) p.cropCombo.getSelectedItem();
@@ -296,6 +314,7 @@ final class ToolboxOptionsPanel extends JPanel {
             p.hatchAmplitudeSpinner.setValue(hatchAmplitude);
             p.hatchWavelengthSpinner.setValue(hatchWavelength);
             p.dotRadiusSpinner.setValue(dotRadius);
+            p.hatchOverridesPanel.restoreRows(hatchOverrides);
             p.simplifyToleranceSpinner.setValue(simplifyTolerance);
             p.rotateSpinner.setValue(rotate);
             p.cropCombo.setSelectedItem(crop);
