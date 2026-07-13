@@ -20,9 +20,11 @@ It converts SVG files into G-code and streams it to a GRBL-based plotter over se
 ./scripts/start.sh        # or start.cmd on Windows
 ```
 
-The GUI opens. On a brand-new install (no `config.json` yet) it offers to run
-the guided **Setup Wizard** right away — take it, or configure manually via
-**Settings** — see **First start** below either way.
+The GUI opens. On a brand-new install (no `config.json` yet), choose **Start
+guided practice** for the shortest route to a first plot. Gantry opens the real
+Setup Wizard with the no-hardware mock backend selected, loads a supplied
+80×60 mm practice drawing, then leads into the normal connection and safety
+check. You can restart this route later with **Help > Guided First Plot...**.
 
 The default control column keeps artwork position, layers, duration, and plotting
 actions visible. Expand **Advanced controls** when you need manual movement, raw
@@ -41,10 +43,20 @@ Do this once per machine before connecting or plotting. You can safely add and
 arrange artwork while disconnected; Gantry clearly indicates that nothing will
 move in that state.
 
-The easiest way is **Machine > Setup Wizard...** (also offered automatically
-on first launch, and from a button inside **Settings**): it walks through
-Connection, Machine geometry/origin/orientation, and Pen/speed step by step,
-using the same fields described below, then saves on **Finish**.
+The easiest no-hardware route is **Help > Guided First Plot...** (also offered
+automatically on first launch). It walks through the real machine setup fields,
+loads supplied practice artwork, then continues through **Connect plotter** and
+**Check before plotting**. Cancelling a step starts nothing; run the visible
+primary action again when ready.
+
+Use **Machine > Setup Wizard...** when you only want machine configuration. It
+walks through Connection, Machine geometry/origin/orientation, and Pen/speed
+step by step, using the same fields described below, then saves on **Finish**.
+
+Important results now appear directly below the workflow guidance: imports show
+their physical size, connection and plot outcomes are visible without opening
+the Console, and command-model edits offer a contextual **Undo** action. The
+Console remains available under **Advanced controls** for diagnostics.
 
 Equivalently, open **Settings** directly and work through the sections top to
 bottom, then **Save**:
