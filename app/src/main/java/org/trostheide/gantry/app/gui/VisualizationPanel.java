@@ -29,120 +29,113 @@ import java.util.Set;
  */
 public class VisualizationPanel extends JPanel {
 
-    private List<List<Point2D>> allPaths = new ArrayList<>();
+    List<List<Point2D>> allPaths = new ArrayList<>();
 
     /**
      * Layer index (into the loaded {@code ProcessorOutput.layers()}) that produced each entry in
      * {@link #allPaths}, kept in lockstep. Lets the panel draw the selected layers in full colour
      * while ghosting the rest.
      */
-    private final List<Integer> pathLayer = new ArrayList<>();
+    final List<Integer> pathLayer = new ArrayList<>();
 
     /** Command id of each entry in {@link #allPaths}, in lockstep — lets a clicked stroke map back to
      *  its {@code DrawCommand} for deletion (Tier A stroke editing). */
-    private final List<Integer> pathCommandId = new ArrayList<>();
+    final List<Integer> pathCommandId = new ArrayList<>();
 
     /** When true, draw dashed pen-up travel segments between consecutive strokes in the same layer. */
-    private boolean showTravelOverlay = false;
+    boolean showTravelOverlay = false;
     /** Cached pen-down distance (mm) across all paths; 0 until paths are loaded. */
-    private double travelPenDownMm;
+    double travelPenDownMm;
     /** Cached total travel distance (pen-down + pen-up mm); 0 until paths are loaded. */
-    private double travelTotalMm;
+    double travelTotalMm;
 
     /**
      * Indices of the layers currently selected for display. Selected layers draw in full colour;
      * unselected layers are ghosted (dimmed) for context. Defaults to "all layers" on load; the
      * controller ({@code PlotterPanel}) replaces it whenever the user (de)selects layers.
      */
-    private final Set<Integer> selectedLayers = new HashSet<>();
+    final Set<Integer> selectedLayers = new HashSet<>();
 
     /**
      * Display colour for each layer (indexed by layer position), derived from the layer's source
      * {@code #rrggbb} and brightened where needed so it stays readable against the dark canvas. A
-     * layer with no known colour gets a distinct hue from {@link #FALLBACK_PALETTE} so layers stay
+     * layer with no known colour gets a distinct fallback hue so layers stay
      * visually separable. Kept in lockstep with the loaded output's layer list.
      */
-    private final List<Color> layerColors = new ArrayList<>();
-    private boolean colorByLayer = true;
+    final List<Color> layerColors = new ArrayList<>();
+    boolean colorByLayer = true;
 
     /** The canvas background; layer colours are floored against this so nothing vanishes into it. */
-    private static final Color CANVAS_BG = new Color(35, 35, 40);
+    static final Color CANVAS_BG = CanvasPalette.BACKGROUND;
 
     /** Default highlight colour used when per-layer colouring is off or a layer has no colour. */
-    private static final Color DEFAULT_PATH = new Color(130, 160, 255);
-
-    /** Distinct hues for layers whose source colour is unknown (or would be unreadable). */
-    private static final Color[] FALLBACK_PALETTE = {
-            new Color(130, 160, 255), new Color(255, 140, 120), new Color(120, 220, 150),
-            new Color(230, 200, 110), new Color(210, 130, 230), new Color(120, 220, 220),
-            new Color(240, 150, 190), new Color(170, 200, 120)
-    };
+    static final Color DEFAULT_PATH = CanvasPalette.DEFAULT_PATH;
 
     // Current head position (Physical coords). currentX/Y is the *displayed*
     // position, which is eased toward targetX/Y so motion looks smooth even
     // when position updates arrive in discrete steps.
-    private double currentX = 0;
-    private double currentY = 0;
-    private double targetX = 0;
-    private double targetY = 0;
-    private javax.swing.Timer cursorAnimTimer;
+    double currentX = 0;
+    double currentY = 0;
+    double targetX = 0;
+    double targetY = 0;
+    javax.swing.Timer cursorAnimTimer;
 
     // Current feed-rate override reported by the backend, in percent (100 = nominal).
-    private int speedPercent = 100;
+    int speedPercent = 100;
 
     // Machine Bounds (Fixed by Settings - A3 Portrait default)
-    private double machineWidth = 297; // A3 Portrait width (short edge)
-    private double machineHeight = 420; // A3 Portrait height (long edge)
+    double machineWidth = 297; // A3 Portrait width (short edge)
+    double machineHeight = 420; // A3 Portrait height (long edge)
 
     // Raw Content Bounds (from JSON, before rotation)
-    private double rawMinX = 0, rawMaxX = 0, rawMinY = 0, rawMaxY = 0;
+    double rawMinX = 0, rawMaxX = 0, rawMinY = 0, rawMaxY = 0;
 
     // Alignment Offset (calculated based on alignment choice)
-    private double alignOffsetX = 0;
-    private double alignOffsetY = 0;
+    double alignOffsetX = 0;
+    double alignOffsetY = 0;
 
     // User Settings
-    private String canvasAlignment = "Top Right"; // Default: align to physical origin
-    private int dataRotation = 0; // 0, 90, 180, 270 degrees
-    private String orientation = "Portrait";
+    String canvasAlignment = "Top Right"; // Default: align to physical origin
+    int dataRotation = 0; // 0, 90, 180, 270 degrees
+    String orientation = "Portrait";
 
     // Driver Simulation Flags
     // Fully-composited transform (machine origin + portrait-swap + extra flags already
     // folded in by GantryConfig.toPlotSettings()) — the single source of truth shared with
     // jogging and G-code generation, so the preview/cursor and the actual hardware always agree.
-    private boolean effSwapXY = false;
-    private boolean effInvertX = false;
-    private boolean effInvertY = false;
-    private double paddingX = 0;
-    private double paddingY = 0;
+    boolean effSwapXY = false;
+    boolean effInvertX = false;
+    boolean effInvertY = false;
+    double paddingX = 0;
+    double paddingY = 0;
 
     // Machine origin corner (determines how motor coords map to screen)
-    private String machineOrigin = "Top-Right";
-    private boolean flipY = false;
+    String machineOrigin = "Top-Right";
+    boolean flipY = false;
 
     // Overlay transform for interactive drag/resize (in raw content space)
-    private double overlayOffsetX = 0, overlayOffsetY = 0;
-    private double overlayScale = 1.0;
-    private int overlayRotation = 0;       // quarter turns: 0, 90, 180, 270
-    private boolean overlayMirror = false; // horizontal flip
+    double overlayOffsetX = 0, overlayOffsetY = 0;
+    double overlayScale = 1.0;
+    int overlayRotation = 0;       // quarter turns: 0, 90, 180, 270
+    boolean overlayMirror = false; // horizontal flip
 
     // When true, alignment offset is suppressed (baked coords already encode position)
-    private boolean suppressAlignment = false;
+    boolean suppressAlignment = false;
 
     // Cached paint-time values for screen-to-mm inversion
-    private double paintScale = 1.0;
-    private double paintTx = 0, paintTy = 0;
+    double paintScale = 1.0;
+    double paintTx = 0, paintTy = 0;
 
     // User viewport zoom/pan, applied *on top of* the fit-to-window transform and folded into
     // paintScale/paintTx/paintTy each paint. Because every hit-test already inverts those cached
     // values, the click→motor mapping stays correct at any zoom/pan with no parallel transform.
-    private double viewZoom = 1.0;
-    private double viewPanX = 0, viewPanY = 0;
-    private static final double VIEW_ZOOM_MIN = 0.2, VIEW_ZOOM_MAX = 50.0;
+    double viewZoom = 1.0;
+    double viewPanX = 0, viewPanY = 0;
+    static final double VIEW_ZOOM_MIN = 0.2, VIEW_ZOOM_MAX = 50.0;
 
     // Pan gesture state (middle-drag anywhere, or left-drag on empty canvas).
-    private boolean panning = false;
-    private int panLastX, panLastY;
+    boolean panning = false;
+    int panLastX, panLastY;
 
     /**
      * Exclusive left-click interaction modes on the canvas. {@code NONE} is the default place/resize
@@ -150,32 +143,32 @@ public class VisualizationPanel extends JPanel {
      */
     public enum InteractionMode { NONE, HATCH, DELETE_STROKE, ADD_LINE, MOVE_STROKE }
 
-    private InteractionMode interactionMode = InteractionMode.NONE;
-    private RegionHatchListener regionHatchListener;
-    private StrokeEditListener strokeEditListener;
-    private Runnable hatchStyleAction;
-    private java.util.function.Consumer<InteractionMode> interactionModeListener;
-    private JCheckBoxMenuItem ctxHatchItem, ctxDeleteItem, ctxAddLineItem, ctxMoveItem;
+    InteractionMode interactionMode = InteractionMode.NONE;
+    RegionHatchListener regionHatchListener;
+    StrokeEditListener strokeEditListener;
+    Runnable hatchStyleAction;
+    java.util.function.Consumer<InteractionMode> interactionModeListener;
+    JCheckBoxMenuItem ctxHatchItem, ctxDeleteItem, ctxAddLineItem, ctxMoveItem;
     // Closed region currently under the cursor in hatch mode, highlighted as a pick preview (-1 none).
-    private int hoverRegionIndex = -1;
+    int hoverRegionIndex = -1;
     // Flood-filled enclosure under the cursor (model space) when not over a closed path — computed on
     // a short debounce so the multi-stroke "fill this area" target also previews. Null when none.
-    private Path2D hoverEnclosedModel;
-    private javax.swing.Timer enclosedHoverTimer;
-    private int enclosedHoverX, enclosedHoverY;
+    Path2D hoverEnclosedModel;
+    javax.swing.Timer enclosedHoverTimer;
+    int enclosedHoverX, enclosedHoverY;
     // Stroke under the cursor in delete mode (index into allPaths), highlighted in red (-1 none).
-    private int hoverStrokeIndex = -1;
+    int hoverStrokeIndex = -1;
     // First clicked point (model mm) while drawing a line in ADD_LINE mode, or null between lines.
-    private double[] lineStart;
-    private int lineHoverX, lineHoverY; // last cursor pixel, for the rubber-band preview
+    double[] lineStart;
+    int lineHoverX, lineHoverY; // last cursor pixel, for the rubber-band preview
     // Live drag state for MOVE_STROKE: the stroke being dragged (index into allPaths), its original
     // points (model mm), the press point, and whether it actually moved.
-    private int dragStrokeIndex = -1;
-    private List<Point2D> dragStrokeOrig;
-    private double[] dragStrokePressModel;
-    private boolean dragStrokeMoved;
+    int dragStrokeIndex = -1;
+    List<Point2D> dragStrokeOrig;
+    double[] dragStrokePressModel;
+    boolean dragStrokeMoved;
     // Pixel position of the last context-menu trigger, for "Hatch area here" / "Clear hatch here".
-    private int lastPopupX, lastPopupY;
+    int lastPopupX, lastPopupY;
 
     /** Notified when the user picks a region to hatch or clear (click in hatch mode, or context menu). */
     public interface RegionHatchListener {
@@ -262,43 +255,43 @@ public class VisualizationPanel extends JPanel {
      * an area flood-filled from the point and bounded by all strokes. Returns {@code null} if nothing
      * encloses the point. Shared by the left-click handler and the context menu.
      */
-    private HatchTarget resolveHatchTarget(int px, int py) {
-        int ri = findClosedRegionAt(px, py);
+    HatchTarget resolveHatchTarget(int px, int py) {
+        int ri = interaction.findClosedRegionAt(px, py);
         if (ri >= 0) {
-            return new HatchTarget(rawRegionPath(allPaths.get(ri)), pathLayer.get(ri));
+            return new HatchTarget(interaction.rawRegionPath(allPaths.get(ri)), pathLayer.get(ri));
         }
-        double[] seed = screenToModel(px, py);
+        double[] seed = interaction.screenToModel(px, py);
         if (seed != null) {
-            Path2D enclosed = EnclosedRegion.fromSeed(strokesAsModel(), seed[0], seed[1]);
+            Path2D enclosed = EnclosedRegion.fromSeed(interaction.strokesAsModel(), seed[0], seed[1]);
             if (enclosed != null) {
-                return new HatchTarget(enclosed, nearestStrokeLayer(seed[0], seed[1]));
+                return new HatchTarget(enclosed, interaction.nearestStrokeLayer(seed[0], seed[1]));
             }
         }
         return null;
     }
 
-    private record HatchTarget(Path2D region, int layerIndex) {
+    record HatchTarget(Path2D region, int layerIndex) {
     }
 
     // Interactive drag state
-    private static final int HANDLE_NONE = -1;
-    private static final int HANDLE_MOVE = 0;
-    private static final int HANDLE_NW = 1, HANDLE_N = 2, HANDLE_NE = 3;
-    private static final int HANDLE_W = 4, HANDLE_E = 5;
-    private static final int HANDLE_SW = 6, HANDLE_S = 7, HANDLE_SE = 8;
-    private static final double HANDLE_SIZE_PX = 7;
+    static final int HANDLE_NONE = -1;
+    static final int HANDLE_MOVE = 0;
+    static final int HANDLE_NW = 1, HANDLE_N = 2, HANDLE_NE = 3;
+    static final int HANDLE_W = 4, HANDLE_E = 5;
+    static final int HANDLE_SW = 6, HANDLE_S = 7, HANDLE_SE = 8;
+    static final double HANDLE_SIZE_PX = 7;
 
-    private int dragHandle = HANDLE_NONE;
-    private double dragStartScreenX, dragStartScreenY;
-    private double dragStartOverlayOX, dragStartOverlayOY;
-    private double dragStartOverlayScale;
+    int dragHandle = HANDLE_NONE;
+    double dragStartScreenX, dragStartScreenY;
+    double dragStartOverlayOX, dragStartOverlayOY;
+    double dragStartOverlayScale;
 
     // Listener for overlay changes (notifies the containing panel)
-    private Runnable overlayChangeListener;
+    Runnable overlayChangeListener;
 
     // Listener invoked when the user removes the drawing via the context menu, so the containing
     // panel can drop its own loaded-output state (otherwise a plot/export would still use it).
-    private Runnable removeDrawingListener;
+    Runnable removeDrawingListener;
 
     public void setOverlayChangeListener(Runnable listener) {
         this.overlayChangeListener = listener;
@@ -327,7 +320,7 @@ public class VisualizationPanel extends JPanel {
         fireOverlayChange();
     }
 
-    private void fireOverlayChange() {
+    void fireOverlayChange() {
         if (overlayChangeListener != null) overlayChangeListener.run();
     }
 
@@ -335,7 +328,7 @@ public class VisualizationPanel extends JPanel {
     public record Station(String name, double x, double y) {
     }
 
-    private List<Station> stations = new ArrayList<>();
+    List<Station> stations = new ArrayList<>();
 
     public void setStations(List<Station> newStations) {
         this.stations.clear();
@@ -357,18 +350,18 @@ public class VisualizationPanel extends JPanel {
         void onStationAdded(double x, double y);
     }
 
-    private StationEditListener stationEditListener;
+    StationEditListener stationEditListener;
 
     public void setStationEditListener(StationEditListener listener) {
         this.stationEditListener = listener;
     }
 
     // Station-drag state: index into `stations` of the marker being dragged, or -1.
-    private int draggingStation = -1;
+    int draggingStation = -1;
     // Machine-mm location of the last popup trigger, used by "Add station here".
-    private double[] lastPopupMm;
+    double[] lastPopupMm;
     /** Pixel radius within which a click grabs a station marker. */
-    private static final double STATION_HIT_PX = 9;
+    static final double STATION_HIT_PX = 9;
 
     // ----- Overlay accessors -----
 
@@ -440,7 +433,7 @@ public class VisualizationPanel extends JPanel {
      * {@code (mx, my)} fixed (zoom-to-cursor). The pan is re-solved via {@link #zoomToCursorPan}
      * so the cached paint transform — and therefore every hit-test that inverts it — stays exact.
      */
-    private void zoomAtCursor(double factor, int mx, int my) {
+    void zoomAtCursor(double factor, int mx, int my) {
         double newZoom = Math.max(VIEW_ZOOM_MIN, Math.min(VIEW_ZOOM_MAX, viewZoom * factor));
         if (newZoom == viewZoom) {
             return;
@@ -526,361 +519,16 @@ public class VisualizationPanel extends JPanel {
         repaint();
     }
 
-    private boolean isOriginRight() { return machineOrigin.contains("Right"); }
-    private boolean isOriginBottom() { return machineOrigin.contains("Bottom"); }
-    private boolean needsAxisSwap() { return isPortrait() && machineWidth > machineHeight; }
+    boolean isOriginRight() { return machineOrigin.contains("Right"); }
+    boolean isOriginBottom() { return machineOrigin.contains("Bottom"); }
+    boolean needsAxisSwap() { return isPortrait() && machineWidth > machineHeight; }
 
     public VisualizationPanel() {
-        setBackground(new Color(35, 35, 40));
-        TitledBorder border = BorderFactory.createTitledBorder("Live View");
-        border.setTitleFont(border.getTitleFont().deriveFont(Font.BOLD, 12f));
-        setBorder(border);
-
-        JPopupMenu contextMenu = buildContextMenu();
-
-        MouseAdapter mouseHandler = new MouseAdapter() {
-            @Override
-            public void mousePressed(MouseEvent e) {
-                if (maybeShowPopup(e)) return;
-                // Stations are grabbable even on an empty bed, and take precedence over the
-                // drawing handles (they're small, on top, and a deliberate target).
-                int st = hitTestStation(e.getX(), e.getY());
-                if (st != HANDLE_NONE) {
-                    draggingStation = st;
-                    return;
-                }
-                // Pan from ANYWHERE with middle-drag or Shift+left-drag — works over the drawing and
-                // in hatch mode, so you can reposition while zoomed in even with no empty bed to grab
-                // and no middle button.
-                if (SwingUtilities.isMiddleMouseButton(e)
-                        || (SwingUtilities.isLeftMouseButton(e) && e.isShiftDown())) {
-                    startPan(e);
-                    return;
-                }
-                // Left-click behaviour depends on the interaction mode. A click that doesn't act
-                // (e.g. hatch on empty space) falls through so the user can still pan.
-                if (SwingUtilities.isLeftMouseButton(e)) {
-                    if (interactionMode == InteractionMode.HATCH && regionHatchListener != null) {
-                        HatchTarget t = resolveHatchTarget(e.getX(), e.getY());
-                        if (t != null) {
-                            regionHatchListener.onHatchRegion(t.region(), t.layerIndex());
-                            return;
-                        }
-                    } else if (interactionMode == InteractionMode.DELETE_STROKE && strokeEditListener != null) {
-                        int si = nearestStrokeIndex(e.getX(), e.getY());
-                        if (si >= 0) {
-                            strokeEditListener.onDeleteStroke(pathCommandId.get(si));
-                            return;
-                        }
-                    } else if (interactionMode == InteractionMode.ADD_LINE && strokeEditListener != null) {
-                        double[] p = snapPoint(e.getX(), e.getY());
-                        if (p != null) {
-                            if (lineStart == null) {
-                                lineStart = p;
-                                lineHoverX = e.getX();
-                                lineHoverY = e.getY();
-                            } else {
-                                strokeEditListener.onAddLine(lineStart[0], lineStart[1], p[0], p[1],
-                                        nearestStrokeLayer(lineStart[0], lineStart[1]));
-                                lineStart = null;
-                            }
-                            repaint();
-                            return;
-                        }
-                    } else if (interactionMode == InteractionMode.MOVE_STROKE && strokeEditListener != null) {
-                        int si = nearestStrokeIndex(e.getX(), e.getY());
-                        double[] m = si >= 0 ? screenToModel(e.getX(), e.getY()) : null;
-                        if (m != null) {
-                            dragStrokeIndex = si;
-                            dragStrokePressModel = m;
-                            dragStrokeOrig = new ArrayList<>(allPaths.get(si));
-                            dragStrokeMoved = false;
-                            return;
-                        }
-                    }
-                }
-                // Drawing move/resize handles only act in the default (NONE) mode; in an edit mode an
-                // unconsumed left-press pans instead of grabbing the whole-drawing handle.
-                int handle = (interactionMode == InteractionMode.NONE && !allPaths.isEmpty())
-                        ? hitTestHandle(e.getX(), e.getY()) : HANDLE_NONE;
-                if (handle == HANDLE_NONE && SwingUtilities.isLeftMouseButton(e)) {
-                    startPan(e);
-                    return;
-                }
-                if (handle == HANDLE_NONE) return;
-                dragHandle = handle;
-                dragStartScreenX = e.getX();
-                dragStartScreenY = e.getY();
-                dragStartOverlayOX = overlayOffsetX;
-                dragStartOverlayOY = overlayOffsetY;
-                dragStartOverlayScale = overlayScale;
-            }
-
-            @Override
-            public void mouseDragged(MouseEvent e) {
-                if (panning) {
-                    viewPanX += e.getX() - panLastX;
-                    viewPanY += e.getY() - panLastY;
-                    panLastX = e.getX();
-                    panLastY = e.getY();
-                    repaint();
-                    return;
-                }
-                if (draggingStation >= 0) {
-                    double[] mm = screenToPhysical(e.getX(), e.getY());
-                    Station s = stations.get(draggingStation);
-                    stations.set(draggingStation, new Station(s.name(), mm[0], mm[1]));
-                    repaint();
-                    return;
-                }
-                if (dragStrokeIndex >= 0) {
-                    double[] m = screenToModel(e.getX(), e.getY());
-                    if (m != null && dragStrokePressModel != null) {
-                        double ddx = m[0] - dragStrokePressModel[0];
-                        double ddy = m[1] - dragStrokePressModel[1];
-                        List<Point2D> moved = new ArrayList<>(dragStrokeOrig.size());
-                        for (Point2D p : dragStrokeOrig) {
-                            moved.add(new Point2D(p.x() + ddx, p.y() + ddy));
-                        }
-                        allPaths.set(dragStrokeIndex, moved);
-                        dragStrokeMoved = true;
-                        repaint();
-                    }
-                    return;
-                }
-                if (dragHandle == HANDLE_NONE) return;
-                double dx = e.getX() - dragStartScreenX;
-                double dy = e.getY() - dragStartScreenY;
-                if (dragHandle == HANDLE_MOVE) {
-                    double[] mmDelta = screenDeltaToMm(dx, dy);
-                    overlayOffsetX = dragStartOverlayOX + mmDelta[0];
-                    overlayOffsetY = dragStartOverlayOY + mmDelta[1];
-                } else {
-                    handleResize(dragHandle, dx, dy);
-                }
-                clampOverlayToBed();
-                repaint();
-            }
-
-            @Override
-            public void mouseReleased(MouseEvent e) {
-                if (maybeShowPopup(e)) return;
-                if (panning) {
-                    panning = false;
-                    setCursor(Cursor.getPredefinedCursor(interactionMode == InteractionMode.NONE
-                            ? Cursor.DEFAULT_CURSOR : Cursor.CROSSHAIR_CURSOR));
-                    return;
-                }
-                if (draggingStation >= 0) {
-                    Station s = stations.get(draggingStation);
-                    draggingStation = -1;
-                    if (stationEditListener != null) {
-                        stationEditListener.onStationMoved(s.name(), s.x(), s.y());
-                    }
-                    return;
-                }
-                if (dragStrokeIndex >= 0) {
-                    if (dragStrokeMoved && strokeEditListener != null) {
-                        List<Point2D> pts = allPaths.get(dragStrokeIndex);
-                        double[][] coords = new double[pts.size()][2];
-                        for (int i = 0; i < pts.size(); i++) {
-                            coords[i][0] = pts.get(i).x();
-                            coords[i][1] = pts.get(i).y();
-                        }
-                        strokeEditListener.onMoveStroke(pathCommandId.get(dragStrokeIndex), coords);
-                    }
-                    dragStrokeIndex = -1;
-                    dragStrokeOrig = null;
-                    return;
-                }
-                if (dragHandle != HANDLE_NONE) {
-                    dragHandle = HANDLE_NONE;
-                    fireOverlayChange();
-                }
-            }
-
-            private boolean maybeShowPopup(MouseEvent e) {
-                if (!e.isPopupTrigger()) return false;
-                lastPopupX = e.getX();
-                lastPopupY = e.getY();
-                lastPopupMm = screenToPhysical(e.getX(), e.getY());
-                boolean hasDrawing = !allPaths.isEmpty();
-                for (Component item : drawingMenuItems) {
-                    item.setEnabled(hasDrawing);
-                }
-                ctxHatchItem.setSelected(interactionMode == InteractionMode.HATCH);
-                ctxDeleteItem.setSelected(interactionMode == InteractionMode.DELETE_STROKE);
-                ctxAddLineItem.setSelected(interactionMode == InteractionMode.ADD_LINE);
-                ctxMoveItem.setSelected(interactionMode == InteractionMode.MOVE_STROKE);
-                contextMenu.show(VisualizationPanel.this, e.getX(), e.getY());
-                return true;
-            }
-
-            @Override
-            public void mouseMoved(MouseEvent e) {
-                // In an interaction mode the crosshair stays put (don't let the drag-handle hit-test
-                // swap it), and a mode-specific preview tracks the cursor.
-                if (interactionMode != InteractionMode.NONE) {
-                    setCursor(Cursor.getPredefinedCursor(Cursor.CROSSHAIR_CURSOR));
-                    if (interactionMode == InteractionMode.HATCH) {
-                        updateHoverRegion(e.getX(), e.getY());
-                    } else if (interactionMode == InteractionMode.DELETE_STROKE
-                            || interactionMode == InteractionMode.MOVE_STROKE) {
-                        updateHoverStroke(e.getX(), e.getY());
-                    } else if (interactionMode == InteractionMode.ADD_LINE && lineStart != null) {
-                        lineHoverX = e.getX();
-                        lineHoverY = e.getY();
-                        repaint();
-                    }
-                    return;
-                }
-                if (hitTestStation(e.getX(), e.getY()) != HANDLE_NONE) {
-                    setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-                    return;
-                }
-                if (allPaths.isEmpty()) { setCursor(Cursor.getDefaultCursor()); return; }
-                int handle = hitTestHandle(e.getX(), e.getY());
-                setCursor(cursorForHandle(handle));
-            }
-
-            @Override
-            public void mouseClicked(MouseEvent e) {
-                // Double-click on empty canvas (not a handle or station) resets the view to fit.
-                if (e.getClickCount() == 2 && SwingUtilities.isLeftMouseButton(e)
-                        && hitTestStation(e.getX(), e.getY()) == HANDLE_NONE
-                        && (allPaths.isEmpty() || hitTestHandle(e.getX(), e.getY()) == HANDLE_NONE)) {
-                    resetView();
-                }
-            }
-        };
-        addMouseListener(mouseHandler);
-        addMouseMotionListener(mouseHandler);
-        // Mouse wheel zooms toward the cursor (wheel-up / away = zoom in).
-        addMouseWheelListener(e ->
-                zoomAtCursor(e.getPreciseWheelRotation() < 0 ? 1.12 : 1 / 1.12, e.getX(), e.getY()));
-    }
-
-    /**
-     * Right-click menu for the Live View: removing the drawing plus the overlay-placement
-     * actions (reset/rotate/mirror), kept here so they're reachable directly on the canvas.
-     */
-    private JPopupMenu buildContextMenu() {
-        JPopupMenu menu = new JPopupMenu();
-
-        // Always available (Phase 17): drop a refill station at the clicked bed position. The
-        // controller turns the mm coordinate into a real StationConfig and re-pushes the list.
-        JMenuItem addStation = new JMenuItem("Add station here");
-        addStation.addActionListener(e -> {
-            if (stationEditListener != null && lastPopupMm != null) {
-                stationEditListener.onStationAdded(lastPopupMm[0], lastPopupMm[1]);
-            }
-        });
-        menu.add(addStation);
-
-        // Always available: snap the viewport back to fit-to-window (zoom 100%, no pan).
-        JMenuItem resetView = new JMenuItem("Reset View (Zoom/Pan)");
-        resetView.addActionListener(e -> resetView());
-        menu.add(resetView);
-        menu.addSeparator();
-
-        // Interaction-mode toggles, mutually exclusive (kept in sync with the Edit menu and each
-        // other via setInteractionMode + the mode-change listener).
-        ctxHatchItem = modeItem("Hatch mode (click areas to fill)", InteractionMode.HATCH);
-        ctxDeleteItem = modeItem("Delete-stroke mode (click a line)", InteractionMode.DELETE_STROKE);
-        ctxAddLineItem = modeItem("Add-line mode (click two points)", InteractionMode.ADD_LINE);
-        ctxMoveItem = modeItem("Move-stroke mode (drag a line)", InteractionMode.MOVE_STROKE);
-        menu.add(ctxHatchItem);
-        menu.add(ctxDeleteItem);
-        menu.add(ctxAddLineItem);
-        menu.add(ctxMoveItem);
-
-        // Hatch the region under the click — fill it, clear a previous fill, or pick the style —
-        // without switching into hatch mode first. Disabled when no drawing is loaded.
-        JMenuItem hatchHere = new JMenuItem("Hatch area here");
-        hatchHere.addActionListener(e -> {
-            if (regionHatchListener != null) {
-                HatchTarget t = resolveHatchTarget(lastPopupX, lastPopupY);
-                if (t != null) {
-                    regionHatchListener.onHatchRegion(t.region(), t.layerIndex());
-                }
-            }
-        });
-        menu.add(hatchHere);
-        JMenuItem clearHatchHere = new JMenuItem("Clear hatch in this area");
-        clearHatchHere.addActionListener(e -> {
-            if (regionHatchListener != null) {
-                HatchTarget t = resolveHatchTarget(lastPopupX, lastPopupY);
-                if (t != null) {
-                    regionHatchListener.onClearHatchRegion(t.region());
-                }
-            }
-        });
-        menu.add(clearHatchHere);
-        JMenuItem hatchStyle = new JMenuItem("Hatch style...");
-        hatchStyle.addActionListener(e -> {
-            if (hatchStyleAction != null) {
-                hatchStyleAction.run();
-            }
-        });
-        menu.add(hatchStyle);
-        // One-shot delete/duplicate of the stroke nearest the click, without entering a mode.
-        JMenuItem deleteHere = new JMenuItem("Delete nearest line");
-        deleteHere.addActionListener(e -> {
-            if (strokeEditListener != null) {
-                int si = nearestStrokeIndex(lastPopupX, lastPopupY);
-                if (si >= 0) {
-                    strokeEditListener.onDeleteStroke(pathCommandId.get(si));
-                }
-            }
-        });
-        menu.add(deleteHere);
-        JMenuItem duplicateHere = new JMenuItem("Duplicate nearest line");
-        duplicateHere.addActionListener(e -> {
-            if (strokeEditListener != null) {
-                int si = nearestStrokeIndex(lastPopupX, lastPopupY);
-                if (si >= 0) {
-                    strokeEditListener.onDuplicateStroke(pathCommandId.get(si));
-                }
-            }
-        });
-        menu.add(duplicateHere);
-        menu.addSeparator();
-
-        // Drawing-only items: disabled when the bed is empty (toggled in maybeShowPopup).
-        JMenuItem remove = new JMenuItem("Remove Drawing");
-        remove.addActionListener(e -> {
-            clearDrawing();
-            if (removeDrawingListener != null) removeDrawingListener.run();
-        });
-        menu.add(remove);
-
-        JMenuItem reset = new JMenuItem("Reset Position");
-        reset.addActionListener(e -> resetOverlay());
-        menu.add(reset);
-
-        JMenuItem rotate = new JMenuItem("Rotate 90°");
-        rotate.addActionListener(e -> rotateOverlay());
-        menu.add(rotate);
-
-        JMenuItem mirror = new JMenuItem("Mirror");
-        mirror.addActionListener(e -> toggleMirror());
-        menu.add(mirror);
-
-        drawingMenuItems = List.of(remove, reset, rotate, mirror, hatchHere, clearHatchHere,
-                deleteHere, duplicateHere);
-        return menu;
-    }
-
-    /** A mutually-exclusive interaction-mode toggle for the context menu. */
-    private JCheckBoxMenuItem modeItem(String label, InteractionMode mode) {
-        JCheckBoxMenuItem item = new JCheckBoxMenuItem(label);
-        item.addActionListener(e ->
-                setInteractionMode(item.isSelected() ? mode : InteractionMode.NONE));
-        return item;
+        CanvasInteractionController.install(this);
     }
 
     /** Context-menu entries that only make sense with a loaded drawing (toggled per right-click). */
-    private List<JMenuItem> drawingMenuItems = new ArrayList<>();
+    List<JMenuItem> drawingMenuItems = new ArrayList<>();
 
     // ----- Data Loading -----
 
@@ -919,7 +567,7 @@ public class VisualizationPanel extends JPanel {
         layerColors.clear();
         List<Layer> layers = output.layers();
         for (int li = 0; li < layers.size(); li++) {
-            layerColors.add(displayColorFor(layers.get(li).color(), li));
+            layerColors.add(CanvasPalette.displayColor(layers.get(li).color(), li));
             for (Command cmd : layers.get(li).commands()) {
                 if (cmd instanceof DrawCommand draw) {
                     List<Point2D> stroke = new ArrayList<>();
@@ -1005,80 +653,8 @@ public class VisualizationPanel extends JPanel {
         return layerColors.get(layerIndex);
     }
 
-    /**
-     * Resolves a layer's display colour: its source {@code #rrggbb} if parseable and bright enough,
-     * otherwise a distinct hue from {@link #FALLBACK_PALETTE}. A parseable-but-dark colour (e.g. pure
-     * black, common for line art) is brightened toward readability rather than left to vanish into
-     * the dark canvas.
-     */
-    private Color displayColorFor(String hex, int index) {
-        Color parsed = parseHex(hex);
-        if (parsed == null) {
-            return FALLBACK_PALETTE[index % FALLBACK_PALETTE.length];
-        }
-        return ensureReadable(parsed, index);
-    }
-
-    private static Color parseHex(String hex) {
-        if (hex == null) {
-            return null;
-        }
-        String s = hex.trim();
-        if (s.startsWith("#")) {
-            s = s.substring(1);
-        }
-        if (s.length() == 3) {
-            // Expand shorthand #abc -> #aabbcc.
-            StringBuilder sb = new StringBuilder();
-            for (int i = 0; i < 3; i++) {
-                sb.append(s.charAt(i)).append(s.charAt(i));
-            }
-            s = sb.toString();
-        }
-        if (s.length() != 6) {
-            return null;
-        }
-        try {
-            return new Color(Integer.parseInt(s.substring(0, 2), 16),
-                    Integer.parseInt(s.substring(2, 4), 16),
-                    Integer.parseInt(s.substring(4, 6), 16));
-        } catch (NumberFormatException e) {
-            return null;
-        }
-    }
-
-    /**
-     * Keeps a layer colour distinguishable from the dark background: if perceived brightness is below
-     * a floor, the colour is lightened toward white. A near-greyscale dark colour (e.g. black) would
-     * brighten to grey and blur together with other dark layers, so those fall back to a palette hue.
-     */
-    private Color ensureReadable(Color c, int index) {
-        double brightness = (0.299 * c.getRed() + 0.587 * c.getGreen() + 0.114 * c.getBlue());
-        if (brightness >= 70) {
-            return c;
-        }
-        int chroma = Math.max(c.getRed(), Math.max(c.getGreen(), c.getBlue()))
-                - Math.min(c.getRed(), Math.min(c.getGreen(), c.getBlue()));
-        if (chroma < 24) {
-            // Effectively greyscale and dark: a distinct hue reads far better than grey-on-grey.
-            return FALLBACK_PALETTE[index % FALLBACK_PALETTE.length];
-        }
-        // Coloured but dark: lift toward white while keeping the hue.
-        double lift = 0.55;
-        return new Color(
-                (int) Math.round(c.getRed() + (255 - c.getRed()) * lift),
-                (int) Math.round(c.getGreen() + (255 - c.getGreen()) * lift),
-                (int) Math.round(c.getBlue() + (255 - c.getBlue()) * lift));
-    }
-
     /** A dimmed version of {@code c} for ghosting non-selected layers (blended toward the canvas). */
-    private static Color ghost(Color c) {
-        double keep = 0.30;
-        return new Color(
-                (int) Math.round(c.getRed() * keep + CANVAS_BG.getRed() * (1 - keep)),
-                (int) Math.round(c.getGreen() * keep + CANVAS_BG.getGreen() * (1 - keep)),
-                (int) Math.round(c.getBlue() * keep + CANVAS_BG.getBlue() * (1 - keep)));
-    }
+    static Color ghost(Color c) { return CanvasPalette.ghost(c); }
 
     /** Updates the feed-rate override (percent) shown in the HUD. */
     public void setSpeedPercent(int percent) {
@@ -1086,7 +662,7 @@ public class VisualizationPanel extends JPanel {
         repaint();
     }
 
-    private void animateCursorStep() {
+    void animateCursorStep() {
         double dx = targetX - currentX;
         double dy = targetY - currentY;
         double dist = Math.hypot(dx, dy);
@@ -1118,16 +694,16 @@ public class VisualizationPanel extends JPanel {
     // The composited transform is supplied wholesale via setEffectiveAxes() (it already
     // accounts for portrait axis swap, machine origin and the extra flags), so these just
     // expose it under the names the rest of this class already uses.
-    private boolean effectiveSwap() { return effSwapXY; }
-    private boolean effectiveInvertX() { return effInvertX; }
-    private boolean effectiveInvertY() { return effInvertY; }
+    boolean effectiveSwap() { return effSwapXY; }
+    boolean effectiveInvertX() { return effInvertX; }
+    boolean effectiveInvertY() { return effInvertY; }
 
-    private double[] contentBoundsArray() {
+    double[] contentBoundsArray() {
         return new double[] { rawMinX, rawMaxX, rawMinY, rawMaxY };
     }
 
     /** Computes and caches pen-down and total travel distances (mm) across all loaded paths. */
-    private void computeTravelStats() {
+    void computeTravelStats() {
         travelPenDownMm = 0;
         double penUpMm = 0;
         for (int i = 0; i < allPaths.size(); i++) {
@@ -1151,7 +727,7 @@ public class VisualizationPanel extends JPanel {
      * Recalculate alignment offset using the shared {@link CoordinateTransform} utility.
      * MUST produce the same result as {@link org.trostheide.gantry.app.plot.PlotService}.
      */
-    private void recalculateTransform() {
+    void recalculateTransform() {
         if (allPaths.isEmpty()) {
             rawMinX = rawMaxX = rawMinY = rawMaxY = 0;
             alignOffsetX = alignOffsetY = 0;
@@ -1173,45 +749,31 @@ public class VisualizationPanel extends JPanel {
             }
         }
 
-        // When axes are swapped for portrait, translate the alignment label
-        String effectiveAlign = canvasAlignment;
-        if (needsAxisSwap()) {
-            effectiveAlign = translateAlignmentForPortrait(canvasAlignment);
-        }
-
-        if (suppressAlignment || effectiveAlign == null) {
+        if (suppressAlignment || canvasAlignment == null) {
             alignOffsetX = 0;
             alignOffsetY = 0;
         } else {
             double[] offset = CoordinateTransform.calculateAlignmentOffset(
-                    effectiveAlign, contentBoundsArray(),
+                    canvasAlignment, contentBoundsArray(),
                     machineWidth, machineHeight,
                     effectiveSwap(), effectiveInvertX(), effectiveInvertY(),
-                    dataRotation, isOriginRight(),
+                    dataRotation, isOriginRight(), isOriginBottom(), flipY,
                     paddingX, paddingY);
             alignOffsetX = offset[0];
             alignOffsetY = offset[1];
         }
     }
 
-    /**
-     * In portrait mode, the alignment corners sharing exactly one component with the origin
-     * corner swap with each other (the origin corner and its diagonal are fixed).
-     */
-    private String translateAlignmentForPortrait(String label) {
-        return org.trostheide.gantry.app.plot.GantryConfig.translateAlignmentForPortrait(label, isOriginRight(), isOriginBottom());
-    }
-
-    private boolean isPortrait() {
+    boolean isPortrait() {
         return "Portrait".equals(orientation);
     }
 
-    private double displayWidth() {
-        return isPortrait() ? Math.min(machineWidth, machineHeight) : Math.max(machineWidth, machineHeight);
+    double displayWidth() {
+        return effectiveSwap() ? machineHeight : machineWidth;
     }
 
-    private double displayHeight() {
-        return isPortrait() ? Math.max(machineWidth, machineHeight) : Math.min(machineWidth, machineHeight);
+    double displayHeight() {
+        return effectiveSwap() ? machineWidth : machineHeight;
     }
 
     /**
@@ -1225,25 +787,10 @@ public class VisualizationPanel extends JPanel {
                 displayWidth(), displayHeight(), isOriginRight(), isOriginBottom());
     }
 
-    private double[] physicalToScreen(double motorX, double motorY) {
-        // This is the exact inverse of the jog logic in PlotterPanel.jog(): jogging maps a
-        // desired on-screen direction (right/up) to a motor delta using the composited
-        // swap/invert flags; rendering a motor position back to screen must invert that, so
-        // the cursor, origin marker, axes and stations always track the same direction the
-        // pen physically moves. Undo invert, then swap, to recover the screen-space offset
-        // (dx = rightward, dy = upward) of this motor position from the origin corner.
-        double dx = motorX;
-        double dy = motorY;
-        if (effectiveInvertY()) dy = -dy;
-        if (effectiveInvertX()) dx = -dx;
-        if (effectiveSwap()) {
-            double t = dx; dx = dy; dy = t;
-        }
-        // Place relative to the machine-origin corner of the displayed bed. Screen Y grows
-        // downward, so the upward component dy is subtracted.
-        double originScreenX = isOriginRight() ? displayWidth() : 0;
-        double originScreenY = isOriginBottom() ? displayHeight() : 0;
-        return new double[] { originScreenX + dx, originScreenY - dy };
+    double[] physicalToScreen(double motorX, double motorY) {
+        return CoordinateTransform.physicalToScreen(motorX, motorY,
+                effectiveSwap(), isOriginRight(), isOriginBottom(),
+                machineWidth, machineHeight);
     }
 
     /**
@@ -1251,12 +798,12 @@ public class VisualizationPanel extends JPanel {
      * Overlay transform (scale + offset) is applied in raw content space before the rest of
      * the pipeline.
      */
-    private double[] transformPoint(Point2D rawPoint) {
+    double[] transformPoint(Point2D rawPoint) {
         double[] motor = transformPointToMotor(rawPoint);
         return physicalToScreen(motor[0], motor[1]);
     }
 
-    private double[] transformPointToMotor(Point2D rawPoint) {
+    double[] transformPointToMotor(Point2D rawPoint) {
         double cx = (rawMinX + rawMaxX) / 2.0;
         double cy = (rawMinY + rawMaxY) / 2.0;
         double[] o = CoordinateTransform.applyOverlayRaw(rawPoint.x(), rawPoint.y(),
@@ -1324,7 +871,7 @@ public class VisualizationPanel extends JPanel {
      * delta (mm). Uses a finite-difference Jacobian because the raw→motor mapping involves
      * swap/invert/rotate, so a motor delta is not simply a raw delta.
      */
-    private void applyMotorShift(double shiftMmX, double shiftMmY) {
+    void applyMotorShift(double shiftMmX, double shiftMmY) {
         if (shiftMmX == 0 && shiftMmY == 0) {
             return;
         }
@@ -1347,7 +894,7 @@ public class VisualizationPanel extends JPanel {
         }
     }
 
-    private void clampOverlayToBed() {
+    void clampOverlayToBed() {
         if (allPaths.isEmpty()) return;
         Point2D[] corners = {
             new Point2D(rawMinX, rawMinY), new Point2D(rawMaxX, rawMinY),
@@ -1375,739 +922,14 @@ public class VisualizationPanel extends JPanel {
     @Override
     protected void paintComponent(Graphics g) {
         super.paintComponent(g);
-        Graphics2D g2 = (Graphics2D) g;
-        g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-
-        int w = getWidth();
-        int h = getHeight();
-
-        double dw = displayWidth();
-        double dh = displayHeight();
-
-        // Calculate scale to fit displayed bed in panel
-        double scaleX = (w - 40) / dw;
-        double scaleY = (h - 40) / dh;
-        double fitScale = Math.min(scaleX, scaleY);
-        if (fitScale <= 0)
-            fitScale = 1.0;
-
-        // Center the displayed bed in the panel
-        double fitTx = 20 + (w - 40 - dw * fitScale) / 2.0;
-        double fitTy = 20 + (h - 40 - dh * fitScale) / 2.0;
-
-        // Fold the user viewport zoom/pan over the fit transform: a final pixel is
-        // viewZoom * fitPixel + viewPan, i.e. content*(fitScale*viewZoom) + (viewZoom*fitTx+pan).
-        double scale = fitScale * viewZoom;
-        double tx = viewZoom * fitTx + viewPanX;
-        double ty = viewZoom * fitTy + viewPanY;
-
-        this.paintScale = scale;
-        this.paintTx = tx;
-        this.paintTy = ty;
-
-        AffineTransform old = g2.getTransform();
-        g2.translate(tx, ty);
-        g2.scale(scale, scale);
-
-        // --- Draw Machine Bed ---
-        g2.setColor(new Color(50, 52, 58));
-        g2.fill(new java.awt.geom.Rectangle2D.Double(0, 0, dw, dh));
-        g2.setColor(new Color(80, 82, 90));
-        g2.setStroke(new BasicStroke((float) (1.5 / scale)));
-        g2.draw(new java.awt.geom.Rectangle2D.Double(0, 0, dw, dh));
-
-        // --- Draw Origin Marker ---
-        double[] originScreen = physicalToScreen(0, 0);
-        g2.setColor(Color.ORANGE);
-        double markerR = 5 / scale;
-        g2.fill(new java.awt.geom.Ellipse2D.Double(originScreen[0] - markerR, originScreen[1] - markerR,
-                markerR * 2, markerR * 2));
-        g2.setColor(new Color(200, 200, 200));
-        g2.setFont(g2.getFont().deriveFont((float) (12 / scale)));
-        g2.drawString("0,0 (Origin)", (float) (originScreen[0] - 50 / scale), (float) (originScreen[1] + 15 / scale));
-
-        // --- Draw Axes (from Physical Origin) ---
-        g2.setStroke(new BasicStroke((float) (2.0 / scale)));
-        double axisLen = Math.min(machineWidth, machineHeight) * 0.15;
-
-        double[] xAxisEnd = physicalToScreen(axisLen, 0);
-        g2.setColor(Color.RED);
-        g2.draw(new java.awt.geom.Line2D.Double(originScreen[0], originScreen[1], xAxisEnd[0], xAxisEnd[1]));
-        g2.drawString("+X", (float) (xAxisEnd[0] - 10 / scale), (float) (xAxisEnd[1] + 15 / scale));
-
-        double[] yAxisEnd = physicalToScreen(0, axisLen);
-        g2.setColor(Color.GREEN);
-        g2.draw(new java.awt.geom.Line2D.Double(originScreen[0], originScreen[1], yAxisEnd[0], yAxisEnd[1]));
-        g2.drawString("+Y", (float) (yAxisEnd[0] + 5 / scale), (float) (yAxisEnd[1] + 5 / scale));
-
-        // --- Draw Refill Stations ---
-        for (Station station : stations) {
-            // Station coords are in raw input space, transform to screen
-            double[] sScreen = physicalToScreen(station.x(), station.y());
-            g2.setColor(new Color(80, 180, 255)); // Blue marker
-            double stationR = 4 / scale;
-            g2.fill(new java.awt.geom.Ellipse2D.Double(sScreen[0] - stationR, sScreen[1] - stationR,
-                    stationR * 2, stationR * 2));
-            // Draw station label
-            g2.setColor(new Color(190, 190, 190));
-            g2.setFont(g2.getFont().deriveFont((float) (9 / scale)));
-            g2.drawString(station.name(), (float) (sScreen[0] + stationR + 2 / scale),
-                    (float) (sScreen[1] + 4 / scale));
-        }
-
-        // --- Draw Paths ---
-        // Each layer is drawn in its own colour (so layers/pens are visually separable). Unselected
-        // layers are ghosted (dimmed toward the background), so the operator can focus on a chosen
-        // subset of layers without losing the surrounding context.
-        g2.setStroke(new BasicStroke((float) (1.0 / scale)));
-
-        // Draw ghosts first so the selected layers paint on top of them.
-        for (int pass = 0; pass < 2; pass++) {
-            boolean drawingSelected = (pass == 1);
-            for (int i = 0; i < allPaths.size(); i++) {
-                List<Point2D> path = allPaths.get(i);
-                if (path.isEmpty()) {
-                    continue;
-                }
-                int li = pathLayer.get(i);
-                boolean selected = selectedLayers.contains(li);
-                if (selected != drawingSelected) {
-                    continue;
-                }
-                Color base = colorByLayer ? colorForLayer(li) : DEFAULT_PATH;
-                g2.setColor(selected ? base : ghost(base));
-                Path2D p2d = new Path2D.Double();
-                double[] p0 = transformPoint(path.get(0));
-                p2d.moveTo(p0[0], p0[1]);
-                for (int j = 1; j < path.size(); j++) {
-                    double[] pj = transformPoint(path.get(j));
-                    p2d.lineTo(pj[0], pj[1]);
-                }
-                g2.draw(p2d);
-            }
-        }
-
-        // --- Travel overlay: dashed pen-up segments coloured by distance ---
-        if (showTravelOverlay) {
-            float[] dash = {8.0f / (float) scale, 5.0f / (float) scale};
-            for (int i = 0; i < allPaths.size() - 1; i++) {
-                if (!pathLayer.get(i).equals(pathLayer.get(i + 1))) {
-                    continue;
-                }
-                List<Point2D> cur = allPaths.get(i);
-                List<Point2D> nxt = allPaths.get(i + 1);
-                if (cur.isEmpty() || nxt.isEmpty()) {
-                    continue;
-                }
-                Point2D endPt = cur.get(cur.size() - 1);
-                Point2D startPt = nxt.get(0);
-                double distMm = Math.hypot(endPt.x() - startPt.x(), endPt.y() - startPt.y());
-                Color travelColor;
-                if (distMm < 20) {
-                    travelColor = new Color(80, 200, 80, 160);
-                } else if (distMm < 80) {
-                    travelColor = new Color(220, 170, 50, 160);
-                } else {
-                    travelColor = new Color(220, 60, 60, 180);
-                }
-                g2.setColor(travelColor);
-                g2.setStroke(new BasicStroke((float) (1.0 / scale), BasicStroke.CAP_BUTT,
-                        BasicStroke.JOIN_MITER, 10.0f, dash, 0.0f));
-                double[] from = transformPoint(endPt);
-                double[] to = transformPoint(startPt);
-                g2.draw(new java.awt.geom.Line2D.Double(from[0], from[1], to[0], to[1]));
-            }
-        }
-
-        // --- Hatch-mode hover highlight: tint the closed region the next click would fill ---
-        if (interactionMode == InteractionMode.HATCH
-                && hoverRegionIndex >= 0 && hoverRegionIndex < allPaths.size()) {
-            List<Point2D> hp = allPaths.get(hoverRegionIndex);
-            if (hp.size() >= 3) {
-                Path2D hi = new Path2D.Double();
-                double[] h0 = transformPoint(hp.get(0));
-                hi.moveTo(h0[0], h0[1]);
-                for (int j = 1; j < hp.size(); j++) {
-                    double[] hj = transformPoint(hp.get(j));
-                    hi.lineTo(hj[0], hj[1]);
-                }
-                hi.closePath();
-                g2.setColor(new Color(255, 210, 80, 70));
-                g2.fill(hi);
-                g2.setColor(new Color(255, 200, 50));
-                g2.setStroke(new BasicStroke((float) (1.5 / scale)));
-                g2.draw(hi);
-            }
-        } else if (interactionMode == InteractionMode.HATCH && hoverEnclosedModel != null) {
-            // Multi-stroke enclosure preview (debounced flood fill) — same tint as a closed region.
-            Path2D hi = modelPathToContent(hoverEnclosedModel);
-            g2.setColor(new Color(255, 210, 80, 70));
-            g2.fill(hi);
-            g2.setColor(new Color(255, 200, 50));
-            g2.setStroke(new BasicStroke((float) (1.5 / scale)));
-            g2.draw(hi);
-        }
-
-        // --- Stroke-edit hover highlight: outline the stroke the next click would act on
-        //     (red = delete, cyan = move) ---
-        if ((interactionMode == InteractionMode.DELETE_STROKE || interactionMode == InteractionMode.MOVE_STROKE)
-                && hoverStrokeIndex >= 0 && hoverStrokeIndex < allPaths.size()) {
-            List<Point2D> hp = allPaths.get(hoverStrokeIndex);
-            if (!hp.isEmpty()) {
-                Path2D hi = new Path2D.Double();
-                double[] h0 = transformPoint(hp.get(0));
-                hi.moveTo(h0[0], h0[1]);
-                for (int j = 1; j < hp.size(); j++) {
-                    double[] hj = transformPoint(hp.get(j));
-                    hi.lineTo(hj[0], hj[1]);
-                }
-                g2.setColor(interactionMode == InteractionMode.DELETE_STROKE
-                        ? new Color(255, 80, 80) : new Color(90, 210, 230));
-                g2.setStroke(new BasicStroke((float) (3.0 / scale)));
-                g2.draw(hi);
-            }
-        }
-
-        // --- Add-line preview: marker at the first point + rubber-band to the cursor ---
-        if (interactionMode == InteractionMode.ADD_LINE && lineStart != null) {
-            double[] a = transformPoint(new Point2D(lineStart[0], lineStart[1]));
-            double[] b = snapPoint(lineHoverX, lineHoverY); // snaps the preview end onto nearby strokes
-            g2.setColor(new Color(120, 220, 150));
-            double rr = 3 / scale;
-            g2.fill(new java.awt.geom.Ellipse2D.Double(a[0] - rr, a[1] - rr, rr * 2, rr * 2));
-            if (b != null) {
-                double[] bp = transformPoint(new Point2D(b[0], b[1]));
-                g2.setStroke(new BasicStroke((float) (1.5 / scale)));
-                g2.draw(new java.awt.geom.Line2D.Double(a[0], a[1], bp[0], bp[1]));
-            }
-        }
-
-        // --- Draw Interactive Bounding Box ---
-        if (!allPaths.isEmpty()) {
-            // Transform raw content corners through the full pipeline
-            Point2D[] corners = {
-                new Point2D(rawMinX, rawMinY), new Point2D(rawMaxX, rawMinY),
-                new Point2D(rawMinX, rawMaxY), new Point2D(rawMaxX, rawMaxY)
-            };
-            double sMinX = Double.MAX_VALUE, sMinY = Double.MAX_VALUE;
-            double sMaxX = -Double.MAX_VALUE, sMaxY = -Double.MAX_VALUE;
-            for (Point2D c : corners) {
-                double[] sc = transformPoint(c);
-                sMinX = Math.min(sMinX, sc[0]); sMaxX = Math.max(sMaxX, sc[0]);
-                sMinY = Math.min(sMinY, sc[1]); sMaxY = Math.max(sMaxY, sc[1]);
-            }
-
-            g2.setColor(new Color(255, 200, 50, 120));
-            float[] dash = {(float)(6 / scale), (float)(4 / scale)};
-            g2.setStroke(new BasicStroke((float)(1.5 / scale), BasicStroke.CAP_BUTT, BasicStroke.JOIN_MITER, 10, dash, 0));
-            g2.draw(new Rectangle2D.Double(sMinX, sMinY, sMaxX - sMinX, sMaxY - sMinY));
-
-            double hs = HANDLE_SIZE_PX / scale;
-            double midX = (sMinX + sMaxX) / 2, midY = (sMinY + sMaxY) / 2;
-            double[][] handlePos = {
-                {sMinX, sMinY}, {midX, sMinY}, {sMaxX, sMinY},
-                {sMinX, midY}, {sMaxX, midY},
-                {sMinX, sMaxY}, {midX, sMaxY}, {sMaxX, sMaxY}
-            };
-            g2.setColor(new Color(255, 200, 50));
-            g2.setStroke(new BasicStroke((float)(1.0 / scale)));
-            for (double[] hp : handlePos) {
-                g2.fill(new Rectangle2D.Double(hp[0] - hs/2, hp[1] - hs/2, hs, hs));
-            }
-        }
-
-        // --- Draw Cursor (Head Position) ---
-        // currentX, currentY are Physical coordinates from the backend
-        double[] headScreen = physicalToScreen(currentX, currentY);
-        g2.setColor(Color.RED);
-        double r = 4.0 / scale;
-        g2.fill(new java.awt.geom.Ellipse2D.Double(headScreen[0] - r, headScreen[1] - r, r * 2, r * 2));
-
-        // Crosshair
-        g2.setStroke(new BasicStroke((float) (0.5 / scale)));
-        double crossSize = Math.max(machineWidth, machineHeight);
-        g2.draw(new java.awt.geom.Line2D.Double(headScreen[0] - crossSize, headScreen[1],
-                headScreen[0] + crossSize, headScreen[1]));
-        g2.draw(new java.awt.geom.Line2D.Double(headScreen[0], headScreen[1] - crossSize,
-                headScreen[0], headScreen[1] + crossSize));
-
-        g2.setTransform(old);
-
-        // --- HUD ---
-        g2.setColor(new Color(180, 180, 180));
-        g2.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 11));
-        String travelHud = (travelTotalMm > 0)
-                ? String.format(" | Travel: %.0f%%", 100.0 * travelPenDownMm / travelTotalMm)
-                : "";
-        g2.drawString(String.format(
-                "Pos: %.1f, %.1f | Speed: %d%% | View: %.0f%% | Align: %s | Rot: %d | Origin: %s | %s%s",
-                currentX, currentY, speedPercent, viewZoom * 100, canvasAlignment, dataRotation,
-                machineOrigin, orientation, travelHud), 10, h - 10);
-        if (hasOverlayTransform()) {
-            g2.drawString(String.format(
-                    "Drag: dX=%.1f dY=%.1f Scale=%.0f%% | Bed: %.0fx%.0f",
-                    overlayOffsetX, overlayOffsetY, overlayScale * 100,
-                    machineWidth, machineHeight), 10, h - 24);
-        } else {
-            g2.drawString(String.format(
-                    "Bed: %.0fx%.0f | Offset: %.1f, %.1f | Swap: %s InvX: %s InvY: %s",
-                    machineWidth, machineHeight, alignOffsetX, alignOffsetY,
-                    effectiveSwap() ? "Y" : "N",
-                    effectiveInvertX() ? "Y" : "N",
-                    effectiveInvertY() ? "Y" : "N"), 10, h - 24);
-        }
+        CanvasRenderer.paint(this, (Graphics2D) g);
     }
 
-    // ----- Interactive Drag/Resize Helpers -----
 
-    private double[] getContentScreenBoundsPixel() {
-        if (allPaths.isEmpty()) return new double[]{0, 0, 0, 0};
-        Point2D[] corners = {
-            new Point2D(rawMinX, rawMinY), new Point2D(rawMaxX, rawMinY),
-            new Point2D(rawMinX, rawMaxY), new Point2D(rawMaxX, rawMaxY)
-        };
-        double sMinX = Double.MAX_VALUE, sMinY = Double.MAX_VALUE;
-        double sMaxX = -Double.MAX_VALUE, sMaxY = -Double.MAX_VALUE;
-        for (Point2D c : corners) {
-            double[] sc = transformPoint(c);
-            // Convert from machine-space to screen pixels
-            double px = sc[0] * paintScale + paintTx;
-            double py = sc[1] * paintScale + paintTy;
-            sMinX = Math.min(sMinX, px); sMaxX = Math.max(sMaxX, px);
-            sMinY = Math.min(sMinY, py); sMaxY = Math.max(sMaxY, py);
-        }
-        return new double[]{sMinX, sMinY, sMaxX, sMaxY};
-    }
 
-    private int hitTestHandle(int mouseX, int mouseY) {
-        double[] bb = getContentScreenBoundsPixel();
-        double x0 = bb[0], y0 = bb[1], x1 = bb[2], y1 = bb[3];
-        double mx = (x0 + x1) / 2, my = (y0 + y1) / 2;
-        double ht = HANDLE_SIZE_PX + 3;
-
-        double[][] handles = {
-            {x0, y0}, {mx, y0}, {x1, y0},
-            {x0, my}, {x1, my},
-            {x0, y1}, {mx, y1}, {x1, y1}
-        };
-        int[] handleIds = {HANDLE_NW, HANDLE_N, HANDLE_NE, HANDLE_W, HANDLE_E, HANDLE_SW, HANDLE_S, HANDLE_SE};
-
-        for (int i = 0; i < handles.length; i++) {
-            if (Math.abs(mouseX - handles[i][0]) <= ht && Math.abs(mouseY - handles[i][1]) <= ht) {
-                return handleIds[i];
-            }
-        }
-
-        if (mouseX >= x0 - 2 && mouseX <= x1 + 2 && mouseY >= y0 - 2 && mouseY <= y1 + 2) {
-            return HANDLE_MOVE;
-        }
-
-        return HANDLE_NONE;
-    }
-
-    /**
-     * Returns the index (into {@link #stations}) of the station marker under the mouse, or
-     * {@link #HANDLE_NONE} if none is within {@link #STATION_HIT_PX}. Markers are drawn in
-     * g2 content space, so we map each station's machine-mm position the same way paint does
-     * ({@code physicalToScreen} then the cached translate/scale) before comparing in pixels.
-     */
-    private int hitTestStation(int mouseX, int mouseY) {
-        for (int i = 0; i < stations.size(); i++) {
-            Station s = stations.get(i);
-            double[] sc = physicalToScreen(s.x(), s.y());
-            double px = sc[0] * paintScale + paintTx;
-            double py = sc[1] * paintScale + paintTy;
-            if (Math.hypot(mouseX - px, mouseY - py) <= STATION_HIT_PX) {
-                return i;
-            }
-        }
-        return HANDLE_NONE;
-    }
-
-    /**
-     * Inverse of the station/cursor paint path: a mouse pixel back to a machine-mm position.
-     * Undoes the cached translate/scale to reach g2 content space, then inverts
-     * {@link #physicalToScreen} (reverse order: un-swap, then un-invert) to recover motor coords.
-     */
-    private double[] screenToPhysical(int mouseX, int mouseY) {
-        double sx = (mouseX - paintTx) / paintScale;
-        double sy = (mouseY - paintTy) / paintScale;
-        double originScreenX = isOriginRight() ? displayWidth() : 0;
-        double originScreenY = isOriginBottom() ? displayHeight() : 0;
-        double dx = sx - originScreenX;
-        double dy = originScreenY - sy;
-        if (effectiveSwap()) {
-            double t = dx; dx = dy; dy = t;
-        }
-        if (effectiveInvertX()) dx = -dx;
-        if (effectiveInvertY()) dy = -dy;
-        return new double[] { dx, dy };
-    }
-
-    private Cursor cursorForHandle(int handle) {
-        switch (handle) {
-            case HANDLE_NW: return Cursor.getPredefinedCursor(Cursor.NW_RESIZE_CURSOR);
-            case HANDLE_NE: return Cursor.getPredefinedCursor(Cursor.NE_RESIZE_CURSOR);
-            case HANDLE_SW: return Cursor.getPredefinedCursor(Cursor.SW_RESIZE_CURSOR);
-            case HANDLE_SE: return Cursor.getPredefinedCursor(Cursor.SE_RESIZE_CURSOR);
-            case HANDLE_N:  return Cursor.getPredefinedCursor(Cursor.N_RESIZE_CURSOR);
-            case HANDLE_S:  return Cursor.getPredefinedCursor(Cursor.S_RESIZE_CURSOR);
-            case HANDLE_W:  return Cursor.getPredefinedCursor(Cursor.W_RESIZE_CURSOR);
-            case HANDLE_E:  return Cursor.getPredefinedCursor(Cursor.E_RESIZE_CURSOR);
-            case HANDLE_MOVE: return Cursor.getPredefinedCursor(Cursor.MOVE_CURSOR);
-            default: return Cursor.getDefaultCursor();
-        }
-    }
-
-    private double[] screenDeltaToMm(double dxPx, double dyPx) {
-        // Screen pixels -> machine-space mm delta
-        // The raw content space maps through the transform pipeline to screen.
-        // For dragging, we need the inverse: screen delta -> raw content delta.
-        // We use finite differences: transform a small offset and measure the screen effect.
-        double cx = (rawMinX + rawMaxX) / 2.0;
-        double cy = (rawMinY + rawMaxY) / 2.0;
-        double[] base = transformPoint(new Point2D(cx, cy));
-        double[] dxRef = transformPoint(new Point2D(cx + 1, cy));
-        double[] dyRef = transformPoint(new Point2D(cx, cy + 1));
-
-        double screenPerMmX_x = (dxRef[0] - base[0]) * paintScale;
-        double screenPerMmX_y = (dxRef[1] - base[1]) * paintScale;
-        double screenPerMmY_x = (dyRef[0] - base[0]) * paintScale;
-        double screenPerMmY_y = (dyRef[1] - base[1]) * paintScale;
-
-        // Solve 2x2 system: [screenPerMmX_x, screenPerMmY_x] [mmX]   [dxPx]
-        //                    [screenPerMmX_y, screenPerMmY_y] [mmY] = [dyPx]
-        double det = screenPerMmX_x * screenPerMmY_y - screenPerMmX_y * screenPerMmY_x;
-        if (Math.abs(det) < 1e-10) return new double[]{0, 0};
-
-        double mmX = (dxPx * screenPerMmY_y - dyPx * screenPerMmY_x) / det;
-        double mmY = (screenPerMmX_x * dyPx - screenPerMmX_y * dxPx) / det;
-        return new double[]{mmX, mmY};
-    }
-
-    private void handleResize(int handle, double dxPx, double dyPx) {
-        // Compute scale change from drag distance
-        double[] bb = getContentScreenBoundsPixel();
-        double bbW = bb[2] - bb[0];
-        double bbH = bb[3] - bb[1];
-        if (bbW < 1 || bbH < 1) return;
-
-        double scaleFactorX = 1, scaleFactorY = 1;
-
-        switch (handle) {
-            case HANDLE_SE: scaleFactorX = (bbW + dxPx) / bbW; scaleFactorY = (bbH + dyPx) / bbH; break;
-            case HANDLE_NW: scaleFactorX = (bbW - dxPx) / bbW; scaleFactorY = (bbH - dyPx) / bbH; break;
-            case HANDLE_NE: scaleFactorX = (bbW + dxPx) / bbW; scaleFactorY = (bbH - dyPx) / bbH; break;
-            case HANDLE_SW: scaleFactorX = (bbW - dxPx) / bbW; scaleFactorY = (bbH + dyPx) / bbH; break;
-            case HANDLE_E:  scaleFactorX = (bbW + dxPx) / bbW; scaleFactorY = scaleFactorX; break;
-            case HANDLE_W:  scaleFactorX = (bbW - dxPx) / bbW; scaleFactorY = scaleFactorX; break;
-            case HANDLE_S:  scaleFactorY = (bbH + dyPx) / bbH; scaleFactorX = scaleFactorY; break;
-            case HANDLE_N:  scaleFactorY = (bbH - dyPx) / bbH; scaleFactorX = scaleFactorY; break;
-        }
-
-        // Use uniform scale (average) to keep aspect ratio
-        double scaleFactor = (scaleFactorX + scaleFactorY) / 2.0;
-        scaleFactor = Math.max(0.05, Math.min(scaleFactor, 20.0));
-
-        overlayScale = dragStartOverlayScale * scaleFactor;
-    }
-
-    // ----- Click-to-hatch region hit-test -----
-
-    /** Begins a viewport pan from the given press event. */
-    private void startPan(MouseEvent e) {
-        panning = true;
-        panLastX = e.getX();
-        panLastY = e.getY();
-        setCursor(Cursor.getPredefinedCursor(Cursor.MOVE_CURSOR));
-    }
-
-    /**
-     * Updates the hatch-mode pick preview: the closed path under the cursor (cheap) or, if none, a
-     * debounced flood-fill enclosure (so multi-stroke "fill this area" targets — e.g. a freshly
-     * bridged region — also highlight, and a leaky boundary visibly shows no highlight).
-     */
-    private void updateHoverRegion(int px, int py) {
-        int ri = allPaths.isEmpty() ? -1 : findClosedRegionAt(px, py);
-        if (ri != hoverRegionIndex) {
-            hoverRegionIndex = ri;
-            repaint();
-        }
-        if (ri >= 0) {
-            if (enclosedHoverTimer != null) {
-                enclosedHoverTimer.stop();
-            }
-            if (hoverEnclosedModel != null) {
-                hoverEnclosedModel = null;
-                repaint();
-            }
-        } else {
-            enclosedHoverX = px;
-            enclosedHoverY = py;
-            if (enclosedHoverTimer == null) {
-                enclosedHoverTimer = new javax.swing.Timer(160, e -> computeEnclosedHover());
-                enclosedHoverTimer.setRepeats(false);
-            }
-            enclosedHoverTimer.restart();
-        }
-    }
-
-    private void computeEnclosedHover() {
-        Path2D enc = null;
-        if (interactionMode == InteractionMode.HATCH && !allPaths.isEmpty()) {
-            double[] seed = screenToModel(enclosedHoverX, enclosedHoverY);
-            if (seed != null) {
-                enc = EnclosedRegion.fromSeed(strokesAsModel(), seed[0], seed[1]);
-            }
-        }
-        hoverEnclosedModel = enc;
-        repaint();
-    }
-
-    /** Maps a model-space path to content space (for drawing the enclosure highlight). */
-    private Path2D modelPathToContent(Path2D modelPath) {
-        Path2D content = new Path2D.Double();
-        java.awt.geom.PathIterator it = modelPath.getPathIterator(null);
-        double[] c = new double[6];
-        while (!it.isDone()) {
-            int t = it.currentSegment(c);
-            if (t == java.awt.geom.PathIterator.SEG_MOVETO) {
-                double[] p = transformPoint(new Point2D(c[0], c[1]));
-                content.moveTo(p[0], p[1]);
-            } else if (t == java.awt.geom.PathIterator.SEG_LINETO) {
-                double[] p = transformPoint(new Point2D(c[0], c[1]));
-                content.lineTo(p[0], p[1]);
-            } else if (t == java.awt.geom.PathIterator.SEG_CLOSE) {
-                content.closePath();
-            }
-            it.next();
-        }
-        return content;
-    }
-
-    /** Pixel-distance threshold for clicking/hovering a stroke in stroke-edit modes. */
-    private static final double STROKE_HIT_PX = 7.0;
-
-    /** Updates the highlighted hover stroke (delete mode) and repaints on change. */
-    private void updateHoverStroke(int px, int py) {
-        int si = allPaths.isEmpty() ? -1 : nearestStrokeIndex(px, py);
-        if (si != hoverStrokeIndex) {
-            hoverStrokeIndex = si;
-            repaint();
-        }
-    }
-
-    /** Index of the stroke whose nearest segment is within {@link #STROKE_HIT_PX} of the pixel, or -1. */
-    private int nearestStrokeIndex(int px, int py) {
-        int best = -1;
-        double bestD = STROKE_HIT_PX;
-        for (int i = 0; i < allPaths.size(); i++) {
-            List<Point2D> path = allPaths.get(i);
-            if (path.isEmpty()) {
-                continue;
-            }
-            double[] prev = pixelOf(path.get(0));
-            double d = path.size() == 1 ? Math.hypot(px - prev[0], py - prev[1]) : Double.MAX_VALUE;
-            for (int j = 1; j < path.size(); j++) {
-                double[] cur = pixelOf(path.get(j));
-                d = Math.min(d, distToSegment(px, py, prev[0], prev[1], cur[0], cur[1]));
-                prev = cur;
-            }
-            if (d < bestD) {
-                bestD = d;
-                best = i;
-            }
-        }
-        return best;
-    }
-
-    /** Screen pixel of a model-space stroke point (same transform paint uses). */
-    private double[] pixelOf(Point2D p) {
-        double[] c = transformPoint(p);
-        return new double[]{c[0] * paintScale + paintTx, c[1] * paintScale + paintTy};
-    }
-
-    private static double distToSegment(double px, double py, double x1, double y1, double x2, double y2) {
-        double[] c = closestOnSegment(px, py, x1, y1, x2, y2);
-        return Math.hypot(px - c[0], py - c[1]);
-    }
-
-    private static double[] closestOnSegment(double px, double py, double x1, double y1, double x2, double y2) {
-        double dx = x2 - x1, dy = y2 - y1;
-        double len2 = dx * dx + dy * dy;
-        if (len2 < 1e-9) {
-            return new double[]{x1, y1};
-        }
-        double t = ((px - x1) * dx + (py - y1) * dy) / len2;
-        t = Math.max(0, Math.min(1, t));
-        return new double[]{x1 + t * dx, y1 + t * dy};
-    }
-
-    /** Pixel snap radius when placing an added line, so a bridge actually touches existing strokes. */
-    private static final double SNAP_PX = 10.0;
-
-    /**
-     * The model point a click at {@code (px, py)} should use when adding a line: snapped to the
-     * nearest point on any existing stroke if within {@link #SNAP_PX} (so a gap-bridging line
-     * connects exactly and the area seals), otherwise the plain {@link #screenToModel}.
-     */
-    private double[] snapPoint(int px, int py) {
-        double bestD = SNAP_PX;
-        double bestX = 0, bestY = 0;
-        boolean found = false;
-        for (List<Point2D> path : allPaths) {
-            if (path.isEmpty()) {
-                continue;
-            }
-            double[] prev = pixelOf(path.get(0));
-            for (int j = 1; j < path.size(); j++) {
-                double[] cur = pixelOf(path.get(j));
-                double[] cp = closestOnSegment(px, py, prev[0], prev[1], cur[0], cur[1]);
-                double d = Math.hypot(px - cp[0], py - cp[1]);
-                if (d < bestD) {
-                    bestD = d;
-                    bestX = cp[0];
-                    bestY = cp[1];
-                    found = true;
-                }
-                prev = cur;
-            }
-        }
-        return screenToModel((int) Math.round(found ? bestX : px), (int) Math.round(found ? bestY : py));
-    }
-
-    /**
-     * Index (into {@link #allPaths}) of the smallest closed region whose on-screen shape contains
-     * the pixel {@code (mx, my)}, or {@code -1} if none. "Smallest" so clicking nested regions
-     * picks the innermost. Geometry is tested in pixel space (each point pushed through the same
-     * {@link #transformPoint} + cached paint transform used to draw it), so it's correct at any
-     * zoom/pan; {@link java.awt.geom.Path2D#contains} treats the path as implicitly closed.
-     */
-    private int findClosedRegionAt(int mx, int my) {
-        int best = -1;
-        double bestArea = Double.MAX_VALUE;
-        for (int i = 0; i < allPaths.size(); i++) {
-            List<Point2D> path = allPaths.get(i);
-            if (path.size() < 3 || !isClosedRegion(path)) {
-                continue;
-            }
-            Path2D px = pixelPath(path);
-            if (px.contains(mx, my)) {
-                Rectangle2D b = px.getBounds2D();
-                double area = b.getWidth() * b.getHeight();
-                if (area < bestArea) {
-                    bestArea = area;
-                    best = i;
-                }
-            }
-        }
-        return best;
-    }
-
-    /**
-     * Whether a polyline reads as an enclosed region: its endpoints meet within a small fraction of
-     * its own size. Filters out clearly-open contours (a single un-closed stroke) that
-     * {@code contains} would otherwise treat as a fillable area.
-     */
-    private static boolean isClosedRegion(List<Point2D> path) {
-        Point2D a = path.get(0);
-        Point2D b = path.get(path.size() - 1);
-        double minX = a.x(), maxX = a.x(), minY = a.y(), maxY = a.y();
-        for (Point2D p : path) {
-            minX = Math.min(minX, p.x()); maxX = Math.max(maxX, p.x());
-            minY = Math.min(minY, p.y()); maxY = Math.max(maxY, p.y());
-        }
-        double diag = Math.hypot(maxX - minX, maxY - minY);
-        double tol = Math.max(0.5, 0.02 * diag); // 0.5mm floor, else 2% of the region's diagonal
-        return Math.hypot(a.x() - b.x(), a.y() - b.y()) <= tol;
-    }
-
-    /** The region as a closed {@link Path2D} in screen pixels (for hit-testing). */
-    private Path2D pixelPath(List<Point2D> path) {
-        Path2D p2d = new Path2D.Double();
-        double[] p0 = transformPoint(path.get(0));
-        p2d.moveTo(p0[0] * paintScale + paintTx, p0[1] * paintScale + paintTy);
-        for (int j = 1; j < path.size(); j++) {
-            double[] pj = transformPoint(path.get(j));
-            p2d.lineTo(pj[0] * paintScale + paintTx, pj[1] * paintScale + paintTy);
-        }
-        p2d.closePath();
-        return p2d;
-    }
-
-    /** All loaded strokes as model-space point arrays, for flood-fill enclosure detection. */
-    private List<double[][]> strokesAsModel() {
-        List<double[][]> out = new ArrayList<>();
-        for (List<Point2D> path : allPaths) {
-            if (path.size() < 2) {
-                continue;
-            }
-            double[][] s = new double[path.size()][2];
-            for (int i = 0; i < path.size(); i++) {
-                s[i][0] = path.get(i).x();
-                s[i][1] = path.get(i).y();
-            }
-            out.add(s);
-        }
-        return out;
-    }
-
-    /** Layer of the stroke whose nearest vertex is closest to {@code (mx, my)} (model mm), or 0. */
-    private int nearestStrokeLayer(double mx, double my) {
-        int best = -1;
-        double bestD = Double.MAX_VALUE;
-        for (int i = 0; i < allPaths.size(); i++) {
-            for (Point2D p : allPaths.get(i)) {
-                double d = Math.hypot(p.x() - mx, p.y() - my);
-                if (d < bestD) {
-                    bestD = d;
-                    best = i;
-                }
-            }
-        }
-        return best >= 0 ? pathLayer.get(best) : 0;
-    }
-
-    /** Screen pixel of a model-space point, via the same forward transform paint uses. */
-    private double[] modelToPixel(double mx, double my) {
-        double[] c = transformPoint(new Point2D(mx, my));
-        return new double[]{c[0] * paintScale + paintTx, c[1] * paintScale + paintTy};
-    }
-
-    /**
-     * Inverse of {@link #modelToPixel}: a screen pixel back to a raw model (mm) point. The
-     * model→pixel map is affine, so it's recovered exactly by sampling three reference points and
-     * inverting the resulting 2×2 system (same technique as {@link #screenDeltaToMm}). Returns
-     * {@code null} only if the transform is degenerate.
-     */
-    private double[] screenToModel(int px, int py) {
-        double[] o = modelToPixel(0, 0);
-        double[] ux = modelToPixel(1, 0);
-        double[] uy = modelToPixel(0, 1);
-        double a = ux[0] - o[0], b = uy[0] - o[0];
-        double c = ux[1] - o[1], d = uy[1] - o[1];
-        double det = a * d - b * c;
-        if (Math.abs(det) < 1e-12) {
-            return null;
-        }
-        double rx = px - o[0], ry = py - o[1];
-        double mx = (rx * d - b * ry) / det;
-        double my = (a * ry - rx * c) / det;
-        return new double[]{mx, my};
-    }
-
-    /** The region as a closed {@link Path2D} in raw model (mm) space (for hatch generation). */
-    private static Path2D rawRegionPath(List<Point2D> path) {
-        Path2D p2d = new Path2D.Double();
-        p2d.moveTo(path.get(0).x(), path.get(0).y());
-        for (int j = 1; j < path.size(); j++) {
-            p2d.lineTo(path.get(j).x(), path.get(j).y());
-        }
-        p2d.closePath();
-        return p2d;
-    }
+    final CanvasInteractionGeometry interaction = new CanvasInteractionGeometry(this);
 
     // ----- Internal Types -----
-    private record Point2D(double x, double y) {
+    record Point2D(double x, double y) {
     }
 }

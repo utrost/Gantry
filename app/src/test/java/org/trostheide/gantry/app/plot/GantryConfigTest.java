@@ -55,4 +55,24 @@ class GantryConfigTest {
         assertTrue(landscape("Bottom-Right").toPlotSettings().invertX);
         assertTrue(landscape("Bottom-Right").toPlotSettings().invertY);
     }
+
+    @Test
+    void exposesBothPhysicalOriginComponentsToAlignmentPipeline() {
+        PlotSettings topRight = landscape("Top-Right").toPlotSettings();
+        assertTrue(topRight.originRight);
+        assertFalse(topRight.originBottom);
+
+        PlotSettings bottomLeft = landscape("Bottom-Left").toPlotSettings();
+        assertFalse(bottomLeft.originRight);
+        assertTrue(bottomLeft.originBottom);
+    }
+
+    @Test
+    void portraitKeepsUserFacingAlignmentLabel() {
+        GantryConfig c = landscape("Top-Right");
+        c.orientation = "Portrait";
+        c.canvasAlignment = "Bottom Left";
+
+        assertEquals("Bottom Left", c.toPlotSettings().canvasAlign);
+    }
 }

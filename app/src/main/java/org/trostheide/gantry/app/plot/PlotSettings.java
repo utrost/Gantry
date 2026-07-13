@@ -34,6 +34,9 @@ public class PlotSettings {
     /** True when the machine's physical origin is at the top-right. */
     public boolean originRight;
 
+    /** True when the machine's physical origin is on the bottom edge. */
+    public boolean originBottom;
+
     public double paddingX;
     public double paddingY;
 
