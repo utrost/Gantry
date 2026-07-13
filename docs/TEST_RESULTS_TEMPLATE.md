@@ -23,6 +23,8 @@ while executing the scripts in [`TESTING.md`](TESTING.md). One row per script ID
 | ID | Area | Result | Notes |
 |---|---|---|---|
 | TS-A1 | Build, launch & layout | | |
+| TS-A2 | Primary journey & safety states | | |
+| TS-A3 | Guided first plot, feedback & recovery | | |
 | TS-B1 | First-run Setup Wizard offer | | |
 | TS-B2 | Setup Wizard happy path | | |
 | TS-B3 | Wizard from Settings | | |

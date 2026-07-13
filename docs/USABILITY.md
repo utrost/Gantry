@@ -244,6 +244,8 @@ all existing expert actions remain reachable.
 
 ### Slice C — feedback and first-plot continuity
 
+**Status: Complete.**
+
 - Move required operator feedback out of Console-only messages.
 - Add the contextual Undo action.
 - Connect first-run setup, practice/sample artwork, and the existing pre-plot

@@ -5,11 +5,13 @@ import java.awt.*;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.BooleanSupplier;
+import java.util.function.Consumer;
 
 /** Swing implementation of the pre-plot checklist, decoupled from the main window. */
 final class PreflightWorkflow {
     record Actions(BooleanSupplier hasDocument, BooleanSupplier connected, Runnable connect,
-                   Runnable home, Runnable frame, Runnable start, String penMode) { }
+                   Runnable home, Runnable frame, Runnable start, String penMode,
+                   Consumer<String> feedback) { }
 
     private final Actions actions;
 
@@ -29,6 +31,7 @@ final class PreflightWorkflow {
         checklist.owner = wizard;
         wizard.setVisible(true);
         if (wizard.finishedSuccessfully()) actions.start().run();
+        else actions.feedback().accept("Safety check cancelled. Nothing started; run it again when ready.");
     }
 
     private abstract static class Step implements WizardStep {
@@ -67,7 +70,7 @@ final class PreflightWorkflow {
             JButton button = new JButton("Home");
             button.addActionListener(e -> {
                 actions.home().run();
-                status.setText("Homing requested - check the console for completion.");
+                status.setText("Homing requested. Wait for the machine to stop before continuing.");
             });
             panel.add(row(button, status), BorderLayout.CENTER);
         }

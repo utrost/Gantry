@@ -138,17 +138,32 @@ a `testdata/` folder.
 5. Pause, resume, then stop.
    - [ ] Paused reads **Paused — machine will stay still** with **Resume plotting**; stop returns to a non-moving connected state.
 
+#### TS-A3 — Guided first plot, local feedback, and recovery *(mock OK)*
+1. Launch from a clean working directory with no `config.json` or recovery file.
+   - [ ] **Your first plot** explains that artwork cannot move a machine and offers **Start guided practice**, **Machine setup only**, and **Not now**.
+2. Choose **Start guided practice** and finish Machine Setup with its defaults.
+   - [ ] Mock backend is selected by default, calibration is not forced, and a supplied 80×60 mm **Practice pen** drawing appears.
+   - [ ] At 1024×800, the drawing, layers, duration, safety state, guidance, and primary action remain visible without clipping.
+3. Connect, open **Check before plotting**, then cancel it once.
+   - [ ] A local message says nothing started and the primary action returns to **Check before plotting**.
+4. Run the check again, select all physical confirmations, finish, and choose **Pen ready — continue**.
+   - [ ] The mock plot completes and local feedback reports success without requiring the Console.
+5. Make an editable command-model change.
+   - [ ] Inline feedback describes the edit and offers **Undo**; invoking it restores the previous model.
+6. Quit without saving after the practice drawing has autosaved, relaunch, and accept recovery.
+   - [ ] The artwork returns disconnected with **Safe — nothing will move** and **Connect plotter** as the next action.
+
 ---
 
 ### Group B — First run & Setup Wizard
 
-#### TS-B1 — First-run Setup Wizard offer *(mock OK)*
+#### TS-B1 — First-run guided-practice offer *(mock OK)*
 1. Quit the app. Delete (or rename) `config.json` in the working directory.
 2. Launch the app.
-   - [ ] A **"Welcome to Gantry"** dialog appears stating it looks like the first run and offering to run the guided Machine Setup wizard.
-3. Click **No**.
+   - [ ] A **Your first plot** dialog offers guided practice, machine setup only, or dismissal and clearly says artwork cannot move a machine.
+3. Click **Not now**.
    - [ ] The dialog closes and the main window is usable; no wizard opens.
-4. Quit, delete `config.json` again, relaunch, and this time click **Yes**.
+4. Quit, delete `config.json` again, relaunch, and this time click **Machine setup only**.
    - [ ] The **Machine Setup** wizard opens (continue into TS-B2).
 5. Quit and relaunch **without** deleting `config.json`.
    - [ ] No welcome dialog appears on subsequent runs (offer is first-run only).

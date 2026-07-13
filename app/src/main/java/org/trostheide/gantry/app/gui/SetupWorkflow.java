@@ -19,11 +19,13 @@ final class SetupWorkflow {
         this.calibrate = calibrate;
     }
 
-    void show(Window owner) {
+    boolean show(Window owner) { return show(owner, true); }
+
+    boolean show(Window owner, boolean calibrateAfterSetup) {
         SettingsPanel settings = new SettingsPanel();
         settings.loadConfig(initial);
         JCheckBox calibrateNext = new JCheckBox(
-                "Continue to axis calibration now (connects to the machine)", true);
+                "Continue to axis calibration now (connects to the machine)", calibrateAfterSetup);
         JPanel done = new JPanel();
         done.setLayout(new BoxLayout(done, BoxLayout.Y_AXIS));
         done.add(new JLabel("<html><body style='width:430px'><h3>All set</h3>Click <b>Finish</b> "
@@ -44,7 +46,9 @@ final class SetupWorkflow {
         if (wizard.finishedSuccessfully()) {
             saveAndApply.accept(settings.toConfig());
             if (calibrateNext.isSelected()) calibrate.run();
+            return true;
         }
+        return false;
     }
 
     private static JComponent wrap(String html) {

@@ -26,7 +26,7 @@ final class DocumentFileWorkflow {
     }
     record Actions(Supplier<GantryConfig> config, Runnable resetReplot, Runnable refresh,
                    Consumer<Boolean> revectorizeEnabled, Consumer<String> log,
-                   Consumer<String> error, Consumer<String> info, BusyRunner busy,
+                   Consumer<String> error, Consumer<String> info, Consumer<String> feedback, BusyRunner busy,
                    Supplier<GantryProject> project, Consumer<GantryProject> openProject,
                    Supplier<ProcessorOutput> flattenedOutput) { }
 
@@ -55,7 +55,7 @@ final class DocumentFileWorkflow {
         JFileChooser chooser=chooser("Gantry project (*.gantry)","gantry");
         if(chooser.showOpenDialog(parent)!=JFileChooser.APPROVE_OPTION)return;
         File file=chooser.getSelectedFile();remember(file);
-        try{actions.openProject().accept(GantryProjectIO.load(file));actions.log().accept("Opened project "+file.getName());}
+        try{actions.openProject().accept(GantryProjectIO.load(file));actions.log().accept("Opened project "+file.getName());actions.feedback().accept("Project opened: "+file.getName());}
         catch(IOException ex){actions.error().accept("Failed to open project "+file.getName()+": "+ex.getMessage());}
     }
 
@@ -64,7 +64,7 @@ final class DocumentFileWorkflow {
         JFileChooser chooser=chooser("Gantry project (*.gantry)","gantry");
         if(chooser.showSaveDialog(parent)!=JFileChooser.APPROVE_OPTION)return;
         File file=withExtension(chooser.getSelectedFile(),"gantry");if(!overwrite(file))return;remember(file);
-        try{GantryProjectIO.save(actions.project().get(),file);session.markSaved();actions.log().accept("Saved project "+file.getName());}
+        try{GantryProjectIO.save(actions.project().get(),file);session.markSaved();actions.log().accept("Saved project "+file.getName());actions.feedback().accept("Project saved: "+file.getName());}
         catch(IOException ex){actions.error().accept("Failed to save project "+file.getName()+": "+ex.getMessage());}
     }
 
@@ -77,7 +77,7 @@ final class DocumentFileWorkflow {
                 ?SvgImportStage.importSvg(file,options.toolboxConfig(),options.importOptions())
                 :SvgImportStage.importSvg(file,options.importOptions())),out->{
             editor.replace(out);session.recordSvgSource(file,options.importOptions());loaded(false);
-            actions.log().accept(summary("Imported "+file.getName(),out));
+            String result=summary("Imported "+file.getName(),out);actions.log().accept(result);actions.feedback().accept(result);
         });
     }
 
@@ -109,7 +109,7 @@ final class DocumentFileWorkflow {
                     :SvgImportStage.importSvg(svg,options.importOptions()));
         },out->{editor.replace(out);session.recordSvgSource(svg,options.importOptions());
             session.recordImageSource(image,vector.vectorizeArgs());actions.revectorizeEnabled().accept(true);loaded(false);
-            actions.log().accept(summary("Vectorized "+image.getName()+" ("+vector.strategyLabel()+")",out));});
+            String result=summary("Vectorized "+image.getName()+" ("+vector.strategyLabel()+")",out);actions.log().accept(result);actions.feedback().accept(result);});
     }
 
     void reprocessSvg(){
@@ -152,5 +152,6 @@ final class DocumentFileWorkflow {
     private SvgImportDialog importDialog(File sourceSvg){GantryConfig c=actions.config().get();
         return new SvgImportDialog(owner(),sourceSvg,c.gcode.machineWidth,c.gcode.machineHeight);}
     private void message(String text,String title){JOptionPane.showMessageDialog(parent,text,title,JOptionPane.INFORMATION_MESSAGE);}
-    private static String summary(String action,ProcessorOutput out){return String.format("%s: %d layer(s), %d command(s)",action,out.layers().size(),out.metadata().totalCommands());}
+    private static String summary(String action,ProcessorOutput out){Bounds b=out.metadata().bounds();double w=Math.max(0,b.maxX()-b.minX());double h=Math.max(0,b.maxY()-b.minY());
+        return String.format("%s — %.1f × %.1f mm, %d layer(s)",action,w,h,out.layers().size());}
 }

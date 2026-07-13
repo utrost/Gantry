@@ -75,6 +75,7 @@ public class PlotterPanel extends JPanel {
     private final JLabel safetyStatusLabel = new JLabel();
     private final JLabel guidanceLabel = new JLabel();
     private final JButton guidanceActionBtn = new JButton();
+    private final LocalFeedbackPanel localFeedback = new LocalFeedbackPanel();
     private JPanel guidancePanel;
     private boolean guidanceDismissed;
     private ArtworkWorkspacePanel artworkWorkspace;
@@ -129,6 +130,7 @@ public class PlotterPanel extends JPanel {
         north.setLayout(new BoxLayout(north, BoxLayout.Y_AXIS));
         north.add(toolbar());
         north.add(guidanceBanner());
+        north.add(localFeedback);
         add(north, BorderLayout.NORTH);
 
         console.setEditable(false);
@@ -142,12 +144,16 @@ public class PlotterPanel extends JPanel {
                 this::onPreflightWizard, this::onConfirmLayer, this::onPauseToggle,
                 this::onStopPlot, this::onLayerSelectionChanged, this::onProjectSettingsChanged, visPanel::setColorByLayer));
         documentEditor = new DocumentEditor(documentSession, this, this::onDocumentEdited,
-                this::setUndoAvailable, this::setRedoAvailable, this::log);
+                this::setUndoAvailable, this::setRedoAvailable, this::log,
+                new DocumentEditor.Feedback() {
+                    public void edited(String message) { showUndoFeedback(message); }
+                    public void notice(String message) { showFeedback(message); }
+                });
         busyTasks = new BusyTaskRunner(this, this::log, this::error);
         fileWorkflow = new DocumentFileWorkflow(this, configFile, documentSession, documentEditor,
                 visPanel, new DocumentFileWorkflow.Actions(() -> config, this::resetReplot,
                 this::refreshDocumentUi, enabled -> { if (reVectorizeMenuItem != null) reVectorizeMenuItem.setEnabled(enabled); },
-                this::log, this::error, this::info, this::runBusy,
+                this::log, this::error, this::info, this::showFeedback, this::runBusy,
                 this::captureProject, this::openProject, this::preparePlotOutput));
         gcodeFiles = new GcodeFileWorkflow(this, configFile, () -> config, this::preparePlotOutput,
                 () -> !selectedLayerIndices().isEmpty(), plotJobController::backend,
@@ -233,19 +239,21 @@ public class PlotterPanel extends JPanel {
         maybeOfferFirstRunSetup();
     }
 
-    /** On a fresh install (no config.json yet), offer to run the guided Setup Wizard once. */
+    /** On a fresh install, offer one continuous and safe route to a first practice plot. */
     private void maybeOfferFirstRunSetup() {
         if (!firstRun) {
             return;
         }
         SwingUtilities.invokeLater(() -> {
-            int choice = JOptionPane.showConfirmDialog(this,
-                    "It looks like this is the first run (no saved settings yet).\n"
-                            + "Would you like to run the guided Machine Setup wizard now?",
-                    "Welcome to Gantry", JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE);
-            if (choice == JOptionPane.YES_OPTION) {
-                onSetupWizard();
-            }
+            Object[] options = {"Start guided practice", "Machine setup only", "Not now"};
+            int choice = JOptionPane.showOptionDialog(this,
+                    "Welcome to Gantry. Adding artwork cannot move a machine.\n\n"
+                            + "Guided practice will configure Gantry, load a supplied drawing, and use the "
+                            + "no-hardware mock plotter by default.",
+                    "Your first plot", JOptionPane.DEFAULT_OPTION, JOptionPane.QUESTION_MESSAGE,
+                    null, options, options[0]);
+            if (choice == 0) onGuidedFirstPlot();
+            else if (choice == 1) onSetupWizard();
         });
     }
 
@@ -580,6 +588,7 @@ public class PlotterPanel extends JPanel {
                 + "(green=short, orange=medium, red=long). Shows travel efficiency % in the HUD.");
         showTravelItem.addActionListener(e -> visPanel.setShowTravelOverlay(showTravelItem.isSelected()));
         viewMenu.add(showTravelItem);
+        viewMenu.add(menuItem("Show Workflow Guidance", e -> resetGuidance(), false));
         menuBar.add(viewMenu);
 
         JMenu settingsMenu = new JMenu("Settings");
@@ -589,6 +598,7 @@ public class PlotterPanel extends JPanel {
 
         JMenu helpMenu = new JMenu("Help");
         helpMenu.setMnemonic(KeyEvent.VK_H);
+        helpMenu.add(menuItem("Guided First Plot...", e -> onGuidedFirstPlot(), false));
         helpMenu.add(menuItem("User Guide...", e -> onShowHelp(), false));
         helpMenu.add(menuItem("About Gantry...", e -> onShowAbout(), false));
         menuBar.add(helpMenu);
@@ -657,7 +667,8 @@ public class PlotterPanel extends JPanel {
                 this::onHome,
                 this::frameJob,
                 this::onStartPlot,
-                config.gcode.penMode))
+                config.gcode.penMode,
+                this::showFeedback))
                 .show(SwingUtilities.getWindowAncestor(this), this);
     }
 
@@ -701,6 +712,38 @@ public class PlotterPanel extends JPanel {
                 .show(SwingUtilities.getWindowAncestor(this));
     }
 
+    private void onGuidedFirstPlot() {
+        if (plotting) {
+            blocked("Stop the active plot before starting guided practice.");
+            return;
+        }
+        if (plotJobController.isConnected()) {
+            blocked("Disconnect the plotter before starting no-hardware guided practice.");
+            return;
+        }
+        if (documentSession.isDirty() && JOptionPane.showConfirmDialog(this,
+                "Replace the unsaved drawing with the practice drawing?",
+                "Start guided practice", JOptionPane.YES_NO_OPTION,
+                JOptionPane.WARNING_MESSAGE) != JOptionPane.YES_OPTION) return;
+        boolean previousMock = config.mock;
+        config.mock = true;
+        boolean completed = new SetupWorkflow(config, this::saveSetupConfig, this::onCalibrateAxesWizard)
+                .show(SwingUtilities.getWindowAncestor(this), false);
+        if (!completed) {
+            config.mock = previousMock;
+            showFeedback("Guided practice cancelled. Nothing moved; you can restart it from Help.");
+            return;
+        }
+        ProcessorOutput sample = PracticeArtwork.create();
+        documentEditor.replace(sample);
+        documentSession.clearSource();
+        resetReplot();
+        visPanel.loadFromOutput(sample);
+        visPanel.setContentMotorMin(0, 0);
+        refreshDocumentUi();
+        showFeedback("Practice drawing ready — 80.0 × 60.0 mm. Nothing will move until you connect.");
+    }
+
     private void saveSetupConfig(GantryConfig updated) {
         config = updated;
         try {
@@ -710,6 +753,7 @@ public class PlotterPanel extends JPanel {
         }
         applyConfigToVis();
         log("Machine setup saved and applied.");
+        showFeedback("Machine setup saved. Gantry is ready for artwork.");
     }
 
     /**
@@ -933,6 +977,7 @@ public class PlotterPanel extends JPanel {
                 before.travelDistanceMm(), after.travelDistanceMm(), travelSavedPct,
                 before.pointCount(), after.pointCount(),
                 before.strokeCount(), after.strokeCount()));
+        showUndoFeedback("Artwork optimized.");
     }
 
     private void onOpenSettings() { dialogs.settings(); }
@@ -953,6 +998,11 @@ public class PlotterPanel extends JPanel {
         setConnectButtonColor(!connected);
         setConnectionRequiredControlsEnabled(connected);
         statusLabel.setText(connecting ? "Connecting..." : failed ? "Connection failed" : connected ? "Connected" : "Disconnected");
+        if (connecting) localFeedback.showMessage("Connecting to the plotter…", LocalFeedbackPanel.Tone.INFO);
+        else if (failed) localFeedback.showAction("Connection failed. Check the port or choose the mock plotter in Settings.",
+                LocalFeedbackPanel.Tone.ERROR, "Open settings", this::onOpenSettings);
+        else if (connected) localFeedback.showMessage("Plotter connected. Manual movement is now enabled.", LocalFeedbackPanel.Tone.SUCCESS);
+        else localFeedback.showMessage("Plotter disconnected. Nothing can move.", LocalFeedbackPanel.Tone.INFO);
         refreshGuidance();
     }
 
@@ -1055,16 +1105,16 @@ public class PlotterPanel extends JPanel {
             return;
         }
         if (documentSession.currentOutput() == null && pendingJob == null) {
-            log("ERROR: Load a commands file first.");
+            blocked("Add artwork before plotting.");
             return;
         }
         PlotterBackend backend = plotJobController.backend();
         if (backend == null) {
-            log("ERROR: Connect to the plotter first.");
+            blocked("Connect the plotter before plotting.");
             return;
         }
         if (pendingJob == null && selectedLayerIndices().isEmpty()) {
-            log("ERROR: No layers selected. Tick at least one layer to plot.");
+            blocked("Choose at least one layer or colour to plot.");
             return;
         }
 
@@ -1092,7 +1142,10 @@ public class PlotterPanel extends JPanel {
         service.setLayerGate(layer -> {
             awaitingLayerConfirmation = true;
             log("Layer '" + layer.id() + "' ready. Click Pen ready — continue to start.");
-            SwingUtilities.invokeLater(this::refreshGuidance);
+            SwingUtilities.invokeLater(() -> {
+                localFeedback.showMessage("Fit the pen for “" + layer.id() + "”, then click Pen ready — continue.", LocalFeedbackPanel.Tone.INFO);
+                refreshGuidance();
+            });
             try {
                 confirmGate.acquire();
             } finally {
@@ -1130,6 +1183,7 @@ public class PlotterPanel extends JPanel {
                     log("--- Plot finished: " + TimeEstimator.format(actualSec) + " ---");
                 }
                 SwingUtilities.invokeLater(() -> {
+                    localFeedback.showMessage("Plot completed successfully.", LocalFeedbackPanel.Tone.SUCCESS);
                     updateReplotMenuItem();
                     rebuildRecentJobsMenu();
                 });
@@ -1147,6 +1201,7 @@ public class PlotterPanel extends JPanel {
         // Cancelling only stops further commands from being sent; the backend may already have
         // queued motion in flight (e.g. GRBL's planner buffer), so halt it immediately too.
         runOnBackend(PlotterBackend::haltMotion);
+        showFeedback("Plot stopped. The pen was raised and no more commands will be sent.");
         resetGuidance();
     }
 
@@ -1297,6 +1352,7 @@ public class PlotterPanel extends JPanel {
     /** Logs a failure to the console and also surfaces it as an error dialog so it can't be missed. */
     private void error(String message) {
         log("ERROR: " + message);
+        localFeedback.showMessage(message, LocalFeedbackPanel.Tone.ERROR);
         SwingUtilities.invokeLater(() ->
                 JOptionPane.showMessageDialog(this, message, "Error", JOptionPane.ERROR_MESSAGE));
     }
@@ -1304,6 +1360,7 @@ public class PlotterPanel extends JPanel {
     /** Logs an informational note and shows it as a dialog (for workflow guidance the user must act on). */
     private void info(String message) {
         log(message);
+        showFeedback(message);
         SwingUtilities.invokeLater(() ->
                 JOptionPane.showMessageDialog(this, message, "Gantry", JOptionPane.INFORMATION_MESSAGE));
     }
@@ -1346,6 +1403,19 @@ public class PlotterPanel extends JPanel {
         updateDirtyIndicator();
     }
 
+    private void showFeedback(String message) {
+        localFeedback.showMessage(message, LocalFeedbackPanel.Tone.SUCCESS);
+    }
+
+    private void showUndoFeedback(String message) {
+        localFeedback.showAction(message, LocalFeedbackPanel.Tone.SUCCESS, "Undo", this::onUndo);
+    }
+
+    private void blocked(String message) {
+        log("ERROR: " + message);
+        localFeedback.showMessage(message, LocalFeedbackPanel.Tone.ERROR);
+    }
+
     private void refreshDocumentUi() {
         artworkWorkspace.setHasArtwork(documentSession.currentOutput() != null);
         refreshLayerSelector();
@@ -1353,6 +1423,7 @@ public class PlotterPanel extends JPanel {
         refreshTimeEstimate();
         refreshGuidance();
         updateDirtyIndicator();
+        scheduleRecovery();
     }
 
     private void setUndoAvailable(boolean available) {
@@ -1409,6 +1480,8 @@ public class PlotterPanel extends JPanel {
             }
         } catch (IOException ex) {
             log("WARNING: Recovery autosave failed: " + ex.getMessage());
+            localFeedback.showMessage("Recovery copy could not be saved. Save the project manually.",
+                    LocalFeedbackPanel.Tone.ERROR);
         }
     }
 

@@ -16,21 +16,28 @@ import java.util.function.Consumer;
 
 /** Undoable command-model edits initiated from the preview canvas. */
 final class DocumentEditor {
+    interface Feedback {
+        void edited(String message);
+        void notice(String message);
+    }
     private final DocumentSession session;
     private final Component parent;
     private final Runnable changed;
     private final Consumer<Boolean> undoAvailable;
     private final Consumer<Boolean> redoAvailable;
     private final Consumer<String> log;
+    private final Feedback feedback;
     private final Set<Integer> hatchIds = new HashSet<>();
     private String pattern = "linear";
     private double gap = 2.0;
     private double angle = 45.0;
 
     DocumentEditor(DocumentSession session, Component parent, Runnable changed,
-            Consumer<Boolean> undoAvailable, Consumer<Boolean> redoAvailable, Consumer<String> log) {
+            Consumer<Boolean> undoAvailable, Consumer<Boolean> redoAvailable, Consumer<String> log,
+            Feedback feedback) {
         this.session=session; this.parent=parent; this.changed=changed;
         this.undoAvailable=undoAvailable; this.redoAvailable=redoAvailable; this.log=log;
+        this.feedback=feedback;
     }
 
     void replace(ProcessorOutput output){session.replace(output);hatchIds.clear();historyAvailability();}
@@ -42,8 +49,8 @@ final class DocumentEditor {
     void update(ProcessorOutput output){session.update(output);}
     void clear(){session.clear();hatchIds.clear();historyAvailability();}
     void snapshot(){session.snapshotForUndo();historyAvailability();}
-    void undo(){if(session.undo()!=null){historyAvailability();changed.run();log.accept("Undo: reverted the last edit.");}}
-    void redo(){if(session.redo()!=null){historyAvailability();changed.run();log.accept("Redo: restored the next edit.");}}
+    void undo(){if(session.undo()!=null){historyAvailability();changed.run();log.accept("Undo: reverted the last edit.");feedback.notice("Last edit undone.");}}
+    void redo(){if(session.redo()!=null){historyAvailability();changed.run();log.accept("Redo: restored the next edit.");feedback.notice("Edit restored.");}}
     void historyAvailability(){undoAvailable.accept(session.canUndo());redoAvailable.accept(session.canRedo());}
 
     void hatch(Path2D region,int layer){
@@ -52,13 +59,14 @@ final class DocumentEditor {
         if(strokes.isEmpty()){log.accept(String.format("Region too small to hatch at %.1f mm spacing.",gap));return;}
         snapshot();session.update(RegionHatch.appendToLayer(current,layer,strokes));
         for(DrawCommand stroke:strokes)hatchIds.add(stroke.id);changed.run();
-        log.accept(String.format("Hatched region (%s, %.1fmm, %.0f°): +%d stroke(s) into layer %d.",pattern,gap,angle,strokes.size(),layer+1));
+        String message=String.format("Hatched region with %d new line(s).",strokes.size());
+        log.accept(String.format("Hatched region (%s, %.1fmm, %.0f°): +%d stroke(s) into layer %d.",pattern,gap,angle,strokes.size(),layer+1));feedback.edited(message);
     }
 
     void delete(int id){
         ProcessorOutput current=session.currentOutput();if(current==null)return;
         RegionHatch.RemoveResult result=RegionHatch.removeCommandById(current,id);if(result.removed()==0)return;
-        snapshot();session.update(result.output());hatchIds.removeAll(result.removedIds());changed.run();log.accept("Deleted 1 line.");
+        snapshot();session.update(result.output());hatchIds.removeAll(result.removedIds());changed.run();log.accept("Deleted 1 line.");feedback.edited("Line deleted.");
     }
 
     void addLine(double x1,double y1,double x2,double y2,int layer){
@@ -66,14 +74,14 @@ final class DocumentEditor {
         DrawCommand line=new DrawCommand(RegionHatch.maxCommandId(current)+1,List.of(new Point(x1,y1),new Point(x2,y2)));
         ProcessorOutput next=RegionHatch.appendToLayer(current,layer,List.of(line));
         if(next==current){log.accept("Couldn't add the line (no target layer).");return;}
-        snapshot();session.update(next);changed.run();log.accept(String.format("Added line (%.1f, %.1f) → (%.1f, %.1f).",x1,y1,x2,y2));
+        snapshot();session.update(next);changed.run();log.accept(String.format("Added line (%.1f, %.1f) → (%.1f, %.1f).",x1,y1,x2,y2));feedback.edited("Line added.");
     }
 
     void move(int id,double[][] coordinates){
         ProcessorOutput current=session.currentOutput();if(current==null)return;
         List<Point> points=new ArrayList<>();for(double[] p:coordinates)points.add(new Point(p[0],p[1]));
         ProcessorOutput next=RegionHatch.replaceCommand(current,new DrawCommand(id,points));if(next==current)return;
-        snapshot();session.update(next);changed.run();log.accept("Moved 1 line.");
+        snapshot();session.update(next);changed.run();log.accept("Moved 1 line.");feedback.edited("Line moved.");
     }
 
     void duplicate(int id){
@@ -82,7 +90,7 @@ final class DocumentEditor {
         if(source==null||layer<0)return;List<Point> points=new ArrayList<>();
         for(Point p:source.points)points.add(new Point(p.x()+3,p.y()+3));
         snapshot();session.update(RegionHatch.appendToLayer(current,layer,List.of(new DrawCommand(RegionHatch.maxCommandId(current)+1,points))));
-        changed.run();log.accept("Duplicated 1 line.");
+        changed.run();log.accept("Duplicated 1 line.");feedback.edited("Line duplicated.");
     }
 
     void clearHatch(Path2D region){
@@ -90,7 +98,7 @@ final class DocumentEditor {
         RegionHatch.RemoveResult result=RegionHatch.removeHatchInRegion(current,hatchIds,region);
         if(result.removed()==0){log.accept("No hatch fill from this session to clear in that area.");return;}
         snapshot();session.update(result.output());hatchIds.removeAll(result.removedIds());changed.run();
-        log.accept(String.format("Cleared hatch: removed %d stroke(s).",result.removed()));
+        log.accept(String.format("Cleared hatch: removed %d stroke(s).",result.removed()));feedback.edited("Hatch fill cleared.");
     }
 
     void chooseHatchStyle(){
