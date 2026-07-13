@@ -107,7 +107,7 @@ oracle until Phase 3.
 | **8. Hardening & watercolor completion** ✅ | Post-cutover audit fixes: plotting safety, GRBL state/failure handling, watercolor completion (colour→station mapping), UX polish, and cleanup | Stop/disconnect leave the machine safe; serial/GRBL failures abort the plot; alarm/hold states are surfaced and handled; SVG colours drive station assignment |
 | **9. Multi-document canvas** 🚧 NOT STARTED | Replace the single-drawing canvas with a list of independently placed/edited SVG imports (`SvgItem`s), each with its own transform, selectable and removable on its own | Two+ SVGs can be imported, independently positioned/scaled/rotated/mirrored, individually removed, and combined into one plottable/exportable job |
 | **10. Per-area hatch styling** 🚧 NOT STARTED | Let different regions of the *same* SVG hatch differently: surface the existing per-colour override map in the GUI, then add per-element/per-group overrides for same-colour regions that need different patterns | A single SVG with two same-colour regions can be hatched with two different patterns/angles/gaps, set up entirely from the GUI, with CLI parity |
-| **11. CLI/GUI parity** 🚧 NOT STARTED | Close the plot-affecting capability gaps between the headless CLI and the GUI in both directions: CLI gains G-code export, multipass, the post-import Optimize stage, and colour→station mapping; GUI gains the CLI-only per-colour hatch/stroke-width/no-hatch/min-area knobs (folded into Phase 10 Tier 1) | A batch CLI run can produce a plot-ready G-code file with multipass/station-mapping applied, with no GUI session involved; the GUI exposes every per-colour toolbox knob the CLI already has |
+| **11. CLI/GUI parity** 🚧 IN PROGRESS (`--passes` ✅) | Close the plot-affecting capability gaps between the headless CLI and the GUI in both directions: CLI gains G-code export, multipass, the post-import Optimize stage, and colour→station mapping; GUI gains the CLI-only per-colour hatch/stroke-width/no-hatch/min-area knobs (folded into Phase 10 Tier 1) | A batch CLI run can produce a plot-ready G-code file with multipass/station-mapping applied, with no GUI session involved; the GUI exposes every per-colour toolbox knob the CLI already has |
 | **12. Per-pattern hatch parameters** ✅ | Give the non-linear hatch patterns their own tunable parameters instead of deriving everything from `gap`: wave/zigzag amplitude + wavelength, dot radius. Backward-compatible (0 = auto, keeps today's gap-derived defaults) | Wave amplitude, wave/zigzag wavelength, and dot radius are independently adjustable in both GUI dialogs and the CLI; leaving them at 0 reproduces the previous gap-derived behaviour exactly |
 | **13. Guided workflow infrastructure** ✅ | A reusable step-by-step `WizardDialog` shell (progress trail, Back/Next/Skip/Cancel, per-step validation) that Phases 14–16 are built on, instead of three one-off dialogs. Also added the `Machine` menu (between Edit and Settings), giving Connect/Disconnect and Home a menu/keyboard home for the first time, plus the launchers for all three wizards | A throwaway 2-step demo wizard can be built from the shared component in under an hour; no plot-affecting logic lives in it |
 | **14. Pre-plot wizard** ✅ | An optional, skippable step-by-step pre-flight before Start: connection → home → frame the job (pen-up bounding-box trace) → physical checklist (pen installed/lowered correctly, paper taped, correct layer selection) → confirm | A first-time user can run an entire job — connect through Start — without leaving the wizard, and an expert user can dismiss it and use Start directly exactly as today |
@@ -298,8 +298,8 @@ z-order-aware overlap/collision handling beyond simple draw order.
 **Problem.** `HatchProcessor` already supports per-*colour* hatch overrides:
 `Config.overrides()` is a `Map<String, HatchStyle>` keyed by fill hex, and
 `getStyleFor()` falls back to `globalStyle` when no override matches. This
-is wired into the CLI (an untested `--style` flag, per `docs/TESTING.md`
-§3) but has no GUI surface at all — `ConfigBuilder`/`SvgImportDialog` only
+is wired into the CLI (including end-to-end `--style` coverage) but has no
+GUI surface at all — `ConfigBuilder`/`SvgImportDialog` only
 expose one global pattern/angle/gap. Worse, the override key is *colour*,
 not *element* or *region*: two shapes that happen to share a fill colour
 can never hatch differently today, even though that's a common real case
@@ -323,8 +323,8 @@ end to end from the GUI, in two layers of capability:
   `HatchProcessorTest` already cover the processor; add a GUI-facing test
   (e.g. a `ConfigBuilderTest` case asserting the table maps to the right
   `Config.overrides()`).
-- CLI: keep `--style` as-is; add the missing test flagged in
-  `docs/TESTING.md` §3 ("Per-color hatch-override `--style` flag in CLI").
+- CLI: `--style` stays as-is and now has an end-to-end regression test proving
+  that a colour-specific cross-hatch overrides the global linear style.
 - This tier is low-risk, additive, and unblocks real usage of an existing
   but-dormant feature — good candidate to land first and independently.
 
@@ -500,17 +500,16 @@ per-region pattern choice, multi-select, and open-contour handling.
 
 ---
 
-### Phase 11 — CLI/GUI parity (not started)
+### Phase 11 — CLI/GUI parity (in progress)
 
 **Problem.** A feature-by-feature audit of `SvgImportCli.java` against the
 GUI (`SvgImportDialog`/`PlotterPanel`) found gaps in both directions:
 
 - **GUI can do that CLI can't:** the post-import Optimize stage (simplify
-  tolerance + stroke reorder, via `OptimizeStage`), multipass/passes
-  (`MultipassStage`), colour→station mapping (`StationMapper`, the core
-  watercolor feature), and G-code export. A CLI batch run today can only
-  ever produce command-model JSON — it cannot produce a plot-ready G-code
-  file, and it cannot apply multipass or station assignment at all.
+  tolerance + stroke reorder, via `OptimizeStage`), colour→station mapping
+  (`StationMapper`, the core watercolor feature), and G-code export. A CLI
+  batch run can apply multipass, but still only produces command-model JSON —
+  it cannot produce a plot-ready G-code file or assign stations by colour.
 - **CLI can do that GUI can't:** per-colour hatch overrides (`--style
   HEX:ANGLE:GAP:PATTERN`), no-hatch colour list (`--no-hatch`), minimum
   hatch area (`--min-area`), and per-colour stroke width
@@ -529,8 +528,9 @@ are GUI-only by *design*, not by gap, and stay that way.
   alongside (or instead of) the JSON output. This is the highest-value
   addition — it's the difference between "CLI produces an intermediate
   file" and "CLI produces a plot-ready artifact."
-- `--passes N`: run `MultipassStage` before writing output, matching the
-  GUI's "Passes" spinner.
+- ✅ `--passes N`: runs `MultipassStage` before writing output, matching the
+  GUI's "Passes" spinner. Values must be at least 1; expanded command metadata
+  stays consistent. Covered end to end by `SvgImportCliTest`.
 - `--optimize-tolerance`, `--optimize-reorder`: run the post-import
   `OptimizeStage` (distinct from the existing `--toolbox-simplify`, which
   runs inside the SVGToolBox pipeline, not after import) before writing

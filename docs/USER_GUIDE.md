@@ -662,6 +662,7 @@ java -jar cli/target/cli-1.0-SNAPSHOT.jar \
   --fit-to A4 \
   --padding 10 \
   --max-dist 500 \
+  --passes 3 \
   --toolbox \
   --linesort \
   --reloop
@@ -679,10 +680,12 @@ Key flags:
 | `-f FORMAT` | Fit to: A5, A4, A3, XL, or WxH mm |
 | `-p MM` | Padding for fit-to |
 | `-m` | Mirror horizontally |
+| `--passes N` | Repeat every stroke N times (default 1; minimum 1) |
 | `--toolbox` | Enable SVGToolBox pre-processing |
 | `--palette COLORS` | Hex colours, comma-separated |
 | `--hatch` | Enable hatching |
-| `--hatch-pattern STYLE` | linear / cross / zigzag / wave / dot |
+| `--pattern STYLE` | linear / cross / zigzag / wave / dot |
+| `--style SPEC` | Per-colour hatch override: `HEX:ANGLE:GAP:PATTERN;...` |
 | `--linesort` | Sort paths for minimum travel |
 | `--linesort-twoopt` | Add 2-opt pass |
 | `--reloop` | Rotate closed-path start points |
