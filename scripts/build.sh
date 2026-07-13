@@ -18,4 +18,4 @@ echo "Building Gantry (mvn $GOAL)..."
 mvn $GOAL
 
 echo
-echo "Build complete. The standalone app jar is at app/target/app-1.0-SNAPSHOT.jar"
+echo "Build complete. The standalone app jar is at app/target/app-1.0.0.jar"

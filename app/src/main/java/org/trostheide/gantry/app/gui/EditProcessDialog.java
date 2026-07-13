@@ -15,11 +15,16 @@ import java.awt.*;
  */
 public final class EditProcessDialog extends JDialog {
 
-    private final ToolboxOptionsPanel optionsPanel = new ToolboxOptionsPanel();
+    private final ToolboxOptionsPanel optionsPanel;
     private Config result;
 
     public EditProcessDialog(Window owner) {
+        this(owner, null);
+    }
+
+    public EditProcessDialog(Window owner, java.io.File sourceSvg) {
         super(owner, "Process SVG", ModalityType.APPLICATION_MODAL);
+        optionsPanel = new ToolboxOptionsPanel(SvgFillColors.read(sourceSvg));
 
         JButton okBtn = new JButton("Apply");
         JButton cancelBtn = new JButton("Cancel");

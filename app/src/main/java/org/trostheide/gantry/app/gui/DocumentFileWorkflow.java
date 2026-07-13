@@ -2,6 +2,8 @@ package org.trostheide.gantry.app.gui;
 
 import org.trostheide.gantry.app.plot.*;
 import org.trostheide.gantry.app.session.DocumentSession;
+import org.trostheide.gantry.app.session.GantryProject;
+import org.trostheide.gantry.app.session.GantryProjectIO;
 import org.trostheide.gantry.model.*;
 import org.trostheide.gantry.pipeline.io.ProcessorOutputIO;
 import org.trostheide.gantry.pipeline.svgimport.SvgImportStage;
@@ -24,7 +26,9 @@ final class DocumentFileWorkflow {
     }
     record Actions(Supplier<GantryConfig> config, Runnable resetReplot, Runnable refresh,
                    Consumer<Boolean> revectorizeEnabled, Consumer<String> log,
-                   Consumer<String> error, Consumer<String> info, BusyRunner busy) { }
+                   Consumer<String> error, Consumer<String> info, BusyRunner busy,
+                   Supplier<GantryProject> project, Consumer<GantryProject> openProject,
+                   Supplier<ProcessorOutput> flattenedOutput) { }
 
     private final Component parent;
     private final File configFile;
@@ -43,15 +47,32 @@ final class DocumentFileWorkflow {
         JFileChooser chooser=chooser("Gantry commands — JSON (*.json)","json");
         if(chooser.showOpenDialog(parent)!=JFileChooser.APPROVE_OPTION)return;
         File file=chooser.getSelectedFile();remember(file);
-        try { editor.replace(CommandFile.load(file));session.clearSource();loaded(false);actions.log().accept("Loaded "+file.getName()); }
+        try { editor.replace(CommandFile.load(file));session.clearSource();session.markSaved();loaded(false);actions.log().accept("Loaded "+file.getName()); }
         catch(IOException ex){actions.error().accept("Failed to load "+file.getName()+": "+ex.getMessage());}
+    }
+
+    void openProject() {
+        JFileChooser chooser=chooser("Gantry project (*.gantry)","gantry");
+        if(chooser.showOpenDialog(parent)!=JFileChooser.APPROVE_OPTION)return;
+        File file=chooser.getSelectedFile();remember(file);
+        try{actions.openProject().accept(GantryProjectIO.load(file));actions.log().accept("Opened project "+file.getName());}
+        catch(IOException ex){actions.error().accept("Failed to open project "+file.getName()+": "+ex.getMessage());}
+    }
+
+    void saveProject() {
+        if(session.currentOutput()==null){actions.info().accept("Load or import a drawing first.");return;}
+        JFileChooser chooser=chooser("Gantry project (*.gantry)","gantry");
+        if(chooser.showSaveDialog(parent)!=JFileChooser.APPROVE_OPTION)return;
+        File file=withExtension(chooser.getSelectedFile(),"gantry");if(!overwrite(file))return;remember(file);
+        try{GantryProjectIO.save(actions.project().get(),file);session.markSaved();actions.log().accept("Saved project "+file.getName());}
+        catch(IOException ex){actions.error().accept("Failed to save project "+file.getName()+": "+ex.getMessage());}
     }
 
     void importSvg() {
         JFileChooser chooser=chooser("Vector artwork — SVG (*.svg)","svg");
         if(chooser.showOpenDialog(parent)!=JFileChooser.APPROVE_OPTION)return;
         File file=chooser.getSelectedFile();remember(file);
-        SvgImportDialog.Result options=new SvgImportDialog(owner()).showDialog();if(options==null)return;
+        SvgImportDialog.Result options=new SvgImportDialog(owner(),file).showDialog();if(options==null)return;
         actions.busy().run("Import",()->map(options.toolboxConfig()!=null
                 ?SvgImportStage.importSvg(file,options.toolboxConfig(),options.importOptions())
                 :SvgImportStage.importSvg(file,options.importOptions())),out->{
@@ -93,7 +114,7 @@ final class DocumentFileWorkflow {
 
     void reprocessSvg(){
         if(session.sourceSvg()==null||session.sourceSvgOptions()==null){actions.info().accept("Import an SVG file first.");return;}
-        org.trostheide.gantry.svgtoolbox.Config toolbox=new EditProcessDialog(owner()).showDialog();if(toolbox==null)return;
+        org.trostheide.gantry.svgtoolbox.Config toolbox=new EditProcessDialog(owner(),session.sourceSvg()).showDialog();if(toolbox==null)return;
         File source=session.sourceSvg();editor.snapshot();
         actions.busy().run("Process SVG",()->SvgImportStage.importSvg(source,toolbox,session.sourceSvgOptions()),out->{
             editor.update(out);visualization.loadPathsPreservingOverlay(out);actions.refresh().run();actions.log().accept("Reprocessed "+source.getName());});
@@ -107,12 +128,12 @@ final class DocumentFileWorkflow {
         for(Layer layer:session.currentOutput().layers())actions.log().accept("Layer '"+layer.id()+"' ("+layer.color()+") → station '"+layer.stationId()+"'");
     }
 
-    void saveCommands(){
+    void exportCommands(){
         if(session.currentOutput()==null){actions.info().accept("Load or import a drawing first.");return;}
         JFileChooser chooser=chooser("Gantry commands — JSON (*.json)","json");
         if(chooser.showSaveDialog(parent)!=JFileChooser.APPROVE_OPTION)return;
         File file=chooser.getSelectedFile();if(!overwrite(file))return;remember(file);
-        try{ProcessorOutputIO.save(session.currentOutput(),file);actions.log().accept("Saved "+file.getName());}
+        try{ProcessorOutputIO.save(actions.flattenedOutput().get(),file);actions.log().accept("Exported flattened commands "+file.getName());}
         catch(IOException ex){actions.error().accept("Failed to save "+file.getName()+": "+ex.getMessage());}
     }
 
@@ -126,6 +147,7 @@ final class DocumentFileWorkflow {
     private void remember(File file){File p=file.getAbsoluteFile().getParentFile();if(p==null)return;actions.config().get().lastDirectory=p.getAbsolutePath();
         try{ConfigStore.save(actions.config().get(),configFile);}catch(IOException ex){actions.log().accept("WARNING: Failed to save config: "+ex.getMessage());}}
     private boolean overwrite(File file){return !file.exists()||JOptionPane.showConfirmDialog(parent,"Overwrite '"+file.getName()+"'?","Confirm overwrite",JOptionPane.YES_NO_OPTION,JOptionPane.WARNING_MESSAGE)==JOptionPane.YES_OPTION;}
+    private static File withExtension(File file,String extension){return file.getName().toLowerCase().endsWith("."+extension)?file:new File(file.getParentFile(),file.getName()+"."+extension);}
     private Window owner(){return SwingUtilities.getWindowAncestor(parent);}
     private void message(String text,String title){JOptionPane.showMessageDialog(parent,text,title,JOptionPane.INFORMATION_MESSAGE);}
     private static String summary(String action,ProcessorOutput out){return String.format("%s: %d layer(s), %d command(s)",action,out.layers().size(),out.metadata().totalCommands());}

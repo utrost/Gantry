@@ -13,7 +13,7 @@ final class OverlayControlsPanel extends JPanel {
         boolean hasDocument(); void remove(); void hatch(Path2D region,int layer); void clearHatch(Path2D region);
         void hatchStyle(); void delete(int id); void add(double x1,double y1,double x2,double y2,int layer);
         void move(int id,double[][] points); void duplicate(int id); void mode(VisualizationPanel.InteractionMode mode);
-        void stationMoved(String name,double x,double y); void stationAdded(double x,double y); void log(String line);
+        void stationMoved(String name,double x,double y); void stationAdded(double x,double y); void overlayChanged(); void log(String line);
     }
     private final VisualizationPanel visualization; private final Actions actions;
     private final JSpinner x=new JSpinner(new SpinnerNumberModel(0.0,-2000.0,2000.0,1.0));
@@ -29,7 +29,7 @@ final class OverlayControlsPanel extends JPanel {
     void setPlotting(boolean plotting){for(JComponent c:controls)c.setEnabled(!plotting);}
     void refreshPosition(){double[]p=visualization.getContentMotorMin();x.setValue(Math.round(p[0]*10)/10.0);y.setValue(Math.round(p[1]*10)/10.0);}
     private void apply(){if(!actions.hasDocument()){actions.log("ERROR: Load or import commands first.");return;}visualization.setContentMotorMin(((Number)x.getValue()).doubleValue(),((Number)y.getValue()).doubleValue());}
-    private void wirePreview(){visualization.setOverlayChangeListener(this::refreshPosition);visualization.setRemoveDrawingListener(actions::remove);
+    private void wirePreview(){visualization.setOverlayChangeListener(()->{refreshPosition();actions.overlayChanged();});visualization.setRemoveDrawingListener(actions::remove);
         visualization.setRegionHatchListener(new VisualizationPanel.RegionHatchListener(){public void onHatchRegion(Path2D r,int l){actions.hatch(r,l);}public void onClearHatchRegion(Path2D r){actions.clearHatch(r);}});
         visualization.setHatchStyleAction(actions::hatchStyle);visualization.setStrokeEditListener(new VisualizationPanel.StrokeEditListener(){
             public void onDeleteStroke(int id){actions.delete(id);}public void onAddLine(double x1,double y1,double x2,double y2,int l){actions.add(x1,y1,x2,y2,l);}

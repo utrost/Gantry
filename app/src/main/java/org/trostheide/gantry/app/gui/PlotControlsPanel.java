@@ -13,7 +13,7 @@ import java.util.function.Consumer;
 /** Plot buttons, layer selection, progress, and estimate presentation. */
 final class PlotControlsPanel extends JPanel {
     record Actions(Runnable start, Runnable preflight, Runnable confirm, Runnable pause,
-                   Runnable stop, Runnable selectionChanged, Consumer<Boolean> colorByLayer) { }
+                   Runnable stop, Runnable selectionChanged, Runnable projectChanged, Consumer<Boolean> colorByLayer) { }
 
     private final Actions actions;
     private final JButton start = new JButton("Start");
@@ -41,6 +41,7 @@ final class PlotControlsPanel extends JPanel {
         confirm.addActionListener(e -> actions.confirm().run());
         pause.addActionListener(e -> actions.pause().run());
         stop.addActionListener(e -> actions.stop().run());
+        passes.addChangeListener(e->actions.projectChanged().run());
         progress.setStringPainted(true); progress.setVisible(false);
         layerList.setLayout(new BoxLayout(layerList, BoxLayout.Y_AXIS));
 
@@ -76,6 +77,8 @@ final class PlotControlsPanel extends JPanel {
         return selected;
     }
     int passes(){return ((Number)passes.getValue()).intValue();}
+    void setPasses(int value){passes.setValue(Math.max(1,Math.min(10,value)));}
+    void setSelectedLayers(List<Integer> selected){rebuilding=true;for(int i=0;i<layers.size();i++)layers.get(i).setSelected(selected.contains(i));rebuilding=false;actions.selectionChanged().run();}
     void setConnected(boolean connected){this.connected=connected;if(!isPlotting())start.setEnabled(connected);}
     void setPlotting(boolean plotting){
         putClientProperty("plotting",plotting); start.setEnabled(!plotting&&connected);
@@ -91,6 +94,6 @@ final class PlotControlsPanel extends JPanel {
     void setTime(String text,String tooltip){time.setText(text);time.setToolTipText(tooltip);}
 
     private void selectAll(boolean selected){rebuilding=true;for(JCheckBox b:layers)b.setSelected(selected);rebuilding=false;changed();}
-    private void changed(){if(!rebuilding)actions.selectionChanged().run();}
+    private void changed(){if(!rebuilding){actions.selectionChanged().run();actions.projectChanged().run();}}
     private static JPanel row(JComponent... items){JPanel p=new JPanel(new FlowLayout(FlowLayout.LEFT,4,2));for(JComponent i:items)p.add(i);return p;}
 }

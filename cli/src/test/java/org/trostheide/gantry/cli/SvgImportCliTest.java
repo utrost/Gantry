@@ -18,6 +18,11 @@ class SvgImportCliTest {
     Path tmp;
 
     @Test
+    void helpDoesNotRequireInputOrOutput() {
+        SvgImportCli.main(new String[] {"--help"});
+    }
+
+    @Test
     void passesRepeatsImportedStrokesAndUpdatesMetadata() throws Exception {
         Path input = writeSvg("""
                 <path d="M10,10 L90,10" fill="none" stroke="#000000"/>
@@ -62,6 +67,26 @@ class SvgImportCliTest {
         assertTrue(linearDraws > 0, "global linear hatch should produce strokes");
         assertTrue(overrideDraws > linearDraws,
                 "red cross-hatch override should produce more strokes than global linear hatch");
+    }
+
+    @Test
+    void batchConfigMapsStationsAndWritesGcode() throws Exception {
+        Path input = writeSvg("<path d=\"M10,10 L90,10\" fill=\"none\" stroke=\"#ff0000\"/>");
+        Path output = tmp.resolve("batch.json");
+        Path gcode = tmp.resolve("batch.gcode");
+        Path config = tmp.resolve("batch-config.json");
+        Files.writeString(config, """
+                {"gcode":{"penMode":"m3m5","feedRateTravel":2000,"feedRateDraw":1000},
+                 "stations":{"red-pot":{"x":5,"y":6,"zDown":0,"color":"#ff0000"}}}
+                """);
+
+        SvgImportCli.main(new String[] {"-i", input.toString(), "-o", output.toString(),
+                "--config", config.toString(), "--map-stations", "--optimize-reorder",
+                "--gcode", gcode.toString()});
+
+        ProcessorOutput result = ProcessorOutputIO.load(output.toFile());
+        assertEquals("red-pot", result.layers().get(0).stationId());
+        assertTrue(Files.readString(gcode).contains("G1"));
     }
 
     private Path writeSvg(String body) throws Exception {

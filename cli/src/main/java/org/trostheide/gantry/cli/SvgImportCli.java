@@ -9,11 +9,14 @@ import org.apache.commons.cli.Options;
 import org.trostheide.gantry.model.ProcessorOutput;
 import org.trostheide.gantry.pipeline.io.ProcessorOutputIO;
 import org.trostheide.gantry.pipeline.optimize.MultipassStage;
+import org.trostheide.gantry.pipeline.optimize.OptimizeStage;
 import org.trostheide.gantry.pipeline.svgimport.PaperFormat;
 import org.trostheide.gantry.pipeline.svgimport.SvgImportOptions;
 import org.trostheide.gantry.pipeline.svgimport.SvgImportStage;
 import org.trostheide.gantry.svgtoolbox.Config;
 import org.trostheide.gantry.svgtoolbox.HatchStyle;
+import org.trostheide.gantry.watercolor.PaintStation;
+import org.trostheide.gantry.watercolor.StationMapper;
 
 import java.awt.Color;
 import java.io.File;
@@ -54,6 +57,18 @@ public final class SvgImportCli {
                 .desc("Mirror the drawing horizontally.").build());
         options.addOption(Option.builder().longOpt("passes").hasArg()
                 .desc("Repeat every stroke N times for multipass plotting (default 1, minimum 1).").build());
+        options.addOption(Option.builder().longOpt("optimize-tolerance").hasArg()
+                .desc("Post-import RDP simplify tolerance in mm.").build());
+        options.addOption(Option.builder().longOpt("optimize-reorder")
+                .desc("Post-import nearest-neighbour stroke reorder.").build());
+        options.addOption(Option.builder().longOpt("optimize-merge").hasArg()
+                .desc("Post-import stroke weld tolerance in mm.").build());
+        options.addOption(Option.builder().longOpt("config").hasArg()
+                .desc("Batch machine/station JSON config.").build());
+        options.addOption(Option.builder().longOpt("map-stations")
+                .desc("Map layer colours to stations from --config.").build());
+        options.addOption(Option.builder().longOpt("gcode").hasArg()
+                .desc("Also write plot-ready G-code using --config.").build());
         options.addOption(Option.builder("h").longOpt("help").desc("Show help.").build());
 
         // SVGToolBox pre-processing options
@@ -112,13 +127,14 @@ public final class SvgImportCli {
         options.addOption(Option.builder().longOpt("toolbox-stats")
                 .desc("Toolbox: print element/length statistics.").build());
 
+        if (Arrays.asList(args).contains("--help") || Arrays.asList(args).contains("-h")) {
+            printHelp(options);
+            return;
+        }
+
         CommandLineParser parser = new DefaultParser();
         try {
             CommandLine cmd = parser.parse(options, args);
-            if (cmd.hasOption("h")) {
-                printHelp(options);
-                return;
-            }
 
             File inputFile = new File(cmd.getOptionValue("input"));
             File outputFile = new File(cmd.getOptionValue("output"));
@@ -147,8 +163,37 @@ public final class SvgImportCli {
             ProcessorOutput output = cmd.hasOption("toolbox")
                     ? SvgImportStage.importSvg(inputFile, buildToolboxConfig(cmd, inputFile, outputFile), importOptions)
                     : SvgImportStage.importSvg(inputFile, importOptions);
+            double optimizeTolerance = Double.parseDouble(
+                    cmd.getOptionValue("optimize-tolerance", "0"));
+            double optimizeMerge = Double.parseDouble(cmd.getOptionValue("optimize-merge", "0"));
+            if (optimizeTolerance > 0 || optimizeMerge > 0 || cmd.hasOption("optimize-reorder")) {
+                output = OptimizeStage.optimize(output, optimizeTolerance,
+                        cmd.hasOption("optimize-reorder"), optimizeMerge);
+            }
+            CliBatchConfig batch = null;
+            if (cmd.hasOption("config")) {
+                batch = CliBatchConfig.load(new File(cmd.getOptionValue("config")));
+            }
+            if (cmd.hasOption("map-stations")) {
+                if (batch == null) {
+                    throw new IllegalArgumentException("--map-stations requires --config");
+                }
+                List<PaintStation> stations = new ArrayList<>();
+                for (Map.Entry<String, CliBatchConfig.Station> entry : batch.stations.entrySet()) {
+                    if (entry.getValue().color != null) {
+                        stations.add(new PaintStation(entry.getKey(), entry.getValue().color));
+                    }
+                }
+                output = StationMapper.assignByColor(output, stations);
+            }
             output = MultipassStage.apply(output, passes);
             ProcessorOutputIO.save(output, outputFile);
+            if (cmd.hasOption("gcode")) {
+                if (batch == null) {
+                    throw new IllegalArgumentException("--gcode requires --config");
+                }
+                CliGcodeExporter.export(output, batch, new File(cmd.getOptionValue("gcode")));
+            }
 
             System.out.printf("Wrote %d layer(s), %d command(s) to %s%n",
                     output.layers().size(), output.metadata().totalCommands(), outputFile);

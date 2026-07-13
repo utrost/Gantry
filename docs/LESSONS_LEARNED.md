@@ -92,7 +92,7 @@ Practical traps that cost time during this project's development (not bugs in th
 product — bugs in *how you work on it*).
 
 - **Rebuild the jar, not just `target/classes`, before verifying a GUI change.**
-  The app is launched from the shaded jar (`app/target/app-1.0-SNAPSHOT.jar`). If
+  The app is launched from the shaded jar (`app/target/app-1.0.0.jar`). If
   you `mvn compile` but run the old jar, you'll "verify" stale behavior and chase a
   ghost. Run `mvn -pl app -am package` (or `scripts/build.sh`) and relaunch.
   - This bit us specifically with the in-app **User Guide**: `docs/USER_GUIDE.md`
@@ -103,7 +103,7 @@ product — bugs in *how you work on it*).
 
 - **`mvn exec:java` is unreliable here** — it repeatedly threw
   `ClassNotFoundException` on `GantryApp` despite the class being present. Run the
-  packaged jar directly (`java -jar app/target/app-1.0-SNAPSHOT.jar`) for any
+  packaged jar directly (`java -jar app/target/app-1.0.0.jar`) for any
   manual/headless GUI run.
 
 - **Headless GUI verification recipe** (works reliably): start `Xvfb :99` and wait
@@ -191,9 +191,10 @@ don't drop it when re-deriving `TimeEstimator`. Weld strokes (`OptimizeStage`) o
 lower the dwell to actually reduce it.
 
 **Q: Where does the CLI lag the GUI (and vice-versa)?**
-The CLI has no G-code export, multipass, post-import `OptimizeStage`, or station
-mapping; the GUI lacks the per-colour `--style` hatch overrides the CLI exposes.
-Plotting/jog/replay are GUI-only by design. (Roadmap "CLI/GUI parity.")
+The GUI and CLI now both support per-colour hatch overrides. The CLI also has
+multipass, post-import optimization, station mapping from a shared batch config,
+and G-code artifact output. Interactive plotting, jog, replay, and visual canvas
+placement remain GUI-only by design.
 
 **Q: How do I verify a GUI change without a plotter?**
 Mock backend (Settings → Mock backend, or `config.json` `"mock": true`) + the Xvfb

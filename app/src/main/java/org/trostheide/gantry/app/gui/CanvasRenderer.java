@@ -125,9 +125,6 @@ final class CanvasRenderer {
         if (panel.showTravelOverlay) {
             float[] dash = {8.0f / (float) scale, 5.0f / (float) scale};
             for (int i = 0; i < panel.allPaths.size() - 1; i++) {
-                if (!panel.pathLayer.get(i).equals(panel.pathLayer.get(i + 1))) {
-                    continue;
-                }
                 List<VisualizationPanel.Point2D> cur = panel.allPaths.get(i);
                 List<VisualizationPanel.Point2D> nxt = panel.allPaths.get(i + 1);
                 if (cur.isEmpty() || nxt.isEmpty()) {
@@ -271,7 +268,7 @@ final class CanvasRenderer {
         g2.setColor(new Color(180, 180, 180));
         g2.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 11));
         String travelHud = (panel.travelTotalMm > 0)
-                ? String.format(" | Travel: %.0f%%", 100.0 * panel.travelPenDownMm / panel.travelTotalMm)
+                ? String.format(" | Pen-down efficiency: %.0f%%", 100.0 * panel.travelPenDownMm / panel.travelTotalMm)
                 : "";
         g2.drawString(String.format(
                 "Pos: %.1f, %.1f | Speed: %d%% | View: %.0f%% | Align: %s | Rot: %d | Origin: %s | %s%s",

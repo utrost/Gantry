@@ -7,6 +7,7 @@ import org.trostheide.gantry.pipeline.svgimport.SvgImportOptions;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.ArrayDeque;
 import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
@@ -16,14 +17,17 @@ import java.util.function.UnaryOperator;
  * Swing-free state for the drawing currently open in Gantry.
  *
  * <p>The session is the authoritative owner of the command model, layer selection, source
- * provenance, and the single-level undo snapshot. It deliberately performs no file I/O and knows
+ * provenance, and bounded undo/redo history. It deliberately performs no file I/O and knows
  * nothing about preview widgets or plotter backends.</p>
  */
 public final class DocumentSession {
 
     private ProcessorOutput currentOutput;
     private List<Integer> selectedLayerIndices = List.of();
-    private ProcessorOutput undoSnapshot;
+    private static final int HISTORY_LIMIT = 100;
+    private final ArrayDeque<HistoryState> undoHistory = new ArrayDeque<>();
+    private final ArrayDeque<HistoryState> redoHistory = new ArrayDeque<>();
+    private boolean dirty;
     private File sourceSvg;
     private SvgImportOptions sourceSvgOptions;
     private File sourceImage;
@@ -36,8 +40,10 @@ public final class DocumentSession {
     /** Replaces the document, selects every layer, and starts a new undo history. */
     public void replace(ProcessorOutput output) {
         currentOutput = output;
-        undoSnapshot = null;
+        undoHistory.clear();
+        redoHistory.clear();
         selectedLayerIndices = allLayerIndices(output);
+        dirty = true;
     }
 
     /** Replaces the model while retaining the existing source and undo state. */
@@ -46,12 +52,15 @@ public final class DocumentSession {
         selectedLayerIndices = selectedLayerIndices.stream()
                 .filter(index -> index >= 0 && index < output.layers().size())
                 .toList();
+        dirty = true;
     }
 
     public void clear() {
         currentOutput = null;
         selectedLayerIndices = List.of();
-        undoSnapshot = null;
+        undoHistory.clear();
+        redoHistory.clear();
+        dirty = false;
         clearSource();
     }
 
@@ -96,23 +105,53 @@ public final class DocumentSession {
     }
 
     public void snapshotForUndo() {
-        undoSnapshot = currentOutput;
+        if (currentOutput == null) return;
+        undoHistory.addLast(new HistoryState(currentOutput, selectedLayerIndices));
+        while (undoHistory.size() > HISTORY_LIMIT) undoHistory.removeFirst();
+        redoHistory.clear();
     }
 
     public boolean canUndo() {
-        return undoSnapshot != null;
+        return !undoHistory.isEmpty();
     }
+
+    public boolean canRedo() { return !redoHistory.isEmpty(); }
 
     /** Restores and consumes the undo snapshot, or returns {@code null} when none exists. */
     public ProcessorOutput undo() {
-        if (undoSnapshot == null) {
+        if (undoHistory.isEmpty()) {
             return null;
         }
-        ProcessorOutput restored = undoSnapshot;
-        undoSnapshot = null;
-        currentOutput = restored;
-        selectedLayerIndices = allLayerIndices(restored);
-        return restored;
+        redoHistory.addLast(new HistoryState(currentOutput, selectedLayerIndices));
+        return restore(undoHistory.removeLast());
+    }
+
+    public ProcessorOutput redo() {
+        if (redoHistory.isEmpty()) return null;
+        undoHistory.addLast(new HistoryState(currentOutput, selectedLayerIndices));
+        return restore(redoHistory.removeLast());
+    }
+
+    public boolean isDirty() { return dirty; }
+    public void markSaved() { dirty = false; }
+    public void markDirty() { if (currentOutput != null) dirty = true; }
+
+    /** Restores a persisted document and its selection as a clean new history root. */
+    public void restore(ProcessorOutput output, Collection<Integer> selection) {
+        replace(Objects.requireNonNull(output, "output"));
+        selectLayers(selection == null ? allLayerIndices(output) : selection);
+        dirty = false;
+    }
+
+    private ProcessorOutput restore(HistoryState state) {
+        currentOutput = state.output();
+        selectedLayerIndices = state.selection();
+        dirty = true;
+        return currentOutput;
+    }
+
+    private record HistoryState(ProcessorOutput output, List<Integer> selection) {
+        HistoryState { selection = List.copyOf(selection); }
     }
 
     public void recordSvgSource(File file, SvgImportOptions options) {
@@ -146,6 +185,13 @@ public final class DocumentSession {
 
     public List<String> vectorizeArgs() {
         return vectorizeArgs;
+    }
+
+    public void restoreSource(File svg, SvgImportOptions options, File image, List<String> args) {
+        sourceSvg = svg;
+        sourceSvgOptions = options;
+        sourceImage = image;
+        vectorizeArgs = args == null ? List.of() : List.copyOf(args);
     }
 
     private static List<Integer> allLayerIndices(ProcessorOutput output) {

@@ -9,6 +9,10 @@ dependency-reduced-pom.xml
 
 # Runtime config — testers edit this locally; ship config.example.json instead
 config.json
+.gantry-recovery
+plot-history.json
+dist/
+release-results/
 
 # Debug edge map written by the vectorize engine at runtime
 edges_debug*.png

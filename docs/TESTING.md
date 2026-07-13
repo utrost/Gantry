@@ -15,8 +15,9 @@ covering both the automated test suite and manual acceptance checks.
 - **Hardware-marked scripts on the mock backend are smoke tests**, not proof of
   real motion/serial behaviour — repeat them on a real plotter before a hardware
   release.
-- **No undo/redo** for canvas edits (drawing moves, station placement) — changes
-  apply immediately; revert by re-importing or editing Settings.
+- **Canvas gestures are direct manipulation** — model edits have multi-level
+  undo/redo, but drawing transforms and station placement are not separate undo
+  history entries. Reopen the project or restore the values manually.
 - The **mock backend emulates** `$$`/`$100`/`$101`, pen and motion commands well
   enough for flow testing, but does not model real timing, acceleration, or
   limit-switch behaviour.
@@ -45,9 +46,12 @@ Expected output: `BUILD SUCCESS` with zero failures across all modules.
 | `app` | `StudioMetricsTest` (4) | Vectorize-studio plottability metrics: stroke/point counts, draw-vs-travel separation, scale-invariant travel ratio, no-double-count on stroke approach |
 | `app` | `SoftLimitsTest` (7) | Orientation-aware jog soft-limit clamp: within-bounds passthrough, clamp at 0/width/height, inverted-X negative bed, top-right origin (negative both axes), swapped-axis bounds, at-wall returns same point (stops continuous jog) |
 | `app` | `TimeEstimatorTest` (7) | Travel/draw distances use their respective feed rates; refill travel + fixed dip overhead; unknown station falls back to default; pen-down settle overhead charged once per `DrawCommand` and driven by the configurable `penDownDelayMillis` (0 removes it); multi-layer totals; `H:MM:SS` formatting |
+| `app` | `HatchOverridesPanelTest`, `ToolboxOptionsPanelTest`, `SvgFillColorsTest` | Per-colour hatch table validation and mapping into `Config.overrides`; discovery of explicit SVG fill colours |
+| `app` | `DocumentSessionTest`, `GantryProjectIOTest` | Multi-level model undo/redo and `.gantry` project round-trip |
+| `app` | `PlotJobHistoryTest`, `VisualizationTravelTest` | Persistent prepared-job history and travel accounting across layer boundaries |
 | `vectorize` | `IntegrationTest`, `BoofcvBatikVectorTest`, `StrategiesTest`, `PaintByNumbersTest` (86) | Raster→SVG engine: contour extraction, all eight strategies, polyline/Bézier geometry, auto-Canny, crop, SVG optimisation, Paint-by-Numbers quantisation/regions/labels |
 | `cli` | `VectorizeCliTest` (2) | `VectorizeCli` wiring: image→SVG, and the `--`-separated image→SVG→command-JSON chain (argument split, SVG-path derivation, `-i` injection) |
-| `cli` | `SvgImportCliTest` (2) | SVG→command CLI wiring: `--passes N` expands strokes and command metadata; `--style` applies a per-colour hatch override end to end |
+| `cli` | `SvgImportCliTest` (4) | SVG→command CLI wiring: help, multipass and per-colour hatch overrides; batch config station mapping and G-code output |
 | `svgtoolbox-core` | `ConfigBuilderTest` | Config builder defaults and overrides |
 | `svgtoolbox-core` | `VisibilityProcessorTest` (4) | Remove hidden layers by colour |
 | `svgtoolbox-core` | `StyleNormalizerProcessorTest` (2) | Move inline `style` attributes to presentation attributes |
@@ -344,6 +348,8 @@ a `testdata/` folder.
 4. Pattern = `wave`, **Amplitude** = 10. Import.
    - [ ] Waves are taller than at Amplitude = 0 (auto).
    - [ ] Leaving Amplitude / Wavelength / Dot radius at 0 reproduces gap-derived defaults.
+5. In **Per-colour hatch overrides**, set one discovered colour to `cross`, with a visibly different angle/gap; leave another at **Use global**. Import.
+   - [ ] The selected colour uses its override and the other colour retains the global style.
 
 #### TS-I2 — Optimisation processors & statistics *(mock OK)*
 1. Process SVG tab: enable **Linesort** + **Reloop**. Import.
@@ -510,14 +516,28 @@ positions with the test-run wizard, see [Group T](#group-t--visual-station-place
 2. **File > Replay G-code...** → select `test.gcode` (mock).
    - [ ] Console streams the G-code; the cursor moves in the Live View.
 
-#### TS-Q2 — Save/Open command JSON *(mock OK)*
-1. Import an SVG. **File > Save Commands (JSON)...** → `test.json`.
+#### TS-Q2 — Export/Open flattened command JSON *(mock OK)*
+1. Import an SVG. **File > Export Flattened Commands (JSON)...** → `test.json`.
 2. **File > Open Commands (JSON)...** → `test.json`.
    - [ ] The drawing reappears with the same layer and command count.
 
 #### TS-Q3 — File-chooser folder memory *(mock OK)*
-1. Open/save a file from a non-default folder, then open another chooser (Import SVG, Open/Save Commands, Export/Replay G-code).
+1. Open/save a file from a non-default folder, then open another chooser (Import SVG, Open/Save Project, Open/Export Commands, Export/Replay G-code).
    - [ ] Each chooser reopens in the **last** folder used, including after an app restart.
+
+#### TS-Q4 — Project round-trip and recovery *(mock OK)*
+1. Import artwork, move/rotate it, select a subset of layers, and set multiple passes.
+2. **File > Save Project...**, close it, then **File > Open Project...**.
+   - [ ] Commands, placement, layer selection, passes, and source provenance return.
+3. Make another edit and terminate the app without saving; relaunch it.
+   - [ ] Gantry offers the recovery project and restores it when accepted.
+
+#### TS-Q5 — Persistent exact-job history *(mock OK)*
+1. Complete a plot, then alter the current canvas placement or commands.
+2. Use **File > Recent Plot Jobs** or **Re-plot**.
+   - [ ] The completed job's prepared geometry, selected layers, passes, and transform are used rather than the current canvas state.
+3. Restart Gantry.
+   - [ ] The successful job remains in Recent Plot Jobs.
 
 ---
 
@@ -536,7 +556,7 @@ positions with the test-run wizard, see [Group T](#group-t--visual-station-place
 
 #### TS-R2 — About dialog *(mock OK)*
 1. **Help > About Gantry...**.
-   - [ ] An About dialog shows the product name and version (`1.0-SNAPSHOT`) and closes cleanly.
+   - [ ] An About dialog shows the product name and version (`1.0.0`) and closes cleanly.
 
 ---
 
@@ -544,7 +564,7 @@ positions with the test-run wizard, see [Group T](#group-t--visual-station-place
 
 #### TS-S1 — Basic conversion
 ```bash
-java -jar cli/target/cli-1.0-SNAPSHOT.jar \
+java -jar cli/target/cli-1.0.0.jar \
   -i testdata/simple.svg \
   -o /tmp/out.json \
   --fit-to A4 \
@@ -556,7 +576,7 @@ java -jar cli/target/cli-1.0-SNAPSHOT.jar \
 
 #### TS-S2 — Toolbox pipeline + stats
 ```bash
-java -jar cli/target/cli-1.0-SNAPSHOT.jar \
+java -jar cli/target/cli-1.0.0.jar \
   -i testdata/simple.svg \
   -o /tmp/out2.json \
   --toolbox --linesort --reloop --toolbox-stats
@@ -569,16 +589,23 @@ java -jar cli/target/cli-1.0-SNAPSHOT.jar \
 Use any PNG/JPG as `IMAGE` below.
 ```bash
 # image -> SVG only
-java -cp cli/target/cli-1.0-SNAPSHOT.jar org.trostheide.gantry.cli.VectorizeCli \
+java -cp cli/target/cli-1.0.0.jar org.trostheide.gantry.cli.VectorizeCli \
   -i IMAGE -o /tmp/v.svg -s dp --canny-auto
 
 # image -> SVG -> command JSON in one command
-java -cp cli/target/cli-1.0-SNAPSHOT.jar org.trostheide.gantry.cli.VectorizeCli \
+java -cp cli/target/cli-1.0.0.jar org.trostheide.gantry.cli.VectorizeCli \
   -i IMAGE -o /tmp/v.svg -s centerline -- -o /tmp/v.json --fit-to A4
 ```
 - [ ] The first command writes a valid `/tmp/v.svg` (opens in a browser) and no `/tmp/v.json`.
 - [ ] The second writes both; `/tmp/v.json` loads in the GUI via **Open Commands (JSON)**.
 - [ ] `VectorizeCli` with no arguments prints usage; omitting `-o` before `--` errors clearly.
+
+#### TS-S4 — Batch config, station mapping, optimization, and G-code
+1. Create a batch config JSON containing G-code options and layer-to-station mappings.
+2. Run `SvgImportCli` with `--config CONFIG --map-stations --optimize-reorder --gcode /tmp/out.gcode`.
+   - [ ] Command JSON and G-code are both written.
+   - [ ] Configured layers use the expected refill station IDs.
+   - [ ] G-code contains the configured movement/pen commands and station visits.
 
 ---
 

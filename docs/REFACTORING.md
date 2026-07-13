@@ -44,8 +44,9 @@ and controllers. Names may change as the boundaries become clearer.
 ### Document state
 
 `DocumentSession` owns the current `ProcessorOutput`, selected layers, source
-SVG/raster provenance, single-level undo, and preparation of the selected
-output. It contains no Swing components and performs no I/O.
+SVG/raster provenance, bounded multi-level undo/redo, dirty state, and
+preparation of the selected output. It contains no Swing components and
+performs no I/O; `.gantry` persistence remains in `GantryProjectIO`.
 
 ### Plot lifecycle
 

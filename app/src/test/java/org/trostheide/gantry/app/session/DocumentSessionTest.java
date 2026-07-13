@@ -35,6 +35,7 @@ class DocumentSessionTest {
         assertSame(replacement, session.currentOutput());
         assertEquals(List.of(0, 1, 2), session.selectedLayerIndices());
         assertFalse(session.canUndo());
+        assertFalse(session.canRedo());
     }
 
     @Test
@@ -68,17 +69,27 @@ class DocumentSessionTest {
     }
 
     @Test
-    void undoRestoresSnapshotOnce() {
+    void undoAndRedoWalkMultiLevelHistory() {
         DocumentSession session = new DocumentSession();
         ProcessorOutput original = output("original");
         session.replace(original);
         session.snapshotForUndo();
         session.update(output("edited"));
 
+        ProcessorOutput firstEdit = output("edited");
+        session.update(firstEdit);
+        session.snapshotForUndo();
+        ProcessorOutput secondEdit = output("edited-again");
+        session.update(secondEdit);
+
+        assertSame(firstEdit, session.undo());
         assertSame(original, session.undo());
         assertSame(original, session.currentOutput());
         assertFalse(session.canUndo());
         assertNull(session.undo());
+        assertSame(firstEdit, session.redo());
+        assertSame(secondEdit, session.redo());
+        assertFalse(session.canRedo());
     }
 
     @Test
