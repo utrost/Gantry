@@ -72,9 +72,12 @@ public class PlotterPanel extends JPanel {
     private final JButton connectBtn = new JButton("Connect");
     private JMenuItem connectMenuItem;
     private final JLabel statusLabel = new JLabel("Disconnected");
+    private final JLabel safetyStatusLabel = new JLabel();
     private final JLabel guidanceLabel = new JLabel();
+    private final JButton guidanceActionBtn = new JButton();
     private JPanel guidancePanel;
     private boolean guidanceDismissed;
+    private ArtworkWorkspacePanel artworkWorkspace;
     private PlotControlsPanel plotControls;
     private DocumentEditor documentEditor;
     private DocumentFileWorkflow fileWorkflow;
@@ -107,6 +110,7 @@ public class PlotterPanel extends JPanel {
     private volatile int speedPercent = 100;
     private javax.swing.Timer plotClockTimer;
     private volatile boolean plotting;
+    private volatile boolean awaitingLayerConfirmation;
     private java.awt.KeyEventDispatcher jogKeyDispatcher;
     private final File recoveryFile = new File(".gantry-recovery");
     private javax.swing.Timer recoveryTimer;
@@ -135,7 +139,7 @@ public class PlotterPanel extends JPanel {
 
         plotControls = new PlotControlsPanel(new PlotControlsPanel.Actions(
                 () -> { if (config.preflightBeforeStart) onPreflightWizard(); else onStartPlot(); },
-                this::onPreflightWizard, () -> confirmGate.release(), this::onPauseToggle,
+                this::onPreflightWizard, this::onConfirmLayer, this::onPauseToggle,
                 this::onStopPlot, this::onLayerSelectionChanged, this::onProjectSettingsChanged, visPanel::setColorByLayer));
         documentEditor = new DocumentEditor(documentSession, this, this::onDocumentEdited,
                 this::setUndoAvailable, this::setRedoAvailable, this::log);
@@ -175,16 +179,30 @@ public class PlotterPanel extends JPanel {
         recoveryTimer.setRepeats(false);
         SwingUtilities.invokeLater(this::offerRecovery);
 
+        artworkWorkspace = new ArtworkWorkspacePanel(visPanel,
+                new ArtworkWorkspacePanel.Actions(this::onImportSvg, this::onImportImage,
+                        this::onOpenProject));
+
+        JComponent jogSection = capHeight(jogPanel);
+        JComponent jogGap = (JComponent) Box.createVerticalStrut(3);
+        JComponent rawSection = capHeight(rawCommands);
+        JComponent rawGap = (JComponent) Box.createVerticalStrut(3);
+        JComponent consoleGap = (JComponent) Box.createVerticalStrut(3);
+        AdvancedControlsDisclosure advancedControls = new AdvancedControlsDisclosure(
+                List.of(jogSection, jogGap, rawSection, rawGap, consoleGap, consoleScroll));
+
         JPanel right = new JPanel();
         right.setLayout(new BoxLayout(right, BoxLayout.Y_AXIS));
-        right.add(capHeight(jogPanel));
+        right.add(capHeight(advancedControls));
         right.add(Box.createVerticalStrut(3));
+        right.add(jogSection);
+        right.add(jogGap);
         right.add(capHeight(overlayControls));
         right.add(Box.createVerticalStrut(3));
         right.add(capHeight(plotControls));
-        right.add(Box.createVerticalStrut(3));
-        right.add(capHeight(rawCommands));
-        right.add(Box.createVerticalStrut(3));
+        right.add(rawGap);
+        right.add(rawSection);
+        right.add(consoleGap);
         // Console absorbs any leftover vertical space; the fixed sections stay at their natural height.
         right.add(consoleScroll);
 
@@ -192,7 +210,7 @@ public class PlotterPanel extends JPanel {
         right.setPreferredSize(new Dimension(rightWidth, right.getPreferredSize().height));
         right.setMaximumSize(new Dimension(rightWidth, Integer.MAX_VALUE));
 
-        controlSplit = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, visPanel, right);
+        controlSplit = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, artworkWorkspace, right);
         // Give all extra space to the canvas; keep the control column at its compact width.
         controlSplit.setResizeWeight(1.0);
         controlSplit.addComponentListener(new java.awt.event.ComponentAdapter() {
@@ -274,6 +292,8 @@ public class PlotterPanel extends JPanel {
         guidanceLabel.setFont(guidanceLabel.getFont().deriveFont(Font.BOLD));
         guidanceLabel.setForeground(GUIDANCE_TEXT);
 
+        guidanceActionBtn.setMargin(new Insets(1, 8, 1, 8));
+
         JButton closeBtn = new JButton("×");
         closeBtn.setToolTipText("Hide this guidance banner");
         closeBtn.setMargin(new Insets(0, 4, 0, 4));
@@ -286,34 +306,58 @@ public class PlotterPanel extends JPanel {
             guidancePanel.setVisible(false);
         });
 
+        JPanel actions = new JPanel(new FlowLayout(FlowLayout.RIGHT, 4, 0));
+        actions.setOpaque(false);
+        actions.add(guidanceActionBtn);
+        actions.add(closeBtn);
         guidancePanel.add(guidanceLabel, BorderLayout.CENTER);
-        guidancePanel.add(closeBtn, BorderLayout.EAST);
+        guidancePanel.add(actions, BorderLayout.EAST);
         return guidancePanel;
     }
 
     /**
-     * Updates the step banner to reflect what the user should do next: connect, then
-     * load/import a drawing, then position it, then start, then confirm each layer. Stopping a
-     * plot un-dismisses the banner and resets it back to step guidance, in case the user wants
-     * the prompts again after deviating from the suggested flow.
+     * Updates the banner from existing session/connection/plot state. Artwork comes first because
+     * preparing a drawing while disconnected is safe and gives a new user an immediate result.
      */
     private void refreshGuidance() {
-        String text;
-        if (!plotJobController.isConnected()) {
-            text = "Step 1: Click Connect to talk to the plotter.";
-        } else if (documentSession.currentOutput() == null) {
-            text = "Step 2: Open Commands (JSON) or Import SVG to load a drawing.";
-        } else if (plotting) {
-            text = plotJobController.isPaused()
-                    ? "Plot paused. Click Resume to continue, or Stop to cancel."
-                    : "Plotting... Confirm Layer when prompted, or Pause/Stop as needed.";
-        } else {
-            text = "Step 3: Check position/optimize as needed, then click Start.";
-        }
-        guidanceLabel.setText(text);
+        OperatorJourney.Step step = OperatorJourney.current(new OperatorJourney.Snapshot(
+                documentSession.currentOutput() != null, plotJobController.isConnected(),
+                plotting, plotJobController.isPaused(), awaitingLayerConfirmation));
+        guidanceLabel.setText(step.message());
+        safetyStatusLabel.setText(step.safety().label());
+        setGuidanceAction(step);
         if (guidancePanel != null && !guidanceDismissed) {
             guidancePanel.setVisible(true);
         }
+    }
+
+    private void setGuidanceAction(OperatorJourney.Step step) {
+        for (ActionListener listener : guidanceActionBtn.getActionListeners()) {
+            guidanceActionBtn.removeActionListener(listener);
+        }
+        guidanceActionBtn.setText(step.actionLabel());
+        guidanceActionBtn.setBackground(step.action() == OperatorJourney.Action.PAUSE
+                ? new Color(239, 108, 0) : ACTION_GREEN);
+        guidanceActionBtn.setForeground(Color.WHITE);
+        guidanceActionBtn.setOpaque(true);
+        guidanceActionBtn.addActionListener(e -> {
+            switch (step.action()) {
+                case ADD_ARTWORK -> showAddArtworkMenu(guidanceActionBtn);
+                case CONNECT -> onConnectToggle();
+                case CHECK_BEFORE_PLOTTING -> onPreflightWizard();
+                case CONTINUE -> onConfirmLayer();
+                case PAUSE, RESUME -> onPauseToggle();
+            }
+        });
+    }
+
+    private void showAddArtworkMenu(Component invoker) {
+        JPopupMenu menu = new JPopupMenu();
+        // These are transient popup entries, not long-lived controls that need plot-state tracking.
+        menu.add(menuItem("Add SVG or vector drawing", e -> onImportSvg(), false));
+        menu.add(menuItem("Add image or photo", e -> onImportImage(), false));
+        menu.add(menuItem("Open Gantry project", e -> onOpenProject(), false));
+        menu.show(invoker, 0, invoker.getHeight());
     }
 
     /** Un-dismisses and resets the guidance banner, e.g. after the user hits Stop. */
@@ -389,6 +433,13 @@ public class PlotterPanel extends JPanel {
 
         bar.add(Box.createHorizontalStrut(12));
         bar.add(statusLabel);
+        bar.add(Box.createHorizontalStrut(10));
+        Color safetyBorder = UIManager.getColor("Separator.foreground");
+        if (safetyBorder == null) safetyBorder = Color.GRAY;
+        safetyStatusLabel.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(safetyBorder),
+                BorderFactory.createEmptyBorder(2, 7, 2, 7)));
+        bar.add(safetyStatusLabel);
         return bar;
     }
 
@@ -400,20 +451,18 @@ public class PlotterPanel extends JPanel {
 
         JMenu fileMenu = new JMenu("File");
         fileMenu.setMnemonic(KeyEvent.VK_F);
-        fileMenu.add(accel(tip(menuItem("Open Project...", e -> onOpenProject(), true),
+        fileMenu.add(accel(tip(menuItem("Open Gantry Project...", e -> onOpenProject(), true),
                 "Open an editable Gantry project with placement, layer selection, passes, and source provenance."),
                 KeyEvent.VK_O, shortcut));
         fileMenu.add(accel(tip(menuItem("Open Commands (JSON)...", e -> onLoadCommands(), true),
                 "Open a saved Gantry command file (.json) — the editable drawing model "
                         + "(layers, moves, draws, refills). Not an SVG and not G-code."),
                 KeyEvent.VK_O, shortcut | java.awt.event.InputEvent.SHIFT_DOWN_MASK));
-        fileMenu.add(accel(tip(menuItem("Import SVG (artwork)...", e -> onImportSvg(), true),
-                "Read a vector drawing (.svg) and convert it into the editable command model. "
-                        + "This is where artwork enters Gantry."),
+        fileMenu.add(accel(tip(menuItem("Add SVG or vector drawing...", e -> onImportSvg(), true),
+                "Choose an SVG drawing and fit it safely inside the configured machine bed."),
                 KeyEvent.VK_I, shortcut));
-        fileMenu.add(accel(tip(menuItem("Import Image (vectorize)...", e -> onImportImage(), true),
-                "Trace a raster image (.png/.jpg) into vector paths, then bring it in through the "
-                        + "same SVG import. Lets photos, scans and logos enter Gantry."),
+        fileMenu.add(accel(tip(menuItem("Add image or photo...", e -> onImportImage(), true),
+                "Choose a PNG or JPG and convert it into lines the plotter can draw."),
                 KeyEvent.VK_I, shortcut | java.awt.event.InputEvent.SHIFT_DOWN_MASK));
         fileMenu.add(accel(tip(menuItem("Save Project...", e -> onSaveProject(), true),
                 "Save the complete editable session as a .gantry project."),
@@ -509,10 +558,10 @@ public class PlotterPanel extends JPanel {
         connectMenuItem = tip(menuItem("Connect", e -> onConnectToggle(), false),
                 "Open or close the serial connection to the plotter.");
         machineMenu.add(connectMenuItem);
-        machineMenu.add(tip(menuItem("Home", e -> onHome(), true),
-                "Run the homing cycle against the limit switches."));
+        machineMenu.add(tip(menuItem("Find Starting Corner (Home)", e -> onHome(), true),
+                "Find the machine's known starting corner using its limit switches."));
         machineMenu.addSeparator();
-        machineMenu.add(tip(menuItem("Pre-Plot Checklist...", e -> onPreflightWizard(), true),
+        machineMenu.add(tip(menuItem("Check Before Plotting...", e -> onPreflightWizard(), true),
                 "Walk through connect / home / frame-the-job / pen-and-paper checks before starting a plot."));
         machineMenu.add(tip(menuItem("Setup Wizard...", e -> onSetupWizard(), false),
                 "Guided first-time setup: machine size, origin, orientation, pen mode and speeds."));
@@ -904,6 +953,7 @@ public class PlotterPanel extends JPanel {
         setConnectButtonColor(!connected);
         setConnectionRequiredControlsEnabled(connected);
         statusLabel.setText(connecting ? "Connecting..." : failed ? "Connection failed" : connected ? "Connected" : "Disconnected");
+        refreshGuidance();
     }
 
     private void onSpeedChanged(int percent) {
@@ -1040,8 +1090,15 @@ public class PlotterPanel extends JPanel {
             SwingUtilities.invokeLater(() -> visPanel.updatePosition(x, y));
         });
         service.setLayerGate(layer -> {
-            log("Layer '" + layer.id() + "' ready. Click Confirm Layer to start.");
-            confirmGate.acquire();
+            awaitingLayerConfirmation = true;
+            log("Layer '" + layer.id() + "' ready. Click Pen ready — continue to start.");
+            SwingUtilities.invokeLater(this::refreshGuidance);
+            try {
+                confirmGate.acquire();
+            } finally {
+                awaitingLayerConfirmation = false;
+                SwingUtilities.invokeLater(this::refreshGuidance);
+            }
         });
         int totalLayersCount = toPlot.layers().size();
         service.setLayerStartedCallback(layer -> plotProgress.layerStarted());
@@ -1084,12 +1141,19 @@ public class PlotterPanel extends JPanel {
     }
 
     private void onStopPlot() {
+        awaitingLayerConfirmation = false;
         plotJobController.cancelPlot();
         confirmGate.release();
         // Cancelling only stops further commands from being sent; the backend may already have
         // queued motion in flight (e.g. GRBL's planner buffer), so halt it immediately too.
         runOnBackend(PlotterBackend::haltMotion);
         resetGuidance();
+    }
+
+    private void onConfirmLayer() {
+        awaitingLayerConfirmation = false;
+        confirmGate.release();
+        refreshGuidance();
     }
 
     private void onPauseToggle() {
@@ -1106,6 +1170,7 @@ public class PlotterPanel extends JPanel {
 
     private void setPlottingState(boolean plotting) {
         this.plotting = plotting;
+        if (!plotting) awaitingLayerConfirmation = false;
         plotControls.setConnected(plotJobController.isConnected());
         plotControls.setPlotting(plotting);
         jogPanel.setPlotting(plotting);
@@ -1257,7 +1322,7 @@ public class PlotterPanel extends JPanel {
         if (documentSession.currentOutput() == null) return;
         documentEditor.clear();
         resetReplot();
-        refreshLayerSelector(); overlayControls.refreshPosition(); refreshTimeEstimate(); refreshGuidance();
+        refreshDocumentUi();
         log("Removed the loaded drawing.");
     }
 
@@ -1282,6 +1347,7 @@ public class PlotterPanel extends JPanel {
     }
 
     private void refreshDocumentUi() {
+        artworkWorkspace.setHasArtwork(documentSession.currentOutput() != null);
         refreshLayerSelector();
         overlayControls.refreshPosition();
         refreshTimeEstimate();
