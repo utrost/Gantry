@@ -30,7 +30,7 @@ class FakeGrblTransport implements SerialTransport {
     private volatile String machineState = "Idle";
     private volatile boolean autoAck = true;
     private volatile IOException readFailure;
-    private volatile IOException nextWriteFailure;
+    private volatile IOException nextLineWriteFailure;
 
     List<String> sentCommands() {
         return sentCommands;
@@ -53,7 +53,7 @@ class FakeGrblTransport implements SerialTransport {
     }
 
     void failNextWrite(IOException failure) {
-        nextWriteFailure = failure;
+        nextLineWriteFailure = failure;
     }
 
     @Override
@@ -77,9 +77,9 @@ class FakeGrblTransport implements SerialTransport {
 
     @Override
     public synchronized void writeBytes(byte[] data) throws IOException {
-        IOException failure = nextWriteFailure;
-        if (failure != null) {
-            nextWriteFailure = null;
+        IOException failure = nextLineWriteFailure;
+        if (failure != null && contains(data, (byte) '\n')) {
+            nextLineWriteFailure = null;
             throw failure;
         }
         for (byte b : data) {
@@ -97,6 +97,15 @@ class FakeGrblTransport implements SerialTransport {
                 default -> lineBuffer.append((char) (b & 0xFF));
             }
         }
+    }
+
+    private static boolean contains(byte[] data, byte expected) {
+        for (byte value : data) {
+            if (value == expected) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private void handleCommand(String cmd) {
