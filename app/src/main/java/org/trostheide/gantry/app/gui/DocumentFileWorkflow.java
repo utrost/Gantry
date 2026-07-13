@@ -72,7 +72,7 @@ final class DocumentFileWorkflow {
         JFileChooser chooser=chooser("Vector artwork — SVG (*.svg)","svg");
         if(chooser.showOpenDialog(parent)!=JFileChooser.APPROVE_OPTION)return;
         File file=chooser.getSelectedFile();remember(file);
-        SvgImportDialog.Result options=new SvgImportDialog(owner(),file).showDialog();if(options==null)return;
+        SvgImportDialog.Result options=importDialog(file).showDialog();if(options==null)return;
         actions.busy().run("Import",()->map(options.toolboxConfig()!=null
                 ?SvgImportStage.importSvg(file,options.toolboxConfig(),options.importOptions())
                 :SvgImportStage.importSvg(file,options.importOptions())),out->{
@@ -98,7 +98,7 @@ final class DocumentFileWorkflow {
         try{vector=new VectorizeStudioDialog(owner(),image,initialArgs).showDialog();}
         catch(IOException ex){actions.error().accept("Vectorize failed: "+ex.getMessage());return;}
         if(vector==null)return;
-        SvgImportDialog.Result options=new SvgImportDialog(owner()).showDialog();if(options==null)return;
+        SvgImportDialog.Result options=importDialog(null).showDialog();if(options==null)return;
         final File svg;
         try{svg=File.createTempFile("gantry-vectorize-",".svg");svg.deleteOnExit();}
         catch(IOException ex){actions.error().accept("Vectorize failed: could not create temporary SVG");return;}
@@ -149,6 +149,8 @@ final class DocumentFileWorkflow {
     private boolean overwrite(File file){return !file.exists()||JOptionPane.showConfirmDialog(parent,"Overwrite '"+file.getName()+"'?","Confirm overwrite",JOptionPane.YES_NO_OPTION,JOptionPane.WARNING_MESSAGE)==JOptionPane.YES_OPTION;}
     private static File withExtension(File file,String extension){return file.getName().toLowerCase().endsWith("."+extension)?file:new File(file.getParentFile(),file.getName()+"."+extension);}
     private Window owner(){return SwingUtilities.getWindowAncestor(parent);}
+    private SvgImportDialog importDialog(File sourceSvg){GantryConfig c=actions.config().get();
+        return new SvgImportDialog(owner(),sourceSvg,c.gcode.machineWidth,c.gcode.machineHeight);}
     private void message(String text,String title){JOptionPane.showMessageDialog(parent,text,title,JOptionPane.INFORMATION_MESSAGE);}
     private static String summary(String action,ProcessorOutput out){return String.format("%s: %d layer(s), %d command(s)",action,out.layers().size(),out.metadata().totalCommands());}
 }

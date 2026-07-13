@@ -24,7 +24,7 @@ final class JogPanel extends JPanel {
     JogPanel(Supplier<GantryConfig> config,PlotJobController jobs,VisualizationPanel visualization,
             Consumer<Consumer<PlotterBackend>> backend,Consumer<String> log,Component parent){
         this.config=config;this.jobs=jobs;this.visualization=visualization;this.backend=backend;this.log=log;this.parent=parent;
-        setLayout(new GridBagLayout());setBorder(new TitledBorder("Jog"));GridBagConstraints g=new GridBagConstraints();g.insets=new Insets(2,2,2,2);
+        setLayout(new GridBagLayout());setBorder(new TitledBorder("Move pen manually"));GridBagConstraints g=new GridBagConstraints();g.insets=new Insets(2,2,2,2);
         JButton up=jogButton("▲",0,1),down=jogButton("▼",0,-1),left=jogButton("◄",-1,0),right=jogButton("►",1,0);
         g.gridx=1;g.gridy=0;add(up,g);g.gridx=0;g.gridy=1;add(left,g);g.gridx=2;add(right,g);g.gridx=1;g.gridy=2;add(down,g);
         JButton penUp=control(new JButton("Pen Up"),true),penDown=control(new JButton("Pen Down"),true);
@@ -34,7 +34,7 @@ final class JogPanel extends JPanel {
         JButton minus=control(new JButton("-"),false),plus=control(new JButton("+"),false),reset=control(new JButton("Reset"),false);
         minus.addActionListener(e->backend.accept(b->b.adjustSpeed("down")));plus.addActionListener(e->backend.accept(b->b.adjustSpeed("up")));reset.addActionListener(e->backend.accept(b->b.adjustSpeed("reset")));
         g.gridx=0;g.gridy=3;g.gridwidth=4;add(row(new JLabel("Speed"),minus,speed,plus,reset),g);
-        JButton home=control(new JButton("⌂ Home (limit switches)"),true);home.addActionListener(e->home());g.gridy=4;g.fill=GridBagConstraints.HORIZONTAL;add(home,g);
+        JButton home=control(new JButton("⌂ Find starting corner (Home)"),true);home.addActionListener(e->home());g.gridy=4;g.fill=GridBagConstraints.HORIZONTAL;add(home,g);
     }
 
     void setConnected(boolean value){for(JComponent c:connectedControls)c.setEnabled(value);}

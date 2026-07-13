@@ -24,11 +24,22 @@ The GUI opens. On a brand-new install (no `config.json` yet) it offers to run
 the guided **Setup Wizard** right away — take it, or configure manually via
 **Settings** — see **First start** below either way.
 
+The default control column keeps artwork position, layers, duration, and plotting
+actions visible. Expand **Advanced controls** when you need manual movement, raw
+G-code, or the diagnostic Console; the disclosure only changes presentation and
+uses the same live document and plotter connection.
+
+The outlined safety status always states whether Gantry is **Safe — nothing will
+move**, **Connected — manual movement enabled**, **Plotter moving**, waiting for a
+pen, or paused. The banner beside it presents the next normal action.
+
 ---
 
 ## First start
 
-Do this once per machine, before importing or plotting anything.
+Do this once per machine before connecting or plotting. You can safely add and
+arrange artwork while disconnected; Gantry clearly indicates that nothing will
+move in that state.
 
 The easiest way is **Machine > Setup Wizard...** (also offered automatically
 on first launch, and from a button inside **Settings**): it walks through
@@ -83,14 +94,15 @@ Set **Draw Feed Rate** / **Travel Feed Rate** to sensible starting points
 
 ### 6. Verify jogging before your first real plot
 
-With the plotter connected (or Mock backend), use the **Jog** ▲▼◄► buttons.
+With the plotter connected (or Mock backend), expand **Advanced controls** and use
+the **Move pen manually** ▲▼◄► buttons.
 Each one should move the pen toward that side of the *bed as you're looking
 at it*. If any direction is wrong, **don't** ignore it — fix it now via the
 **Extra Invert X/Y** / **Extra Swap X/Y** checkboxes (see
 [Troubleshooting](#troubleshooting)), since the same settings also control
 where imported drawings land and how the live cursor tracks. If your
-controller has limit switches and GRBL homing enabled, use **Home (limit
-switches)** to confirm homing works too.
+controller has limit switches and GRBL homing enabled, use **Find starting
+corner (Home)** to confirm homing works too.
 
 ### 7. Canvas alignment
 
@@ -114,8 +126,8 @@ compensate.
 | Item | What it does |
 |---|---|
 | **Connect** / **Disconnect** | Opens or closes the serial connection to the plotter (same as the **Connect** button). |
-| **Home** | Runs the homing cycle against the limit switches (`$H`) — same as **Home (limit switches)** in the Jog section. |
-| **Pre-Plot Checklist...** | A guided wizard covering connect → home → frame-the-job (traces the current drawing's bounding box on the bed so you can confirm it fits and the pen tracks correctly) → a final physical-checks page (paper taped down, pen loaded, bed clear). Can also be launched from the **Pre-flight...** button next to **Start Plot**, and runs automatically before **Start Plot** when the Settings toggle below is on. |
+| **Find Starting Corner (Home)** | Runs the homing cycle against the limit switches (`$H`) — the same action as **Find starting corner (Home)** under **Move pen manually**. |
+| **Check Before Plotting...** | Opens the guided Pre-Plot Checklist: connect → home → frame the job → confirm the pen, paper, layers, and clear bed. It is the same action as **Check before plotting...** beside **Start plotting**, and runs automatically before plotting when the Settings toggle below is on. |
 | **Setup Wizard...** | The guided first-time setup described in [First start](#first-start) — Connection, Machine geometry/origin/orientation, Pen/speed, in order, re-using the exact same fields as **Settings**. Its final step offers **"Continue to axis calibration now"** (ticked by default), so a first run flows straight from settings into calibration. Safe to re-run any time to revisit those settings step by step. |
 | **Calibrate Axes...** | A guided pass over machine motion. It **connects first** (a Connect step using your saved settings or mock — no need to connect manually beforehand), then: **Direction:** centre the head, jog each motor axis, and click the arrow for the way the pen *actually* moved — the wizard derives the correct swap/invert in one shot (it catches *swapped* axes, not just reversed ones, and applies the result to the live preview). **Scale:** for X and Y, jog a commanded distance, measure what actually moved with a ruler, and the wizard computes a corrected `$100`/`$101` and writes it on request. **Limit switches:** record whether the machine has them, enable the homing cycle (`$22`), and press each switch by hand to watch it register live (a real wiring test, nothing moves). **Pen lift:** pick the lift type (servo / Z-axis / M3-M5), set the up/down values, and **Test** them — edits apply on the next test with no reconnect. The scale, limit and pen steps are each optional (use **Skip**). |
 | **Test Color Stations...** | A guided test run over every configured refill station (watercolor). For each station you can **Move here** (pen-up dry visit so you can eyeball whether the brush lines up with the physical pot), run a **Wet test** (the station's real dip/swirl, so you can check the dip depth and swirl radius clear the pot rim), and **nudge** the position with the **−X/+X/−Y/+Y** buttons if it's off — a nudge moves the head *and* the stored coordinate, and corrected positions are saved when you click **Finish**. Each station step is optional (use **Skip**). Requires a real or mock connection and at least one configured station. See also [placing stations on the canvas](#placing-refill-stations) below. |
@@ -125,12 +137,12 @@ compensate.
 ## Workflow
 
 ```
-SVG file
-   └─ Import SVG (optional: run SVGToolBox pre-processing)
+SVG or image artwork
+   └─ Add artwork (advanced: optional SVGToolBox processing)
         └─ Editable Gantry project
              └─ Optimize (optional: simplify + reorder strokes)
                   └─ Position / scale / rotate / mirror on canvas
-                       └─ Start Plot
+                       └─ Check before plotting → Start plotting
 ```
 
 Alternatively, generate flattened command JSON or G-code headlessly with the
@@ -143,7 +155,7 @@ which one it works on so you always know what you're handling:
 
 | Format | What it is | How Gantry uses it |
 |---|---|---|
-| **SVG** (`.svg`) | Vector *artwork* — the drawing you start from | **File > Import SVG (artwork)…** reads it and converts it into the command model. This is the only way artwork *enters* Gantry. **Edit > Re-process Source SVG…** re-runs the conversion against the same file. |
+| **SVG** (`.svg`) | Vector *artwork* — the drawing you start from | **File > Add SVG or vector drawing…** fits it safely to the machine bed and converts it into Gantry's editable drawing. **Edit > Re-process Source SVG…** re-runs the conversion against the same file. |
 | **Gantry project** (`.gantry`) | The editable working session: commands, placement, selected layers, passes, and source/import/vectorizer provenance | **File > Open Project… / Save Project…** restores the state needed to continue the job later. This is the preferred working format. |
 | **Flattened commands — JSON** (`.json`) | Interchange output with the current placement, layer selection, and passes baked into commands | **File > Export Flattened Commands (JSON)…** writes it. **Open Commands (JSON)…** can still load existing command files, but JSON does not preserve the complete editable project. |
 | **G-code** (`.gcode`) | Machine instructions for the *plotter* | **File > Export G-code (for plotter)…** writes it; **File > Replay G-code…** streams an existing one straight to the machine. One-way output — G-code can't be reopened for editing. |
@@ -209,22 +221,26 @@ Used for watercolor painting. Each station has:
 
 ---
 
-## Importing an SVG
+## Adding an SVG or vector drawing
 
-Click **Import SVG…** and choose an SVG file. A two-tab dialog opens.
+When the Live View is empty, use its large **Add artwork** card, the guidance
+banner's **Add artwork** action, or **File > Add SVG or vector drawing...**.
+Choose an SVG file. The **Add artwork** tab is immediately ready with a safe
+default: the configured machine-bed dimensions, preserved aspect ratio, and a
+10 mm margin. The summary states the physical target before you import.
 
 > Note: a full-page background/border rectangle (the kind Inkscape adds as the page outline) is
 > detected and dropped automatically on import, so the pen no longer traces the outer frame before
 > drawing the content.
 
-### Import tab
+Expand **Advanced options** only when you need to override the safe default:
 
 | Field | Description |
 |---|---|
 | Max draw distance (mm) | Insert a REFILL command every N mm of drawing. Set to 0 for no refill (pure pen plotting). |
 | Default station ID | Refill station used for layers that have no explicit station assignment. |
 | Curve step (mm) | Bezier curve linearization resolution (default 0.1 mm — smaller = smoother curves, more points). |
-| Fit to | **Required.** Scale to fit a paper format: A6 · A5 · A4 · A3 · A2 · A1 · XL · Custom (WxH mm). You must choose a size before importing — the dialog starts on "-- Select size --". The **Import** button stays disabled (and grey) until a real format is picked (or Custom with a valid WxH), then turns **green** to show the import is ready to run. |
+| Fit to | Defaults to **Machine bed**. Advanced choices are A6 · A5 · A4 · A3 · A2 · A1 · XL · Custom (WxH mm). Custom disables **Import** until its size is valid; all valid choices keep the button green and ready. |
 | Custom size | WxH in mm, e.g. `210x297`. Active only when Fit to = Custom. |
 | Padding (mm) | Margin inside the target format when using Fit to. |
 | Keep aspect ratio | Prevents distortion when fitting to a format. |
@@ -234,7 +250,7 @@ Inkscape layers (`inkscape:groupmode="layer"`) become separate `Layer1`, `Layer2
 
 The importer flips the Y axis automatically: SVG uses a top-left origin with Y growing downward, while the plotter measures Y upward from the machine origin, so drawings are turned upright on import (they would otherwise appear upside down). The **Flip Y** setting remains available as a manual override for unusual hardware — leave it off for normal use.
 
-### Process SVG tab (optional)
+### Advanced SVG processing tab (optional)
 
 Check **Run SVGToolBox processing** to run the SVGToolBox pre-processing pipeline
 on the SVG before importing. The pipeline runs in this order:
@@ -529,11 +545,11 @@ global pen-down position.
 ## Plotting
 
 1. Connect to the plotter with **Connect**.
-2. Adjust speed if needed with **Speed +** / **Speed −** / **Reset** in the Jog section.
-3. Click **Start Plot** (or the **Pre-flight...** button to run the checklist on demand without
-   starting). By default **Start Plot** opens the **Pre-Plot Checklist** wizard first — see
+2. Adjust speed if needed with **Speed +** / **Speed −** / **Reset** under **Move pen manually**.
+3. Click **Start plotting** (or **Check before plotting...** to run the checklist on demand without
+   starting). By default **Start plotting** opens the **Pre-Plot Checklist** wizard first — see
    [Machine menu](#machine-menu); disable that in Settings to skip straight to plotting.
-4. For each layer, the plotter will pause and wait for you to click **Confirm Layer** before continuing (allows brush/pen changes). When a layer finishes, the head automatically raises the pen and returns to the origin (0, 0), so it's parked clear for a pen swap while you confirm the next layer.
+4. For each layer, the plotter pauses for **Pen ready — continue** (allowing brush/pen changes). When a layer finishes, the head automatically raises the pen and returns to the origin (0, 0), so it's parked clear for a pen swap while you confirm the next layer.
 5. Click **Pause** at any time to halt motion and raise the pen; click **Resume** (same button) to continue from where it left off.
 6. Click **Stop** at any time to cancel. This immediately halts the plotter (including any motion already queued on the controller) and raises the pen, rather than just stopping new commands from being sent.
 
@@ -553,14 +569,14 @@ pen or ink colour:
    still see where the visible layers sit relative to the whole piece and confirm
    you've loaded the right pen. Use **All** / **None** to toggle everything at once.
 3. The time estimate updates to reflect just the ticked layers.
-4. Click **Start Plot** — only the ticked layers are plotted (and exported, if you use
+4. Click **Start plotting** — only the ticked layers are plotted (and exported, if you use
    **Export G-code**). The drawing's position on the bed is unchanged, so every layer
    lands in register with the others.
 5. When it finishes, swap the pen, change the ticked layers, and plot again.
 
 Leave every layer ticked (the default) to plot the whole drawing in one job; you'll
-still be prompted to **Confirm Layer** between layers. With no layers ticked, Start
-Plot / Export do nothing and report that no layers are selected.
+still be prompted with **Pen ready — continue** between layers. With no layers
+ticked, plotting/export does nothing and reports that no layers are selected.
 
 **Colour layers:** with the **Colour layers** checkbox ticked (default), each layer
 is drawn in its own colour — taken from the layer's source colour, brightened if
@@ -573,7 +589,7 @@ versions of their own colours.
 While a plot is running, the jog/pen/edit controls (jog arrows and keyboard/numpad
 jogging, Pen Up/Down, Home, position fields, Optimize, Overlay, Load/Import/Save,
 Export/Replay and the raw G-code field) are disabled to prevent interfering with the
-job. Only **Confirm Layer**, **Pause/Resume**, **Stop** and the **Speed +/−/Reset**
+job. Only **Pen ready — continue**, **Pause/Resume**, **Stop** and the **Speed +/−/Reset**
 override remain active. The controls re-enable automatically when the plot finishes or
 is stopped.
 
@@ -591,7 +607,7 @@ whatever speed the machine is actually running at, not just the configured feed 
 
 Once a plot starts, the label switches to live tracking: **Elapsed: … / Est: …**, plus
 the current layer's own elapsed/estimated time once it starts drawing (layers spent
-waiting at **Confirm Layer** don't count against their estimate). It reverts to the
+waiting at **Pen ready — continue** don't count against their estimate). It reverts to the
 pre-plot estimate when the plot finishes or is stopped.
 
 Note: the live "Elapsed" clock is wall-clock time and keeps running while a plot is
@@ -599,8 +615,8 @@ paused, so a long pause will make elapsed time exceed the estimate until resumed
 
 ### Live plot log
 
-While plotting, the **Console** at the bottom of the window streams what's actually
-happening:
+While plotting, expand **Advanced controls** to view the **Console**, which streams
+what is actually happening:
 
 - A `=== Layer 'L1' (1/3): 42 commands ===` line each time a new layer starts.
 - Periodic `Layer 'L1': 100/420 commands (24%)` progress lines as it works through a layer.
@@ -608,7 +624,7 @@ happening:
   with `>` — useful for confirming exactly what's being commanded in real time, or for
   diagnosing a stall.
 
-### Jog controls
+### Move pen manually controls
 
 | Control | Action |
 |---|---|
@@ -619,7 +635,7 @@ happening:
 | Step (mm) spinner | Distance per jog tap (0.1–1000 mm) |
 | Pen Up / Pen Down | Raise / lower pen manually |
 | Speed − / + / Reset | Decrease, increase, or reset the plotter's feed-rate override while jogging or plotting |
-| Home (limit switches) | Runs GRBL's homing cycle (`$H`) against the machine's physical limit switches at 0/0, then zeroes the work origin at that position. Asks for confirmation first, since the plotter will move on its own. Requires GRBL homing to be enabled and configured on the controller (`$22=1` and the related `$23`/`$24`/`$25` settings) — Gantry just triggers the cycle, it doesn't configure GRBL. |
+| Find starting corner (Home) | Runs GRBL's homing cycle (`$H`) against the machine's physical limit switches at 0/0, then zeroes the work origin at that position. Asks for confirmation first, since the plotter will move on its own. Requires GRBL homing to be enabled and configured on the controller (`$22=1` and the related `$23`/`$24`/`$25` settings) — Gantry just triggers the cycle, it doesn't configure GRBL. |
 
 **Soft limits.** With **Soft limits** enabled (Settings → Geometry; on by
 default), jog moves — including press-and-hold continuous jogging — are clamped

@@ -12,8 +12,9 @@ watercolor station mapping/refill, G-code streaming/export/replay, plot progress
 machine setup/calibration/pre-flight wizards, travel visualization, and safe
 GRBL cancellation/error handling.
 
-The active work is product-state reliability and batch/repeat workflows rather
-than another large geometry subsystem.
+The next active work is usability hardening for casual and first-time operators,
+not another plotting feature or geometry subsystem. The detailed scope and
+acceptance plan lives in [`docs/USABILITY.md`](docs/USABILITY.md).
 
 ## Delivery plan
 
@@ -27,6 +28,7 @@ than another large geometry subsystem.
 | 6 | Focused polish | Full SVG colour discovery for hatch overrides, accurate travel accounting/labeling, and vectorizer crop restoration | Complete |
 | 7 | CLI batch artifacts | Post-import optimize, shared config/station mapping, and optional G-code output work headlessly with end-to-end tests | Complete |
 | 8 | Exact-job history | Re-plot uses an immutable prepared-job snapshot; recent successful jobs persist and can be reopened/replotted | Complete |
+| 9 | Beginner usability | A default basic workflow leads from artwork to a safe first plot with progressive disclosure, plain language, actionable guidance, safe import defaults, visible feedback, and novice acceptance evidence; advanced workflows remain available | In progress — Slices A–B complete; Slice C next |
 
 ## After these milestones
 

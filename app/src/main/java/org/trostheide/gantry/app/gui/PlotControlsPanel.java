@@ -16,9 +16,9 @@ final class PlotControlsPanel extends JPanel {
                    Runnable stop, Runnable selectionChanged, Runnable projectChanged, Consumer<Boolean> colorByLayer) { }
 
     private final Actions actions;
-    private final JButton start = new JButton("Start");
-    private final JButton preflight = new JButton("Pre-flight...");
-    private final JButton confirm = new JButton("Confirm");
+    private final JButton start = new JButton("Start plotting");
+    private final JButton preflight = new JButton("Check before plotting...");
+    private final JButton confirm = new JButton("Pen ready — continue");
     private final JButton pause = new JButton("Pause");
     private final JButton stop = new JButton("Stop");
     private final JButton all = new JButton("All");
@@ -45,8 +45,11 @@ final class PlotControlsPanel extends JPanel {
         progress.setStringPainted(true); progress.setVisible(false);
         layerList.setLayout(new BoxLayout(layerList, BoxLayout.Y_AXIS));
 
-        JPanel first = row(new JLabel("Passes"), passes, preflight, start, stop);
-        JPanel second = row(confirm, pause);
+        // Keep every safety/action control visible in the fixed 300 px column at 1024x800.
+        JPanel passesRow = row(new JLabel("Passes"), passes);
+        JPanel startRow = row(preflight, start);
+        JPanel runningRow = row(confirm);
+        JPanel stopRow = row(pause, stop);
         all.addActionListener(e -> selectAll(true)); none.addActionListener(e -> selectAll(false));
         JPanel header = row(new JLabel("Layers"), all, none);
         JScrollPane scroll = new JScrollPane(layerList);
@@ -54,7 +57,8 @@ final class PlotControlsPanel extends JPanel {
         scroll.setMaximumSize(new Dimension(Integer.MAX_VALUE, 84));
         colors.addActionListener(e -> actions.colorByLayer().accept(colors.isSelected()));
         JPanel footer = row(time, colors);
-        for (JComponent component : List.of(first, second, progress, header, scroll, footer)) {
+        for (JComponent component : List.of(
+                passesRow, startRow, runningRow, stopRow, progress, header, scroll, footer)) {
             component.setAlignmentX(LEFT_ALIGNMENT); add(component);
         }
     }

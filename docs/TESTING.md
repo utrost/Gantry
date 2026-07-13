@@ -114,13 +114,29 @@ a `testdata/` folder.
    - [ ] Ends with `BUILD SUCCESS` and **zero** test failures across all modules.
 2. Run `./scripts/start.sh` (or `start.cmd` on Windows).
    - [ ] The Gantry GUI window opens without an error dialog or stack trace in the terminal.
-3. Inspect the window.
+3. Set the window to the supported minimum **1024×800**, then inspect it.
    - [ ] Menu bar shows **File · Edit · Machine · Settings · Help**.
-   - [ ] Left: the **Live View** visualisation (dark background, bed outline, orange origin dot, red +X / green +Y axis labels).
-   - [ ] Right: the control column — **Jog**, **Overlay / Position**, **Plot**, **Raw G-code**.
-   - [ ] Bottom: the **Console**.
-   - [ ] Every control-column section is flush-left; nothing is centered or clipped at the right edge (the **Start** and **Stop** buttons are fully visible).
-   - [ ] The step-guidance banner under the toolbar uses the dark slate-blue theme colour (not yellow/cream) and is readable.
+   - [ ] Left: the **Live View** visualisation (dark background, bed outline, orange origin dot, red +X / green +Y axis labels) with a central **Add artwork** card while empty.
+   - [ ] The empty card offers **Add SVG or vector drawing**, **Add image or photo**, and **Open Gantry project**, and says that nothing will move yet.
+   - [ ] Right: the basic control column — **Advanced controls**, **Overlay / Position**, and **Plot**; manual movement, Raw G-code, and Console are hidden by default.
+   - [ ] Every control-column section is flush-left; nothing is clipped at the right edge (**Check before plotting...**, **Start plotting**, and **Stop** are fully visible).
+   - [ ] The step-guidance banner under the toolbar uses the dark slate-blue theme colour, says to add the drawing first, and has an actionable **Add artwork** button.
+   - [ ] The outlined safety label says **Safe — nothing will move** while empty and disconnected.
+4. Expand **Advanced controls**.
+   - [ ] **Move pen manually**, **Raw G-code**, and the diagnostic **Console** appear; collapse it and all three hide again.
+   - [ ] The same document, connection, Plot controls, and primary action remain in place—this is presentation disclosure, not a separate mode.
+
+#### TS-A2 — Primary journey and explicit safety states *(mock OK)*
+1. Add artwork while disconnected.
+   - [ ] Safety remains **Safe — nothing will move**; the primary banner action becomes **Connect plotter**.
+2. Connect the mock backend.
+   - [ ] Safety becomes **Connected — manual movement enabled**; the primary action becomes **Check before plotting**.
+3. Start a mock plot and wait at a layer boundary.
+   - [ ] Safety reads **Waiting for pen — machine paused** and the primary action is **Pen ready — continue**.
+4. Continue the layer.
+   - [ ] Safety reads **Plotter moving** and the primary action becomes **Pause**.
+5. Pause, resume, then stop.
+   - [ ] Paused reads **Paused — machine will stay still** with **Resume plotting**; stop returns to a non-moving connected state.
 
 ---
 
@@ -195,7 +211,7 @@ a `testdata/` folder.
 
 #### TS-D1 — Machine menu contents *(mock OK)*
 1. Open the **Machine** menu.
-   - [ ] Items present: **Connect**, **Home**, then (after a separator) **Pre-Plot Checklist...**, **Setup Wizard...**, **Calibrate Axes...**, **Test Color Stations...**.
+   - [ ] Items present: **Connect**, **Find Starting Corner (Home)**, then (after a separator) **Check Before Plotting...**, **Setup Wizard...**, **Calibrate Axes...**, **Test Color Stations...**.
    - [ ] Hovering each shows a descriptive tooltip.
 
 #### TS-D2 — Connect/Disconnect label toggle *(mock OK)*
@@ -208,7 +224,7 @@ a `testdata/` folder.
    - [ ] Both the button and menu item revert to **Connect**; connection-required controls disable again.
 
 #### TS-D3 — Home from the Machine menu *(hardware; mock OK for flow)*
-1. Connect (mock). Choose **Machine > Home** (or **Home (limit switches)** in the Jog section).
+1. Connect (mock). Choose **Machine > Find Starting Corner (Home)** (or the same action under **Move pen manually**).
    - [ ] A confirmation dialog appears (the head will move). Click **Cancel** — nothing happens.
 2. Trigger **Home** again and confirm.
    - [ ] Console logs the homing cycle and origin-zeroed message (mock simulates instantly; hardware runs GRBL `$H`).
@@ -257,14 +273,14 @@ a `testdata/` folder.
 
 ---
 
-### Group F — Pre-Plot Checklist / Pre-flight
+### Group F — Check Before Plotting / Pre-Plot Checklist
 
 #### TS-F1 — Guard with nothing loaded *(mock OK)*
-1. With no drawing loaded, click the **Pre-flight...** button (next to Start) or **Machine > Pre-Plot Checklist...**.
+1. With no drawing loaded, click **Check before plotting...** or **Machine > Check Before Plotting...**.
    - [ ] A dialog says to load or import a drawing first; no wizard opens.
 
 #### TS-F2 — Full checklist flow *(hardware; mock OK)*
-1. Import `simple.svg` (TS-G2). Connect (mock). Click **Pre-flight...**.
+1. Add `simple.svg` (TS-G2). Connect (mock). Click **Check before plotting...**.
    - [ ] Step **Connect** shows connection status; **Next** is enabled because you're connected (if you start disconnected, a **Connect** button appears and **Next** stays disabled until it connects).
 2. **Next** → **Home** (optional). Click **Home**; status updates. **Next**.
 3. **Frame the job** (optional).
@@ -279,34 +295,35 @@ a `testdata/` folder.
 
 #### TS-F3 — Frame stays inside the bed *(mock OK)*
 1. Import a drawing and drag/scale it so part overhangs the bed edge.
-2. Run **Pre-flight... → Frame the job** (or Frame from the wizard).
+2. Run **Check before plotting... → Frame the job**.
    - [ ] The logged framed bounds are **clamped to the bed** (no coordinate exceeds the machine width/height) — the trace never commands the head off the bed even though the drawing overhangs.
 
 #### TS-F4 — Start-Plot toggle integration *(mock OK)*
 1. In **Settings**, ensure **Run Pre-Plot Checklist before Start** is **ticked** (default). Save.
-2. With a drawing loaded and connected, click **Start Plot**.
+2. With a drawing loaded and connected, click **Start plotting**.
    - [ ] The **Pre-Plot Checklist** wizard opens instead of plotting immediately.
    - [ ] Cancelling the wizard does **not** start a plot.
-3. In Settings, **untick** the toggle. Save. Click **Start Plot**.
+3. In Settings, **untick** the toggle. Save. Click **Start plotting**.
    - [ ] Plotting begins immediately, with no wizard.
 
 ---
 
 ### Group G — SVG import (basic)
 
-#### TS-G1 — Import button gating & page-border handling *(mock OK)*
-1. Click **File > Import SVG (artwork)...**, choose `framed.svg`.
-   - [ ] With **Fit to** on "-- Select size --", the **Import** button is disabled (grey).
-   - [ ] Pick **Fit to = A4** — Import enables and turns **green**.
-   - [ ] Pick **Fit to = Custom** with a blank size — Import disables; enter `210x297` — it re-enables/greens.
-   - [ ] **Curve step** defaults to `0.1` mm.
+#### TS-G1 — Safe default, advanced validation & page-border handling *(mock OK)*
+1. Click the empty Live View's **Add SVG or vector drawing** (repeat through **File > Add SVG or vector drawing...** to verify both routes), then choose `framed.svg`.
+   - [ ] **Add artwork** opens with **Advanced options** collapsed.
+   - [ ] The summary names the configured machine-bed dimensions and a **10 mm safety margin**.
+   - [ ] **Import** is immediately enabled and green; **Keep aspect ratio** is part of the default.
+   - [ ] Expand **Advanced options**: **Fit to = Machine bed**, padding = `10`, and curve step = `0.1` mm.
+   - [ ] Pick **Fit to = Custom** with a blank size — Import disables; enter `210x297` — it re-enables/greens and the summary identifies the advanced target.
 2. Import `framed.svg` with Max draw distance = 0.
    - [ ] The full-page background border rectangle is dropped; the pen does not trace the outer frame.
 3. Import `single-rect.svg`.
    - [ ] The single rect **is** drawn (a lone shape is the content and must not be discarded as a page border).
 
 #### TS-G2 — Basic import & refill insertion *(mock OK)*
-1. Import `simple.svg`, Max draw distance = 0.
+1. Add `simple.svg` with the default options (Max draw distance remains 0).
    - [ ] Drawing appears in the Live View.
    - [ ] Console: `Imported simple.svg: N layer(s), M command(s)`.
 2. Re-import with Max draw distance = 50 mm.
@@ -328,7 +345,7 @@ a `testdata/` folder.
    - [ ] That layer **ghosts** (dims) while ticked layers stay full colour; the drawing does not move on the bed; the `Est:` time drops to reflect only ticked layers.
 3. Use **All** / **None**.
    - [ ] They tick/untick every layer at once.
-4. With a subset ticked, **Start Plot** (mock) and **Export G-code**.
+4. With a subset ticked, **Start plotting** (mock) and **Export G-code**.
    - [ ] Only the ticked layers are plotted/exported. Re-ticking all restores the full preview/estimate.
 5. Untick **all** layers, then Start Plot / Export.
    - [ ] Both do nothing and the console reports no layers selected.
@@ -463,17 +480,17 @@ positions with the test-run wizard, see [Group T](#group-t--visual-station-place
 ### Group O — Plotting
 
 #### TS-O1 — Basic plot *(hardware; mock OK)*
-1. Import `simple.svg`, Max draw distance = 0. Connect (mock). **Start Plot** (cancel the Pre-Plot wizard's gate via TS-F4 if the toggle is on, or set it off first).
+1. Add `simple.svg`, Max draw distance = 0. Connect (mock). **Start plotting** (cancel the Pre-Plot wizard's gate via TS-F4 if the toggle is on, or set it off first).
    - [ ] Console shows `=== Layer ... ===` start lines and streaming draw commands prefixed with `>`.
    - [ ] The cursor dot in the Live View moves along the path in real time.
    - [ ] Plot completes with a completion message.
-   - [ ] While plotting, jog/pen/edit/load/export controls are disabled; only Confirm Layer, Pause/Resume, Stop, Speed ±/Reset stay active.
+   - [ ] While plotting, jog/pen/edit/load/export controls are disabled; only **Pen ready — continue**, Pause/Resume, Stop, and Speed ±/Reset stay active.
 
 #### TS-O2 — Refill / confirm-layer pauses *(hardware; mock OK)*
 1. Import with Max draw distance = 50 (adds refills). Plot.
    - [ ] The plotter pauses at each layer boundary; console shows a refill/confirm message.
    - [ ] At layer end the head raises the pen and returns to origin (parked for a pen swap).
-   - [ ] **Confirm Layer** resumes the next layer.
+   - [ ] **Pen ready — continue** resumes the next layer.
 
 #### TS-O3 — Pause / Resume / Stop *(hardware; mock OK)*
 1. Start a plot. Click **Pause**.
@@ -503,7 +520,7 @@ positions with the test-run wizard, see [Group T](#group-t--visual-station-place
 #### TS-P2 — Live tracking *(mock OK)*
 1. Start a plot.
    - [ ] The label switches to `Elapsed: … / Est: …`, plus the current layer's elapsed/estimated time once it starts drawing.
-   - [ ] Time spent waiting at **Confirm Layer** does not count against the layer estimate.
+   - [ ] Time spent waiting at **Pen ready — continue** does not count against the layer estimate.
    - [ ] On finish/stop it reverts to the pre-plot estimate.
 
 ---
