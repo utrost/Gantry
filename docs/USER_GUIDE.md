@@ -138,7 +138,7 @@ CLI. Command JSON can be opened in the GUI as a new project.
 
 ### The four file formats
 
-Gantry deals with three different kinds of file, and every menu item now names
+Gantry deals with four different kinds of file, and every menu item now names
 which one it works on so you always know what you're handling:
 
 | Format | What it is | How Gantry uses it |
