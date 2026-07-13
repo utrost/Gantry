@@ -141,6 +141,7 @@ public class PlotterPanel extends JPanel {
             public void position(double x,double y){onJogPositionReport(x,y);SwingUtilities.invokeLater(()->visPanel.updatePosition(x,y));}
             public void speed(int percent){SwingUtilities.invokeLater(()->onSpeedChanged(percent));}
             public void sent(String line){log("> "+line);} public void log(String line){PlotterPanel.this.log(line);}
+            public void machineState(GcodeBackend.MachineState state){onGrblMachineState(state);}
             public void stopPlot(){onStopPlot();} public void refreshGuidance(){PlotterPanel.this.refreshGuidance();}
         });
         overlayControls = new OverlayControlsPanel(visPanel, new OverlayControlsPanel.Actions() {
@@ -856,6 +857,22 @@ public class PlotterPanel extends JPanel {
         if (plotClockTimer == null) refreshTimeEstimate(); else updateTimeLabelDuringPlot();
     }
 
+    private void onGrblMachineState(GcodeBackend.MachineState state) {
+        SwingUtilities.invokeLater(() -> {
+            statusLabel.setText(state == GcodeBackend.MachineState.DISCONNECTED
+                    ? "Connection lost" : "Connected — GRBL " + state);
+            if (state == GcodeBackend.MachineState.HOLD) {
+                log("GRBL Hold: plot commands are paused until the controller resumes.");
+            } else if (state == GcodeBackend.MachineState.DOOR) {
+                log("GRBL Door: plot commands are paused until the safety door closes and the controller resumes.");
+            } else if (state == GcodeBackend.MachineState.ALARM) {
+                log("ERROR: GRBL Alarm: the active plot is being aborted.");
+            } else if (state == GcodeBackend.MachineState.DISCONNECTED && plotJobController.isConnected()) {
+                log("ERROR: Serial connection to GRBL was lost.");
+            }
+        });
+    }
+
     /**
      * Tints the Connect button to guide the user through the workflow: green ("Connect") when
      * idle/disconnected so it stands out as the first required step, red ("Disconnect") once
@@ -958,7 +975,7 @@ public class PlotterPanel extends JPanel {
                 }
                 SwingUtilities.invokeLater(this::updateReplotMenuItem);
             } else if (failure != null) {
-                log("ERROR: Plot failed: " + failure.getMessage());
+                error("Plot failed: " + failure.getMessage());
             }
             SwingUtilities.invokeLater(() -> setPlottingState(false));
         });

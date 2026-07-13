@@ -42,7 +42,7 @@ Expected output: `BUILD SUCCESS` with zero failures across all modules.
 | `model` | `ProcessorOutputJsonTest`, `CoordinateTransformTest` | JSON round-trip of `ProcessorOutput`; coordinate transform (rotate/swap/invert/align) in all axis combinations |
 | `pipeline-core` | `SvgImportStageTest` (4 nested classes, 28 tests) | SVG parsing and command-model extraction: simple SVG, layered SVG, fit-to-A4 scaling, refill insertion, refill-free mode, command ID sequence, transform/nested-transform baking, mirroring; full-page background rect dropped when real content coexists; single-shape SVG (the rect *is* the content) is never dropped; `PaperFormat` parsing; `calculateFitToPageTransform`; plain (non-Inkscape) top-level `<g>` groups are split into separate layers when ≥2 contain drawables, but a lone group still collapses to one "Default" layer |
 | `pipeline-core` | `OptimizeStageTest` (7), `MultipassStageTest` | RDP simplify, greedy-NN reorder, multipass command expansion; stroke welding (touching segments merge into one polyline, reverse-when-only-end-touches, disjoint stay separate, zero tolerance disables) |
-| `plotter` | `GcodeBackendTest` | G-code formatting: init sequence, pen modes (servo/zaxis/m3m5), moveto, lineto, raw send |
+| `plotter` | `GcodeBackendTest` | G-code formatting and GRBL safety: init, pen modes, moves, raw send, realtime state, Hold/resume, in-flight Alarm abort, and serial read/write failure propagation |
 | `app` | `PlotServiceTest` | Full plot orchestration: layer sequencing, refill at layer boundary, cancel mid-plot, OOB clamping, per-waypoint position callbacks |
 | `app` | `StudioMetricsTest` (4) | Vectorize-studio plottability metrics: stroke/point counts, draw-vs-travel separation, scale-invariant travel ratio, no-double-count on stroke approach |
 | `app` | `SoftLimitsTest` (7) | Orientation-aware jog soft-limit clamp: within-bounds passthrough, clamp at 0/width/height, inverted-X negative bed, top-right origin (negative both axes), swapped-axis bounds, at-wall returns same point (stops continuous jog) |
@@ -685,6 +685,16 @@ SVG, so this group focuses on the vectorize step itself.
    - [ ] The drawing updates to the re-tuned trace; you did not have to re-pick the file.
 5. Open a `.json` command file via **Open Commands (JSON)** (which has no source image), then open the **Edit** menu.
    - [ ] **Re-vectorize Image…** still refers to the last *image* import (or is disabled if none this session); choosing it with no remembered image shows an informational message rather than erroring.
+
+**2026-07-13 verification:** the real Swing studio was exercised in-process on
+`test_mixed_shapes.png` because macOS accessibility control was unavailable.
+DP, Centerline, ImageTracer, and Paint-by-Numbers all completed live retraces;
+strategy-specific enablement, presets, crop ROI, metrics/hints, cancellation,
+and restoration of non-default Centerline threshold 100 passed. The run left
+`config.json` byte-identical and produced no `edges_debug*.png` files. The
+headless reactor suite separately covers crop, all eight vectorizers, SVG
+import, document source provenance, downstream transforms/optimization/export,
+and mock plotting.
 
 ---
 

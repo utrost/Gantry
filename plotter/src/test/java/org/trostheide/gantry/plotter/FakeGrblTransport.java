@@ -27,9 +27,33 @@ class FakeGrblTransport implements SerialTransport {
     private volatile double x;
     private volatile double y;
     private volatile int feedOverride = 100;
+    private volatile String machineState = "Idle";
+    private volatile boolean autoAck = true;
+    private volatile IOException readFailure;
+    private volatile IOException nextLineWriteFailure;
 
     List<String> sentCommands() {
         return sentCommands;
+    }
+
+    void injectLine(String line) {
+        toClient.add(line);
+    }
+
+    void setMachineState(String state) {
+        machineState = state;
+    }
+
+    void setAutoAck(boolean enabled) {
+        autoAck = enabled;
+    }
+
+    void failReads(IOException failure) {
+        readFailure = failure;
+    }
+
+    void failNextWrite(IOException failure) {
+        nextLineWriteFailure = failure;
     }
 
     @Override
@@ -39,6 +63,10 @@ class FakeGrblTransport implements SerialTransport {
 
     @Override
     public String readLine() throws IOException {
+        IOException failure = readFailure;
+        if (failure != null) {
+            throw failure;
+        }
         try {
             return toClient.poll(200, TimeUnit.MILLISECONDS);
         } catch (InterruptedException e) {
@@ -49,6 +77,11 @@ class FakeGrblTransport implements SerialTransport {
 
     @Override
     public synchronized void writeBytes(byte[] data) throws IOException {
+        IOException failure = nextLineWriteFailure;
+        if (failure != null && contains(data, (byte) '\n')) {
+            nextLineWriteFailure = null;
+            throw failure;
+        }
         for (byte b : data) {
             switch (b) {
                 case '\n' -> {
@@ -66,6 +99,15 @@ class FakeGrblTransport implements SerialTransport {
         }
     }
 
+    private static boolean contains(byte[] data, byte expected) {
+        for (byte value : data) {
+            if (value == expected) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private void handleCommand(String cmd) {
         sentCommands.add(cmd);
         Matcher m = XY_MOVE.matcher(cmd);
@@ -73,13 +115,15 @@ class FakeGrblTransport implements SerialTransport {
             x = Double.parseDouble(m.group(1));
             y = Double.parseDouble(m.group(2));
         }
-        toClient.add("ok");
+        if (autoAck) {
+            toClient.add("ok");
+        }
     }
 
     private String statusReport() {
         return String.format(java.util.Locale.ROOT,
-                "<Idle|MPos:%.3f,%.3f,0.000|FS:0,0|WCO:0.000,0.000,0.000|Ov:%d,100,100>",
-                x, y, feedOverride);
+                "<%s|MPos:%.3f,%.3f,0.000|FS:0,0|WCO:0.000,0.000,0.000|Ov:%d,100,100>",
+                machineState, x, y, feedOverride);
     }
 
     @Override
