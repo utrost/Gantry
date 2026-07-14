@@ -45,6 +45,7 @@ Expected output: `BUILD SUCCESS` with zero failures across all modules.
 | `app` | `PlotServiceTest` | Full plot orchestration: layer sequencing, refill at layer boundary, cancel mid-plot, OOB clamping, per-waypoint position callbacks |
 | `app` | `StudioMetricsTest` (4) | Vectorize-studio plottability metrics: stroke/point counts, draw-vs-travel separation, scale-invariant travel ratio, no-double-count on stroke approach |
 | `app` | `BusyOverlayTest` | Cancellable background-work overlay exposes animated progress, invokes Cancel, and changes to a disabled Cancelling state |
+| `app` | `StartupWelcomeDialogTest`, `SettingsPanelTest` | First-launch/show-again policy; guided/setup/close action mapping; window-close dismissal; remembered startup checkbox and Settings round-trip |
 | `app` | `SoftLimitsTest` (7) | Orientation-aware jog soft-limit clamp: within-bounds passthrough, clamp at 0/width/height, inverted-X negative bed, top-right origin (negative both axes), swapped-axis bounds, at-wall returns same point (stops continuous jog) |
 | `app` | `TimeEstimatorTest` (7) | Travel/draw distances use their respective feed rates; refill travel + fixed dip overhead; unknown station falls back to default; pen-down settle overhead charged once per `DrawCommand` and driven by the configurable `penDownDelayMillis` (0 removes it); multi-layer totals; `H:MM:SS` formatting |
 | `app` | `HatchOverridesPanelTest`, `ToolboxOptionsPanelTest`, `SvgFillColorsTest` | Per-colour hatch table validation and mapping into `Config.overrides`; discovery of explicit SVG fill colours |
@@ -145,7 +146,7 @@ a `testdata/` folder.
 
 #### TS-A3 — Guided first plot, local feedback, and recovery *(mock OK)*
 1. Launch from a clean working directory with no `config.json` or recovery file.
-   - [ ] **Your first plot** explains that artwork cannot move a machine and offers **Start guided practice**, **Machine setup only**, and **Not now**.
+   - [ ] **Your first plot** explains that artwork cannot move a machine, offers **Start guided practice**, **Machine setup only**, and **Close**, and includes **Show this welcome when Gantry starts**.
 2. Choose **Start guided practice** and finish Machine Setup with its defaults.
    - [ ] Mock backend is selected by default, calibration is not forced, and a supplied 80×60 mm **Practice pen** drawing appears.
    - [ ] At 1024×800, the drawing, layers, duration, safety state, guidance, and primary action remain visible without clipping.
@@ -165,13 +166,15 @@ a `testdata/` folder.
 #### TS-B1 — First-run guided-practice offer *(mock OK)*
 1. Quit the app. Delete (or rename) `config.json` in the working directory.
 2. Launch the app.
-   - [ ] A **Your first plot** dialog offers guided practice, machine setup only, or dismissal and clearly says artwork cannot move a machine.
-3. Click **Not now**.
-   - [ ] The dialog closes and the main window is usable; no wizard opens.
-4. Quit, delete `config.json` again, relaunch, and this time click **Machine setup only**.
+   - [ ] A closable **Your first plot** dialog offers guided practice, machine setup only, or **Close**, clearly says artwork cannot move a machine, and shows a selected **Show this welcome when Gantry starts** checkbox.
+3. Untick **Show this welcome when Gantry starts**, then click **Close**.
+   - [ ] The dialog closes, the main window is usable, no wizard opens, and `config.json` records the preference.
+4. Quit and relaunch without deleting `config.json`.
+   - [ ] No welcome dialog appears.
+5. Open **Settings > General**, enable **Show welcome choices when Gantry starts**, save, then relaunch.
+   - [ ] The welcome appears again. Closing the window with its title-bar close control is equivalent to **Close**.
+6. Quit, delete `config.json` again, relaunch, and this time click **Machine setup only**.
    - [ ] The **Machine Setup** wizard opens (continue into TS-B2).
-5. Quit and relaunch **without** deleting `config.json`.
-   - [ ] No welcome dialog appears on subsequent runs (offer is first-run only).
 
 #### TS-B2 — Machine Setup Wizard happy path *(mock OK)*
 1. Open **Machine > Setup Wizard...** (or continue from TS-B1).
