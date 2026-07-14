@@ -40,10 +40,11 @@ Expected output: `BUILD SUCCESS` with zero failures across all modules.
 |---|---|---|
 | `model` | `ProcessorOutputJsonTest`, `CoordinateTransformTest` | JSON round-trip of `ProcessorOutput`; coordinate transform (rotate/swap/invert/align) in all axis combinations |
 | `pipeline-core` | `SvgImportStageTest` (4 nested classes, 28 tests) | SVG parsing and command-model extraction: simple SVG, layered SVG, fit-to-A4 scaling, refill insertion, refill-free mode, command ID sequence, transform/nested-transform baking, mirroring; full-page background rect dropped when real content coexists; single-shape SVG (the rect *is* the content) is never dropped; `PaperFormat` parsing; `calculateFitToPageTransform`; plain (non-Inkscape) top-level `<g>` groups are split into separate layers when ≥2 contain drawables, but a lone group still collapses to one "Default" layer |
-| `pipeline-core` | `OptimizeStageTest` (7), `MultipassStageTest` | RDP simplify, greedy-NN reorder, multipass command expansion; stroke welding (touching segments merge into one polyline, reverse-when-only-end-touches, disjoint stay separate, zero tolerance disables) |
+| `pipeline-core` | `OptimizeStageTest` (8), `MultipassStageTest` | RDP simplify, greedy-NN reorder, cooperative cancellation without input mutation, multipass command expansion; stroke welding (touching segments merge into one polyline, reverse-when-only-end-touches, disjoint stay separate, zero tolerance disables) |
 | `plotter` | `GcodeBackendTest` | G-code formatting and GRBL safety: init, pen modes, moves, raw send, realtime state, Hold/resume, in-flight Alarm abort, and serial read/write failure propagation |
 | `app` | `PlotServiceTest` | Full plot orchestration: layer sequencing, refill at layer boundary, cancel mid-plot, OOB clamping, per-waypoint position callbacks |
 | `app` | `StudioMetricsTest` (4) | Vectorize-studio plottability metrics: stroke/point counts, draw-vs-travel separation, scale-invariant travel ratio, no-double-count on stroke approach |
+| `app` | `BusyOverlayTest` | Cancellable background-work overlay exposes animated progress, invokes Cancel, and changes to a disabled Cancelling state |
 | `app` | `SoftLimitsTest` (7) | Orientation-aware jog soft-limit clamp: within-bounds passthrough, clamp at 0/width/height, inverted-X negative bed, top-right origin (negative both axes), swapped-axis bounds, at-wall returns same point (stops continuous jog) |
 | `app` | `TimeEstimatorTest` (7) | Travel/draw distances use their respective feed rates; refill travel + fixed dip overhead; unknown station falls back to default; pen-down settle overhead charged once per `DrawCommand` and driven by the configurable `penDownDelayMillis` (0 removes it); multi-layer totals; `H:MM:SS` formatting |
 | `app` | `HatchOverridesPanelTest`, `ToolboxOptionsPanelTest`, `SvgFillColorsTest` | Per-colour hatch table validation and mapping into `Config.overrides`; discovery of explicit SVG fill colours |
@@ -435,10 +436,14 @@ a `testdata/` folder.
 #### TS-L1 — Optimise dialog *(mock OK)*
 1. Import an SVG. **Edit > Optimize Commands (JSON)...**.
    - [ ] Dialog prompts for Tolerance / Reorder / Merge; OK runs it.
+   - [ ] An **Optimizing artwork…** overlay blocks conflicting edits while its progress bar keeps animating and **Cancel** remains responsive.
    - [ ] Console confirms and reports `strokes X -> Y`; command count may drop.
 2. Set Tolerance = 1.0, Reorder = enabled, run again.
    - [ ] Command count is ≤ before.
-3. With nothing loaded, open the menu item.
+3. On a complex drawing, start Reorder again and press **Cancel**.
+   - [ ] The button changes to **Cancelling…**, the overlay closes promptly, and local feedback says the artwork was not changed.
+   - [ ] The drawing and its existing Undo history are unchanged; no partial optimized result appears.
+4. With nothing loaded, open the menu item.
    - [ ] Shows "Open a Commands (JSON) file or Import SVG first." instead of the dialog.
 
 #### TS-L2 — Stroke welding *(mock OK)*

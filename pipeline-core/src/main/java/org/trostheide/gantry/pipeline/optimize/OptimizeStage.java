@@ -9,6 +9,8 @@ import org.trostheide.gantry.model.command.MoveCommand;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CancellationException;
+import java.util.function.BooleanSupplier;
 
 /**
  * Pre-refill optimization stage: simplifies each stroke's polyline (Ramer-Douglas-Peucker),
@@ -26,6 +28,8 @@ import java.util.List;
  * each one. Welding touching strokes removes both: one pen-down, one smooth line.
  */
 public final class OptimizeStage {
+
+    private static final BooleanSupplier NEVER_CANCELLED = () -> false;
 
     private OptimizeStage() {
     }
@@ -54,15 +58,28 @@ public final class OptimizeStage {
      */
     public static ProcessorOutput optimize(ProcessorOutput input, double simplifyTolerance,
             boolean reorderStrokes, double mergeTolerance) {
+        return optimize(input, simplifyTolerance, reorderStrokes, mergeTolerance, NEVER_CANCELLED);
+    }
+
+    /** Cancellable variant used by interactive clients running optimization in the background. */
+    public static ProcessorOutput optimize(ProcessorOutput input, double simplifyTolerance,
+            boolean reorderStrokes, double mergeTolerance, BooleanSupplier cancellationRequested) {
         List<Layer> layers = new ArrayList<>();
         for (Layer layer : input.layers()) {
-            layers.add(optimizeLayer(layer, simplifyTolerance, reorderStrokes, mergeTolerance));
+            checkCancelled(cancellationRequested);
+            layers.add(optimizeLayer(layer, simplifyTolerance, reorderStrokes, mergeTolerance,
+                    cancellationRequested));
         }
         return new ProcessorOutput(input.metadata(), layers);
     }
 
     /** Computes total pen-up travel distance, total draw-point count and stroke count for {@code output}. */
     public static Stats computeStats(ProcessorOutput output) {
+        return computeStats(output, NEVER_CANCELLED);
+    }
+
+    /** Cancellable statistics pass for large interactive documents. */
+    public static Stats computeStats(ProcessorOutput output, BooleanSupplier cancellationRequested) {
         double travel = 0;
         int points = 0;
         int strokes = 0;
@@ -70,6 +87,7 @@ public final class OptimizeStage {
 
         for (Layer layer : output.layers()) {
             for (Command cmd : layer.commands()) {
+                checkCancelled(cancellationRequested);
                 if (cmd instanceof MoveCommand move) {
                     travel += Math.hypot(move.x - cursor.x(), move.y - cursor.y());
                     cursor = new Point(move.x, move.y);
@@ -85,24 +103,28 @@ public final class OptimizeStage {
         return new Stats(travel, points, strokes);
     }
 
-    private static Layer optimizeLayer(Layer layer, double tolerance, boolean reorder, double mergeTolerance) {
+    private static Layer optimizeLayer(Layer layer, double tolerance, boolean reorder,
+            double mergeTolerance, BooleanSupplier cancellationRequested) {
         List<Command> source = layer.commands();
         List<Command> result = new ArrayList<>();
         Point cursor = new Point(0, 0);
 
         int i = 0;
         while (i < source.size()) {
+            checkCancelled(cancellationRequested);
             Command cmd = source.get(i);
             if (cmd instanceof MoveCommand && i + 1 < source.size() && source.get(i + 1) instanceof DrawCommand) {
                 List<MoveCommand> moves = new ArrayList<>();
                 List<DrawCommand> draws = new ArrayList<>();
                 while (i < source.size() && source.get(i) instanceof MoveCommand m
                         && i + 1 < source.size() && source.get(i + 1) instanceof DrawCommand d) {
+                    checkCancelled(cancellationRequested);
                     moves.add(m);
                     draws.add(d);
                     i += 2;
                 }
-                cursor = appendStrokes(result, moves, draws, tolerance, reorder, mergeTolerance, cursor);
+                cursor = appendStrokes(result, moves, draws, tolerance, reorder, mergeTolerance,
+                        cursor, cancellationRequested);
             } else {
                 result.add(cmd);
                 if (cmd instanceof MoveCommand move) {
@@ -115,11 +137,14 @@ public final class OptimizeStage {
     }
 
     private static Point appendStrokes(List<Command> result, List<MoveCommand> moves, List<DrawCommand> draws,
-            double tolerance, boolean reorder, double mergeTolerance, Point cursor) {
+            double tolerance, boolean reorder, double mergeTolerance, Point cursor,
+            BooleanSupplier cancellationRequested) {
         int n = moves.size();
         List<List<Point>> simplifiedPoints = new ArrayList<>();
         for (DrawCommand draw : draws) {
-            simplifiedPoints.add(RamerDouglasPeucker.simplify(draw.points, tolerance));
+            checkCancelled(cancellationRequested);
+            simplifiedPoints.add(RamerDouglasPeucker.simplify(draw.points, tolerance,
+                    cancellationRequested));
         }
 
         List<Integer> order;
@@ -131,7 +156,7 @@ public final class OptimizeStage {
                 Point end = pts.isEmpty() ? new Point(move.x, move.y) : pts.get(pts.size() - 1);
                 strokes.add(new PathOptimizer.Stroke(new Point(move.x, move.y), end));
             }
-            order = PathOptimizer.optimizeOrder(strokes, cursor);
+            order = PathOptimizer.optimizeOrder(strokes, cursor, cancellationRequested);
         } else {
             order = new ArrayList<>();
             for (int k = 0; k < n; k++) {
@@ -145,6 +170,7 @@ public final class OptimizeStage {
         double tolSq = mergeTolerance > 0 ? mergeTolerance * mergeTolerance : -1;
         List<Chain> chains = new ArrayList<>();
         for (int idx : order) {
+            checkCancelled(cancellationRequested);
             MoveCommand move = moves.get(idx);
             List<Point> pts = simplifiedPoints.get(idx);
 
@@ -172,11 +198,18 @@ public final class OptimizeStage {
 
         Point finalCursor = cursor;
         for (Chain c : chains) {
+            checkCancelled(cancellationRequested);
             result.add(new MoveCommand(c.moveId, c.moveX, c.moveY));
             result.add(new DrawCommand(c.drawId, c.points));
             finalCursor = c.points.isEmpty() ? new Point(c.moveX, c.moveY) : c.points.get(c.points.size() - 1);
         }
         return finalCursor;
+    }
+
+    static void checkCancelled(BooleanSupplier cancellationRequested) {
+        if (cancellationRequested.getAsBoolean() || Thread.currentThread().isInterrupted()) {
+            throw new CancellationException("Optimization cancelled");
+        }
     }
 
     private static double distSq(Point a, Point b) {

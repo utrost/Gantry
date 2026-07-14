@@ -18,7 +18,7 @@ final class BusyOverlay extends JPanel {
 
     private final JLabel label = new JLabel();
 
-    private BusyOverlay() {
+    private BusyOverlay(Runnable cancelAction) {
         setOpaque(false);
         setLayout(new GridBagLayout());
         // Swallow clicks/keys so the dimmed UI underneath can't be operated while we're busy.
@@ -45,6 +45,20 @@ final class BusyOverlay extends JPanel {
         card.add(label);
         card.add(Box.createVerticalStrut(14));
         card.add(bar);
+        if (cancelAction != null) {
+            card.add(Box.createVerticalStrut(12));
+            JButton cancel = new JButton("Cancel");
+            cancel.setAlignmentX(CENTER_ALIGNMENT);
+            cancel.getAccessibleContext().setAccessibleDescription(
+                    "Cancel the current background operation without changing the artwork");
+            cancel.addActionListener(e -> {
+                cancel.setEnabled(false);
+                cancel.setText("Cancelling…");
+                label.setText("Cancelling…");
+                cancelAction.run();
+            });
+            card.add(cancel);
+        }
         add(card);
     }
 
@@ -64,16 +78,27 @@ final class BusyOverlay extends JPanel {
      * can {@link #dismiss()} it, or {@code null} if {@code anchor} has no usable window (nothing to do).
      */
     static BusyOverlay show(Component anchor, String message) {
+        return show(anchor, message, null);
+    }
+
+    /** Shows a busy overlay whose Cancel button invokes {@code cancelAction}, when supplied. */
+    static BusyOverlay show(Component anchor, String message, Runnable cancelAction) {
         Window w = SwingUtilities.getWindowAncestor(anchor);
         if (!(w instanceof RootPaneContainer rpc)) {
             return null;
         }
-        BusyOverlay overlay = new BusyOverlay();
-        overlay.setMessage(message);
+        BusyOverlay overlay = create(message, cancelAction);
         overlay.previousGlass = rpc.getGlassPane();
         overlay.host = rpc;
         rpc.setGlassPane(overlay);
         overlay.setVisible(true);
+        return overlay;
+    }
+
+    /** Creates an unattached overlay for component-level tests. */
+    static BusyOverlay create(String message, Runnable cancelAction) {
+        BusyOverlay overlay = new BusyOverlay(cancelAction);
+        overlay.setMessage(message);
         return overlay;
     }
 

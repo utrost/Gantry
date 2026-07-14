@@ -4,6 +4,7 @@ import org.trostheide.gantry.model.Point;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.BooleanSupplier;
 
 /** Ramer-Douglas-Peucker polyline simplification, ported from SVGToolBox's {@code SimplifyProcessor}. */
 public final class RamerDouglasPeucker {
@@ -13,16 +14,25 @@ public final class RamerDouglasPeucker {
 
     /** Returns a simplified copy of {@code points}, dropping points within {@code epsilon} of the chord. */
     public static List<Point> simplify(List<Point> points, double epsilon) {
+        return simplify(points, epsilon, () -> false);
+    }
+
+    static List<Point> simplify(List<Point> points, double epsilon,
+            BooleanSupplier cancellationRequested) {
+        OptimizeStage.checkCancelled(cancellationRequested);
         if (points.size() < 3 || epsilon <= 0) {
             return new ArrayList<>(points);
         }
-        return simplify(points, 0, points.size() - 1, epsilon);
+        return simplify(points, 0, points.size() - 1, epsilon, cancellationRequested);
     }
 
-    private static List<Point> simplify(List<Point> points, int start, int end, double epsilon) {
+    private static List<Point> simplify(List<Point> points, int start, int end, double epsilon,
+            BooleanSupplier cancellationRequested) {
+        OptimizeStage.checkCancelled(cancellationRequested);
         double maxDist = 0;
         int index = start;
         for (int i = start + 1; i < end; i++) {
+            OptimizeStage.checkCancelled(cancellationRequested);
             double d = perpendicularDistance(points.get(i), points.get(start), points.get(end));
             if (d > maxDist) {
                 maxDist = d;
@@ -32,8 +42,8 @@ public final class RamerDouglasPeucker {
 
         List<Point> result = new ArrayList<>();
         if (maxDist > epsilon) {
-            List<Point> left = simplify(points, start, index, epsilon);
-            List<Point> right = simplify(points, index, end, epsilon);
+            List<Point> left = simplify(points, start, index, epsilon, cancellationRequested);
+            List<Point> right = simplify(points, index, end, epsilon, cancellationRequested);
             result.addAll(left.subList(0, left.size() - 1));
             result.addAll(right);
         } else {

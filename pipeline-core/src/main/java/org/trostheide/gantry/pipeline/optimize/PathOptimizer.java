@@ -7,6 +7,7 @@ import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.function.BooleanSupplier;
 
 /**
  * Greedy nearest-neighbor + 2-opt travel-minimizing reorder, ported from SVGToolBox's
@@ -26,6 +27,11 @@ public final class PathOptimizer {
      * distance, starting from {@code origin}.
      */
     public static List<Integer> optimizeOrder(List<Stroke> strokes, Point origin) {
+        return optimizeOrder(strokes, origin, () -> false);
+    }
+
+    static List<Integer> optimizeOrder(List<Stroke> strokes, Point origin,
+            BooleanSupplier cancellationRequested) {
         int n = strokes.size();
         List<Integer> route = new ArrayList<>();
         if (n == 0) {
@@ -39,9 +45,11 @@ public final class PathOptimizer {
 
         Point current = origin;
         while (!remaining.isEmpty()) {
+            OptimizeStage.checkCancelled(cancellationRequested);
             int best = -1;
             double bestDist = Double.MAX_VALUE;
             for (int idx : remaining) {
+                OptimizeStage.checkCancelled(cancellationRequested);
                 double d = distSq(current, strokes.get(idx).start());
                 if (d < bestDist) {
                     bestDist = d;
@@ -53,20 +61,23 @@ public final class PathOptimizer {
             current = strokes.get(best).end();
         }
 
-        twoOptImprove(route, strokes);
+        twoOptImprove(route, strokes, cancellationRequested);
         return route;
     }
 
-    private static void twoOptImprove(List<Integer> route, List<Stroke> strokes) {
+    private static void twoOptImprove(List<Integer> route, List<Stroke> strokes,
+            BooleanSupplier cancellationRequested) {
         if (route.size() < 4) {
             return;
         }
         boolean improved = true;
         int maxIterations = 5;
         while (improved && maxIterations-- > 0) {
+            OptimizeStage.checkCancelled(cancellationRequested);
             improved = false;
             for (int i = 0; i < route.size() - 2; i++) {
                 for (int j = i + 2; j < route.size(); j++) {
+                    OptimizeStage.checkCancelled(cancellationRequested);
                     double currentDist = segmentDistance(route, strokes, i, j);
                     double swappedDist = swappedSegmentDistance(route, strokes, i, j);
                     if (swappedDist < currentDist - 0.001) {

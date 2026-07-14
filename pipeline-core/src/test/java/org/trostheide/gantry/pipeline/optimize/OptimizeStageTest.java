@@ -12,9 +12,13 @@ import org.trostheide.gantry.model.command.MoveCommand;
 import org.trostheide.gantry.model.command.RefillCommand;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CancellationException;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class OptimizeStageTest {
@@ -142,5 +146,24 @@ class OptimizeStageTest {
         assertEquals("station-a", optLayer.stationId());
         List<Command> commands = optLayer.commands();
         assertTrue(commands.get(0) instanceof RefillCommand, "refill command should stay first");
+    }
+
+    @Test
+    void cancellationStopsExpensiveReorderingWithoutMutatingTheInput() {
+        List<Command> commands = new ArrayList<>();
+        for (int i = 0; i < 40; i++) {
+            commands.add(new MoveCommand(i * 2 + 1, 40 - i, i % 7));
+            commands.add(new DrawCommand(i * 2 + 2,
+                    List.of(new Point(40 - i, i % 7), new Point(40 - i, i % 7 + 1))));
+        }
+        ProcessorOutput input = output(new Layer("large", "default_station", commands));
+        List<Command> originalCommands = List.copyOf(input.layers().get(0).commands());
+        AtomicInteger checks = new AtomicInteger();
+
+        assertThrows(CancellationException.class, () -> OptimizeStage.optimize(
+                input, 0, true, 0, () -> checks.incrementAndGet() > 50));
+
+        assertTrue(checks.get() > 50, "cancellation should be checked during the optimization loops");
+        assertEquals(originalCommands, input.layers().get(0).commands());
     }
 }
