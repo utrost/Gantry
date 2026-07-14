@@ -137,6 +137,9 @@ a `testdata/` folder.
    - [ ] Safety reads **Plotter moving** and the primary action becomes **Pause**.
 5. Pause, resume, then stop.
    - [ ] Paused reads **Paused — machine will stay still** with **Resume plotting**; stop returns to a non-moving connected state.
+6. Complete a mock plot without stopping it.
+   - [ ] The banner keeps **Plot finished successfully** visible and offers **Plot another copy**.
+   - [ ] **Plot another copy** opens the safety check; it never starts movement immediately.
 
 #### TS-A3 — Guided first plot, local feedback, and recovery *(mock OK)*
 1. Launch from a clean working directory with no `config.json` or recovery file.
@@ -147,7 +150,7 @@ a `testdata/` folder.
 3. Connect, open **Check before plotting**, then cancel it once.
    - [ ] A local message says nothing started and the primary action returns to **Check before plotting**.
 4. Run the check again, select all physical confirmations, finish, and choose **Pen ready — continue**.
-   - [ ] The mock plot completes and local feedback reports success without requiring the Console.
+   - [ ] The mock plot completes and local feedback reports success without requiring the Console; the persistent next action is **Plot another copy**.
 5. Make an editable command-model change.
    - [ ] Inline feedback describes the edit and offers **Undo**; invoking it restores the previous model.
 6. Quit without saving after the practice drawing has autosaved, relaunch, and accept recovery.

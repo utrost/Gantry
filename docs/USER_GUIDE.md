@@ -26,6 +26,8 @@ Setup Wizard with the no-hardware mock backend selected, loads a supplied
 80×60 mm practice drawing, then leads into the normal connection and safety
 check. You can restart this route later with **Help > Guided First Plot...**.
 
+![First-run guided-practice choice](images/first-run-guided-practice.png)
+
 The default control column keeps artwork position, layers, duration, and plotting
 actions visible. Expand **Advanced controls** when you need manual movement, raw
 G-code, or the diagnostic Console; the disclosure only changes presentation and
@@ -34,6 +36,9 @@ uses the same live document and plotter connection.
 The outlined safety status always states whether Gantry is **Safe — nothing will
 move**, **Connected — manual movement enabled**, **Plotter moving**, waiting for a
 pen, or paused. The banner beside it presents the next normal action.
+After a successful plot, the banner continues to say that the plot finished and
+offers **Plot another copy**; that action runs the safety check again rather than
+starting movement immediately.
 
 ---
 

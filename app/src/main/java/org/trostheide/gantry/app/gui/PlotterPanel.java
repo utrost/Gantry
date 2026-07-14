@@ -175,7 +175,7 @@ public class PlotterPanel extends JPanel {
             public void move(int id,double[][]p){onMoveStroke(id,p);} public void duplicate(int id){onDuplicateStroke(id);}
             public void mode(VisualizationPanel.InteractionMode mode){syncInteractionMode(mode);}
             public void stationMoved(String n,double x,double y){onStationMovedOnCanvas(n,x,y);} public void stationAdded(double x,double y){onStationAddedOnCanvas(x,y);}
-            public void overlayChanged(){documentSession.markDirty();scheduleRecovery();updateDirtyIndicator();}
+            public void overlayChanged(){resetReplot();documentSession.markDirty();scheduleRecovery();updateDirtyIndicator();refreshGuidance();}
             public void log(String line){PlotterPanel.this.log(line);}
         });
         dialogs = new ApplicationDialogs(this, () -> config, this::saveSettings, this::onSetupWizard,
@@ -330,7 +330,8 @@ public class PlotterPanel extends JPanel {
     private void refreshGuidance() {
         OperatorJourney.Step step = OperatorJourney.current(new OperatorJourney.Snapshot(
                 documentSession.currentOutput() != null, plotJobController.isConnected(),
-                plotting, plotJobController.isPaused(), awaitingLayerConfirmation));
+                plotting, plotJobController.isPaused(), awaitingLayerConfirmation,
+                plotJobController.canReplot()));
         guidanceLabel.setText(step.message());
         safetyStatusLabel.setText(step.safety().label());
         setGuidanceAction(step);
@@ -886,9 +887,11 @@ public class PlotterPanel extends JPanel {
     }
 
     private void onProjectSettingsChanged() {
+        resetReplot();
         documentSession.markDirty();
         scheduleRecovery();
         updateDirtyIndicator();
+        refreshGuidance();
     }
 
     private void applyLayerFilter() {
@@ -1093,7 +1096,7 @@ public class PlotterPanel extends JPanel {
                 && !plotHistory.jobs().isEmpty());
     }
 
-    /** Called whenever a new drawing replaces the current one; invalidates the stored re-plot offer. */
+    /** Invalidates the same-artwork completion/re-plot offer after drawing or job settings change. */
     private void resetReplot() {
         plotJobController.resetReplot();
         updateReplotMenuItem();
@@ -1397,6 +1400,7 @@ public class PlotterPanel extends JPanel {
     private void onRedo() { documentEditor.redo(); }
 
     private void onDocumentEdited() {
+        resetReplot();
         visPanel.loadPathsPreservingOverlay(documentSession.currentOutput());
         refreshDocumentUi();
         scheduleRecovery();

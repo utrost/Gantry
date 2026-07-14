@@ -258,6 +258,9 @@ step without external help.
 
 ### Slice D — novice validation and polish
 
+**Status: In progress — study protocol and repeatable result template are ready;
+five-participant evidence remains required.**
+
 - Run the novice study described below.
 - Fix the observed blockers and repeat until the completion target is met.
 - Update `USER_GUIDE.md`, `TESTING.md`, screenshots, and release acceptance.
@@ -266,6 +269,10 @@ step without external help.
 
 **Exit:** acceptance evidence satisfies the success measures and all automated,
 mock-GUI, and required hardware checks pass.
+
+The facilitator protocol is [`NOVICE_STUDY.md`](NOVICE_STUDY.md); record each
+round with [`NOVICE_STUDY_RESULTS_TEMPLATE.md`](NOVICE_STUDY_RESULTS_TEMPLATE.md).
+Automated or agent-driven UI checks do not substitute for the five participants.
 
 ## Acceptance criteria
 
@@ -297,10 +304,12 @@ mock-GUI, and required hardware checks pass.
 ### Novice study
 
 Test with five people who have not used Gantry and ideally have little or no
-plotter experience. Give them the application, a configured mock backend, and
-this task without procedural instructions:
+plotter experience. Follow the canonical clean-profile procedure in
+[`NOVICE_STUDY.md`](NOVICE_STUDY.md), beginning with **Your first plot** visible,
+and give this task without procedural instructions:
 
-> Add this artwork, make sure it fits, and prepare and complete a practice plot.
+> Use Gantry to prepare and complete a simulated practice plot. Nothing physical
+> is connected, so no real machine can move.
 
 Observe rather than coach. Record:
 

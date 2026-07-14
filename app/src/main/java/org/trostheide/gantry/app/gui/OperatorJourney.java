@@ -2,7 +2,7 @@ package org.trostheide.gantry.app.gui;
 
 /** Swing-free derivation of the operator's next action and current machine-safety state. */
 final class OperatorJourney {
-    enum State { EMPTY, ARTWORK_READY, CONNECTED, WAITING_FOR_PEN, MOVING, PAUSED }
+    enum State { EMPTY, ARTWORK_READY, CONNECTED, COMPLETE, WAITING_FOR_PEN, MOVING, PAUSED }
     enum Action { ADD_ARTWORK, CONNECT, CHECK_BEFORE_PLOTTING, CONTINUE, PAUSE, RESUME }
     enum Safety {
         SAFE("Safe — nothing will move"),
@@ -17,7 +17,7 @@ final class OperatorJourney {
     }
 
     record Snapshot(boolean hasArtwork, boolean connected, boolean plotting,
-                    boolean paused, boolean waitingForPen) { }
+                    boolean paused, boolean waitingForPen, boolean completed) { }
     record Step(State state, String message, String actionLabel, Action action, Safety safety) { }
 
     private OperatorJourney() { }
@@ -45,9 +45,17 @@ final class OperatorJourney {
             return new Step(State.EMPTY, message, "Add artwork", Action.ADD_ARTWORK,
                     snapshot.connected() ? Safety.CONNECTED : Safety.SAFE);
         }
+        if (snapshot.completed() && snapshot.connected()) {
+            return new Step(State.COMPLETE,
+                    "Plot finished successfully. Leave the artwork in place to make another copy.",
+                    "Plot another copy", Action.CHECK_BEFORE_PLOTTING, Safety.CONNECTED);
+        }
         if (!snapshot.connected()) {
+            String message = snapshot.completed()
+                    ? "The last plot finished successfully. Connect when you want to make another copy."
+                    : "Check the artwork's size and position, then connect when you are ready.";
             return new Step(State.ARTWORK_READY,
-                    "Check the artwork's size and position, then connect when you are ready.",
+                    message,
                     "Connect plotter", Action.CONNECT, Safety.SAFE);
         }
         return new Step(State.CONNECTED,
