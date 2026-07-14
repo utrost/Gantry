@@ -8,7 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class OperatorJourneyTest {
     @Test
     void artworkComesBeforeConnectionAndIsExplicitlySafe() {
-        OperatorJourney.Step step = step(false, false, false, false, false);
+        OperatorJourney.Step step = step(false, false, false, false, false, false);
 
         assertEquals(OperatorJourney.State.EMPTY, step.state());
         assertEquals(OperatorJourney.Action.ADD_ARTWORK, step.action());
@@ -18,8 +18,8 @@ class OperatorJourneyTest {
 
     @Test
     void artworkPreparationLeadsToConnectionThenSafetyCheck() {
-        OperatorJourney.Step artwork = step(true, false, false, false, false);
-        OperatorJourney.Step connected = step(true, true, false, false, false);
+        OperatorJourney.Step artwork = step(true, false, false, false, false, false);
+        OperatorJourney.Step connected = step(true, true, false, false, false, false);
 
         assertEquals(OperatorJourney.Action.CONNECT, artwork.action());
         assertEquals(OperatorJourney.Safety.SAFE, artwork.safety());
@@ -29,7 +29,7 @@ class OperatorJourneyTest {
 
     @Test
     void connectedEmptyStateNeverClaimsThatMovementIsImpossible() {
-        OperatorJourney.Step step = step(false, true, false, false, false);
+        OperatorJourney.Step step = step(false, true, false, false, false, false);
 
         assertEquals(OperatorJourney.Action.ADD_ARTWORK, step.action());
         assertEquals(OperatorJourney.Safety.CONNECTED, step.safety());
@@ -38,7 +38,7 @@ class OperatorJourneyTest {
 
     @Test
     void penChangeBecomesThePrimaryAction() {
-        OperatorJourney.Step step = step(true, true, true, false, true);
+        OperatorJourney.Step step = step(true, true, true, false, true, false);
 
         assertEquals(OperatorJourney.State.WAITING_FOR_PEN, step.state());
         assertEquals(OperatorJourney.Action.CONTINUE, step.action());
@@ -48,8 +48,8 @@ class OperatorJourneyTest {
 
     @Test
     void activeAndPausedPlotsExposeTheSafeImmediateAction() {
-        OperatorJourney.Step moving = step(true, true, true, false, false);
-        OperatorJourney.Step paused = step(true, true, true, true, false);
+        OperatorJourney.Step moving = step(true, true, true, false, false, false);
+        OperatorJourney.Step paused = step(true, true, true, true, false, false);
 
         assertEquals(OperatorJourney.Action.PAUSE, moving.action());
         assertEquals(OperatorJourney.Safety.MOVING, moving.safety());
@@ -57,9 +57,22 @@ class OperatorJourneyTest {
         assertEquals(OperatorJourney.Safety.PAUSED, paused.safety());
     }
 
+    @Test
+    void completedPlotRemainsUnmistakableAndRoutesAnotherCopyThroughSafetyCheck() {
+        OperatorJourney.Step connected = step(true, true, false, false, false, true);
+        OperatorJourney.Step disconnected = step(true, false, false, false, false, true);
+
+        assertEquals(OperatorJourney.State.COMPLETE, connected.state());
+        assertTrue(connected.message().contains("finished successfully"));
+        assertEquals("Plot another copy", connected.actionLabel());
+        assertEquals(OperatorJourney.Action.CHECK_BEFORE_PLOTTING, connected.action());
+        assertEquals(OperatorJourney.Action.CONNECT, disconnected.action());
+        assertTrue(disconnected.message().contains("finished successfully"));
+    }
+
     private static OperatorJourney.Step step(boolean artwork, boolean connected,
-            boolean plotting, boolean paused, boolean waiting) {
+            boolean plotting, boolean paused, boolean waiting, boolean completed) {
         return OperatorJourney.current(
-                new OperatorJourney.Snapshot(artwork, connected, plotting, paused, waiting));
+                new OperatorJourney.Snapshot(artwork, connected, plotting, paused, waiting, completed));
     }
 }
