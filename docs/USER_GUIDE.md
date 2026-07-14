@@ -24,7 +24,11 @@ The GUI opens. On a brand-new install (no `config.json` yet), choose **Start
 guided practice** for the shortest route to a first plot. Gantry opens the real
 Setup Wizard with the no-hardware mock backend selected, loads a supplied
 80×60 mm practice drawing, then leads into the normal connection and safety
-check. You can restart this route later with **Help > Guided First Plot...**.
+check. Click **Close** to dismiss the welcome for the current launch. Untick
+**Show this welcome when Gantry starts** first if you do not want it on later
+launches; that preference is remembered and can be changed under
+**Settings > General**. You can always restart the guided route with
+**Help > Guided First Plot...**.
 
 ![First-run guided-practice choice](images/first-run-guided-practice.png)
 
@@ -52,7 +56,9 @@ The easiest no-hardware route is **Help > Guided First Plot...** (also offered
 automatically on first launch). It walks through the real machine setup fields,
 loads supplied practice artwork, then continues through **Connect plotter** and
 **Check before plotting**. Cancelling a step starts nothing; run the visible
-primary action again when ready.
+primary action again when ready. The startup welcome is optional: **Close**
+dismisses it now, while **Show this welcome when Gantry starts** controls later
+launches. Use **Settings > General** if you want to change that preference.
 
 Use **Machine > Setup Wizard...** when you only want machine configuration. It
 walks through Connection, Machine geometry/origin/orientation, and Pen/speed

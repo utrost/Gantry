@@ -162,6 +162,7 @@ The existing setup and pre-plot workflows should feel continuous:
 The first-run route should:
 
 - explain briefly what a plotter does and that loading artwork cannot move it;
+- be explicitly closable and let returning users remember whether it appears at startup;
 - reuse the existing Setup Wizard and calibration actions;
 - allow a supplied sample drawing or the user's own artwork;
 - use the mock backend for a no-hardware practice run;

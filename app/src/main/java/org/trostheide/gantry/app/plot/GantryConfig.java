@@ -45,6 +45,9 @@ public class GantryConfig {
     /** If true, clicking Start routes through the Pre-Plot Checklist wizard instead of plotting directly. */
     public boolean preflightBeforeStart = true;
 
+    /** Whether to offer guided practice and machine setup when Gantry starts. */
+    public boolean showWelcomeOnStartup;
+
     /**
      * If true, jog moves are clamped so the commanded position stays within the bed
      * {@code [0,width] × [0,height]} (the 0/0 corner and the opposite corner) — a soft stop in

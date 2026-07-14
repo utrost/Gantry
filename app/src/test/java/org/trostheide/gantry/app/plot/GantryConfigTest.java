@@ -1,6 +1,9 @@
 package org.trostheide.gantry.app.plot;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+
+import java.nio.file.Path;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -74,5 +77,16 @@ class GantryConfigTest {
         c.canvasAlignment = "Bottom Left";
 
         assertEquals("Bottom Left", c.toPlotSettings().canvasAlign);
+    }
+
+    @Test
+    void persistsStartupWelcomePreference(@TempDir Path tempDir) throws Exception {
+        GantryConfig config = new GantryConfig();
+        config.showWelcomeOnStartup = true;
+        Path file = tempDir.resolve("config.json");
+
+        ConfigStore.save(config, file.toFile());
+
+        assertTrue(ConfigStore.load(file.toFile()).showWelcomeOnStartup);
     }
 }

@@ -64,7 +64,7 @@ public class PlotterPanel extends JPanel {
 
     private final File configFile = new File("config.json");
     // Captured before the config loads: a missing config.json means this is a fresh install, which
-    // triggers a one-time offer to run the guided Setup Wizard.
+    // always gets the startup welcome once before the remembered preference takes over.
     private final boolean firstRun = !configFile.exists();
     private GantryConfig config = ConfigStore.load(configFile);
 
@@ -238,25 +238,30 @@ public class PlotterPanel extends JPanel {
         installJogKeyBindings();
         teeConsoleOutput();
         refreshGuidance();
-        maybeOfferFirstRunSetup();
+        maybeOfferStartupWelcome();
     }
 
-    /** On a fresh install, offer one continuous and safe route to a first practice plot. */
-    private void maybeOfferFirstRunSetup() {
-        if (!firstRun) {
+    /** Offers a safe route to a first practice plot unless the user has hidden it. */
+    private void maybeOfferStartupWelcome() {
+        if (!shouldShowStartupWelcome(firstRun, config.showWelcomeOnStartup)) {
             return;
         }
         SwingUtilities.invokeLater(() -> {
-            Object[] options = {"Start guided practice", "Machine setup only", "Not now"};
-            int choice = JOptionPane.showOptionDialog(this,
-                    "Welcome to Gantry. Adding artwork cannot move a machine.\n\n"
-                            + "Guided practice will configure Gantry, load a supplied drawing, and use the "
-                            + "no-hardware mock plotter by default.",
-                    "Your first plot", JOptionPane.DEFAULT_OPTION, JOptionPane.QUESTION_MESSAGE,
-                    null, options, options[0]);
-            if (choice == 0) onGuidedFirstPlot();
-            else if (choice == 1) onSetupWizard();
+            StartupWelcomeDialog.Result result = StartupWelcomeDialog.show(
+                    this, firstRun || config.showWelcomeOnStartup);
+            config.showWelcomeOnStartup = result.showOnStartup();
+            try {
+                ConfigStore.save(config, configFile);
+            } catch (IOException ex) {
+                log("WARNING: Failed to save startup welcome preference: " + ex.getMessage());
+            }
+            if (result.action() == StartupWelcomeDialog.Action.GUIDED_PRACTICE) onGuidedFirstPlot();
+            else if (result.action() == StartupWelcomeDialog.Action.MACHINE_SETUP) onSetupWizard();
         });
+    }
+
+    static boolean shouldShowStartupWelcome(boolean firstRun, boolean showOnStartup) {
+        return firstRun || showOnStartup;
     }
 
     /**

@@ -29,6 +29,7 @@ public class SettingsPanel extends JPanel {
     private final JSpinner baudRateSpinner = new JSpinner(new SpinnerNumberModel(115200, 9600, 250000, 100));
     private final JCheckBox mockCheckBox = new JCheckBox("Mock backend (no serial port)");
     private final JCheckBox preflightCheckBox = new JCheckBox("Run Pre-Plot Checklist before Start");
+    private final JCheckBox showWelcomeCheckBox = new JCheckBox("Show welcome choices when Gantry starts");
 
     private final JSpinner machineWidthSpinner = new JSpinner(new SpinnerNumberModel(300.0, 1.0, 5000.0, 1.0));
     private final JSpinner machineHeightSpinner = new JSpinner(new SpinnerNumberModel(200.0, 1.0, 5000.0, 1.0));
@@ -60,6 +61,7 @@ public class SettingsPanel extends JPanel {
     // The section panels are kept as fields (not just added inline) so the guided Setup Wizard can
     // re-parent the real fields into its step cards instead of duplicating every spinner/combo.
     private final JPanel connectionPanel = connectionSection();
+    private final JPanel generalPanel = generalSection();
     private final JPanel geometryPanel = geometrySection();
     private final JPanel penPanel = penSection();
     private final JPanel stationsPanel = stationsSection();
@@ -73,6 +75,7 @@ public class SettingsPanel extends JPanel {
         // re-parents, so its step cards are unaffected.
         JTabbedPane tabs = new JTabbedPane();
         tabs.addTab("Connection", scrollable(connectionPanel));
+        tabs.addTab("General", scrollable(generalPanel));
         tabs.addTab("Geometry", scrollable(geometryPanel));
         tabs.addTab("Pen / Speed", scrollable(penPanel));
         tabs.addTab("Stations", stationsPanel);
@@ -160,6 +163,15 @@ public class SettingsPanel extends JPanel {
         return panel;
     }
 
+    private JPanel generalSection() {
+        JPanel panel = new JPanel(new GridBagLayout());
+        panel.setBorder(section("General"));
+        GridBagConstraints gbc = gbc();
+        gbc.gridwidth = 2;
+        panel.add(showWelcomeCheckBox, gbc);
+        return panel;
+    }
+
     private JPanel penSection() {
         JPanel panel = new JPanel(new GridBagLayout());
         panel.setBorder(section("Pen / Speed"));
@@ -244,6 +256,7 @@ public class SettingsPanel extends JPanel {
         baudRateSpinner.setValue(config.gcode.baudRate);
         mockCheckBox.setSelected(config.mock);
         preflightCheckBox.setSelected(config.preflightBeforeStart);
+        showWelcomeCheckBox.setSelected(config.showWelcomeOnStartup);
 
         machineWidthSpinner.setValue(config.gcode.machineWidth);
         machineHeightSpinner.setValue(config.gcode.machineHeight);
@@ -279,6 +292,7 @@ public class SettingsPanel extends JPanel {
         config.gcode.baudRate = (Integer) baudRateSpinner.getValue();
         config.mock = mockCheckBox.isSelected();
         config.preflightBeforeStart = preflightCheckBox.isSelected();
+        config.showWelcomeOnStartup = showWelcomeCheckBox.isSelected();
 
         config.gcode.machineWidth = (Double) machineWidthSpinner.getValue();
         config.gcode.machineHeight = (Double) machineHeightSpinner.getValue();
