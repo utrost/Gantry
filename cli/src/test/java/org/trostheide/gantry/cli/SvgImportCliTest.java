@@ -70,6 +70,28 @@ class SvgImportCliTest {
     }
 
     @Test
+    void handdrawnRoughensPrimitiveGeometry() throws Exception {
+        Path input = writeSvg("<line x1=\"10\" y1=\"50\" x2=\"90\" y2=\"50\" stroke=\"#000000\"/>");
+        Path plainFile = tmp.resolve("plain-line.json");
+        Path handdrawnFile = tmp.resolve("handdrawn-line.json");
+
+        SvgImportCli.main(new String[] {"-i", input.toString(), "-o", plainFile.toString()});
+        SvgImportCli.main(new String[] {
+                "-i", input.toString(), "-o", handdrawnFile.toString(),
+                "--toolbox", "--handdrawn", "--handdrawn-magnitude", "3",
+                "--handdrawn-segment", "4", "--handdrawn-wavelength", "20",
+                "--handdrawn-seed", "42"});
+
+        DrawCommand plain = firstDraw(ProcessorOutputIO.load(plainFile.toFile()));
+        DrawCommand handdrawn = firstDraw(ProcessorOutputIO.load(handdrawnFile.toFile()));
+
+        assertTrue(handdrawn.points.size() > plain.points.size() * 4,
+                "hand-drawn CLI processing should resample a primitive line");
+        assertTrue(handdrawn.points.stream().anyMatch(point -> Math.abs(point.y() - 50.0) > 0.05),
+                "hand-drawn CLI processing should move interior points off the original line");
+    }
+
+    @Test
     void batchConfigMapsStationsAndWritesGcode() throws Exception {
         Path input = writeSvg("<path d=\"M10,10 L90,10\" fill=\"none\" stroke=\"#ff0000\"/>");
         Path output = tmp.resolve("batch.json");
@@ -106,5 +128,14 @@ class SvgImportCliTest {
 
     private static int commandCount(ProcessorOutput output) {
         return output.layers().stream().mapToInt(layer -> layer.commands().size()).sum();
+    }
+
+    private static DrawCommand firstDraw(ProcessorOutput output) {
+        return output.layers().stream()
+                .flatMap(layer -> layer.commands().stream())
+                .filter(DrawCommand.class::isInstance)
+                .map(DrawCommand.class::cast)
+                .findFirst()
+                .orElseThrow();
     }
 }

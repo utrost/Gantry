@@ -37,6 +37,10 @@ public final class SvgToolboxPipeline {
         // 2. Generate hatched lines (inside groups with transforms)
         pipeline.add(new HatchProcessor());
 
+        // 2b. Give the (outline + hatch) geometry a hand-drawn waver. Must run before
+        // the linesimplify/linemerge/linesort optimizers, which would straighten it out.
+        pipeline.add(new HandDrawnProcessor());
+
         // 3. Plotter path optimization
         pipeline.add(new LinesimplifyProcessor());
         pipeline.add(new LinemergeProcessor());

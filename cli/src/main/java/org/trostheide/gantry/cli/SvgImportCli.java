@@ -124,6 +124,16 @@ public final class SvgImportCli {
                 .desc("Toolbox: enable 2-opt improvement for linesort.").build());
         options.addOption(Option.builder().longOpt("reloop")
                 .desc("Toolbox: rotate closed-path start points for minimum pen travel.").build());
+        options.addOption(Option.builder().longOpt("handdrawn")
+                .desc("Toolbox: give lines a hand-drawn waver (jitter along the normal).").build());
+        options.addOption(Option.builder().longOpt("handdrawn-magnitude").hasArg()
+                .desc("Toolbox: hand-drawn jitter amplitude in px (default 2.0).").build());
+        options.addOption(Option.builder().longOpt("handdrawn-segment").hasArg()
+                .desc("Toolbox: hand-drawn resample spacing in px (default 4.0).").build());
+        options.addOption(Option.builder().longOpt("handdrawn-wavelength").hasArg()
+                .desc("Toolbox: hand-drawn wobble wavelength in px (default 30.0).").build());
+        options.addOption(Option.builder().longOpt("handdrawn-seed").hasArg()
+                .desc("Toolbox: hand-drawn random seed for reproducible output (default 1337).").build());
         options.addOption(Option.builder().longOpt("toolbox-stats")
                 .desc("Toolbox: print element/length statistics.").build());
 
@@ -279,6 +289,11 @@ public final class SvgImportCli {
                 .linesort(cmd.hasOption("linesort"))
                 .linesortTwoOpt(cmd.hasOption("linesort-twoopt"))
                 .reloop(cmd.hasOption("reloop"))
+                .handdrawn(cmd.hasOption("handdrawn"))
+                .handdrawnMagnitude(Double.parseDouble(cmd.getOptionValue("handdrawn-magnitude", "2.0")))
+                .handdrawnSegment(Double.parseDouble(cmd.getOptionValue("handdrawn-segment", "4.0")))
+                .handdrawnWavelength(Double.parseDouble(cmd.getOptionValue("handdrawn-wavelength", "30.0")))
+                .handdrawnSeed(Long.parseLong(cmd.getOptionValue("handdrawn-seed", "1337")))
                 .build();
     }
 

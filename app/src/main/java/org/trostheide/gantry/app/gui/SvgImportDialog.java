@@ -209,10 +209,15 @@ public final class SvgImportDialog extends JDialog {
         form.add(toolboxEnableCheck, BorderLayout.NORTH);
         form.add(optionsPanel, BorderLayout.CENTER);
 
-        // Hatching only runs as part of the SVGToolBox pipeline; reflect that in
-        // the UI so the master toggle matches what will actually happen.
+        // These features only run as part of the SVGToolBox pipeline; reflect that
+        // in the UI so the master toggle matches what will actually happen.
         optionsPanel.addHatchActionListener(e -> {
             if (optionsPanel.isHatchEnabled()) {
+                toolboxEnableCheck.setSelected(true);
+            }
+        });
+        optionsPanel.addHanddrawnActionListener(e -> {
+            if (optionsPanel.isHanddrawnEnabled()) {
                 toolboxEnableCheck.setSelected(true);
             }
         });
@@ -258,11 +263,12 @@ public final class SvgImportDialog extends JDialog {
         SvgImportOptions importOptions =
                 SvgImportOptions.fitToFormat(maxDrawDistance, station, curveStep, format, padding, mirror, keepAspect);
 
-        // Enabling hatching implies running the SVGToolBox pipeline — otherwise
-        // the hatch settings would be silently dropped. Treat hatch-on as
-        // toolbox-on so importing actually applies the chosen hatching.
+        // Enabling a processing feature implies running the SVGToolBox pipeline — otherwise
+        // the visible settings would be silently dropped.
         Config toolboxConfig = null;
-        if (toolboxEnableCheck.isSelected() || optionsPanel.isHatchEnabled()) {
+        if (toolboxEnableCheck.isSelected()
+                || optionsPanel.isHatchEnabled()
+                || optionsPanel.isHanddrawnEnabled()) {
             try {
                 toolboxConfig = optionsPanel.buildConfig();
             } catch (IllegalArgumentException ex) {
