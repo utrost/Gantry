@@ -141,6 +141,24 @@ final class ToolboxOptionsPanel extends JPanel {
         hatchCheck.addActionListener(l);
     }
 
+    /** True when hand-drawn processing is enabled (the import dialog implies the master toggle). */
+    boolean isHanddrawnEnabled() {
+        return handdrawnCheck.isSelected();
+    }
+
+    /** Registers a listener so enabling hand-drawn processing also enables the toolbox pipeline. */
+    void addHanddrawnActionListener(ActionListener l) {
+        handdrawnCheck.addActionListener(l);
+    }
+
+    void setHanddrawnOptions(boolean enabled, double magnitude, double segment, double wavelength, int seed) {
+        handdrawnCheck.setSelected(enabled);
+        handdrawnMagnitudeSpinner.setValue(magnitude);
+        handdrawnSegmentSpinner.setValue(segment);
+        handdrawnWavelengthSpinner.setValue(wavelength);
+        handdrawnSeedSpinner.setValue(seed);
+    }
+
     /** Sets or adds a colour-specific style; also provides a small testable GUI-to-Config seam. */
     void setHatchOverride(String color, String pattern, double angle, double gap) {
         hatchOverridesPanel.setOverride(color, pattern, angle, gap);

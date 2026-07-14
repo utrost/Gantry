@@ -6,7 +6,8 @@ deprecated as a source of current status.
 
 ## Current baseline
 
-Gantry already provides the full SVG/image-to-plot workflow: SVG processing,
+Gantry already provides the full SVG/image-to-plot workflow: SVG processing
+(including optional hand-drawn styling),
 raster vectorization with live preview, command editing, hatching, optimization,
 watercolor station mapping/refill, G-code streaming/export/replay, plot progress,
 machine setup/calibration/pre-flight wizards, travel visualization, and safe

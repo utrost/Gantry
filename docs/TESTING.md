@@ -68,7 +68,8 @@ Expected output: `BUILD SUCCESS` with zero failures across all modules.
 | `svgtoolbox-core` | `LinesortProcessorTest` (7) | Greedy NN sort; 2-opt; single shape no-op |
 | `svgtoolbox-core` | `ReloopProcessorTest` (5) | Rotate closed-path start point to nearest vertex |
 | `svgtoolbox-core` | `PathOptimizeProcessorTest` (3) | Group-level reorder; single shape no-op; rect elements |
-| `svgtoolbox-core` | `SvgToolboxPipelineTest` (4) | Pipeline order (13 processors); conditional PathOptimize; integration: red line → Inkscape layer; progress callback count |
+| `svgtoolbox-core` | `HandDrawnProcessorTest` (9) | Seeded jitter and resampling; pinned endpoints; complete closed edges; faithful Bézier flattening; conversion of line/rect/circle/ellipse/polyline/polygon while preserving identity, styling and transforms |
+| `svgtoolbox-core` | `SvgToolboxPipelineTest` (4) | Pipeline order (14 processors); conditional PathOptimize; integration: red line → Inkscape layer; progress callback count |
 
 ---
 
@@ -392,6 +393,17 @@ a `testdata/` folder.
    - [ ] No error; console shows processing output lines.
 2. Enable **Print statistics**. Import.
    - [ ] Console shows `--- Statistics ---`, element count, total length in metres.
+
+#### TS-I3 — Hand-drawn geometry *(mock OK)*
+1. Import `simple.svg`, open **Process SVG**, and enable **Hand-drawn look** without first enabling the SVGToolBox master checkbox.
+   - [ ] The master checkbox turns on automatically.
+2. Keep the defaults (magnitude 2, segment 4, wavelength 30, seed 1337) and import.
+   - [ ] Straight path and `<line>` geometry has a smooth, visible wobble rather than sharp random noise.
+   - [ ] Corners and adjoining endpoints still meet; there are no hooks or gaps at stroke ends.
+3. Import an SVG containing a rectangle, circle and Bézier curve with the same settings.
+   - [ ] Every primitive and the curve is roughened; circles and curves retain their overall shape.
+4. Repeat with the same seed, then change only the seed.
+   - [ ] The same seed reproduces the same geometry; a different seed produces a different wobble.
 
 ---
 

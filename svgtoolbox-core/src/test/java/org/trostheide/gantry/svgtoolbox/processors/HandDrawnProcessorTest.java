@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Test;
 import org.trostheide.gantry.svgtoolbox.Config;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
+import org.w3c.dom.NodeList;
 
 import javax.xml.parsers.DocumentBuilderFactory;
 
@@ -134,7 +135,62 @@ class HandDrawnProcessorTest {
 
         new HandDrawnProcessor().process(doc, enabled().build());
 
-        assertTrue(path.getAttribute("d").contains("Z"), "Closed path must remain closed");
+        String d = path.getAttribute("d");
+        assertTrue(d.contains("Z"), "Closed path must remain closed");
+        long lineCount = d.chars().filter(c -> c == 'L').count();
+        assertTrue(lineCount >= 75, "The closing edge must be resampled and roughened too. Result: " + d);
+    }
+
+    @Test
+    void testFlattensBezierCurveBeforeJittering() throws Exception {
+        Document doc = emptyDoc();
+        Element root = doc.createElement("svg");
+        doc.appendChild(root);
+        Element path = doc.createElement("path");
+        path.setAttribute("d", "M 0 0 C 0 100 100 100 100 0");
+        root.appendChild(path);
+
+        new HandDrawnProcessor().process(doc, enabled().build());
+
+        double maxY = 0;
+        String coordinates = path.getAttribute("d").replace("M", "").replace("L", " ").replace("Z", "");
+        for (String token : coordinates.trim().split("\\s+")) {
+            if (token.isBlank()) continue;
+            String[] xy = token.split(",");
+            maxY = Math.max(maxY, Double.parseDouble(xy[1]));
+        }
+        assertTrue(maxY > 60, "Curve control geometry must survive flattening; max y was " + maxY);
+    }
+
+    @Test
+    void testConvertsAllSvgPrimitivesAndPreservesNonGeometryAttributes() throws Exception {
+        Document doc = emptyDoc();
+        Element root = doc.createElementNS("http://www.w3.org/2000/svg", "svg");
+        doc.appendChild(root);
+
+        Element line = append(root, "line", "x1", "0", "y1", "0", "x2", "100", "y2", "0");
+        line.setAttribute("id", "kept-id");
+        line.setAttribute("class", "kept-class");
+        line.setAttribute("transform", "translate(5 7)");
+        append(root, "rect", "width", "80", "height", "40", "rx", "8");
+        append(root, "circle", "cx", "50", "cy", "50", "r", "25");
+        append(root, "ellipse", "cx", "50", "cy", "50", "rx", "30", "ry", "15");
+        append(root, "polyline", "points", "0,0 50,40 100,0");
+        append(root, "polygon", "points", "0,0 100,0 50,80");
+
+        new HandDrawnProcessor().process(doc, enabled().build());
+
+        for (String primitive : new String[]{"line", "rect", "circle", "ellipse", "polyline", "polygon"}) {
+            assertEquals(0, doc.getElementsByTagName(primitive).getLength(), primitive + " should become a path");
+        }
+        NodeList paths = doc.getElementsByTagName("path");
+        assertEquals(6, paths.getLength());
+        Element convertedLine = (Element) paths.item(0);
+        assertEquals("kept-id", convertedLine.getAttribute("id"));
+        assertEquals("kept-class", convertedLine.getAttribute("class"));
+        assertEquals("translate(5 7)", convertedLine.getAttribute("transform"));
+        assertFalse(convertedLine.hasAttribute("x1"), "Primitive geometry attributes must not leak onto paths");
+        assertTrue(convertedLine.getAttribute("d").chars().filter(c -> c == 'L').count() > 5);
     }
 
     @Test
@@ -146,5 +202,15 @@ class HandDrawnProcessorTest {
         // Must not throw.
         new HandDrawnProcessor().process(doc, enabled().build());
         assertEquals(0, root.getElementsByTagName("path").getLength());
+    }
+
+    private static Element append(Element parent, String name, String... attributes) {
+        Document doc = parent.getOwnerDocument();
+        Element element = doc.createElementNS("http://www.w3.org/2000/svg", name);
+        for (int i = 0; i < attributes.length; i += 2) {
+            element.setAttribute(attributes[i], attributes[i + 1]);
+        }
+        parent.appendChild(element);
+        return element;
     }
 }

@@ -20,4 +20,18 @@ class ToolboxOptionsPanelTest {
         assertEquals(new HatchStyle(15.0, 8.0, "cross"), config.overrides().get("#ff0000"));
         assertEquals(1, config.overrides().size());
     }
+
+    @Test
+    void buildConfigIncludesHanddrawnSettings() {
+        ToolboxOptionsPanel panel = new ToolboxOptionsPanel(List.of());
+        panel.setHanddrawnOptions(true, 2.5, 3.5, 24.0, 99);
+
+        Config config = panel.buildConfig();
+
+        assertEquals(true, config.handdrawn());
+        assertEquals(2.5, config.handdrawnMagnitude());
+        assertEquals(3.5, config.handdrawnSegment());
+        assertEquals(24.0, config.handdrawnWavelength());
+        assertEquals(99L, config.handdrawnSeed());
+    }
 }

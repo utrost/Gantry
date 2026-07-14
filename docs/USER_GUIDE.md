@@ -298,7 +298,7 @@ on the SVG before importing. The pipeline runs in this order:
 | Linesort | Reorder paths within each layer to minimise pen travel. |
 | Linesort 2-opt | Enable 2-opt improvement pass on linesort (slower, better result). |
 | Reloop closed paths | Rotate the start point of closed paths to minimise pen-lift distance. |
-| Hand-drawn look (jitter) | Give lines a hand-drawn waver by resampling each path and nudging samples sideways (along the normal), keeping endpoints pinned so shapes still meet. Runs before Linesimplify so the wobble isn't straightened out. |
+| Hand-drawn look (jitter) | Give paths, lines, rectangles, circles, ellipses and polygons a hand-drawn waver. Curves are flattened faithfully, samples are nudged sideways along the local normal, and endpoints are pinned so shapes still meet. Runs before Linesimplify so the wobble isn't straightened out. Enabling this option also enables SVGToolBox processing. |
 | Jitter magnitude | Wobble amplitude in px (default 2.0). |
 | Resample segment | Sample spacing in px (default 4.0); shorter = finer, more faithful curves. |
 | Wobble wavelength | Distance between wobbles in px (default 30.0); long = lazy sweep, short = shaky. |

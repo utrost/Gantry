@@ -1,19 +1,24 @@
 package org.trostheide.gantry.svgtoolbox.processors;
 
-import org.apache.batik.parser.AWTPathProducer;
-import org.apache.batik.parser.PathParser;
 import org.trostheide.gantry.svgtoolbox.Config;
 import org.trostheide.gantry.svgtoolbox.Processor;
+import org.trostheide.gantry.svgtoolbox.core.ShapeParser;
+import org.w3c.dom.Attr;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
+import org.w3c.dom.NamedNodeMap;
+import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 
 import java.awt.Shape;
 import java.awt.geom.PathIterator;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Random;
+import java.util.Set;
 
 /**
  * Gives paths a hand-drawn look by resampling each subpath into dense, even samples
@@ -33,15 +38,22 @@ import java.util.Random;
  *       end "hook" the article warns about.</li>
  * </ol>
  *
- * <p>Operates on {@code <path>} d-attributes only (like {@link LinesimplifyProcessor}),
- * in local user units. Curves are flattened to line samples as a side effect, so this
- * must run <em>before</em> {@code LinesimplifyProcessor}/{@code LinemergeProcessor} — RDP
- * would otherwise straighten the wobble right back out.
+ * <p>Operates on paths and the standard SVG geometry primitives in local user units.
+ * Primitives are replaced by equivalent path elements while retaining their non-geometry
+ * attributes. Curves are flattened to line samples before resampling, so this must run
+ * <em>before</em> {@code LinesimplifyProcessor}/{@code LinemergeProcessor} — RDP would
+ * otherwise straighten the wobble right back out.
  *
  * <p>The random stream is seeded from {@code handdrawnSeed} so a given input plots the
  * same way every time.
  */
 public class HandDrawnProcessor implements Processor {
+
+    private static final Set<String> SUPPORTED_ELEMENTS = new HashSet<>(Arrays.asList(
+            "path", "line", "rect", "circle", "ellipse", "polyline", "polygon"));
+    private static final Set<String> GEOMETRY_ATTRIBUTES = new HashSet<>(Arrays.asList(
+            "d", "x", "y", "width", "height", "rx", "ry", "cx", "cy", "r",
+            "x1", "y1", "x2", "y2", "points"));
 
     @Override
     public void process(Document doc, Config config) {
@@ -54,23 +66,25 @@ public class HandDrawnProcessor implements Processor {
 
         Random rng = new Random(config.handdrawnSeed());
 
-        NodeList elements = doc.getElementsByTagName("path");
+        List<Element> elements = drawableElements(doc);
         int count = 0;
-        for (int i = 0; i < elements.getLength(); i++) {
-            Element el = (Element) elements.item(i);
-            if (handDrawPath(el, magnitude, segment, wavelength, rng)) {
+        for (Element el : elements) {
+            if (handDrawElement(el, magnitude, segment, wavelength, rng)) {
                 count++;
             }
         }
-        System.out.println("HandDrawn: roughened " + count + " paths (magnitude: " + magnitude
+        System.out.println("HandDrawn: roughened " + count + " shapes (magnitude: " + magnitude
                 + ", segment: " + segment + ", wavelength: " + wavelength + ")");
     }
 
-    private boolean handDrawPath(Element el, double magnitude, double segment, double wavelength, Random rng) {
-        String d = el.getAttribute("d");
-        if (d == null || d.trim().isEmpty()) return false;
+    private boolean handDrawElement(Element el, double magnitude, double segment, double wavelength, Random rng) {
+        Shape shape = ShapeParser.parse(el);
+        if (shape == null) return false;
 
-        List<Subpath> subpaths = parseSubpaths(d);
+        // A tighter flatness than the requested sample spacing preserves the actual curve
+        // before the regular resampling pass. Keep an upper bound for large segment settings.
+        double flatness = Math.max(0.01, Math.min(0.5, segment / 4.0));
+        List<Subpath> subpaths = parseSubpaths(shape, flatness);
         if (subpaths.isEmpty()) return false;
 
         boolean any = false;
@@ -83,9 +97,56 @@ public class HandDrawnProcessor implements Processor {
         }
 
         if (any) {
-            el.setAttribute("d", toPathString(subpaths));
+            Element path = asPathElement(el);
+            path.setAttribute("d", toPathString(subpaths));
         }
         return any;
+    }
+
+    private List<Element> drawableElements(Document doc) {
+        NodeList nodes = doc.getElementsByTagName("*");
+        List<Element> elements = new ArrayList<>();
+        for (int i = 0; i < nodes.getLength(); i++) {
+            Element el = (Element) nodes.item(i);
+            if (SUPPORTED_ELEMENTS.contains(elementName(el))) {
+                elements.add(el);
+            }
+        }
+        return elements;
+    }
+
+    private String elementName(Element el) {
+        String localName = el.getLocalName();
+        return localName == null ? el.getTagName() : localName;
+    }
+
+    /** Replaces an SVG primitive with a path while preserving styling, identity and transforms. */
+    private Element asPathElement(Element el) {
+        if ("path".equals(elementName(el))) return el;
+
+        Document doc = el.getOwnerDocument();
+        String namespace = el.getNamespaceURI();
+        String prefix = el.getPrefix();
+        String qualifiedName = prefix == null || prefix.isBlank() ? "path" : prefix + ":path";
+        Element path = namespace == null
+                ? doc.createElement(qualifiedName)
+                : doc.createElementNS(namespace, qualifiedName);
+
+        NamedNodeMap attributes = el.getAttributes();
+        for (int i = 0; i < attributes.getLength(); i++) {
+            Attr attribute = (Attr) attributes.item(i);
+            String localName = attribute.getLocalName();
+            String name = localName == null ? attribute.getName() : localName;
+            if (!GEOMETRY_ATTRIBUTES.contains(name)) {
+                path.setAttributeNodeNS((Attr) attribute.cloneNode(true));
+            }
+        }
+
+        Node parent = el.getParentNode();
+        if (parent != null) {
+            parent.replaceChild(path, el);
+        }
+        return path;
     }
 
     /** Resamples a polyline into samples spaced roughly {@code step} apart. */
@@ -177,16 +238,10 @@ public class HandDrawnProcessor implements Processor {
         return out;
     }
 
-    private List<Subpath> parseSubpaths(String d) {
+    private List<Subpath> parseSubpaths(Shape shape, double flatness) {
         List<Subpath> subpaths = new ArrayList<>();
         try {
-            PathParser parser = new PathParser();
-            AWTPathProducer producer = new AWTPathProducer();
-            parser.setPathHandler(producer);
-            parser.parse(d);
-            Shape shape = producer.getShape();
-
-            PathIterator pi = shape.getPathIterator(null);
+            PathIterator pi = shape.getPathIterator(null, flatness);
             double[] coords = new double[6];
             Subpath current = null;
 
@@ -203,19 +258,14 @@ public class HandDrawnProcessor implements Processor {
                             current.points.add(new double[]{coords[0], coords[1]});
                         }
                         break;
-                    case PathIterator.SEG_QUADTO:
-                        if (current != null) {
-                            current.points.add(new double[]{coords[2], coords[3]});
-                        }
-                        break;
-                    case PathIterator.SEG_CUBICTO:
-                        if (current != null) {
-                            current.points.add(new double[]{coords[4], coords[5]});
-                        }
-                        break;
                     case PathIterator.SEG_CLOSE:
                         if (current != null) {
                             current.closed = true;
+                            double[] first = current.points.get(0);
+                            double[] last = current.points.get(current.points.size() - 1);
+                            if (first[0] != last[0] || first[1] != last[1]) {
+                                current.points.add(new double[]{first[0], first[1]});
+                            }
                         }
                         break;
                     default:
