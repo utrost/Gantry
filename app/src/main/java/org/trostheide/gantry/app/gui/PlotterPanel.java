@@ -59,6 +59,8 @@ public class PlotterPanel extends JPanel {
 
     private static final Color ACTION_GREEN = new Color(46, 125, 50);
     private static final Color ACTION_RED = new Color(198, 40, 40);
+    private record OptimizationResult(ProcessorOutput output, OptimizeStage.Stats before,
+                                      OptimizeStage.Stats after) { }
 
     private final File configFile = new File("config.json");
     // Captured before the config loads: a missing config.json means this is a fresh install, which
@@ -962,17 +964,29 @@ public class PlotterPanel extends JPanel {
         double tolerance = options.tolerance();
         boolean reorder = options.reorder();
         double mergeTolerance = options.mergeTolerance();
+        ProcessorOutput original = documentSession.currentOutput();
 
+        busyTasks.runCancellable("Optimize", cancellationRequested -> {
+            OptimizeStage.Stats before = OptimizeStage.computeStats(original, cancellationRequested);
+            ProcessorOutput optimized = OptimizeStage.optimize(original, tolerance, reorder,
+                    mergeTolerance, cancellationRequested);
+            OptimizeStage.Stats after = OptimizeStage.computeStats(optimized, cancellationRequested);
+            return new OptimizationResult(optimized, before, after);
+        }, result -> applyOptimization(result), () ->
+                showFeedback("Optimization cancelled. Artwork was not changed."));
+    }
+
+    private void applyOptimization(OptimizationResult result) {
         snapshotForUndo();
-        OptimizeStage.Stats before = OptimizeStage.computeStats(documentSession.currentOutput());
-        updateDocument(OptimizeStage.optimize(documentSession.currentOutput(), tolerance, reorder, mergeTolerance));
-        OptimizeStage.Stats after = OptimizeStage.computeStats(documentSession.currentOutput());
+        updateDocument(result.output());
 
         visPanel.loadPathsPreservingOverlay(documentSession.currentOutput());
         refreshLayerSelector();
         overlayControls.refreshPosition();
         refreshTimeEstimate();
 
+        OptimizeStage.Stats before = result.before();
+        OptimizeStage.Stats after = result.after();
         double travelSavedPct = before.travelDistanceMm() <= 0 ? 0
                 : 100.0 * (before.travelDistanceMm() - after.travelDistanceMm()) / before.travelDistanceMm();
         log(String.format(

@@ -533,6 +533,11 @@ import or an opened `.json` file). A small dialog prompts for:
 | Reorder strokes | Greedy nearest-neighbour reordering to reduce travel |
 | Merge | Weld strokes that touch end-to-end into one continuous line (0 = off, default 0.2 mm). Many SVGs (especially from non-Inkscape generators) split a single visible line into lots of short segments; without merging, the pen lifts and re-lowers between every one — wasted motion, and an ink dot at each segment's start. Merging draws them as one smooth stroke. The console reports `strokes X -> Y` so you can see how many were welded. |
 
+Optimization runs in the background. While it is working, Gantry shows an
+animated **Optimizing artwork…** progress indicator and a **Cancel** button. A
+cancelled optimization leaves the current artwork unchanged; the optimized
+result and its Undo step are created only after the complete operation succeeds.
+
 > Tip: Merge pairs with the **Pen down delay** setting — fewer pen-downs means
 > fewer start-of-line ink dots. Merge removes most of them structurally; lower
 > the pen-down delay to clean up whatever remains.
