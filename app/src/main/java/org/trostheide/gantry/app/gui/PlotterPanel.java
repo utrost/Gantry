@@ -156,6 +156,8 @@ public class PlotterPanel extends JPanel {
                 visPanel, new DocumentFileWorkflow.Actions(() -> config, this::resetReplot,
                 this::refreshDocumentUi, enabled -> { if (reVectorizeMenuItem != null) reVectorizeMenuItem.setEnabled(enabled); },
                 this::log, this::error, this::info, this::showFeedback, this::runBusy,
+                (description, task, success, cancelled) -> busyTasks.runCancellable(description,
+                        task::run, success, cancelled),
                 this::captureProject, this::openProject, this::preparePlotOutput));
         gcodeFiles = new GcodeFileWorkflow(this, configFile, () -> config, this::preparePlotOutput,
                 () -> !selectedLayerIndices().isEmpty(), plotJobController::backend,
@@ -516,9 +518,10 @@ public class PlotterPanel extends JPanel {
         redoMenuItem.setEnabled(false);
         editMenu.add(redoMenuItem);
         editMenu.addSeparator();
-        editMenu.add(tip(menuItem("Re-process Source SVG...", e -> onEditProcessSvg(), true),
+        editMenu.add(accel(tip(menuItem("Re-process Source SVG...", e -> onEditProcessSvg(), true),
                 "Re-run the SVGToolBox processors against the SVG you imported, replacing the current "
-                        + "drawing. Only available after Import SVG (a loaded .json command file has no source SVG)."));
+                        + "drawing. Only available after Import SVG (a loaded .json command file has no source SVG)."),
+                KeyEvent.VK_R, shortcut));
         reVectorizeMenuItem = tip(menuItem("Re-vectorize Image...", e -> onReVectorizeImage(), true),
                 "Reopen the vectorize studio on the last imported image, pre-loaded with the parameters "
                         + "you used, to re-tune the trace. Available after Import Image (vectorize).");
@@ -1464,7 +1467,7 @@ public class PlotterPanel extends JPanel {
                 new GantryProject.Source(svg == null ? null : svg.getAbsolutePath(),
                         documentSession.sourceSvgOptions(),
                         image == null ? null : image.getAbsolutePath(),
-                        documentSession.vectorizeArgs()));
+                        documentSession.vectorizeArgs(), documentSession.processingRecipe()));
     }
 
     private void openProject(GantryProject project) {
@@ -1472,7 +1475,7 @@ public class PlotterPanel extends JPanel {
         GantryProject.Source source = project.source();
         documentSession.restoreSource(source.svgPath() == null ? null : new File(source.svgPath()),
                 source.importOptions(), source.imagePath() == null ? null : new File(source.imagePath()),
-                source.vectorizeArgs());
+                source.vectorizeArgs(), source.processingRecipe());
         visPanel.loadFromOutput(project.output());
         visPanel.applyPlacement(project.placement());
         refreshLayerSelector();

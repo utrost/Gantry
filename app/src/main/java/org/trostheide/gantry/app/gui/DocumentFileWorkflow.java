@@ -4,6 +4,7 @@ import org.trostheide.gantry.app.plot.*;
 import org.trostheide.gantry.app.session.DocumentSession;
 import org.trostheide.gantry.app.session.GantryProject;
 import org.trostheide.gantry.app.session.GantryProjectIO;
+import org.trostheide.gantry.app.session.ProcessingRecipe;
 import org.trostheide.gantry.model.*;
 import org.trostheide.gantry.pipeline.io.ProcessorOutputIO;
 import org.trostheide.gantry.pipeline.svgimport.SvgImportStage;
@@ -17,6 +18,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Callable;
+import java.util.concurrent.CancellationException;
 import java.util.function.*;
 
 /** File and source-provenance workflows for the current document. */
@@ -24,9 +26,17 @@ final class DocumentFileWorkflow {
     @FunctionalInterface interface BusyRunner {
         void run(String description, Callable<ProcessorOutput> task, Consumer<ProcessorOutput> success);
     }
+    @FunctionalInterface interface CancellableBusyRunner {
+        void run(String description, CancellableTask task,
+                 Consumer<ProcessorOutput> success, Runnable cancelled);
+    }
+    @FunctionalInterface interface CancellableTask {
+        ProcessorOutput run(BooleanSupplier cancellationRequested) throws Exception;
+    }
     record Actions(Supplier<GantryConfig> config, Runnable resetReplot, Runnable refresh,
                    Consumer<Boolean> revectorizeEnabled, Consumer<String> log,
                    Consumer<String> error, Consumer<String> info, Consumer<String> feedback, BusyRunner busy,
+                   CancellableBusyRunner cancellableBusy,
                    Supplier<GantryProject> project, Consumer<GantryProject> openProject,
                    Supplier<ProcessorOutput> flattenedOutput) { }
 
@@ -73,12 +83,12 @@ final class DocumentFileWorkflow {
         if(chooser.showOpenDialog(parent)!=JFileChooser.APPROVE_OPTION)return;
         File file=chooser.getSelectedFile();remember(file);
         SvgImportDialog.Result options=importDialog(file).showDialog();if(options==null)return;
-        actions.busy().run("Import",()->map(options.toolboxConfig()!=null
+        actions.cancellableBusy().run("Import",cancel->{ProcessorOutput imported=map(options.toolboxConfig()!=null
                 ?SvgImportStage.importSvg(file,options.toolboxConfig(),options.importOptions())
-                :SvgImportStage.importSvg(file,options.importOptions())),out->{
-            editor.replace(out);session.recordSvgSource(file,options.importOptions());loaded(false);
+                :SvgImportStage.importSvg(file,options.importOptions()));if(cancel.getAsBoolean())throw new CancellationException();return imported;},out->{
+            editor.replace(out);session.recordSvgSource(file,options.importOptions(),recipe(options.toolboxConfig()));loaded(false);
             String result=summary("Imported "+file.getName(),out);actions.log().accept(result);actions.feedback().accept(result);
-        });
+        },()->actions.feedback().accept("Import cancelled. Artwork was not changed."));
     }
 
     void importImage(){
@@ -107,17 +117,25 @@ final class DocumentFileWorkflow {
             args.addAll(vector.vectorizeArgs());org.trostheide.gantry.vectorize.Main.runSingleFile(args.toArray(String[]::new));
             return map(options.toolboxConfig()!=null?SvgImportStage.importSvg(svg,options.toolboxConfig(),options.importOptions())
                     :SvgImportStage.importSvg(svg,options.importOptions()));
-        },out->{editor.replace(out);session.recordSvgSource(svg,options.importOptions());
+        },out->{editor.replace(out);session.recordSvgSource(svg,options.importOptions(),recipe(options.toolboxConfig()));
             session.recordImageSource(image,vector.vectorizeArgs());actions.revectorizeEnabled().accept(true);loaded(false);
             String result=summary("Vectorized "+image.getName()+" ("+vector.strategyLabel()+")",out);actions.log().accept(result);actions.feedback().accept(result);});
     }
 
     void reprocessSvg(){
         if(session.sourceSvg()==null||session.sourceSvgOptions()==null){actions.info().accept("Import an SVG file first.");return;}
-        org.trostheide.gantry.svgtoolbox.Config toolbox=new EditProcessDialog(owner(),session.sourceSvg()).showDialog();if(toolbox==null)return;
-        File source=session.sourceSvg();editor.snapshot();
-        actions.busy().run("Process SVG",()->SvgImportStage.importSvg(source,toolbox,session.sourceSvgOptions()),out->{
-            editor.update(out);visualization.loadPathsPreservingOverlay(out);actions.refresh().run();actions.log().accept("Reprocessed "+source.getName());});
+        org.trostheide.gantry.svgtoolbox.Config initial=session.processingRecipe()==null?null:session.processingRecipe().toConfig();
+        EditProcessDialog dialog=new EditProcessDialog(owner(),session.sourceSvg(),initial);
+        org.trostheide.gantry.svgtoolbox.Config toolbox=dialog.showDialog();if(toolbox==null)return;
+        boolean process=dialog.processingEnabled();
+        File source=session.sourceSvg();
+        actions.cancellableBusy().run("Process SVG",cancel->{ProcessorOutput processed=process
+                ?SvgImportStage.importSvg(source,toolbox,session.sourceSvgOptions())
+                :SvgImportStage.importSvg(source,session.sourceSvgOptions());
+            if(cancel.getAsBoolean())throw new CancellationException();return processed;},out->{
+            editor.snapshot();editor.update(out);session.recordSvgSource(source,session.sourceSvgOptions(),process?ProcessingRecipe.fromConfig(toolbox):null);
+            visualization.loadPathsPreservingOverlay(out);actions.refresh().run();actions.log().accept("Reprocessed "+source.getName());},
+            ()->actions.feedback().accept("Processing cancelled. Artwork was not changed."));
     }
 
     void mapColors(){
@@ -154,4 +172,5 @@ final class DocumentFileWorkflow {
     private void message(String text,String title){JOptionPane.showMessageDialog(parent,text,title,JOptionPane.INFORMATION_MESSAGE);}
     private static String summary(String action,ProcessorOutput out){Bounds b=out.metadata().bounds();double w=Math.max(0,b.maxX()-b.minX());double h=Math.max(0,b.maxY()-b.minY());
         return String.format("%s — %.1f × %.1f mm, %d layer(s)",action,w,h,out.layers().size());}
+    private static ProcessingRecipe recipe(org.trostheide.gantry.svgtoolbox.Config config){return config==null?null:ProcessingRecipe.fromConfig(config);}
 }

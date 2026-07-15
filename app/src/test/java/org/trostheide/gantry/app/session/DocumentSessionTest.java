@@ -9,6 +9,7 @@ import org.trostheide.gantry.model.ProcessorOutput;
 import org.trostheide.gantry.model.command.DrawCommand;
 import org.trostheide.gantry.model.command.MoveCommand;
 import org.trostheide.gantry.pipeline.svgimport.SvgImportOptions;
+import org.trostheide.gantry.svgtoolbox.Config;
 
 import java.io.File;
 import java.time.Instant;
@@ -128,6 +129,17 @@ class DocumentSessionTest {
         assertNull(session.sourceSvg());
         assertNull(session.sourceImage());
         assertTrue(session.vectorizeArgs().isEmpty());
+    }
+
+    @Test
+    void undoAndRedoKeepProcessingRecipeMatchedToArtwork() {
+        DocumentSession session=new DocumentSession();
+        ProcessingRecipe originalRecipe=ProcessingRecipe.fromConfig(new Config.Builder().handdrawn(true).handdrawnSeed(1).build());
+        ProcessingRecipe editedRecipe=ProcessingRecipe.fromConfig(new Config.Builder().enableHatching(true).build());
+        session.replace(output("original"));session.recordSvgSource(new File("drawing.svg"),SvgImportOptions.defaults(),originalRecipe);
+        session.snapshotForUndo();session.update(output("processed"));session.recordSvgSource(new File("drawing.svg"),SvgImportOptions.defaults(),editedRecipe);
+        session.undo();assertEquals(originalRecipe,session.processingRecipe());
+        session.redo();assertEquals(editedRecipe,session.processingRecipe());
     }
 
     private static ProcessorOutput output(String... layerIds) {

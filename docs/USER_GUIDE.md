@@ -161,7 +161,7 @@ compensate.
 
 ```
 SVG or image artwork
-   └─ Add artwork (advanced: optional SVGToolBox processing)
+   └─ Add artwork (optional goal-based processing and preview)
         └─ Editable Gantry project
              └─ Optimize (optional: simplify + reorder strokes)
                   └─ Position / scale / rotate / mirror on canvas
@@ -273,10 +273,28 @@ Inkscape layers (`inkscape:groupmode="layer"`) become separate `Layer1`, `Layer2
 
 The importer flips the Y axis automatically: SVG uses a top-left origin with Y growing downward, while the plotter measures Y upward from the machine origin, so drawings are turned upright on import (they would otherwise appear upside down). The **Flip Y** setting remains available as a manual override for unusual hardware — leave it off for normal use.
 
-### Advanced SVG processing tab (optional)
+### Process artwork tab (optional)
 
-Check **Run SVGToolBox processing** to run the SVGToolBox pre-processing pipeline
-on the SVG before importing. The pipeline runs in this order:
+Start with a goal rather than a processor name:
+
+| Preset | Use it when… |
+|---|---|
+| Keep artwork unchanged | You want the original imported paths with no processing. |
+| Recommended | You want less pen-up travel without changing the visible drawing. This is the safe default. |
+| Plot faster | Plot time matters more than preserving every source point. |
+| Smooth & clean | The source contains slightly noisy or over-detailed paths. |
+| Hand-drawn | You want a repeatable natural wobble. |
+| Fill closed shapes | Filled SVG regions should become plotter-friendly marks. |
+
+Common choices are grouped into **Look & feel**, **Filled areas**, and **Plot
+faster**. A background preview compares the original and processed drawing; its
+impact row shows strokes, points, and a clearly labelled rough plot-time
+estimate. Pattern-specific fields appear only when relevant.
+
+Changing an individual setting selects **Custom**. **Show fine-tuning** reveals
+colour, crop, rotation, and geometry controls. There is no separate master
+checkbox: a selected feature is applied, while **Keep artwork unchanged** runs
+no processing. The underlying pipeline order is:
 
 > Visibility → StyleNormalizer → Rotate → StrokeWidth → Palette →
 > Simplify → Hatch → HandDrawn → Linesimplify → Linemerge → Linesort → Reloop →
@@ -286,11 +304,11 @@ on the SVG before importing. The pipeline runs in this order:
 |---|---|
 | Stroke width override | Force all strokes to this width (px). 0 = no change. |
 | Palette | Quantize all colours to these hex values, e.g. `#000000,#FF0000`. Uses CIELAB distance. |
-| Enable hatching | Fill closed shapes with hatch lines. |
+| Fill closed shapes | Convert SVG fill colours into plotter-friendly marks. |
 | Per-colour hatch overrides | The table is pre-filled with `#RRGGBB` fill colours found in the selected SVG. Choose a pattern, angle, and gap for a colour, or leave it at **Use global**. Use **Add colour** for colours that cannot be discovered automatically. |
-| Hatch pattern | `linear` · `cross` · `zigzag` · `wave` · `dot` · `none` · `empty` |
-| Hatch angle | Global hatch angle in degrees (default 45). |
-| Hatch gap | Distance between hatch lines (default 5). |
+| Pattern | Straight lines · Crosshatch · Zigzag · Waves · Dots · Keep outline only · Remove filled shape |
+| Direction | Global fill direction in degrees (default 45). |
+| Spacing | Distance between marks; smaller is darker (default 5). |
 | Amplitude | Wave/zigzag wave height (0 = auto, derived from gap). Ignored by other patterns. |
 | Wavelength | Wave/zigzag wave length (0 = auto, derived from gap). Ignored by other patterns. |
 | Dot radius | Dot pattern dot radius (0 = auto, uses the stroke width). Ignored by other patterns. |
@@ -304,17 +322,14 @@ on the SVG before importing. The pipeline runs in this order:
 | Linesort | Reorder paths within each layer to minimise pen travel. |
 | Linesort 2-opt | Enable 2-opt improvement pass on linesort (slower, better result). |
 | Reloop closed paths | Rotate the start point of closed paths to minimise pen-lift distance. |
-| Hand-drawn look (jitter) | Give paths, lines, rectangles, circles, ellipses and polygons a hand-drawn waver. Curves are flattened faithfully, samples are nudged sideways along the local normal, and endpoints are pinned so shapes still meet. Runs before Linesimplify so the wobble isn't straightened out. Enabling this option also enables SVGToolBox processing. |
-| Jitter magnitude | Wobble amplitude in px (default 2.0). |
-| Resample segment | Sample spacing in px (default 4.0); shorter = finer, more faithful curves. |
-| Wobble wavelength | Distance between wobbles in px (default 30.0); long = lazy sweep, short = shaky. |
-| Random seed | Seed for the jitter so a given input plots the same way every time (default 1337). |
+| Make lines look hand-drawn | Add a natural repeatable waver while pinning endpoints so shapes still meet. |
+| Wobble strength | Sideways movement in px (default 2.0). |
+| Line detail | Sample spacing in px (default 4.0); shorter preserves more detail. |
+| Wobble size | Distance between wobbles in px (default 30.0); long is a lazy sweep, short is shaky. |
+| Repeatable variation | Random seed; the same value produces the same drawing (default 1337). |
 | Print statistics | Print element count and total path length to the console after processing. |
 
-These fall into three groups: **style** (stroke width, palette, hidden layers),
-**fill** (the hatch options), and **geometry/optimization** (simplify, crop,
-rotate, and the bottom block: Optimize path order, Linesimplify, Linemerge,
-Linesort, Linesort 2-opt, Reloop). The geometry/optimization block here runs at
+The geometry/optimization fine-tuning here runs at
 the SVG-DOM level *during import*; the same kinds of clean-up are also available
 *after* import at the command level via **Edit > Optimize Commands (JSON)...**.
 Use whichever fits your workflow — there's no need to enable both.
@@ -513,16 +528,20 @@ The visualisation shows:
 Once an SVG is imported you can re-run the SVGToolBox pipeline against the
 *original file* — without re-importing from scratch — via **Edit > Re-process
 Source SVG...**. This is the "creative tweak" loop: change the hatching, recolour to a
-palette, crop or rotate, click **Apply**, and see the result.
+palette, crop or rotate, check the before/after preview, then click **Apply**.
+Processing has a progress overlay and **Cancel**; cancellation leaves the
+drawing unchanged, while success creates one Undo step.
+
+Shortcut: **Ctrl+R** on Windows/Linux or **⌘R** on macOS.
 
 This dialog exposes **exactly the same option set** as the import dialog's
-"Process SVG" tab (see the table above) — stroke width, palette, hidden layers,
+"Process artwork" tab (see the table above) — stroke width, palette, hidden layers,
 the full hatch options, simplify tolerance, rotate, crop, and the optimize block
 (Optimize path order, Linesimplify, Linemerge, Linesort, Linesort 2-opt,
-Reloop). The two share one underlying control panel, so they can never drift
-apart. Field values are remembered for the session **and carried across both
-dialogs**, so reopening either one to adjust a single value doesn't reset the
-rest.
+Reloop). The two share one underlying control panel, so they cannot drift apart.
+The exact recipe follows the imported SVG and is saved in `.gantry` projects.
+**Reset to original artwork** selects an unprocessed recipe; click **Apply** to
+restore the paths from the original source file.
 
 > Note: the optimize block here runs at the SVG-DOM level. The same kinds of
 > geometry clean-up are also available *after* import, at the command level, via

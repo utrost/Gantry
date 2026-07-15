@@ -32,16 +32,21 @@ final class BusyTaskRunner {
         Window window=SwingUtilities.getWindowAncestor(parent);
         if(window!=null)window.setCursor(Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR));
         AtomicBoolean cancellationRequested=new AtomicBoolean();
-        BusyOverlay overlay=BusyOverlay.show(parent,message(description),()->cancellationRequested.set(true));
+        @SuppressWarnings("unchecked") SwingWorker<T,Void>[] workerRef=new SwingWorker[1];
+        BusyOverlay overlay=BusyOverlay.show(parent,message(description),()->{
+            cancellationRequested.set(true);
+            SwingWorker<T,Void> worker=workerRef[0];
+            if(worker!=null)worker.cancel(true);
+        });
         log.accept(message(description));
-        new SwingWorker<T,Void>(){
+        SwingWorker<T,Void> worker=new SwingWorker<>(){
             @Override protected T doInBackground() throws Exception{return task.call(cancellationRequested::get);}
             @Override protected void done(){try{success.accept(get());}
                 catch(Exception ex){Throwable cause=ex.getCause()!=null?ex.getCause():ex;
                     if(cause instanceof CancellationException){log.accept(description+" cancelled.");cancelled.run();}
                     else error.accept(description+" failed: "+cause.getMessage());}
                 finally{if(overlay!=null)overlay.dismiss();if(window!=null)window.setCursor(Cursor.getDefaultCursor());}}
-        }.execute();
+        };workerRef[0]=worker;worker.execute();
     }
     private static String message(String description){return switch(description){case"Vectorize"->"Vectorizing image…";case"Import"->"Importing…";case"Process SVG"->"Processing SVG…";case"Optimize"->"Optimizing artwork…";default->description+"…";};}
 }
