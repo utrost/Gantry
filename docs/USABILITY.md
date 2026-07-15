@@ -354,6 +354,30 @@ Add tests in proportion to each slice:
 Update `docs/TESTING.md` with stable script IDs as slices land; do not mark the
 milestone complete from design review or screenshots alone.
 
+## Delivered Slice E — understandable artwork processing
+
+The optional artwork-processing surface now starts with user goals rather than
+processor names. **Recommended**, **Plot faster**, **Smooth & clean**,
+**Hand-drawn**, **Fill closed shapes**, and **Keep artwork unchanged** presets
+select coherent settings; changing an individual control moves to **Custom**.
+The common controls are grouped as **Look & feel**, **Filled areas**, and
+**Plot faster**. Technical geometry, colour and crop settings remain behind
+**Show fine-tuning**.
+
+Both SVG import and **Edit > Re-process Source SVG** use the same panel and a
+debounced background before/after preview. The impact row compares strokes,
+points, and a clearly labelled rough plot-time estimate. Pattern-specific
+controls appear only for waves, zigzags, or dots. A visible warning explains
+the hand-drawn/point-removal conflict. Applying runs behind a cancellable busy
+overlay, updates the drawing only after success, creates one Undo step, and
+stores the exact recipe in `.gantry` project source provenance. **Reset to
+original artwork** provides an explicit way back to the unprocessed source.
+
+The dialog is scrollable and sized to remain usable on the supported 1024×800
+minimum. Automated preset, context, conflict, config mapping, recipe round-trip,
+and full headless regression tests are required; the headful 1024×800 acceptance
+is recorded separately.
+
 ## Architecture guardrails
 
 This work touches the composition root and therefore risks regrowing

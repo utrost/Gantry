@@ -380,8 +380,9 @@ a `testdata/` folder.
 ### Group I — SVGToolBox pre-processing
 
 #### TS-I1 — Hatch patterns *(mock OK)*
-1. **Import SVG** → **Process SVG** tab → tick **Run SVGToolBox processing**.
-2. Hatch enabled, pattern = cross, angle = 45, gap = 8. Import.
+1. **Import SVG** → **Process artwork (optional)** → choose **Fill closed shapes**.
+   - [ ] The before/after preview appears without blocking the dialog.
+2. Pattern = **Crosshatch**, direction = 45, spacing = 8. Import.
    - [ ] Cross-hatching is visible (not plain linear).
 3. Pattern = `dot`, **Dot radius** = 3. Import.
    - [ ] Dots appear and are larger than with Dot radius = 0 (auto).
@@ -392,14 +393,15 @@ a `testdata/` folder.
    - [ ] The selected colour uses its override and the other colour retains the global style.
 
 #### TS-I2 — Optimisation processors & statistics *(mock OK)*
-1. Process SVG tab: enable **Linesort** + **Reloop**. Import.
+1. Process artwork tab: choose **Recommended**. Import.
    - [ ] No error; console shows processing output lines.
+   - [ ] Impact feedback compares strokes, points, and rough plot time.
 2. Enable **Print statistics**. Import.
    - [ ] Console shows `--- Statistics ---`, element count, total length in metres.
 
 #### TS-I3 — Hand-drawn geometry *(mock OK)*
-1. Import `simple.svg`, open **Process SVG**, and enable **Hand-drawn look** without first enabling the SVGToolBox master checkbox.
-   - [ ] The master checkbox turns on automatically.
+1. Import `simple.svg`, open **Process artwork**, and choose **Hand-drawn**.
+   - [ ] No separate master checkbox is required; the preview updates automatically.
 2. Keep the defaults (magnitude 2, segment 4, wavelength 30, seed 1337) and import.
    - [ ] Straight path and `<line>` geometry has a smooth, visible wobble rather than sharp random noise.
    - [ ] Corners and adjoining endpoints still meet; there are no hooks or gaps at stroke ends.
@@ -414,11 +416,15 @@ a `testdata/` folder.
 
 #### TS-J1 — Re-process loop *(mock OK)*
 1. Import an SVG (so a source SVG exists). Choose **Edit > Re-process Source SVG...**.
-   - [ ] A dialog with the **same option set** as the Process SVG import tab opens.
+   - [ ] A dialog with the **same option set** as the Process artwork import tab opens.
 2. Change hatch settings and click **Apply**.
    - [ ] The drawing updates in place without re-importing from scratch.
-   - [ ] Field values are remembered across this dialog and the import dialog (no reset).
-3. Open a `.json` command file (no source SVG), then choose **Edit > Re-process Source SVG...**.
+   - [ ] Undo restores the previous drawing in one step.
+   - [ ] Cancel during processing leaves artwork and Undo history unchanged.
+   - [ ] Saving/opening a `.gantry` project restores the exact recipe.
+3. Click **Reset to original artwork**, then **Apply**.
+   - [ ] The originally imported paths are restored without reselecting the file.
+4. Open a `.json` command file (no source SVG), then choose **Edit > Re-process Source SVG...**.
    - [ ] It reports there is no source SVG to re-process (only available after Import SVG).
 
 ---

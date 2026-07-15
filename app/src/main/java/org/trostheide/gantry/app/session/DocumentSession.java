@@ -30,6 +30,7 @@ public final class DocumentSession {
     private boolean dirty;
     private File sourceSvg;
     private SvgImportOptions sourceSvgOptions;
+    private ProcessingRecipe processingRecipe;
     private File sourceImage;
     private List<String> vectorizeArgs = List.of();
 
@@ -106,7 +107,7 @@ public final class DocumentSession {
 
     public void snapshotForUndo() {
         if (currentOutput == null) return;
-        undoHistory.addLast(new HistoryState(currentOutput, selectedLayerIndices));
+        undoHistory.addLast(new HistoryState(currentOutput, selectedLayerIndices, processingRecipe));
         while (undoHistory.size() > HISTORY_LIMIT) undoHistory.removeFirst();
         redoHistory.clear();
     }
@@ -122,13 +123,13 @@ public final class DocumentSession {
         if (undoHistory.isEmpty()) {
             return null;
         }
-        redoHistory.addLast(new HistoryState(currentOutput, selectedLayerIndices));
+        redoHistory.addLast(new HistoryState(currentOutput, selectedLayerIndices, processingRecipe));
         return restore(undoHistory.removeLast());
     }
 
     public ProcessorOutput redo() {
         if (redoHistory.isEmpty()) return null;
-        undoHistory.addLast(new HistoryState(currentOutput, selectedLayerIndices));
+        undoHistory.addLast(new HistoryState(currentOutput, selectedLayerIndices, processingRecipe));
         return restore(redoHistory.removeLast());
     }
 
@@ -146,17 +147,23 @@ public final class DocumentSession {
     private ProcessorOutput restore(HistoryState state) {
         currentOutput = state.output();
         selectedLayerIndices = state.selection();
+        processingRecipe = state.processingRecipe();
         dirty = true;
         return currentOutput;
     }
 
-    private record HistoryState(ProcessorOutput output, List<Integer> selection) {
+    private record HistoryState(ProcessorOutput output, List<Integer> selection, ProcessingRecipe processingRecipe) {
         HistoryState { selection = List.copyOf(selection); }
     }
 
     public void recordSvgSource(File file, SvgImportOptions options) {
+        recordSvgSource(file, options, null);
+    }
+
+    public void recordSvgSource(File file, SvgImportOptions options, ProcessingRecipe recipe) {
         sourceSvg = Objects.requireNonNull(file, "file");
         sourceSvgOptions = Objects.requireNonNull(options, "options");
+        processingRecipe = recipe;
     }
 
     public void recordImageSource(File file, List<String> args) {
@@ -167,6 +174,7 @@ public final class DocumentSession {
     public void clearSource() {
         sourceSvg = null;
         sourceSvgOptions = null;
+        processingRecipe = null;
         sourceImage = null;
         vectorizeArgs = List.of();
     }
@@ -179,6 +187,8 @@ public final class DocumentSession {
         return sourceSvgOptions;
     }
 
+    public ProcessingRecipe processingRecipe() { return processingRecipe; }
+
     public File sourceImage() {
         return sourceImage;
     }
@@ -188,8 +198,13 @@ public final class DocumentSession {
     }
 
     public void restoreSource(File svg, SvgImportOptions options, File image, List<String> args) {
+        restoreSource(svg, options, image, args, null);
+    }
+
+    public void restoreSource(File svg, SvgImportOptions options, File image, List<String> args, ProcessingRecipe recipe) {
         sourceSvg = svg;
         sourceSvgOptions = options;
+        processingRecipe = recipe;
         sourceImage = image;
         vectorizeArgs = args == null ? List.of() : List.copyOf(args);
     }

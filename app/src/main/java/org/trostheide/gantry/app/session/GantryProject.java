@@ -24,8 +24,11 @@ public record GantryProject(int formatVersion, ProcessorOutput output,
     }
 
     public record Source(String svgPath, SvgImportOptions importOptions,
-                         String imagePath, List<String> vectorizeArgs) {
+                         String imagePath, List<String> vectorizeArgs, ProcessingRecipe processingRecipe) {
         public Source { vectorizeArgs = vectorizeArgs == null ? List.of() : List.copyOf(vectorizeArgs); }
-        public static Source empty() { return new Source(null, null, null, List.of()); }
+        public Source(String svgPath, SvgImportOptions importOptions, String imagePath, List<String> vectorizeArgs) {
+            this(svgPath, importOptions, imagePath, vectorizeArgs, null);
+        }
+        public static Source empty() { return new Source(null, null, null, List.of(), null); }
     }
 }

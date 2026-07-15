@@ -230,7 +230,7 @@ holding every toolbox knob: `enableHatching`, `globalStyle` (a `HatchStyle`),
 `noHatchColors`, `minHatchArea`, palette, hidden layers, crop bounds, rotation,
 the line-* tolerances, etc.
 
-The shared `ToolboxOptionsPanel` used by Import SVG and Edit > Process SVG
+The shared `ToolboxOptionsPanel` used by Import SVG and Edit > Re-process Source SVG
 includes a per-colour hatch table. `SvgFillColors` pre-populates it from
 explicit `#RRGGBB` fill attributes/inline styles when a source file is
 available; selected rows are converted directly to `Config.overrides`, while
@@ -415,22 +415,22 @@ Swing + FlatLaf dark theme. `GantryApp#main` sets up `FlatDarkLaf`, builds a
   from the layer's source `#rrggbb`, brightened against the dark canvas via
   `ensureReadable` and falling back to `FALLBACK_PALETTE` for unknown/near-black
   colours); `setColorByLayer(false)` reverts to a single uniform colour.
-- **`ToolboxOptionsPanel`** — the single shared editor for the full SVGToolBox
-  option set (style / hatch / geometry / optimize), embedded verbatim by both
-  `SvgImportDialog` and `EditProcessDialog` so the two can't drift apart.
-  `buildConfig()` produces the `Config` (throwing `IllegalArgumentException` on
-  bad stroke width / palette / crop), and a private static `State` snapshot
-  persists every field across reopens and across both dialogs.
+- **`ToolboxOptionsPanel`** — the single shared, beginner-first editor for the
+  full SVGToolBox option set. Goal presets feed the same `Config` as the
+  contextual common controls and disclosed expert controls. `buildConfig()`
+  remains the sole GUI-to-pipeline mapping; `applyConfig()` restores an exact
+  persisted recipe.
+- **`ProcessingPreviewPanel`** — debounces changes, cancels stale workers,
+  imports original/processed command models off the EDT, renders before/after
+  geometry, and reports strokes, points, and a comparative rough duration.
 - **`SvgImportDialog`** — import options (size/padding/mirror) plus, in its
-  "Process SVG" tab, a `ToolboxOptionsPanel` under a master "Run SVGToolBox
-  processing" toggle. Builds an `SvgImportOptions` and (if toolbox or hatch
-  enabled) a `Config` via the panel. **Note:** enabling hatching implies running
-  the toolbox pipeline (a listener ticks the master toggle, and `onOk` builds the
-  config when either is on).
+  optional processing tab, the shared controls and preview. There is no hidden
+  master switch: selecting any processor applies it; **Keep artwork unchanged**
+  returns no toolbox config.
 - **`EditProcessDialog`** — "Edit > Re-process Source SVG": re-runs the toolbox pipeline
-  against the originally imported file. Its whole body is a `ToolboxOptionsPanel`,
-  so it now exposes the same options as the import tab (it previously offered only
-  a Crop/Hatch/Palette/Rotate/Optimize subset).
+  against the originally imported file with preview and an explicit reset.
+  `ProcessingRecipe` is a JSON-friendly exact configuration snapshot stored in
+  `GantryProject.Source`; successful application creates one document Undo step.
 - **`HelpDialog`** — "Help > User Guide...": renders `docs/USER_GUIDE.md` in-app
   instead of shelling out to whatever the OS associates with `.md` files. Parses
   the markdown once with `commonmark` (+ `commonmark-ext-gfm-tables`, so the

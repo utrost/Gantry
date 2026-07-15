@@ -17,7 +17,7 @@ public final class SvgImportDialog extends JDialog {
 
     private static final Dimension BASIC_DIALOG_SIZE = new Dimension(620, 260);
     private static final Dimension ADVANCED_IMPORT_DIALOG_SIZE = new Dimension(620, 560);
-    private static final Dimension SVG_PROCESSING_DIALOG_SIZE = new Dimension(850, 700);
+    private static final Dimension SVG_PROCESSING_DIALOG_SIZE = new Dimension(980, 720);
 
     /** The dialog's result: import options plus an optional SVGToolBox pre-processing config. */
     public record Result(SvgImportOptions importOptions, Config toolboxConfig) {
@@ -39,7 +39,6 @@ public final class SvgImportDialog extends JDialog {
     private boolean advancedImportVisible;
 
     // SVGToolBox pre-processing options
-    private final JCheckBox toolboxEnableCheck = new JCheckBox("Run SVGToolBox processing before import");
     /** The full toolbox option set, shared verbatim with {@link EditProcessDialog}. */
     private final ToolboxOptionsPanel optionsPanel;
 
@@ -65,7 +64,7 @@ public final class SvgImportDialog extends JDialog {
 
         JTabbedPane tabs = new JTabbedPane();
         tabs.addTab("Add artwork", buildImportPanel());
-        tabs.addTab("Advanced SVG processing", buildToolboxPanel());
+        tabs.addTab("Process artwork (optional)", buildToolboxPanel(sourceSvg));
         tabs.addChangeListener(e -> resizeDialog(tabs.getSelectedIndex() == 0
                 ? advancedImportVisible ? ADVANCED_IMPORT_DIALOG_SIZE : BASIC_DIALOG_SIZE
                 : SVG_PROCESSING_DIALOG_SIZE));
@@ -202,27 +201,29 @@ public final class SvgImportDialog extends JDialog {
         setLocationRelativeTo(getOwner());
     }
 
-    private JComponent buildToolboxPanel() {
-        JPanel form = new JPanel(new BorderLayout(0, 6));
+    private JComponent buildToolboxPanel(java.io.File sourceSvg) {
+        JPanel form = new JPanel(new BorderLayout(8, 6));
         form.setBorder(BorderFactory.createEmptyBorder(8, 8, 8, 8));
 
-        form.add(toolboxEnableCheck, BorderLayout.NORTH);
-        form.add(optionsPanel, BorderLayout.CENTER);
+        JLabel intro = new JLabel("Choose a goal, then check the preview. Keep artwork unchanged is always available.");
+        form.add(intro, BorderLayout.NORTH);
+        JScrollPane controls = new JScrollPane(optionsPanel);
+        controls.setBorder(null);
+        controls.getVerticalScrollBar().setUnitIncrement(12);
+        controls.setPreferredSize(new Dimension(430, 560));
+        form.add(controls, BorderLayout.WEST);
+        form.add(new ProcessingPreviewPanel(sourceSvg, optionsPanel), BorderLayout.CENTER);
 
         // These features only run as part of the SVGToolBox pipeline; reflect that
         // in the UI so the master toggle matches what will actually happen.
         optionsPanel.addHatchActionListener(e -> {
-            if (optionsPanel.isHatchEnabled()) {
-                toolboxEnableCheck.setSelected(true);
-            }
+            // Kept as an explicit listener seam for dialog tests and accessibility automation.
         });
         optionsPanel.addHanddrawnActionListener(e -> {
-            if (optionsPanel.isHanddrawnEnabled()) {
-                toolboxEnableCheck.setSelected(true);
-            }
+            // Processing features are applied directly; there is no hidden master switch.
         });
 
-        return new JScrollPane(form);
+        return form;
     }
 
     private void addRow(JPanel form, GridBagConstraints gbc, String label, JComponent field) {
@@ -266,9 +267,7 @@ public final class SvgImportDialog extends JDialog {
         // Enabling a processing feature implies running the SVGToolBox pipeline — otherwise
         // the visible settings would be silently dropped.
         Config toolboxConfig = null;
-        if (toolboxEnableCheck.isSelected()
-                || optionsPanel.isHatchEnabled()
-                || optionsPanel.isHanddrawnEnabled()) {
+        if (optionsPanel.hasProcessingEnabled()) {
             try {
                 toolboxConfig = optionsPanel.buildConfig();
             } catch (IllegalArgumentException ex) {
