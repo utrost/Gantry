@@ -154,8 +154,8 @@ public final class SvgImportCli {
 
             double maxDrawDistance = Double.parseDouble(cmd.getOptionValue("max-dist", "0"));
             double curveStep = Double.parseDouble(cmd.getOptionValue("curve-step", "0.1"));
-            if (curveStep <= 0.01) {
-                throw new IllegalArgumentException("Curve step too small.");
+            if (curveStep < 0.01) {
+                throw new IllegalArgumentException("Curve step must be at least 0.01 mm.");
             }
             String defaultStationId = cmd.getOptionValue("station", "default_station");
             double padding = Double.parseDouble(cmd.getOptionValue("padding", "10.0"));

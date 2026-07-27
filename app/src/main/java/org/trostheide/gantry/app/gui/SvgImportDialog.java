@@ -1,6 +1,7 @@
 package org.trostheide.gantry.app.gui;
 
 import org.trostheide.gantry.pipeline.svgimport.PaperFormat;
+import org.trostheide.gantry.pipeline.svgimport.SvgDocumentSize;
 import org.trostheide.gantry.pipeline.svgimport.SvgImportOptions;
 import org.trostheide.gantry.svgtoolbox.Config;
 
@@ -25,8 +26,9 @@ public final class SvgImportDialog extends JDialog {
 
     private final JSpinner maxDrawDistanceSpinner = new JSpinner(new SpinnerNumberModel(0.0, 0.0, 100000.0, 10.0));
     private final JTextField stationField = new JTextField("default_station", 14);
-    private final JSpinner curveStepSpinner = new JSpinner(new SpinnerNumberModel(0.1, 0.01, 10.0, 0.1));
+    private final JSpinner curveStepSpinner = new JSpinner(new SpinnerNumberModel(0.1, 0.01, 10.0, 0.01));
     private static final String FIT_TO_MACHINE = "Machine bed";
+    private static final String USE_SVG_SIZE = "SVG document size";
     private final JComboBox<String> fitToCombo = new JComboBox<>(
             new String[] {FIT_TO_MACHINE, "A6", "A5", "A4", "A3", "A2", "A1", "XL", "Custom"});
     private final JTextField customSizeField = new JTextField("210x297", 10);
@@ -35,6 +37,7 @@ public final class SvgImportDialog extends JDialog {
     private final JCheckBox keepAspectRatioCheck = new JCheckBox("Keep aspect ratio", true);
     private final JCheckBox mirrorCheck = new JCheckBox("Mirror");
     private final PaperFormat machineFormat;
+    private final PaperFormat svgDocumentFormat;
     private final JLabel safeFitSummary = new JLabel();
     private boolean advancedImportVisible;
 
@@ -60,6 +63,10 @@ public final class SvgImportDialog extends JDialog {
             double machineWidth, double machineHeight) {
         super(owner, "Add SVG or vector drawing", ModalityType.APPLICATION_MODAL);
         machineFormat = ArtworkImportPolicy.machineBed(machineWidth, machineHeight);
+        svgDocumentFormat = SvgDocumentSize.read(sourceSvg).orElse(null);
+        if (svgDocumentFormat != null) {
+            fitToCombo.insertItemAt(USE_SVG_SIZE, 1);
+        }
         optionsPanel = new ToolboxOptionsPanel(SvgFillColors.read(sourceSvg));
 
         JTabbedPane tabs = new JTabbedPane();
@@ -83,6 +90,7 @@ public final class SvgImportDialog extends JDialog {
         getRootPane().setDefaultButton(okBtn);
 
         fitToCombo.addActionListener(e -> {
+            updateSizeControls();
             updateSafeFitSummary();
             updateImportButtonState();
         });
@@ -93,6 +101,7 @@ public final class SvgImportDialog extends JDialog {
             @Override public void changedUpdate(javax.swing.event.DocumentEvent e) { updateImportButtonState(); }
         });
         updateSafeFitSummary();
+        updateSizeControls();
         updateImportButtonState();
 
         pack();
@@ -169,8 +178,6 @@ public final class SvgImportDialog extends JDialog {
         form.add(mirrorCheck, gbc);
 
         customSizeField.setEnabled(false);
-        fitToCombo.addActionListener(e -> customSizeField.setEnabled("Custom".equals(fitToCombo.getSelectedItem())));
-
         return form;
     }
 
@@ -179,10 +186,20 @@ public final class SvgImportDialog extends JDialog {
         String selection = (String) fitToCombo.getSelectedItem();
         if (FIT_TO_MACHINE.equals(selection)) {
             safeFitSummary.setText(ArtworkImportPolicy.summary(machineFormat, padding));
+        } else if (USE_SVG_SIZE.equals(selection)) {
+            safeFitSummary.setText(String.format(
+                    "Keep the SVG document size: %.1f × %.1f mm (no added margin).",
+                    svgDocumentFormat.width(), svgDocumentFormat.height()));
         } else {
             safeFitSummary.setText("Advanced target: " + selection + " with a "
                     + formatNumber(padding) + " mm safety margin.");
         }
+    }
+
+    private void updateSizeControls() {
+        String selection = (String) fitToCombo.getSelectedItem();
+        customSizeField.setEnabled("Custom".equals(selection));
+        paddingSpinner.setEnabled(!USE_SVG_SIZE.equals(selection));
     }
 
     private static String formatNumber(double value) {
@@ -244,13 +261,17 @@ public final class SvgImportDialog extends JDialog {
             station = "default_station";
         }
         double curveStep = ((Number) curveStepSpinner.getValue()).doubleValue();
-        double padding = ((Number) paddingSpinner.getValue()).doubleValue();
+        String fitToSelection = (String) fitToCombo.getSelectedItem();
+        double padding = USE_SVG_SIZE.equals(fitToSelection)
+                ? 0.0
+                : ((Number) paddingSpinner.getValue()).doubleValue();
         boolean keepAspect = keepAspectRatioCheck.isSelected();
         boolean mirror = mirrorCheck.isSelected();
 
-        String fitToSelection = (String) fitToCombo.getSelectedItem();
         PaperFormat format = FIT_TO_MACHINE.equals(fitToSelection)
                 ? machineFormat
+                : USE_SVG_SIZE.equals(fitToSelection)
+                    ? svgDocumentFormat
                 : "Custom".equals(fitToSelection)
                     ? PaperFormat.fromString(customSizeField.getText().trim())
                     : PaperFormat.fromString(fitToSelection);
