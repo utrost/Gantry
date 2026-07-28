@@ -191,7 +191,7 @@ public class PlotterPanel extends JPanel {
 
         artworkWorkspace = new ArtworkWorkspacePanel(visPanel,
                 new ArtworkWorkspacePanel.Actions(this::onImportSvg, this::onImportImage,
-                        this::onOpenProject));
+                        this::onLoadCommands, this::onOpenProject));
 
         JComponent jogSection = capHeight(jogPanel);
         JComponent jogGap = (JComponent) Box.createVerticalStrut(3);
@@ -1008,6 +1008,10 @@ public class PlotterPanel extends JPanel {
     private void onOpenSettings() { dialogs.settings(); }
 
     private void saveSettings(GantryConfig updated) {
+        // A connected backend retains the GcodeOptions instance it was constructed with.
+        // Update that instance instead of replacing it so pen/Z and speed changes apply now.
+        config.gcode.copyFrom(updated.gcode);
+        updated.gcode = config.gcode;
         config = updated;
         try { ConfigStore.save(config, configFile); }
         catch (IOException ex) { log("WARNING: Failed to save config: " + ex.getMessage()); }
@@ -1019,7 +1023,10 @@ public class PlotterPanel extends JPanel {
     private void showConnectionState(boolean connecting, boolean connected, boolean failed) {
         connectBtn.setEnabled(!connecting);
         connectBtn.setText(connected ? "Disconnect" : "Connect");
-        if (connectMenuItem != null) connectMenuItem.setText(connected ? "Disconnect" : "Connect");
+        if (connectMenuItem != null) {
+            connectMenuItem.setText(connected ? "Disconnect" : "Connect");
+            connectMenuItem.setEnabled(!connecting);
+        }
         setConnectButtonColor(!connected);
         setConnectionRequiredControlsEnabled(connected);
         statusLabel.setText(connecting ? "Connecting..." : failed ? "Connection failed" : connected ? "Connected" : "Disconnected");
@@ -1284,7 +1291,18 @@ public class PlotterPanel extends JPanel {
             log("ERROR: Not connected.");
             return;
         }
-        new Thread(() -> plotJobController.withBackend(action), "backend-action").start();
+        new Thread(() -> {
+            try {
+                plotJobController.withBackend(action);
+            } catch (RuntimeException failure) {
+                String message = failure.getMessage() == null
+                        ? failure.getClass().getSimpleName() : failure.getMessage();
+                SwingUtilities.invokeLater(() -> {
+                    log("ERROR: " + message);
+                    showFeedback("Machine action failed: " + message);
+                });
+            }
+        }, "backend-action").start();
     }
 
     /**

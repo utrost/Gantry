@@ -22,6 +22,7 @@ final class OverlayControlsPanel extends JPanel {
     OverlayControlsPanel(VisualizationPanel visualization,Actions actions){this.visualization=visualization;this.actions=actions;
         setLayout(new BoxLayout(this,BoxLayout.Y_AXIS));setBorder(new TitledBorder("Overlay / Position"));
         JButton reset=new JButton("Reset Position"),rotate=new JButton("Rotate 90°"),mirror=new JButton("Mirror"),set=new JButton("Set");
+        compactCoordinateSpinner(x);compactCoordinateSpinner(y);
         reset.addActionListener(e->visualization.resetOverlay());rotate.addActionListener(e->visualization.rotateOverlay());mirror.addActionListener(e->visualization.toggleMirror());set.addActionListener(e->apply());
         JPanel buttons=row(reset,rotate,mirror),position=row(new JLabel("X"),x,new JLabel("Y"),y,new JLabel("mm"),set);add(buttons);add(position);
         controls=List.of(reset,rotate,mirror,x,y,set);wirePreview();
@@ -37,4 +38,10 @@ final class OverlayControlsPanel extends JPanel {
         visualization.setInteractionModeChangeListener(actions::mode);visualization.setStationEditListener(new VisualizationPanel.StationEditListener(){
             public void onStationMoved(String n,double x,double y){actions.stationMoved(n,x,y);}public void onStationAdded(double x,double y){actions.stationAdded(x,y);}});}
     private static JPanel row(JComponent...items){JPanel p=new JPanel(new FlowLayout(FlowLayout.LEFT,4,2));for(JComponent i:items)p.add(i);return p;}
+    /** Keep both coordinates and the Set button inside the application's 300 px control column. */
+    private static void compactCoordinateSpinner(JSpinner spinner){
+        Dimension preferred=spinner.getPreferredSize();
+        Dimension compact=new Dimension(72,preferred.height);
+        spinner.setPreferredSize(compact);spinner.setMinimumSize(compact);
+    }
 }

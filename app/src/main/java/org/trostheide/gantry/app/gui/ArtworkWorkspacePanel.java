@@ -6,7 +6,7 @@ import java.awt.*;
 
 /** Live View wrapper that offers obvious artwork entry points while the canvas is empty. */
 final class ArtworkWorkspacePanel extends JLayeredPane {
-    record Actions(Runnable addSvg, Runnable addImage, Runnable openProject) { }
+    record Actions(Runnable addSvg, Runnable addImage, Runnable openCommands, Runnable openProject) { }
 
     private final JComponent canvas;
     private final JPanel emptyState = new JPanel(new GridBagLayout());
@@ -34,6 +34,8 @@ final class ArtworkWorkspacePanel extends JLayeredPane {
                 "Choose an SVG vector drawing and fit it safely to the machine bed");
         JButton image = action("Add image or photo", actions.addImage(),
                 "Choose a raster image and convert it to plottable lines");
+        JButton commands = action("Open commands (JSON)", actions.openCommands(),
+                "Open a converted or exported Gantry command JSON file");
         JButton project = action("Open Gantry project", actions.openProject(),
                 "Continue an existing editable Gantry project");
 
@@ -41,7 +43,7 @@ final class ArtworkWorkspacePanel extends JLayeredPane {
         card.add(Box.createVerticalStrut(5));
         card.add(explanation);
         card.add(Box.createVerticalStrut(14));
-        for (JButton button : new JButton[] {svg, image, project}) {
+        for (JButton button : new JButton[] {svg, image, commands, project}) {
             button.setAlignmentX(Component.CENTER_ALIGNMENT);
             button.setMaximumSize(new Dimension(280, button.getPreferredSize().height));
             card.add(button);

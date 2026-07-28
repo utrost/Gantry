@@ -273,6 +273,46 @@ class GcodeBackendTest {
     }
 
     @Test
+    void homeRecoversFromAlarmStatusAndSendsHomingCycle() throws Exception {
+        GcodeOptions options = new GcodeOptions();
+        options.positionPollIntervalSeconds = 0.02;
+        GcodeBackend b = newBackend(options);
+        assertTrue(b.connect());
+        fake.setMachineState("Alarm");
+        awaitState(b, GcodeBackend.MachineState.ALARM);
+
+        int beforeHome = fake.sentCommands().size();
+        b.home();
+
+        List<String> recovery = fake.sentCommands().subList(beforeHome, fake.sentCommands().size());
+        assertTrue(recovery.size() >= 4, "expected unlock, pen-up, home, and origin reset: " + recovery);
+        assertEquals("$X", recovery.get(0));
+        assertEquals("M280 P0 S60", recovery.get(1));
+        assertEquals("$H", recovery.get(2));
+        assertEquals("G92 X0 Y0", lastNonStatus());
+    }
+
+    @Test
+    void homeRaisesZAxisPenBeforeStartingHomingMotion() {
+        GcodeOptions options = new GcodeOptions();
+        options.penMode = "zaxis";
+        options.zUp = 7.5;
+        GcodeBackend b = newBackend(options);
+        assertTrue(b.connect());
+        b.pendown();
+
+        int beforeHome = fake.sentCommands().size();
+        b.home();
+
+        List<String> homing = fake.sentCommands().subList(beforeHome, fake.sentCommands().size());
+        assertTrue(homing.size() >= 4, "expected unlock, pen-up, home, and origin reset: " + homing);
+        assertEquals("$X", homing.get(0)); // unlock only; it cannot move an axis
+        assertEquals("G0 Z7.50", homing.get(1)); // first motion must lift the pen
+        assertEquals("$H", homing.get(2)); // homing motion may only start after the lift is acknowledged
+        assertEquals("G92 X0 Y0", homing.get(3));
+    }
+
+    @Test
     void serialWriteFailureIsThrownAndMarksBackendDisconnected() {
         GcodeOptions options = new GcodeOptions();
         options.positionPollIntervalSeconds = 60;

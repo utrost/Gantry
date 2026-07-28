@@ -88,7 +88,12 @@ final class ProcessingPreviewPanel extends JPanel {
         private ProcessorOutput output;
         PreviewCanvas(){setOpaque(true);setBackground(Color.WHITE);setBorder(BorderFactory.createLineBorder(new Color(210,210,210)));}
         void setOutput(ProcessorOutput value){output=value;repaint();}
-        @Override protected void paintComponent(Graphics graphics){super.paintComponent(graphics);if(output==null)return;Graphics2D g=(Graphics2D)graphics.create();
+        @Override protected void paintComponent(Graphics graphics){
+            // A bare JComponent has no UI delegate, so super.paintComponent() does not fill its
+            // background even when opaque. Clear explicitly or stale pixels from the settings form
+            // behind this preview appear as a phantom overlay.
+            graphics.setColor(getBackground());graphics.fillRect(0,0,getWidth(),getHeight());
+            if(output==null)return;Graphics2D g=(Graphics2D)graphics.create();
             g.setRenderingHint(RenderingHints.KEY_ANTIALIASING,RenderingHints.VALUE_ANTIALIAS_ON);
             Extents x=extents(output);if(!x.valid()){g.dispose();return;}double pad=12;
             double scale=Math.min((getWidth()-2*pad)/Math.max(.001,x.maxX-x.minX),(getHeight()-2*pad)/Math.max(.001,x.maxY-x.minY));

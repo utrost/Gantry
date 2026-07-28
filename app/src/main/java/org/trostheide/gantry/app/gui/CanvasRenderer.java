@@ -270,19 +270,22 @@ final class CanvasRenderer {
         String travelHud = (panel.travelTotalMm > 0)
                 ? String.format(" | Pen-down efficiency: %.0f%%", 100.0 * panel.travelPenDownMm / panel.travelTotalMm)
                 : "";
+        double[] artworkSize = panel.getContentMotorSize();
         g2.drawString(String.format(
                 "Pos: %.1f, %.1f | Speed: %d%% | View: %.0f%% | Align: %s | Rot: %d | Origin: %s | %s%s",
                 panel.currentX, panel.currentY, panel.speedPercent, panel.viewZoom * 100, panel.canvasAlignment, panel.dataRotation,
                 panel.machineOrigin, panel.orientation, travelHud), 10, h - 10);
         if (panel.hasOverlayTransform()) {
             g2.drawString(String.format(
-                    "Drag: dX=%.1f dY=%.1f Scale=%.0f%% | Bed: %.0fx%.0f",
+                    "Artwork: %.1f x %.1f mm | Drag: dX=%.1f dY=%.1f Scale=%.0f%% | Bed: %.0fx%.0f mm",
+                    artworkSize[0], artworkSize[1],
                     panel.overlayOffsetX, panel.overlayOffsetY, panel.overlayScale * 100,
                     panel.machineWidth, panel.machineHeight), 10, h - 24);
         } else {
             g2.drawString(String.format(
-                    "Bed: %.0fx%.0f | Offset: %.1f, %.1f | Swap: %s InvX: %s InvY: %s",
-                    panel.machineWidth, panel.machineHeight, panel.alignOffsetX, panel.alignOffsetY,
+                    "Artwork: %.1f x %.1f mm | Bed: %.0fx%.0f mm | Offset: %.1f, %.1f | Swap: %s InvX: %s InvY: %s",
+                    artworkSize[0], artworkSize[1], panel.machineWidth, panel.machineHeight,
+                    panel.alignOffsetX, panel.alignOffsetY,
                     panel.effectiveSwap() ? "Y" : "N",
                     panel.effectiveInvertX() ? "Y" : "N",
                     panel.effectiveInvertY() ? "Y" : "N"), 10, h - 24);

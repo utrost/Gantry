@@ -66,7 +66,12 @@ final class DocumentFileWorkflow {
         if(chooser.showOpenDialog(parent)!=JFileChooser.APPROVE_OPTION)return;
         File file=chooser.getSelectedFile();remember(file);
         try{actions.openProject().accept(GantryProjectIO.load(file));actions.log().accept("Opened project "+file.getName());actions.feedback().accept("Project opened: "+file.getName());}
-        catch(IOException ex){actions.error().accept("Failed to open project "+file.getName()+": "+ex.getMessage());}
+        catch(IOException ex){
+            String message=file.getName().toLowerCase().endsWith(".json")
+                    ? "'"+file.getName()+"' is a command JSON file, not a Gantry project. Use Open Commands (JSON) instead."
+                    : "Failed to open project "+file.getName()+": "+ex.getMessage();
+            actions.error().accept(message);
+        }
     }
 
     void saveProject() {

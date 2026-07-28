@@ -868,6 +868,29 @@ public class VisualizationPanel extends JPanel {
     }
 
     /**
+     * Returns the placed artwork's axis-aligned width and height in physical millimetres.
+     * The result includes interactive scale/rotation/mirroring and the configured machine-axis
+     * transform, matching the bounding box shown on the canvas and ultimately sent to the plotter.
+     */
+    public double[] getContentMotorSize() {
+        if (allPaths.isEmpty()) {
+            return new double[] { 0, 0 };
+        }
+        Point2D[] corners = {
+            new Point2D(rawMinX, rawMinY), new Point2D(rawMaxX, rawMinY),
+            new Point2D(rawMinX, rawMaxY), new Point2D(rawMaxX, rawMaxY)
+        };
+        double minX = Double.MAX_VALUE, minY = Double.MAX_VALUE;
+        double maxX = -Double.MAX_VALUE, maxY = -Double.MAX_VALUE;
+        for (Point2D corner : corners) {
+            double[] motor = transformPointToMotor(corner);
+            minX = Math.min(minX, motor[0]); maxX = Math.max(maxX, motor[0]);
+            minY = Math.min(minY, motor[1]); maxY = Math.max(maxY, motor[1]);
+        }
+        return new double[] { maxX - minX, maxY - minY };
+    }
+
+    /**
      * Positions the content so its origin-nearest bounding-box corner lands at the given
      * motor coordinates (mm from origin), then re-clamps to the bed.
      */

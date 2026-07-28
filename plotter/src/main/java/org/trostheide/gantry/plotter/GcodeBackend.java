@@ -46,6 +46,8 @@ public class GcodeBackend implements PlotterBackend {
      * commands short-circuit instead of fighting the halt for the write lock and "ok" acks. */
     private volatile boolean aborting;
     private volatile GcodeBackendException terminalFailure;
+    /** True while $H is intentionally recovering GRBL from its normal alarm lock. */
+    private volatile boolean homingFromAlarm;
     private volatile MachineState machineState = MachineState.UNKNOWN;
 
     private final Object writeLock = new Object();
@@ -293,8 +295,26 @@ public class GcodeBackend implements PlotterBackend {
         if (t == null || !t.isOpen()) {
             return;
         }
-        send(GcodeFormatter.homingCycle());
-        waitForOk(120);
+        // A realtime Stop resets GRBL and leaves some firmware variants (including DrawCore) in
+        // an alarm lock where accepting $H directly is unreliable. Perform a fully acknowledged
+        // unlock first, then start homing. Ignore stale asynchronous <Alarm|...> status reports
+        // during this short recovery sequence; explicit ALARM:n responses still fail normally.
+        ackQueue.clear();
+        terminalFailure = null;
+        homingFromAlarm = true;
+        try {
+            send("$X");
+            waitForOk(5);
+            ackQueue.clear();
+            terminalFailure = null;
+            // Raise the pen before $H can move any axis. $X must precede this because GRBL rejects
+            // ordinary pen commands while alarm-locked, but unlocking itself causes no motion.
+            penup();
+            send(GcodeFormatter.homingCycle());
+            waitForOk(120);
+        } finally {
+            homingFromAlarm = false;
+        }
         send(GcodeFormatter.zeroWorkOrigin());
         waitForOk(30);
         lastWpos = new double[] { 0.0, 0.0 };
@@ -539,7 +559,7 @@ public class GcodeBackend implements PlotterBackend {
         String stateToken = body.split("\\|", 2)[0];
         MachineState state = parseMachineState(stateToken);
         updateMachineState(state);
-        if (state == MachineState.ALARM) {
+        if (state == MachineState.ALARM && !homingFromAlarm) {
             handleAlarm("GRBL status: " + stateToken);
         }
         double[] mpos = null;

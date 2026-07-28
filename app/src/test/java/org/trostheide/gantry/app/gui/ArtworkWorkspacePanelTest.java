@@ -20,7 +20,7 @@ class ArtworkWorkspacePanelTest {
 
         SwingUtilities.invokeAndWait(() -> holder[0] = new ArtworkWorkspacePanel(new JPanel(),
                 new ArtworkWorkspacePanel.Actions(svg::incrementAndGet,
-                        image::incrementAndGet, project::incrementAndGet)));
+                        image::incrementAndGet, () -> { }, project::incrementAndGet)));
 
         ArtworkWorkspacePanel panel = holder[0];
         assertTrue(panel.isShowingEmptyState());

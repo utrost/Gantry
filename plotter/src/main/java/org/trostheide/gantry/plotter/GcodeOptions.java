@@ -35,4 +35,29 @@ public class GcodeOptions {
      * fast pen.
      */
     public int penDownDelayMillis = 80;
+
+    /**
+     * Applies another configuration without replacing this object. Live plotter backends retain
+     * this instance, so in-place updates let settings changes take effect without reconnecting.
+     */
+    public void copyFrom(GcodeOptions source) {
+        if (source == null || source == this) {
+            return;
+        }
+        serialPort = source.serialPort;
+        baudRate = source.baudRate;
+        penMode = source.penMode;
+        servoPin = source.servoPin;
+        feedRateDraw = source.feedRateDraw;
+        feedRateTravel = source.feedRateTravel;
+        penServoUp = source.penServoUp;
+        penServoDown = source.penServoDown;
+        zUp = source.zUp;
+        zDown = source.zDown;
+        machineWidth = source.machineWidth;
+        machineHeight = source.machineHeight;
+        positionPollIntervalSeconds = source.positionPollIntervalSeconds;
+        bootDelayMillis = source.bootDelayMillis;
+        penDownDelayMillis = source.penDownDelayMillis;
+    }
 }
