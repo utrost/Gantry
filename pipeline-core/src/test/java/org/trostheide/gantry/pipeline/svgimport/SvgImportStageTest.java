@@ -284,6 +284,28 @@ class SvgImportStageTest {
         }
 
         @Test
+        void preserveViewportKeepsEmptyPortraitPageMargins() throws Exception {
+            String svg = "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"210mm\" height=\"297mm\" "
+                    + "viewBox=\"0 0 210 297\">"
+                    + "<rect x=\"10\" y=\"40\" width=\"190\" height=\"217\"/>"
+                    + "</svg>";
+            File temp = File.createTempFile("a4-template", ".svg");
+            temp.deleteOnExit();
+            java.nio.file.Files.writeString(temp.toPath(), svg);
+
+            SvgImportOptions options = SvgImportOptions.fitToFormat(
+                    0, "default_station", 0.5, PaperFormat.A4, 0.0,
+                    false, true, true);
+            ProcessorOutput result = SvgImportStage.importSvg(temp, options);
+
+            Bounds bounds = result.metadata().bounds();
+            assertEquals(190.0, bounds.maxX() - bounds.minX(), 1e-6);
+            assertEquals(217.0, bounds.maxY() - bounds.minY(), 1e-6);
+            assertEquals(10.0, bounds.minX(), 1e-6);
+            assertEquals(40.0, bounds.minY(), 1e-6);
+        }
+
+        @Test
         void fitToA4KeepsBoundsWithinPage() throws Exception {
             ProcessorOutput result = SvgImportStage.importSvg(resource("test_simple.svg"),
                     SvgImportOptions.fitToFormat(500, "default_station", 0.5, PaperFormat.A4, 10.0, false));

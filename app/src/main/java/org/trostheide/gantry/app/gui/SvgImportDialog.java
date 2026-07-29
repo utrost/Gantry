@@ -35,6 +35,7 @@ public final class SvgImportDialog extends JDialog {
     private final JSpinner paddingSpinner = new JSpinner(new SpinnerNumberModel(
             ArtworkImportPolicy.DEFAULT_PADDING_MM, 0.0, 500.0, 1.0));
     private final JCheckBox keepAspectRatioCheck = new JCheckBox("Keep aspect ratio", true);
+    private final JCheckBox preservePageCheck = new JCheckBox("Preserve SVG page and empty margins");
     private final JCheckBox mirrorCheck = new JCheckBox("Mirror");
     private final PaperFormat machineFormat;
     private final PaperFormat svgDocumentFormat;
@@ -95,6 +96,10 @@ public final class SvgImportDialog extends JDialog {
             updateImportButtonState();
         });
         paddingSpinner.addChangeListener(e -> updateSafeFitSummary());
+        preservePageCheck.addActionListener(e -> {
+            updateSizeControls();
+            updateSafeFitSummary();
+        });
         customSizeField.getDocument().addDocumentListener(new javax.swing.event.DocumentListener() {
             @Override public void insertUpdate(javax.swing.event.DocumentEvent e) { updateImportButtonState(); }
             @Override public void removeUpdate(javax.swing.event.DocumentEvent e) { updateImportButtonState(); }
@@ -175,6 +180,10 @@ public final class SvgImportDialog extends JDialog {
         gbc.gridwidth = 2;
         form.add(keepAspectRatioCheck, gbc);
         gbc.gridy++;
+        preservePageCheck.setToolTipText(
+                "Map the complete SVG viewBox to the selected size instead of enlarging only visible artwork");
+        form.add(preservePageCheck, gbc);
+        gbc.gridy++;
         form.add(mirrorCheck, gbc);
 
         customSizeField.setEnabled(false);
@@ -185,21 +194,25 @@ public final class SvgImportDialog extends JDialog {
         double padding = ((Number) paddingSpinner.getValue()).doubleValue();
         String selection = (String) fitToCombo.getSelectedItem();
         if (FIT_TO_MACHINE.equals(selection)) {
-            safeFitSummary.setText(ArtworkImportPolicy.summary(machineFormat, padding));
+            safeFitSummary.setText(preservePageCheck.isSelected()
+                    ? "Map the complete SVG page to the machine bed, preserving empty margins."
+                    : ArtworkImportPolicy.summary(machineFormat, padding));
         } else if (USE_SVG_SIZE.equals(selection)) {
             safeFitSummary.setText(String.format(
                     "Keep the SVG document size: %.1f × %.1f mm (no added margin).",
                     svgDocumentFormat.width(), svgDocumentFormat.height()));
         } else {
-            safeFitSummary.setText("Advanced target: " + selection + " with a "
-                    + formatNumber(padding) + " mm safety margin.");
+            safeFitSummary.setText(preservePageCheck.isSelected()
+                    ? "Map the complete SVG page exactly to " + selection + ", preserving empty margins."
+                    : "Advanced target: " + selection + " with a "
+                            + formatNumber(padding) + " mm safety margin.");
         }
     }
 
     private void updateSizeControls() {
         String selection = (String) fitToCombo.getSelectedItem();
         customSizeField.setEnabled("Custom".equals(selection));
-        paddingSpinner.setEnabled(!USE_SVG_SIZE.equals(selection));
+        paddingSpinner.setEnabled(!USE_SVG_SIZE.equals(selection) && !preservePageCheck.isSelected());
     }
 
     private static String formatNumber(double value) {
@@ -262,7 +275,9 @@ public final class SvgImportDialog extends JDialog {
         }
         double curveStep = ((Number) curveStepSpinner.getValue()).doubleValue();
         String fitToSelection = (String) fitToCombo.getSelectedItem();
-        double padding = USE_SVG_SIZE.equals(fitToSelection)
+        boolean preservePage = preservePageCheck.isSelected()
+                || USE_SVG_SIZE.equals(fitToSelection);
+        double padding = preservePage
                 ? 0.0
                 : ((Number) paddingSpinner.getValue()).doubleValue();
         boolean keepAspect = keepAspectRatioCheck.isSelected();
@@ -283,7 +298,8 @@ public final class SvgImportDialog extends JDialog {
         }
 
         SvgImportOptions importOptions =
-                SvgImportOptions.fitToFormat(maxDrawDistance, station, curveStep, format, padding, mirror, keepAspect);
+                SvgImportOptions.fitToFormat(maxDrawDistance, station, curveStep, format, padding,
+                        mirror, keepAspect, preservePage);
 
         // Enabling a processing feature implies running the SVGToolBox pipeline — otherwise
         // the visible settings would be silently dropped.

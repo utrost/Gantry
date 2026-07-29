@@ -15,6 +15,8 @@ package org.trostheide.gantry.pipeline.svgimport;
  * @param posX position offset in mm applied after scaling
  * @param posY position offset in mm applied after scaling
  * @param mirror mirror the drawing horizontally (about the target/content center)
+ * @param preserveSvgViewport scale the SVG viewBox, rather than its visible content bounds, so
+ *                            empty page margins retain their position
  */
 public record SvgImportOptions(
         double maxDrawDistance,
@@ -25,7 +27,16 @@ public record SvgImportOptions(
         boolean keepAspectRatio,
         double posX,
         double posY,
-        boolean mirror) {
+        boolean mirror,
+        boolean preserveSvgViewport) {
+
+    /** Backwards-compatible constructor for callers/projects created before viewport preservation. */
+    public SvgImportOptions(double maxDrawDistance, String defaultStationId, double curveStep,
+            double targetWidth, double targetHeight, boolean keepAspectRatio,
+            double posX, double posY, boolean mirror) {
+        this(maxDrawDistance, defaultStationId, curveStep, targetWidth, targetHeight,
+                keepAspectRatio, posX, posY, mirror, false);
+    }
 
     /** No refill, 0.1mm curve step, no scaling/positioning/mirroring. */
     public static SvgImportOptions defaults() {
@@ -43,6 +54,13 @@ public record SvgImportOptions(
 
     public static SvgImportOptions fitToFormat(double maxDrawDistance, String defaultStationId,
             double curveStep, PaperFormat format, double padding, boolean mirror, boolean keepAspectRatio) {
+        return fitToFormat(maxDrawDistance, defaultStationId, curveStep, format, padding,
+                mirror, keepAspectRatio, false);
+    }
+
+    public static SvgImportOptions fitToFormat(double maxDrawDistance, String defaultStationId,
+            double curveStep, PaperFormat format, double padding, boolean mirror,
+            boolean keepAspectRatio, boolean preserveSvgViewport) {
         double targetW = 0;
         double targetH = 0;
         if (format != null) {
@@ -50,6 +68,6 @@ public record SvgImportOptions(
             targetH = format.height() - padding * 2;
         }
         return new SvgImportOptions(maxDrawDistance, defaultStationId, curveStep,
-                targetW, targetH, keepAspectRatio, 0, 0, mirror);
+                targetW, targetH, keepAspectRatio, 0, 0, mirror, preserveSvgViewport);
     }
 }

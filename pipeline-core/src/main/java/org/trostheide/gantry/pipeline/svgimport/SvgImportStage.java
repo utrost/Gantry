@@ -85,9 +85,12 @@ public final class SvgImportStage {
         // background/frame rect coexists with separate real content. With one drawable in the
         // whole document, that shape IS the content and must never be filtered out.
         boolean skipPageBorderFilter = countDrawables(layersToProcess) <= 1;
+        Bounds viewportBounds = options.preserveSvgViewport() ? svgViewportBounds(doc) : null;
 
         if (hasTargetSize && haveBounds) {
-            Bounds scaleBounds = calculateContentOnlyBounds(layersToProcess, preScannedBounds, skipPageBorderFilter);
+            Bounds scaleBounds = viewportBounds != null
+                    ? viewportBounds
+                    : calculateContentOnlyBounds(layersToProcess, preScannedBounds, skipPageBorderFilter);
             globalTx = calculateScaleTransform(scaleBounds, options.targetWidth(), options.targetHeight(),
                     options.keepAspectRatio(), options.posX(), options.posY());
         } else if (hasPosition && haveBounds) {
@@ -113,8 +116,9 @@ public final class SvgImportStage {
         // manual "Flip Y" override. Concatenated last so it applies first, in raw content space,
         // before the scale/position/mirror transforms (and it preserves the content's Y extents).
         if (haveBounds) {
+            Bounds flipBounds = viewportBounds != null ? viewportBounds : preScannedBounds;
             AffineTransform flipY = new AffineTransform(1, 0, 0, -1, 0,
-                    preScannedBounds.minY() + preScannedBounds.maxY());
+                    flipBounds.minY() + flipBounds.maxY());
             globalTx.concatenate(flipY);
         }
 
@@ -147,6 +151,27 @@ public final class SvgImportStage {
                 globalBoundsBuilder.build());
 
         return new ProcessorOutput(metadata, resultLayers);
+    }
+
+    /** Returns the SVG page/viewBox in user units, or null when no valid viewBox is declared. */
+    private static Bounds svgViewportBounds(Document doc) {
+        if (doc == null || doc.getDocumentElement() == null) return null;
+        String viewBox = doc.getDocumentElement().getAttribute("viewBox");
+        if (viewBox == null || viewBox.isBlank()) return null;
+        String[] parts = viewBox.trim().split("[,\\s]+");
+        if (parts.length != 4) return null;
+        try {
+            double x = Double.parseDouble(parts[0]);
+            double y = Double.parseDouble(parts[1]);
+            double width = Double.parseDouble(parts[2]);
+            double height = Double.parseDouble(parts[3]);
+            if (!Double.isFinite(x) || !Double.isFinite(y)
+                    || !Double.isFinite(width) || !Double.isFinite(height)
+                    || width <= 0 || height <= 0) return null;
+            return new Bounds(x, y, x + width, y + height);
+        } catch (NumberFormatException ignored) {
+            return null;
+        }
     }
 
     private static Document loadDocument(File inputFile) throws IOException {
