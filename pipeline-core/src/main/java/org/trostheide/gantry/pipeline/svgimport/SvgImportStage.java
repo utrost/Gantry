@@ -22,6 +22,9 @@ import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 
 import java.awt.Shape;
+import java.awt.Font;
+import java.awt.font.FontRenderContext;
+import java.awt.font.GlyphVector;
 import java.awt.geom.AffineTransform;
 import java.awt.geom.PathIterator;
 import java.awt.geom.Rectangle2D;
@@ -409,13 +412,10 @@ public final class SvgImportStage {
         double currentPaintDist = 0.0;
 
         for (Node node : drawables) {
-            String d = getRawPathData(node);
-            if (d == null) {
+            Shape shape = shapeForNode(node, parser, producer);
+            if (shape == null) {
                 continue;
             }
-
-            parser.parse(d);
-            Shape shape = producer.getShape();
 
             shape = applyElementTransform(node, shape);
 
@@ -571,7 +571,7 @@ public final class SvgImportStage {
             String tagName = ((Element) node).getTagName();
             if (tagName.equals("path") || tagName.equals("rect") || tagName.equals("circle")
                     || tagName.equals("ellipse") || tagName.equals("line") || tagName.equals("polyline")
-                    || tagName.equals("polygon")) {
+                    || tagName.equals("polygon") || tagName.equals("text")) {
                 result.add(node);
             }
         }
@@ -645,6 +645,79 @@ public final class SvgImportStage {
         }
     }
 
+    /**
+     * Converts a supported SVG drawable to an AWT shape. Text is outlined with the local JVM font
+     * so plotters receive glyph contours rather than an unsupported SVG text instruction.
+     */
+    private static Shape shapeForNode(Node node, PathParser parser, AWTPathProducer producer) {
+        if (node.getNodeType() != Node.ELEMENT_NODE) return null;
+        Element element = (Element) node;
+        if ("text".equals(element.getTagName())) {
+            return textOutline(element);
+        }
+        String d = getRawPathData(node);
+        if (d == null || d.isBlank()) return null;
+        try {
+            parser.parse(d);
+            return producer.getShape();
+        } catch (RuntimeException ignored) {
+            return null;
+        }
+    }
+
+    private static Shape textOutline(Element element) {
+        String text = element.getTextContent();
+        if (text == null || text.isEmpty()) return null;
+        try {
+            double x = firstLength(element.getAttribute("x"), 0.0);
+            double y = firstLength(element.getAttribute("y"), 0.0);
+            float size = (float) firstLength(element.getAttribute("font-size"), 16.0);
+            if (!(size > 0) || !Float.isFinite(size)) return null;
+
+            String family = element.getAttribute("font-family").trim();
+            if (family.isEmpty()) family = Font.SANS_SERIF;
+            // SVG permits a fallback list and quoted family names; AWT accepts one concrete name.
+            family = family.split(",")[0].trim().replace("\"", "").replace("'", "");
+            int style = Font.PLAIN;
+            if ("italic".equalsIgnoreCase(element.getAttribute("font-style"))
+                    || "oblique".equalsIgnoreCase(element.getAttribute("font-style"))) {
+                style |= Font.ITALIC;
+            }
+            String weight = element.getAttribute("font-weight");
+            if ("bold".equalsIgnoreCase(weight) || parseFontWeight(weight) >= 600) {
+                style |= Font.BOLD;
+            }
+
+            Font font = new Font(family, style, 1).deriveFont(size);
+            FontRenderContext context = new FontRenderContext(null, true, true);
+            GlyphVector glyphs = font.createGlyphVector(context, text);
+            double advance = glyphs.getLogicalBounds().getBounds2D().getWidth();
+            String anchor = element.getAttribute("text-anchor");
+            if ("middle".equals(anchor)) x -= advance / 2.0;
+            else if ("end".equals(anchor)) x -= advance;
+            return glyphs.getOutline((float) x, (float) y);
+        } catch (RuntimeException ignored) {
+            return null;
+        }
+    }
+
+    private static double firstLength(String value, double fallback) {
+        if (value == null || value.isBlank()) return fallback;
+        String first = value.trim().split("[,\\s]+")[0];
+        // Coordinates in this importer are SVG user units. Common unit suffixes are stripped;
+        // document/viewBox scaling subsequently maps those units to millimetres.
+        first = first.replaceFirst("(?i)(px|pt|pc|mm|cm|in)$", "");
+        return Double.parseDouble(first);
+    }
+
+    private static int parseFontWeight(String value) {
+        try {
+            return value == null || value.isBlank() ? 400 : Integer.parseInt(value.trim());
+        } catch (NumberFormatException ignored) {
+            return 400;
+        }
+    }
+
     private static double attr(Element e, String attr) {
         String v = e.getAttribute(attr);
         return v.isEmpty() ? 0.0 : Double.parseDouble(v);
@@ -695,13 +768,9 @@ public final class SvgImportStage {
             List<Node> drawables = new ArrayList<>();
             collectDrawableElements(ctx.rootNode, drawables);
             for (Node node : drawables) {
-                String d = getRawPathData(node);
-                if (d == null) {
-                    continue;
-                }
                 try {
-                    parser.parse(d);
-                    Shape shape = producer.getShape();
+                    Shape shape = shapeForNode(node, parser, producer);
+                    if (shape == null) continue;
                     shape = applyElementTransform(node, shape);
                     Rectangle2D r2d = shape.getBounds2D();
                     builder.add(r2d.getMinX(), r2d.getMinY());
@@ -741,13 +810,9 @@ public final class SvgImportStage {
             List<Node> drawables = new ArrayList<>();
             collectDrawableElements(ctx.rootNode, drawables);
             for (Node node : drawables) {
-                String d = getRawPathData(node);
-                if (d == null) {
-                    continue;
-                }
                 try {
-                    parser.parse(d);
-                    Shape shape = producer.getShape();
+                    Shape shape = shapeForNode(node, parser, producer);
+                    if (shape == null) continue;
                     shape = applyElementTransform(node, shape);
                     if (!skipPageBorderFilter && isPageBorderRect(shape, rawBounds)) {
                         continue;

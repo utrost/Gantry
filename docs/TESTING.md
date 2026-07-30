@@ -39,9 +39,9 @@ Expected output: `BUILD SUCCESS` with zero failures across all modules.
 | Module | Test classes | What is covered |
 |---|---|---|
 | `model` | `ProcessorOutputJsonTest`, `CoordinateTransformTest` | JSON round-trip of `ProcessorOutput`; coordinate transform (rotate/swap/invert/align) in all axis combinations |
-| `pipeline-core` | `SvgImportStageTest` (4 nested classes, 28 tests) | SVG parsing and command-model extraction: simple SVG, layered SVG, fit-to-A4 scaling, refill insertion, refill-free mode, command ID sequence, transform/nested-transform baking, mirroring; full-page background rect dropped when real content coexists; single-shape SVG (the rect *is* the content) is never dropped; `PaperFormat` parsing; `calculateFitToPageTransform`; plain (non-Inkscape) top-level `<g>` groups are split into separate layers when ≥2 contain drawables, but a lone group still collapses to one "Default" layer |
+| `pipeline-core` | `SvgImportStageTest` | SVG parsing and command-model extraction: paths/primitives and text-to-glyph outlines, layered SVG, content-fit and preserved-viewBox A4 scaling, refill insertion, curve flattening, transforms, mirroring, and page-border filtering |
 | `pipeline-core` | `OptimizeStageTest` (8), `MultipassStageTest` | RDP simplify, greedy-NN reorder, cooperative cancellation without input mutation, multipass command expansion; stroke welding (touching segments merge into one polyline, reverse-when-only-end-touches, disjoint stay separate, zero tolerance disables) |
-| `plotter` | `GcodeBackendTest` | G-code formatting and GRBL safety: init, pen modes, moves, raw send, realtime state, Hold/resume, in-flight Alarm abort, and serial read/write failure propagation |
+| `plotter` | `GcodeBackendTest`, `GcodeOptionsTest` | G-code formatting and GRBL safety: init, pen modes, moves, raw send, realtime state, Alarm recovery, acknowledged pen-up before homing, serial failure propagation, and in-place live option updates |
 | `app` | `PlotServiceTest` | Full plot orchestration: layer sequencing, refill at layer boundary, cancel mid-plot, OOB clamping, per-waypoint position callbacks |
 | `app` | `StudioMetricsTest` (4) | Vectorize-studio plottability metrics: stroke/point counts, draw-vs-travel separation, scale-invariant travel ratio, no-double-count on stroke approach |
 | `app` | `BusyOverlayTest` | Cancellable background-work overlay exposes animated progress, invokes Cancel, and changes to a disabled Cancelling state |
@@ -251,6 +251,7 @@ a `testdata/` folder.
    - [ ] A confirmation dialog appears (the head will move). Click **Cancel** — nothing happens.
 2. Trigger **Home** again and confirm.
    - [ ] Console logs the homing cycle and origin-zeroed message (mock simulates instantly; hardware runs GRBL `$H`).
+   - [ ] On hardware, the pen raises before any homing-axis motion begins and remains clear while travelling to the switches.
    - [ ] Home is disabled while a plot is running.
 
 ---
@@ -338,12 +339,16 @@ a `testdata/` folder.
    - [ ] **Add artwork** opens with **Advanced options** collapsed.
    - [ ] The summary names the configured machine-bed dimensions and a **10 mm safety margin**.
    - [ ] **Import** is immediately enabled and green; **Keep aspect ratio** is part of the default.
-   - [ ] Expand **Advanced options**: **Fit to = Machine bed**, padding = `10`, and curve step = `0.1` mm.
+   - [ ] Expand **Advanced options**: **Fit to = Machine bed**, padding = `10`, curve step = `0.1` mm (minimum `0.01`), and **Preserve SVG page and empty margins** is available.
    - [ ] Pick **Fit to = Custom** with a blank size — Import disables; enter `210x297` — it re-enables/greens and the summary identifies the advanced target.
 2. Import `framed.svg` with Max draw distance = 0.
    - [ ] The full-page background border rectangle is dropped; the pen does not trace the outer frame.
 3. Import `single-rect.svg`.
    - [ ] The single rect **is** drawn (a lone shape is the content and must not be discarded as a page border).
+4. Import a portrait A4 SVG with `viewBox="0 0 210 297"` whose visible marks leave empty top/bottom margins. Choose Custom `210x297` and enable **Preserve SVG page and empty margins**.
+   - [ ] Padding disables and the visible marks retain their original offsets within the A4 page instead of being enlarged to their own content bounds.
+5. Import an SVG containing `<text font-family="monospace">PPCT abc 123</text>`.
+   - [ ] The text appears as glyph outlines in Live View and contributes normal move/draw commands when plotted.
 
 #### TS-G2 — Basic import & refill insertion *(mock OK)*
 1. Add `simple.svg` with the default options (Max draw distance remains 0).

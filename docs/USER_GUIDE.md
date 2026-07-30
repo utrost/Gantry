@@ -222,11 +222,14 @@ sensible size; pick a tab to edit that group. Changes take effect after clicking
 | Field | Description |
 |---|---|
 | Pen mode | `servo` — servo angle · `zaxis` — G-code Z axis · `m3m5` — spindle on/off |
-| Pen up / down | Servo angle (0–180°) or Z position (mm) for raised / lowered pen |
+| Pen up / down | Servo angles (0–180°) in `servo` mode, or M3 S-values in `m3m5` mode. These fields are not used in `zaxis` mode. |
 | Z up / down | Z-axis positions (mm) for pen-up / pen-down when using `zaxis` mode |
 | Draw feed rate | Mm/min while drawing (default 1000) |
 | Travel feed rate | Mm/min while moving without drawing (default 3000) |
 | Pen down delay (ms) | Dwell after lowering the pen before drawing starts (default 80). If your lines begin with a small ink blob/dot — the pen sitting still on the paper while ink bleeds — lower this (try 40, or 0 for a fast pen). Raise it only if a slow pen mechanism skips the first millimetre of a line. |
+
+Saving pen, Z, or feed-rate settings updates an already connected backend
+immediately; reconnecting is not required before using Pen Up/Down or plotting.
 
 ### Refill stations
 
@@ -263,11 +266,21 @@ Expand **Advanced options** only when you need to override the safe default:
 | Max draw distance (mm) | Insert a REFILL command every N mm of drawing. Set to 0 for no refill (pure pen plotting). |
 | Default station ID | Refill station used for layers that have no explicit station assignment. |
 | Curve step (mm) | Bezier curve linearization resolution (default 0.1 mm — smaller = smoother curves, more points). |
-| Fit to | Defaults to **Machine bed**. Advanced choices are A6 · A5 · A4 · A3 · A2 · A1 · XL · Custom (WxH mm). Custom disables **Import** until its size is valid; all valid choices keep the button green and ready. |
+| Fit to | Defaults to **Machine bed**. Advanced choices are A6 · A5 · A4 · A3 · A2 · A1 · XL · Custom (WxH mm). When the SVG declares a physical width and height, **SVG document size** is also offered. Custom disables **Import** until its size is valid; all valid choices keep the button green and ready. |
 | Custom size | WxH in mm, e.g. `210x297`. Active only when Fit to = Custom. |
 | Padding (mm) | Margin inside the target format when using Fit to. |
 | Keep aspect ratio | Prevents distortion when fitting to a format. |
+| Preserve SVG page and empty margins | Fits the complete SVG `viewBox`, not just visible marks. Use this for artwork aligned to a pre-printed paper template. Padding is disabled so the SVG page maps exactly to the selected target. |
 | Mirror | Flip the drawing horizontally before importing. |
+
+Curve step accepts values down to **0.01 mm**. Very small values preserve more
+curve detail but produce many more plot points.
+
+SVG `<text>` is converted to glyph outlines during import, so it appears in the
+preview and plots as ordinary contour strokes. Gantry uses fonts installed on
+the computer doing the import; if a named font is unavailable, Java substitutes
+another font. Convert text to paths in the source SVG when exact typography or
+portable output is important.
 
 Inkscape layers (`inkscape:groupmode="layer"`) become separate `Layer1`, `Layer2`, … entries, each mapped to a refill station. If a file has no Inkscape layers but groups its content into two or more top-level `<g>` elements (common with non-Inkscape SVG exporters), each such group is also treated as its own layer. SVGs with neither become a single "Default" layer.
 
@@ -687,7 +700,7 @@ what is actually happening:
 | Step (mm) spinner | Distance per jog tap (0.1–1000 mm) |
 | Pen Up / Pen Down | Raise / lower pen manually |
 | Speed − / + / Reset | Decrease, increase, or reset the plotter's feed-rate override while jogging or plotting |
-| Find starting corner (Home) | Runs GRBL's homing cycle (`$H`) against the machine's physical limit switches at 0/0, then zeroes the work origin at that position. Asks for confirmation first, since the plotter will move on its own. Requires GRBL homing to be enabled and configured on the controller (`$22=1` and the related `$23`/`$24`/`$25` settings) — Gantry just triggers the cycle, it doesn't configure GRBL. |
+| Find starting corner (Home) | Unlocks GRBL, raises and acknowledges the pen-up command, then runs the homing cycle (`$H`) against the machine's physical limit switches at 0/0 and zeroes the work origin. Asks for confirmation first, since the plotter will move on its own. Requires GRBL homing to be enabled and configured on the controller (`$22=1` and the related `$23`/`$24`/`$25` settings). |
 
 **Soft limits.** With **Soft limits** enabled (Settings → Geometry; on by
 default), jog moves — including press-and-hold continuous jogging — are clamped

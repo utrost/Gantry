@@ -165,13 +165,18 @@ Pipeline inside `importSvg(Document, …)`:
 3. **Transform assembly** — builds an `AffineTransform globalTx`:
    - optional fit-to-size scale (`calculateScaleTransform` /
      `calculateFitToPageTransform`) from `SvgImportOptions.targetWidth/Height`
-     and `keepAspectRatio`;
+     and `keepAspectRatio`. With `preserveSvgViewport`, scaling uses the complete
+     SVG `viewBox` (including blank margins) instead of visible content bounds;
    - optional position offset (`posX/posY`) and `mirror`;
-   - a **Y-flip about the content's vertical center**, concatenated last (so it
-     applies first, in raw content space) — this is the SVG-Y-down →
-     command-Y-up correction.
+   - a **Y-flip about the content or preserved viewBox vertical center**,
+     concatenated last (so it applies first, in raw content space) — this is the
+     SVG-Y-down → command-Y-up correction.
 4. **`generateCommandsForLayer`** — for each drawable element:
-   - geometry via `ShapeParser`/Batik `PathIterator` **flattened at
+   - paths/primitives via `ShapeParser`; SVG `<text>` is first converted to AWT
+     glyph outlines using its family, size, style, weight, and anchor. Font
+     substitution follows the local JVM, so exact portable typography still
+     requires source text converted to paths;
+   - all geometry via Batik `PathIterator` **flattened at
      `curveStep`** (so only `SEG_MOVETO`/`SEG_LINETO` appear — no curves reach the
      command model);
    - `applyElementTransform` bakes the element's own `transform=""` ancestry
@@ -186,7 +191,8 @@ Pipeline inside `importSvg(Document, …)`:
 
 `SvgImportOptions` (`pipeline-core:svgimport/SvgImportOptions.java`) is a record
 carrying `maxDrawDistance` (≤0 disables refill), `defaultStationId`, `curveStep`,
-`targetWidth/Height`, `keepAspectRatio`, `posX/posY`, `mirror`. Factories:
+`targetWidth/Height`, `keepAspectRatio`, `posX/posY`, `mirror`, and
+`preserveSvgViewport`. Factories:
 `defaults()` and `fitToFormat(...)` (subtracts `padding` on all sides from a
 `PaperFormat`).
 
@@ -317,9 +323,11 @@ Implementations:
   (`JSerialCommTransport` over jSerialComm) and two daemon threads: a
   **reader** loop (drains responses → `ackQueue`/`rawQueue`) and a **poller**
   loop (periodic `?` status → position/speed callbacks). Pen control via
-  `GcodeOptions.penMode` (`servo` / `zaxis` / `m3m5`). `home()` runs GRBL `$H`
-  and zeroes the origin; `haltMotion()` sends a realtime soft-reset to abort
-  buffered motion (used by Stop). Formatting is delegated to `GcodeFormatter`.
+  `GcodeOptions.penMode` (`servo` / `zaxis` / `m3m5`). `home()` performs the
+  acknowledged safety order `$X` → pen-up → `$H` → `G92 X0 Y0`, so homing
+  motion cannot begin with the pen down; `haltMotion()` sends a realtime
+  soft-reset to abort buffered motion (used by Stop). Formatting is delegated
+  to `GcodeFormatter`.
 - **`MockPlotterBackend`** — logs/simulates motion instantly; used for GUI/CI
   testing without hardware (`--mock-backend` / Settings checkbox).
 - **`GcodeFileBackend`** — writes G-code to a `.gcode` file instead of a serial
@@ -328,7 +336,9 @@ Implementations:
 
 `GcodeOptions` holds serial + machine + pen + feed-rate config (`serialPort`,
 `baudRate`, `penMode`, `feedRateDraw/Travel`, `penServoUp/Down`, `zUp/zDown`,
-`machineWidth/Height`, poll interval, boot delay).
+`machineWidth/Height`, poll interval, boot delay). Settings apply changes with
+`GcodeOptions.copyFrom(...)` so an active backend retains the same options
+instance and observes pen/Z/feed updates without reconnecting.
 
 ---
 
@@ -588,7 +598,8 @@ live serial and full G-code file-content correctness.
   "invisible single rect" bug — keep `SvgImportStageTest` green.
 - **Hardware safety:** any plot-abort path must leave the pen up. `PlotService.plot`
   guarantees this in `finally`; preserve it. GRBL aborts also fire
-  `haltMotion()` (realtime soft-reset).
+  `haltMotion()` (realtime soft-reset), and homing must acknowledge pen-up before
+  sending `$H`.
 - **Threading:** backend reader/poller are daemon threads inside `GcodeBackend`;
   the plot runs on its own thread in the GUI; `cancelled/paused` are `volatile`
   with a `pauseLock` monitor. Never block the EDT on a plot or serial call.

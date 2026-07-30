@@ -306,6 +306,26 @@ class SvgImportStageTest {
         }
 
         @Test
+        void svgTextIsConvertedToPlottableGlyphOutlines() throws Exception {
+            String svg = "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"210mm\" height=\"297mm\" "
+                    + "viewBox=\"0 0 210 297\">"
+                    + "<text x=\"15\" y=\"30\" font-size=\"4\" font-family=\"monospace\">PPCT abc 123</text>"
+                    + "</svg>";
+            File temp = File.createTempFile("svg-text", ".svg");
+            temp.deleteOnExit();
+            java.nio.file.Files.writeString(temp.toPath(), svg);
+
+            ProcessorOutput result = SvgImportStage.importSvg(temp, SvgImportOptions.defaults());
+
+            assertFalse(result.layers().isEmpty());
+            assertTrue(result.metadata().totalCommands() > 10,
+                    "glyph outlines should produce multiple move/draw commands");
+            Bounds bounds = result.metadata().bounds();
+            assertTrue(bounds.maxX() > bounds.minX());
+            assertTrue(bounds.maxY() > bounds.minY());
+        }
+
+        @Test
         void fitToA4KeepsBoundsWithinPage() throws Exception {
             ProcessorOutput result = SvgImportStage.importSvg(resource("test_simple.svg"),
                     SvgImportOptions.fitToFormat(500, "default_station", 0.5, PaperFormat.A4, 10.0, false));
