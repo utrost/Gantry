@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: First plot guide
+    url: https://github.com/utrost/Gantry/blob/main/docs/FIRST_PLOT.md
+    about: Try the guided mock plot before reporting first-run confusion.
+  - name: Troubleshooting
+    url: https://github.com/utrost/Gantry/blob/main/docs/TROUBLESHOOTING.md
+    about: Check serial, GRBL, launch, and machine setup notes.

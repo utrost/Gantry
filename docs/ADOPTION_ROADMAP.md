@@ -365,18 +365,29 @@ At 100 users, marketing is mostly community proof:
 
 ## Immediate adoption backlog
 
-Do these in order:
+Do these in order. Items marked **done** are resolved in the repository or GitHub
+metadata; items marked **blocked/manual** need a release tag, real hardware,
+external people, or media production.
 
-1. Add GitHub repository description and topics.
-2. Create the first public pre-release artifact.
-3. Run and record one real hardware acceptance pass.
-4. Recruit one external tester for the 2-user milestone.
-5. Seed GitHub issues and issue templates.
-6. Finish the five-person novice study.
-7. Write a “First plot with Gantry” quickstart with screenshots.
-8. Add serial-permission and GRBL-alarm troubleshooting.
-9. Publish a one-minute demo video or GIF.
-10. Start the compatibility matrix from real tester reports.
+1. **Done:** Add GitHub repository description and topics.
+2. **Blocked/manual:** Create the first public pre-release artifact — tracked in
+   [#14](https://github.com/utrost/Gantry/issues/14).
+3. **Blocked/manual:** Run and record one real hardware acceptance pass — tracked
+   in [#15](https://github.com/utrost/Gantry/issues/15).
+4. **Blocked/manual:** Recruit one external tester for the 2-user milestone.
+5. **Done:** Seed GitHub issue labels and issue templates.
+6. **Blocked/manual:** Finish the five-person novice study — tracked in
+   [#16](https://github.com/utrost/Gantry/issues/16).
+7. **Done:** Write a “First plot with Gantry” quickstart. Screenshots can be
+   added after the next guided-practice capture.
+8. **Done:** Add serial-permission and GRBL-alarm troubleshooting.
+9. **Blocked/manual:** Publish a one-minute demo video or GIF — tracked in
+   [#18](https://github.com/utrost/Gantry/issues/18).
+10. **Started:** Start the compatibility matrix from real tester reports. The
+    matrix document exists; real entries still need acceptance evidence.
+
+Additional support hardening now tracked in
+[#17](https://github.com/utrost/Gantry/issues/17).
 
 ## Operating rhythm
 

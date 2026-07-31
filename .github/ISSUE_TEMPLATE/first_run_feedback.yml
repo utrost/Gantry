@@ -1,0 +1,52 @@
+name: First-run feedback
+description: Share what happened when trying Gantry for the first time
+title: "first-run: "
+labels: ["first-run", "usability", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this when you tried Gantry's guided practice, first import, first export, or first real plot.
+  - type: dropdown
+    id: outcome
+    attributes:
+      label: How far did you get?
+      options:
+        - Launched Gantry
+        - Completed guided mock practice
+        - Imported artwork
+        - Exported G-code
+        - Completed a real plot
+        - Got blocked before plotting
+    validations:
+      required: true
+  - type: textarea
+    id: blocker
+    attributes:
+      label: What was unclear or blocking?
+      description: Include where you hesitated, what wording was confusing, or what you expected Gantry to do.
+    validations:
+      required: true
+  - type: textarea
+    id: path
+    attributes:
+      label: What path did you take?
+      placeholder: |
+        1. Downloaded / built from source ...
+        2. Opened ...
+        3. Clicked ...
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: OS, Java version, Gantry version/commit, mock or real hardware.
+  - type: textarea
+    id: safety
+    attributes:
+      label: Did you understand when a real machine could move?
+      description: If not, describe the confusing screen or wording.
+  - type: input
+    id: confidence
+    attributes:
+      label: Confidence rating after the attempt
+      placeholder: 1-5, where 5 means very confident doing it again

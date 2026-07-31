@@ -10,11 +10,22 @@ with the processing and plotter-driving of SVG2WaterColor into a single
 Java 17 / Maven multi-module project. Pen-plotting is the first-class, default
 path; watercolor (paint stations + refill) is an optional stage layered on top.
 
-See [ROADMAP.md](ROADMAP.md) for the active product plan. The original phased
-design diary is archived in [docs/ROADMAP_HISTORY.md](docs/ROADMAP_HISTORY.md).
+## Start here
 
-See [docs/USER_GUIDE.md](docs/USER_GUIDE.md) for operating instructions and
-[docs/TESTING.md](docs/TESTING.md) for the test suite and manual acceptance
+- [`docs/FIRST_PLOT.md`](docs/FIRST_PLOT.md) — shortest path to a safe guided
+  mock plot and then a small real plot.
+- [`docs/USER_GUIDE.md`](docs/USER_GUIDE.md) — full operating guide.
+- [`docs/TROUBLESHOOTING.md`](docs/TROUBLESHOOTING.md) — serial ports, GRBL
+  states, launch problems, and first-run failures.
+- [`docs/KNOWN_GOOD_SETUPS.md`](docs/KNOWN_GOOD_SETUPS.md) — evidence-based
+  hardware/configuration reports.
+
+See [ROADMAP.md](ROADMAP.md) for the active product plan and
+[`docs/ADOPTION_ROADMAP.md`](docs/ADOPTION_ROADMAP.md) for the path to 2, 10,
+25, and 100 real users. The original phased design diary is archived in
+[docs/ROADMAP_HISTORY.md](docs/ROADMAP_HISTORY.md).
+
+See [docs/TESTING.md](docs/TESTING.md) for the test suite and manual acceptance
 checklist.
 
 See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for a detailed technical
@@ -24,6 +35,9 @@ extension points (written to be consumed by an LLM or a new contributor).
 See [docs/LESSONS_LEARNED.md](docs/LESSONS_LEARNED.md) for the design principles,
 the ledger of bugs already fixed (so they aren't reintroduced), development and
 verification gotchas, and an FAQ — read before extending the system.
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) before opening larger issues or pull
+requests.
 
 ## Modules
 
