@@ -12,7 +12,9 @@ config.json
 .gantry-recovery
 plot-history.json
 dist/
-release-results/
+release-results/*
+!release-results/.gitkeep
+!release-results/*.md
 
 # Debug edge map written by the vectorize engine at runtime
 edges_debug*.png
