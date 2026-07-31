@@ -1,0 +1,36 @@
+name: Feature request
+description: Suggest an improvement or new capability
+title: "feature: "
+labels: ["enhancement", "needs-triage"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem or workflow
+      description: What real plotting, onboarding, support, or documentation problem would this solve?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: Describe the smallest useful version.
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence of demand
+      description: Is this based on your own blocked workflow, repeated user feedback, or a specific hardware setup?
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+  - type: checkboxes
+    id: scope
+    attributes:
+      label: Scope check
+      options:
+        - label: This does not weaken stop/cancel/pen-up safety behavior.
+        - label: This does not require a new hardware backend unless a tester owns that hardware.
+        - label: This is not better handled as documentation or a sample file.

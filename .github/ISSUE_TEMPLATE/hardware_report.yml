@@ -1,0 +1,62 @@
+name: Hardware compatibility report
+description: Record a plotter/controller setup that worked or failed with Gantry
+title: "hardware: "
+labels: ["hardware", "compatibility", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Hardware reports build Gantry's compatibility matrix. Report successes and failures.
+  - type: input
+    id: gantry-version
+    attributes:
+      label: Gantry version or commit
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: Operating system and Java version
+      placeholder: Ubuntu 24.04, Java 17.0.x
+  - type: input
+    id: plotter
+    attributes:
+      label: Plotter/mechanics
+      placeholder: machine name or custom build description
+  - type: input
+    id: controller
+    attributes:
+      label: Controller and GRBL version
+      placeholder: controller board, GRBL 1.1h, etc.
+  - type: input
+    id: connection
+    attributes:
+      label: Connection and baud rate
+      placeholder: USB serial /dev/ttyUSB0, 115200
+  - type: input
+    id: geometry
+    attributes:
+      label: Machine travel, origin, and pen mode
+      placeholder: 420x297 mm, bottom-left origin, zaxis pen lift
+  - type: checkboxes
+    id: workflows
+    attributes:
+      label: Tested workflows
+      options:
+        - label: Guided mock practice
+        - label: Connect/disconnect
+        - label: Home
+        - label: Jog directions
+        - label: Frame job
+        - label: Stop/cancel raises pen
+        - label: G-code export
+        - label: Small real pen plot
+        - label: Watercolor station dry visit
+        - label: Watercolor wet/refill job
+  - type: textarea
+    id: result
+    attributes:
+      label: Result and caveats
+      description: What worked, what failed, and what settings mattered?
+    validations:
+      required: true

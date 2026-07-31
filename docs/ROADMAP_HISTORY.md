@@ -1384,7 +1384,7 @@ split into focused controllers and components. The composition shells are about
 1,180 and 960 lines respectively, with controller and deterministic canvas tests.
 
 The detailed boundaries, invariants, delivery sequence, and completion criteria
-are maintained in [`docs/REFACTORING.md`](docs/REFACTORING.md). This roadmap keeps
+are maintained in [`REFACTORING.md`](REFACTORING.md). This roadmap keeps
 only the product-level milestone so architectural work does not become mixed
 with feature history.
 
