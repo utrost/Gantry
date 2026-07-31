@@ -63,11 +63,13 @@ public record SvgImportOptions(
             boolean keepAspectRatio, boolean preserveSvgViewport) {
         double targetW = 0;
         double targetH = 0;
+        double offset = 0;
         if (format != null) {
             targetW = format.width() - padding * 2;
             targetH = format.height() - padding * 2;
+            offset = padding;
         }
         return new SvgImportOptions(maxDrawDistance, defaultStationId, curveStep,
-                targetW, targetH, keepAspectRatio, 0, 0, mirror, preserveSvgViewport);
+                targetW, targetH, keepAspectRatio, offset, offset, mirror, preserveSvgViewport);
     }
 }

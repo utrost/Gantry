@@ -306,6 +306,27 @@ class SvgImportStageTest {
         }
 
         @Test
+        void preserveViewportAppliesEditablePaddingAroundTheWholePage() throws Exception {
+            String svg = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 210 297\">"
+                    + "<rect x=\"0\" y=\"0\" width=\"210\" height=\"297\"/>"
+                    + "</svg>";
+            File temp = File.createTempFile("a4-page-padding", ".svg");
+            temp.deleteOnExit();
+            java.nio.file.Files.writeString(temp.toPath(), svg);
+
+            SvgImportOptions options = SvgImportOptions.fitToFormat(
+                    0, "default_station", 0.5, PaperFormat.A4, 10.0,
+                    false, true, true);
+            ProcessorOutput result = SvgImportStage.importSvg(temp, options);
+
+            Bounds bounds = result.metadata().bounds();
+            assertEquals(10.0, bounds.minX(), 1e-6);
+            assertEquals(200.0, bounds.maxX(), 1e-6);
+            assertTrue(bounds.minY() >= 10.0);
+            assertTrue(bounds.maxY() <= 287.0);
+        }
+
+        @Test
         void svgTextIsConvertedToPlottableGlyphOutlines() throws Exception {
             String svg = "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"210mm\" height=\"297mm\" "
                     + "viewBox=\"0 0 210 297\">"

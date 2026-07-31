@@ -270,7 +270,7 @@ Expand **Advanced options** only when you need to override the safe default:
 | Custom size | WxH in mm, e.g. `210x297`. Active only when Fit to = Custom. |
 | Padding (mm) | Margin inside the target format when using Fit to. |
 | Keep aspect ratio | Prevents distortion when fitting to a format. |
-| Preserve SVG page and empty margins | Fits the complete SVG `viewBox`, not just visible marks. Use this for artwork aligned to a pre-printed paper template. Padding is disabled so the SVG page maps exactly to the selected target. |
+| Preserve SVG page and empty margins | Fits the complete SVG `viewBox`, not just visible marks. Use this for artwork aligned to a pre-printed paper template. Padding remains editable and is applied around the preserved page; set it to 0 for an exact page-to-target mapping. |
 | Mirror | Flip the drawing horizontally before importing. |
 
 Curve step accepts values down to **0.01 mm**. Very small values preserve more

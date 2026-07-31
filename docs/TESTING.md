@@ -346,7 +346,7 @@ a `testdata/` folder.
 3. Import `single-rect.svg`.
    - [ ] The single rect **is** drawn (a lone shape is the content and must not be discarded as a page border).
 4. Import a portrait A4 SVG with `viewBox="0 0 210 297"` whose visible marks leave empty top/bottom margins. Choose Custom `210x297` and enable **Preserve SVG page and empty margins**.
-   - [ ] Padding disables and the visible marks retain their original offsets within the A4 page instead of being enlarged to their own content bounds.
+   - [ ] Padding remains editable. At `0`, the visible marks retain their original offsets within the exact A4 page instead of being enlarged to their own content bounds; at a non-zero value, the preserved page is inset by that safety margin.
 5. Import an SVG containing `<text font-family="monospace">PPCT abc 123</text>`.
    - [ ] The text appears as glyph outlines in Live View and contributes normal move/draw commands when plotted.
 
