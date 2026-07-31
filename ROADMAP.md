@@ -31,6 +31,13 @@ acceptance plan lives in [`docs/USABILITY.md`](docs/USABILITY.md).
 | 8 | Exact-job history | Re-plot uses an immutable prepared-job snapshot; recent successful jobs persist and can be reopened/replotted | Complete |
 | 9 | Beginner usability | A default basic workflow leads from artwork to a safe first plot with progressive disclosure, plain language, actionable guidance, safe import defaults, visible feedback, and novice acceptance evidence; advanced workflows remain available | In progress — Slices A–C and processor-studio Slice E complete; Slice D validation and five-person study pending |
 
+## Adoption roadmap
+
+The product roadmap below tracks what Gantry should become. The adoption plan in
+[`docs/ADOPTION_ROADMAP.md`](docs/ADOPTION_ROADMAP.md) tracks how to get from a
+capable personal tool to 2, 10, 25, and 100 real users through packaging,
+validation, support, compatibility evidence, and low-key public outreach.
+
 ## After these milestones
 
 ### Validate before scheduling
