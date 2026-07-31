@@ -195,7 +195,8 @@ public final class SvgImportDialog extends JDialog {
         String selection = (String) fitToCombo.getSelectedItem();
         if (FIT_TO_MACHINE.equals(selection)) {
             safeFitSummary.setText(preservePageCheck.isSelected()
-                    ? "Map the complete SVG page to the machine bed, preserving empty margins."
+                    ? "Map the complete SVG page to the machine bed with a "
+                            + formatNumber(padding) + " mm safety margin."
                     : ArtworkImportPolicy.summary(machineFormat, padding));
         } else if (USE_SVG_SIZE.equals(selection)) {
             safeFitSummary.setText(String.format(
@@ -203,7 +204,8 @@ public final class SvgImportDialog extends JDialog {
                     svgDocumentFormat.width(), svgDocumentFormat.height()));
         } else {
             safeFitSummary.setText(preservePageCheck.isSelected()
-                    ? "Map the complete SVG page exactly to " + selection + ", preserving empty margins."
+                    ? "Map the complete SVG page to " + selection + " with a "
+                            + formatNumber(padding) + " mm safety margin."
                     : "Advanced target: " + selection + " with a "
                             + formatNumber(padding) + " mm safety margin.");
         }
@@ -212,7 +214,7 @@ public final class SvgImportDialog extends JDialog {
     private void updateSizeControls() {
         String selection = (String) fitToCombo.getSelectedItem();
         customSizeField.setEnabled("Custom".equals(selection));
-        paddingSpinner.setEnabled(!USE_SVG_SIZE.equals(selection) && !preservePageCheck.isSelected());
+        paddingSpinner.setEnabled(!USE_SVG_SIZE.equals(selection));
     }
 
     private static String formatNumber(double value) {
@@ -277,7 +279,7 @@ public final class SvgImportDialog extends JDialog {
         String fitToSelection = (String) fitToCombo.getSelectedItem();
         boolean preservePage = preservePageCheck.isSelected()
                 || USE_SVG_SIZE.equals(fitToSelection);
-        double padding = preservePage
+        double padding = USE_SVG_SIZE.equals(fitToSelection)
                 ? 0.0
                 : ((Number) paddingSpinner.getValue()).doubleValue();
         boolean keepAspect = keepAspectRatioCheck.isSelected();
