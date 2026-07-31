@@ -19,9 +19,24 @@ jobs:
           cache: maven
       - name: Build release artifacts
         run: ./scripts/release.sh "${GITHUB_REF_NAME#v}"
+      - name: Resolve release notes
+        id: notes
+        shell: bash
+        run: |
+          NOTES="docs/release-notes/${GITHUB_REF_NAME#v}.md"
+          if [[ -f "$NOTES" ]]; then
+            echo "body_path=$NOTES" >> "$GITHUB_OUTPUT"
+          fi
+          if [[ "$GITHUB_REF_NAME" == *-* ]]; then
+            echo "prerelease=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "prerelease=false" >> "$GITHUB_OUTPUT"
+          fi
       - name: Publish GitHub release
         uses: softprops/action-gh-release@v2
         with:
+          prerelease: ${{ steps.notes.outputs.prerelease }}
+          body_path: ${{ steps.notes.outputs.body_path }}
           generate_release_notes: true
           files: |
             dist/Gantry-*.jar

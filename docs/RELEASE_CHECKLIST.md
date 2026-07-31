@@ -1,5 +1,22 @@
 # Gantry release checklist
 
+## Public alpha / pre-release
+
+Use this path for early tester builds that do **not** yet claim broad hardware
+readiness.
+
+1. Confirm `docs/release-notes/<version>.md` exists for the tag version.
+2. Run or rely on CI for `mvn clean package` and `mvn test` on Java 17 and 21.
+3. Tag `v<version>` and push the tag. Tags containing a hyphen, such as
+   `v1.0.0-alpha.1`, are published as GitHub pre-releases.
+4. Confirm the release contains `Gantry-<version>.jar`,
+   `Gantry-CLI-<version>.jar`, `SHA256SUMS`, `LICENSE`, and `README.md`.
+5. Record artifact and mock-practice checks in `release-results/<version>.md`.
+6. Keep hardware readiness claims out of release notes until a real acceptance
+   run has been recorded.
+
+## Hardware-ready release
+
 1. Run `./scripts/release.sh <version>` and confirm the reactor is green.
 2. Copy `TEST_RESULTS_TEMPLATE.md` to `release-results/<version>.md` and record
    the complete mock acceptance suite.

@@ -10,6 +10,19 @@ with the processing and plotter-driving of SVG2WaterColor into a single
 Java 17 / Maven multi-module project. Pen-plotting is the first-class, default
 path; watercolor (paint stations + refill) is an optional stage layered on top.
 
+## Download and first run
+
+For external testing, use the newest pre-release from
+[GitHub Releases](https://github.com/utrost/Gantry/releases). Download the GUI
+JAR and run it with Java 17 or newer:
+
+```bash
+java -jar Gantry-1.0.0-alpha.1.jar
+```
+
+If no release is available yet, build from source with `./scripts/build.sh` and
+start with `./scripts/start.sh`.
+
 ## Start here
 
 - [`docs/FIRST_PLOT.md`](docs/FIRST_PLOT.md) — shortest path to a safe guided
