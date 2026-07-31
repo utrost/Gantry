@@ -370,10 +370,9 @@ metadata; items marked **blocked/manual** need a release tag, real hardware,
 external people, or media production.
 
 1. **Done:** Add GitHub repository description and topics.
-2. **In progress:** Create the first public pre-release artifact — tracked in
-   [#14](https://github.com/utrost/Gantry/issues/14). The repository now contains
-   release notes and checklist scaffolding for `v1.0.0-alpha.1`; tag and publish
-   after main CI is green.
+2. **Done:** Create the first public pre-release artifact —
+   [`v1.0.0-alpha.1`](https://github.com/utrost/Gantry/releases/tag/v1.0.0-alpha.1)
+   is published and tracked in [#14](https://github.com/utrost/Gantry/issues/14).
 3. **Blocked/manual:** Run and record one real hardware acceptance pass — tracked
    in [#15](https://github.com/utrost/Gantry/issues/15).
 4. **Blocked/manual:** Recruit one external tester for the 2-user milestone.
