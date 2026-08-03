@@ -41,6 +41,14 @@ See [ROADMAP.md](ROADMAP.md) for the active product plan and
 See [docs/TESTING.md](docs/TESTING.md) for the test suite and manual acceptance
 checklist.
 
+See [docs/PROJECT_DIGEST.md](docs/PROJECT_DIGEST.md) for a compact project map
+covering documentation, roadmap state, adoption blockers, and recommended next
+work.
+
+See [docs/TRACER_CAPTURE_IMPORT.md](docs/TRACER_CAPTURE_IMPORT.md) for the
+documented future handoff contract from Tracer JSON captures into Gantry. This is
+not yet a current user workflow.
+
 See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for a detailed technical
 reference of the module graph, data model, pipeline, threading model, and
 extension points (written to be consumed by an LLM or a new contributor).

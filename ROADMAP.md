@@ -49,13 +49,19 @@ validation, support, compatibility evidence, and low-key public outreach.
   processing demand.
 - Network/TCP GRBL backend: useful only for supported real hardware.
 - DXF/HPGL import: demand-driven; SVG remains the canonical interchange.
+- Tracer capture import (`.tracer.json`): validate with a real
+  Tracer-to-plotter experiment first. See
+  [`docs/TRACER_CAPTURE_IMPORT.md`](docs/TRACER_CAPTURE_IMPORT.md). Initial
+  import should preserve centerline layer/stroke order and pressure metadata;
+  pressure-to-Z/feed behavior needs calibration and hardware evidence.
 
 ### Deliberately deferred
 
 - Resume across application restarts: controller/head state recovery is unsafe
   without a proven hardware protocol.
 - Pen pressure/per-stroke feed modeling, automatic safe-Z optimization, AxiDraw,
-  and full vector node editing.
+  and full vector node editing. Tracer capture import may preserve pressure data
+  before these machine-expression features exist.
 
 ## Roadmap maintenance rules
 
