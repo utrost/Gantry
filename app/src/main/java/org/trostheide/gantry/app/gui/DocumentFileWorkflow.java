@@ -8,6 +8,7 @@ import org.trostheide.gantry.app.session.ProcessingRecipe;
 import org.trostheide.gantry.model.*;
 import org.trostheide.gantry.pipeline.io.ProcessorOutputIO;
 import org.trostheide.gantry.pipeline.svgimport.SvgImportStage;
+import org.trostheide.gantry.pipeline.svgimport.SvgFontPreflight;
 import org.trostheide.gantry.watercolor.PaintStation;
 import org.trostheide.gantry.watercolor.StationMapper;
 
@@ -88,6 +89,7 @@ final class DocumentFileWorkflow {
         if(chooser.showOpenDialog(parent)!=JFileChooser.APPROVE_OPTION)return;
         File file=chooser.getSelectedFile();remember(file);
         SvgImportDialog.Result options=importDialog(file).showDialog();if(options==null)return;
+        if(!confirmSvgFonts(file))return;
         actions.cancellableBusy().run("Import",cancel->{ProcessorOutput imported=map(options.toolboxConfig()!=null
                 ?SvgImportStage.importSvg(file,options.toolboxConfig(),options.importOptions())
                 :SvgImportStage.importSvg(file,options.importOptions()));if(cancel.getAsBoolean())throw new CancellationException();return imported;},out->{
@@ -134,6 +136,7 @@ final class DocumentFileWorkflow {
         org.trostheide.gantry.svgtoolbox.Config toolbox=dialog.showDialog();if(toolbox==null)return;
         boolean process=dialog.processingEnabled();
         File source=session.sourceSvg();
+        if(!confirmSvgFonts(source))return;
         actions.cancellableBusy().run("Process SVG",cancel->{ProcessorOutput processed=process
                 ?SvgImportStage.importSvg(source,toolbox,session.sourceSvgOptions())
                 :SvgImportStage.importSvg(source,session.sourceSvgOptions());
@@ -175,6 +178,33 @@ final class DocumentFileWorkflow {
     private SvgImportDialog importDialog(File sourceSvg){GantryConfig c=actions.config().get();
         return new SvgImportDialog(owner(),sourceSvg,c.gcode.machineWidth,c.gcode.machineHeight);}
     private void message(String text,String title){JOptionPane.showMessageDialog(parent,text,title,JOptionPane.INFORMATION_MESSAGE);}
+    private boolean confirmSvgFonts(File source) {
+        final SvgFontPreflight.Result preflight;
+        try {
+            preflight = SvgFontPreflight.inspect(source);
+        } catch (IOException ex) {
+            actions.log().accept("WARNING: Could not inspect SVG fonts: " + ex.getMessage());
+            return true;
+        }
+        if (!preflight.hasMissingFonts()) return true;
+
+        StringBuilder details = new StringBuilder("This SVG uses fonts that are not installed:\n\n");
+        for (SvgFontPreflight.MissingFont issue : preflight.missingFonts()) {
+            String names = String.join(", ", issue.requestedFamilies());
+            details.append("• ").append(names);
+            if (issue.textElements() > 1) details.append(" (").append(issue.textElements()).append(" text elements)");
+            details.append(" → ").append(issue.substituteFamily()).append('\n');
+            actions.log().accept("WARNING: Missing SVG font(s) " + names
+                    + "; using " + issue.substituteFamily() + ".");
+        }
+        details.append("\nThe substitute can change spacing, size, and appearance. "
+                + "For exact typography, install the font or convert the text to paths in the source SVG.");
+        Object[] choices = {"Continue with substitute", "Cancel"};
+        int choice = JOptionPane.showOptionDialog(parent, details.toString(), "Missing SVG fonts",
+                JOptionPane.DEFAULT_OPTION, JOptionPane.WARNING_MESSAGE, null, choices, choices[1]);
+        if (choice != 0) actions.feedback().accept("Import cancelled. Missing fonts were not substituted.");
+        return choice == 0;
+    }
     private static String summary(String action,ProcessorOutput out){Bounds b=out.metadata().bounds();double w=Math.max(0,b.maxX()-b.minX());double h=Math.max(0,b.maxY()-b.minY());
         return String.format("%s — %.1f × %.1f mm, %d layer(s)",action,w,h,out.layers().size());}
     private static ProcessingRecipe recipe(org.trostheide.gantry.svgtoolbox.Config config){return config==null?null:ProcessingRecipe.fromConfig(config);}

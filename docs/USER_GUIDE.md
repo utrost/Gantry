@@ -281,9 +281,11 @@ curve detail but produce many more plot points.
 
 SVG `<text>` is converted to glyph outlines during import, so it appears in the
 preview and plots as ordinary contour strokes. Gantry uses fonts installed on
-the computer doing the import; if a named font is unavailable, Java substitutes
-another font. Convert text to paths in the source SVG when exact typography or
-portable output is important.
+the computer doing the import and follows an SVG's ordered `font-family` fallback
+list. If none of the requested families is installed, Gantry lists the missing
+fonts before import and asks whether to continue with the shown Java substitute
+or cancel. The warning is also written to the Console. Convert text to paths in
+the source SVG when exact typography or portable output is important.
 
 Inkscape layers (`inkscape:groupmode="layer"`) become separate `Layer1`, `Layer2`, … entries, each mapped to a refill station. If a file has no Inkscape layers but groups its content into two or more top-level `<g>` elements (common with non-Inkscape SVG exporters), each such group is also treated as its own layer. SVGs with neither become a single "Default" layer.
 

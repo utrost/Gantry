@@ -177,7 +177,7 @@ public final class SvgImportStage {
         }
     }
 
-    private static Document loadDocument(File inputFile) throws IOException {
+    static Document loadDocument(File inputFile) throws IOException {
         try {
             String parser = XMLResourceDescriptor.getXMLParserClassName();
             SAXSVGDocumentFactory f = new SAXSVGDocumentFactory(parser);
@@ -674,10 +674,7 @@ public final class SvgImportStage {
             float size = (float) firstLength(element.getAttribute("font-size"), 16.0);
             if (!(size > 0) || !Float.isFinite(size)) return null;
 
-            String family = element.getAttribute("font-family").trim();
-            if (family.isEmpty()) family = Font.SANS_SERIF;
-            // SVG permits a fallback list and quoted family names; AWT accepts one concrete name.
-            family = family.split(",")[0].trim().replace("\"", "").replace("'", "");
+            String family = SvgFontPreflight.resolve(element).resolvedFamily();
             int style = Font.PLAIN;
             if ("italic".equalsIgnoreCase(element.getAttribute("font-style"))
                     || "oblique".equalsIgnoreCase(element.getAttribute("font-style"))) {
