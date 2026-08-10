@@ -113,7 +113,10 @@ Set **Pen Mode** to match how your plotter physically lifts the pen:
 | `m3m5` | The pen solenoid/lift is wired to the spindle on/off output (`M3`/`M5`), as on some laser/CNC conversions. **Pen Up** / **Pen Down** are the `M3` S-values used. |
 
 Set **Draw Feed Rate** / **Travel Feed Rate** to sensible starting points
-(defaults: 1000 / 3000 mm/min) — tune later once you see real plots.
+(defaults: 1000 / 3000 mm/min) — tune later once you see real plots. Draw Feed
+Rate controls pen-down strokes; Travel Feed Rate controls feed-driven pen-up
+movement between strokes. Gantry uses `G1` for both so GRBL honours each configured
+rate (`G0` would use the controller's maximum seek rate instead).
 
 ### 6. Verify jogging before your first real plot
 
@@ -411,6 +414,10 @@ After import, the drawing appears in the visualisation panel.
 | **Reset Position** | Return to the canvas-alignment position from Settings |
 | **X / Y (mm from origin) + Set** | Place the drawing precisely: the entered values become the position of the drawing's bounding-box corner nearest the machine origin. The fields also update live as you drag. |
 
+Dragging always follows the pointer's screen direction, including after the drawing
+has been rotated or mirrored; those artwork transforms do not rotate or reverse the
+mouse controls.
+
 ### Zooming and panning the view
 
 The Live View has a viewport zoom/pan that is independent of the drawing's
@@ -533,6 +540,8 @@ The visualisation shows:
 - Blue dots for refill stations (named)
 - Dashed bounding box with resize handles
 - HUD: current position, scale, rotation, alignment
+- During plotting: amber for the active stroke and muted green for strokes whose
+  points the controller has accepted
 
 ---
 
@@ -619,6 +628,21 @@ global pen-down position.
 6. Click **Stop** at any time to cancel. This immediately halts the plotter (including any motion already queued on the controller) and raises the pen, rather than just stopping new commands from being sent.
 
 Multipass: set **Passes** (1–10) to draw every stroke N times.
+
+### Live stroke progress
+
+During a plot, the Live View marks the current stroke in **amber**. Once all of that
+stroke's points have been accepted by the plotter backend, it changes to **muted
+green**; pending strokes keep their normal layer colour. With multiple passes, a
+stroke changes to green only after its final pass is accepted. Stopping a job clears
+the active amber highlight but leaves already accepted strokes marked, making the
+partial result easy to identify. Starting another plot or loading different artwork
+resets these markings.
+
+This is submission progress rather than direct sensing of ink on paper: GRBL may
+still have accepted motion in its planner queue when the colour changes. Gantry does
+not pause after every stroke to wait for physical-idle confirmation, preserving normal
+streaming performance.
 
 ### Choosing which layers to show and plot (per-pen workflow)
 

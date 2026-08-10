@@ -16,9 +16,11 @@ import java.awt.geom.Path2D;
 import java.awt.geom.Rectangle2D;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.Map;
 
 /**
  * Visualization Panel - Digital Twin of the Physical Plotter.
@@ -42,6 +44,13 @@ public class VisualizationPanel extends JPanel {
     /** Command id of each entry in {@link #allPaths}, in lockstep — lets a clicked stroke map back to
      *  its {@code DrawCommand} for deletion (Tier A stroke editing). */
     final List<Integer> pathCommandId = new ArrayList<>();
+    final List<String> pathLayerId = new ArrayList<>();
+
+    enum StrokeProgressState { PENDING, ACTIVE, COMPLETED }
+    private record StrokeKey(String layerId, int commandId) { }
+    private final Map<StrokeKey, Integer> expectedStrokePasses = new HashMap<>();
+    private final Map<StrokeKey, Integer> acceptedStrokePasses = new HashMap<>();
+    private StrokeKey activeStroke;
 
     /** When true, draw dashed pen-up travel segments between consecutive strokes in the same layer. */
     boolean showTravelOverlay = false;
@@ -305,6 +314,10 @@ public class VisualizationPanel extends JPanel {
     /** Clears the loaded drawing and resets the overlay transform, leaving an empty bed. */
     public void clearDrawing() {
         allPaths.clear();
+        pathLayer.clear();
+        pathCommandId.clear();
+        pathLayerId.clear();
+        resetPlotProgress();
         travelPenDownMm = 0;
         travelTotalMm = 0;
         overlayOffsetX = 0;
@@ -574,6 +587,8 @@ public class VisualizationPanel extends JPanel {
         allPaths.clear();
         pathLayer.clear();
         pathCommandId.clear();
+        pathLayerId.clear();
+        resetPlotProgress();
         currentX = 0;
         currentY = 0;
         targetX = 0;
@@ -596,6 +611,7 @@ public class VisualizationPanel extends JPanel {
                         allPaths.add(stroke);
                         pathLayer.add(li);
                         pathCommandId.add(draw.id);
+                        pathLayerId.add(layers.get(li).id());
                     }
                 }
             }
@@ -609,6 +625,55 @@ public class VisualizationPanel extends JPanel {
         computeTravelStats();
         recalculateTransform();
         repaint();
+    }
+
+    /** Initializes canvas progress against the exact selected/multipass output being plotted. */
+    public void beginPlotProgress(ProcessorOutput plotOutput) {
+        expectedStrokePasses.clear();
+        acceptedStrokePasses.clear();
+        activeStroke = null;
+        for (Layer layer : plotOutput.layers()) {
+            for (Command command : layer.commands()) {
+                if (command instanceof DrawCommand draw) {
+                    expectedStrokePasses.merge(new StrokeKey(layer.id(), draw.id), 1, Integer::sum);
+                }
+            }
+        }
+        repaint();
+    }
+
+    public void updateStrokeProgress(String layerId, int commandId, boolean accepted) {
+        StrokeKey key = new StrokeKey(layerId, commandId);
+        if (accepted) {
+            acceptedStrokePasses.merge(key, 1, Integer::sum);
+            if (key.equals(activeStroke)) activeStroke = null;
+        } else {
+            activeStroke = key;
+        }
+        repaint();
+    }
+
+    /** Clears only the in-flight highlight, retaining strokes already accepted before a stop. */
+    public void finishPlotProgress() {
+        activeStroke = null;
+        repaint();
+    }
+
+    public void resetPlotProgress() {
+        expectedStrokePasses.clear();
+        acceptedStrokePasses.clear();
+        activeStroke = null;
+        repaint();
+    }
+
+    StrokeProgressState strokeProgressState(int pathIndex) {
+        if (pathIndex < 0 || pathIndex >= pathCommandId.size()) return StrokeProgressState.PENDING;
+        StrokeKey key = new StrokeKey(pathLayerId.get(pathIndex), pathCommandId.get(pathIndex));
+        if (key.equals(activeStroke)) return StrokeProgressState.ACTIVE;
+        int expected = expectedStrokePasses.getOrDefault(key, 0);
+        int accepted = acceptedStrokePasses.getOrDefault(key, 0);
+        return expected > 0 && accepted >= expected
+                ? StrokeProgressState.COMPLETED : StrokeProgressState.PENDING;
     }
 
     /**

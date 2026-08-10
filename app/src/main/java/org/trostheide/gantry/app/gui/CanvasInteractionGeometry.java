@@ -110,15 +110,26 @@ Cursor cursorForHandle(int handle) {
 }
 
 double[] screenDeltaToMm(double dxPx, double dyPx) {
-    // Screen pixels -> machine-space mm delta
-    // The raw content space maps through the transform pipeline to screen.
-    // For dragging, we need the inverse: screen delta -> raw content delta.
-    // We use finite differences: transform a small offset and measure the screen effect.
+    // Screen pixels -> overlay-offset mm delta. The overlay translation is applied after its
+    // rotation/mirror, so sample the offset axes themselves. Sampling neighbouring raw points
+    // would incorrectly rotate the mouse directions along with a rotated drawing.
     double cx = (panel.rawMinX + panel.rawMaxX) / 2.0;
     double cy = (panel.rawMinY + panel.rawMaxY) / 2.0;
     double[] base = panel.transformPoint(new VisualizationPanel.Point2D(cx, cy));
-    double[] dxRef = panel.transformPoint(new VisualizationPanel.Point2D(cx + 1, cy));
-    double[] dyRef = panel.transformPoint(new VisualizationPanel.Point2D(cx, cy + 1));
+    double savedOX = panel.overlayOffsetX;
+    double savedOY = panel.overlayOffsetY;
+    double[] dxRef;
+    double[] dyRef;
+    try {
+        panel.overlayOffsetX = savedOX + 1;
+        dxRef = panel.transformPoint(new VisualizationPanel.Point2D(cx, cy));
+        panel.overlayOffsetX = savedOX;
+        panel.overlayOffsetY = savedOY + 1;
+        dyRef = panel.transformPoint(new VisualizationPanel.Point2D(cx, cy));
+    } finally {
+        panel.overlayOffsetX = savedOX;
+        panel.overlayOffsetY = savedOY;
+    }
 
     double screenPerMmX_x = (dxRef[0] - base[0]) * panel.paintScale;
     double screenPerMmX_y = (dxRef[1] - base[1]) * panel.paintScale;

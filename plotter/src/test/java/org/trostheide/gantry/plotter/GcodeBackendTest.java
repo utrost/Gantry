@@ -48,13 +48,16 @@ class GcodeBackendTest {
     }
 
     @Test
-    void movetoSendsRapidMoveWithTravelFeedAndThreeDecimals() {
-        GcodeBackend b = connected();
+    void movetoSendsFeedControlledMoveWithTravelFeedAndThreeDecimals() {
+        GcodeOptions options = new GcodeOptions();
+        options.feedRateTravel = 2345;
+        GcodeBackend b = newBackend(options);
+        assertTrue(b.connect());
 
         b.moveto(12.3456, 78.9);
 
         String last = lastNonStatus();
-        assertEquals("G0 X12.346 Y78.900 F3000", last);
+        assertEquals("G1 X12.346 Y78.900 F2345", last);
     }
 
     @Test
@@ -224,13 +227,13 @@ class GcodeBackendTest {
         move.start();
         Thread.sleep(100);
         assertTrue(move.isAlive(), "move should wait while GRBL reports Hold");
-        assertFalse(fake.sentCommands().contains("G0 X9.000 Y7.000 F3000"));
+        assertFalse(fake.sentCommands().contains("G1 X9.000 Y7.000 F3000"));
 
         fake.setMachineState("Run");
         awaitState(b, GcodeBackend.MachineState.RUN);
         move.join(2000);
         assertFalse(move.isAlive(), "move did not resume after GRBL left Hold");
-        assertTrue(fake.sentCommands().contains("G0 X9.000 Y7.000 F3000"));
+        assertTrue(fake.sentCommands().contains("G1 X9.000 Y7.000 F3000"));
     }
 
     @Test
@@ -246,7 +249,7 @@ class GcodeBackendTest {
             }
         }, "alarm-move-test");
         move.start();
-        awaitCommand("G0 X4.000 Y5.000 F3000");
+        awaitCommand("G1 X4.000 Y5.000 F3000");
 
         fake.injectLine("ALARM:1");
         move.join(2000);

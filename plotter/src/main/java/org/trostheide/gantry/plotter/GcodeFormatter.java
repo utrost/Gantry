@@ -32,9 +32,11 @@ public final class GcodeFormatter {
         return "G92 X0 Y0";
     }
 
-    /** Absolute rapid move (pen up) at the travel feed rate. */
+    /** Absolute feed-controlled move (pen up) at the configured travel feed rate. */
     public static String moveto(double x, double y, int feedRateTravel) {
-        return String.format(Locale.ROOT, "G0 X%.3f Y%.3f F%d", x, y, feedRateTravel);
+        // GRBL executes G0 at its configured maximum seek rate and ignores the modal F value.
+        // Use G1 so Gantry's Travel Feed Rate setting actually controls pen-up movement.
+        return String.format(Locale.ROOT, "G1 X%.3f Y%.3f F%d", x, y, feedRateTravel);
     }
 
     /** Absolute linear move (pen down) at the draw feed rate. */

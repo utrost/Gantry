@@ -1194,15 +1194,20 @@ public class PlotterPanel extends JPanel {
                 plotControls.setProgress(pct);
             });
         });
+        service.setStrokeProgressCallback(progress -> SwingUtilities.invokeLater(() ->
+                visPanel.updateStrokeProgress(progress.layerId(), progress.commandId(),
+                        progress.phase() == PlotService.StrokeProgressPhase.ACCEPTED)));
 
         confirmGate.drainPermits();
         plotProgress.setEstimate(TimeEstimator.estimate(toPlot, config.gcode, settings.stations));
         plotProgress.start(totalLayersCount, System.currentTimeMillis());
+        visPanel.beginPlotProgress(toPlot);
         setPlottingState(true);
         plotClockTimer = new javax.swing.Timer(500, e -> updateTimeLabelDuringPlot());
         plotClockTimer.start();
 
         plotJobController.startPlot(service, toPlot, (completed, failure) -> {
+            SwingUtilities.invokeLater(visPanel::finishPlotProgress);
             if (completed) {
                 plotHistory.add(new PlotJobHistory.Job(Instant.now(), toPlot, settings));
                 double actualSec = plotProgress.elapsedSeconds(System.currentTimeMillis());

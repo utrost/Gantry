@@ -109,6 +109,12 @@ final class CanvasRenderer {
                     continue;
                 }
                 Color base = panel.colorByLayer ? panel.colorForLayer(li) : panel.DEFAULT_PATH;
+                VisualizationPanel.StrokeProgressState progress = panel.strokeProgressState(i);
+                if (progress == VisualizationPanel.StrokeProgressState.ACTIVE) {
+                    base = CanvasPalette.ACTIVE_PATH;
+                } else if (progress == VisualizationPanel.StrokeProgressState.COMPLETED) {
+                    base = CanvasPalette.COMPLETED_PATH;
+                }
                 g2.setColor(selected ? base : panel.ghost(base));
                 Path2D p2d = new Path2D.Double();
                 double[] p0 = panel.transformPoint(path.get(0));

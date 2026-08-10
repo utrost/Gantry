@@ -6,6 +6,8 @@ import java.awt.Color;
 final class CanvasPalette {
     static final Color BACKGROUND = new Color(35, 35, 40);
     static final Color DEFAULT_PATH = new Color(130, 160, 255);
+    static final Color ACTIVE_PATH = new Color(255, 190, 55);
+    static final Color COMPLETED_PATH = new Color(85, 145, 120);
     private static final Color[] FALLBACK = {
             new Color(130, 160, 255), new Color(255, 140, 120), new Color(120, 220, 150),
             new Color(230, 200, 110), new Color(210, 130, 230), new Color(120, 220, 220),

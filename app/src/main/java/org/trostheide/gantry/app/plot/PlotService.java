@@ -41,6 +41,11 @@ public class PlotService {
         void update(int done, int total);
     }
 
+    public enum StrokeProgressPhase { STARTED, ACCEPTED }
+
+    /** Identifies a drawable stroke as it is submitted to the controller. */
+    public record StrokeProgress(String layerId, int commandId, StrokeProgressPhase phase) { }
+
     private final PlotterBackend backend;
     private final PlotSettings settings;
 
@@ -49,6 +54,7 @@ public class PlotService {
     private BiConsumer<Double, Double> commandedPositionCallback = (x, y) -> { };
     private Consumer<Layer> layerStartedCallback = layer -> { };
     private ProgressCallback progressCallback = (d, t) -> { };
+    private Consumer<StrokeProgress> strokeProgressCallback = progress -> { };
 
     private volatile boolean cancelled;
     private volatile boolean paused;
@@ -86,6 +92,11 @@ public class PlotService {
     /** Registers a callback fired after each command with global (all-layers) done/total counts. */
     public void setProgressCallback(ProgressCallback callback) {
         this.progressCallback = callback != null ? callback : ((d, t) -> { });
+    }
+
+    /** Registers a callback fired before and after each DRAW command is accepted by the backend. */
+    public void setStrokeProgressCallback(Consumer<StrokeProgress> callback) {
+        this.strokeProgressCallback = callback != null ? callback : (progress -> { });
     }
 
     /** Requests that the current/upcoming {@link #plot} call stop as soon as possible. */
@@ -371,6 +382,8 @@ public class PlotService {
                 backend.moveto(p[0], p[1]);
                 reportPosition(p[0], p[1]);
             } else if (cmd instanceof DrawCommand draw) {
+                strokeProgressCallback.accept(new StrokeProgress(
+                        layer.id(), draw.id, StrokeProgressPhase.STARTED));
                 for (Point point : draw.points) {
                     if (cancelled) {
                         return;
@@ -383,6 +396,8 @@ public class PlotService {
                     backend.lineto(p[0], p[1]);
                     reportPosition(p[0], p[1]);
                 }
+                strokeProgressCallback.accept(new StrokeProgress(
+                        layer.id(), draw.id, StrokeProgressPhase.ACCEPTED));
             } else if (cmd instanceof RefillCommand refill) {
                 performRefill(refill.stationId);
             }

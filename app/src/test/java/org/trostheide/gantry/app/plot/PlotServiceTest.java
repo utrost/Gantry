@@ -27,6 +27,21 @@ class PlotServiceTest {
     }
 
     @Test
+    void reportsStrokeStartedAndAcceptedAroundBackendSubmission() {
+        FakePlotterBackend backend = new FakePlotterBackend();
+        PlotService service = new PlotService(backend, new PlotSettings());
+        List<PlotService.StrokeProgress> events = new ArrayList<>();
+        service.setStrokeProgressCallback(events::add);
+
+        service.plot(output(new Layer("ink", "default", List.of(
+                new DrawCommand(42, List.of(new Point(1, 2), new Point(3, 4)))))));
+
+        assertEquals(List.of(
+                new PlotService.StrokeProgress("ink", 42, PlotService.StrokeProgressPhase.STARTED),
+                new PlotService.StrokeProgress("ink", 42, PlotService.StrokeProgressPhase.ACCEPTED)), events);
+    }
+
+    @Test
     void movetoAndLinetoApplyTransformAndOffset() {
         FakePlotterBackend backend = new FakePlotterBackend();
         PlotSettings settings = new PlotSettings();

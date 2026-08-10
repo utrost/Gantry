@@ -29,7 +29,7 @@ class GcodeFileBackendTest {
 
         List<String> lines = Files.readAllLines(file.toPath());
         assertEquals(List.of("$X", "G21", "G90", "G92 X0 Y0"), lines.subList(0, 4));
-        assertEquals("G0 X10.000 Y20.000 F3000", lines.get(4));
+        assertEquals("G1 X10.000 Y20.000 F3000", lines.get(4));
         // lineto lowers the pen (servo down) before drawing
         assertEquals("M280 P0 S30", lines.get(5));
         assertEquals("G1 X5.000 Y5.000 F1000", lines.get(6));
