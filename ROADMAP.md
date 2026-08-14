@@ -55,6 +55,64 @@ validation, support, compatibility evidence, and low-key public outreach.
   import should preserve centerline layer/stroke order and pressure metadata;
   pressure-to-Z/feed behavior needs calibration and hardware evidence.
 
+### Plotter-Studio-inspired backlog
+
+The open-source [`iclubu/Plotter-Studio`](https://github.com/iclubu/Plotter-Studio)
+project is closer to Gantry than to GenerativeArt: it is an image-to-plotter
+studio with Streamlit image-art engines, vpype-style export optimization,
+CMYK/layer output, pen passes, and a lightweight serial backend. Use it as a
+feature reference only; do not copy code unless licensing is clarified.
+
+These ideas are useful, but they should not interrupt Milestone 9 beginner
+usability. Treat them as post-validation candidates and route them through the
+existing Gantry architecture: `vectorize` for raster-to-line art, `svgtoolbox-core`
+for SVG preprocessing, `pipeline-core` for command transforms, and `plotter`/`app`
+for machine-aware execution.
+
+- Image-art engines in the vectorizer/import workflow:
+  - **Squiggle shading**: horizontal scanlines whose amplitude follows image
+    darkness; attractive, continuous, low-pen-lift ballpoint output.
+  - **Oriented needles**: grid-sampled short dashes aligned to local image
+    gradients; good for portraits, texture, and structural edge emphasis.
+  - **Tonal isolines/topographic contours**: brightness-level contour extraction
+    as a plotter-native alternative to filled vectorization.
+  - **Sketch/blueprint trace preset**: adaptive thresholding, light welding, and
+    optional skeleton-style output for scanned ink/pencil drawings.
+  - **Continuous-line image mode**: image-weighted point placement plus a greedy
+    nearest-neighbour route for one-pen-down drawings; validate performance and
+    plot quality before scheduling. Fast Marching/topographic wavefront output is
+    interesting, but should wait until there is a Java-compatible algorithmic
+    plan and a real use case.
+- Image import preparation controls: crop/mask before vectorization, transparent
+  pixel skipping, and beginner-facing presets such as **Portrait lines**,
+  **Sketch trace**, **Squiggle shading**, and **Dense stipple**. Start with
+  numeric crop/margin controls before a complex visual crop editor.
+- Plotter metrics surfaced earlier in the workflow: draw distance, pen-up travel,
+  estimated time, command count, layer count, refill/pen-change count, tiny
+  segment count, and high-density warnings. Gantry already owns the command model
+  and machine settings, so these metrics belong in import/processing/preflight
+  rather than in GenerativeArt.
+- vpype-style optimization vocabulary in UI/docs: explain Gantry's native merge,
+  sort, simplify, reloop, and two-opt-like improvements using plotter-community
+  language while keeping the Java implementation and tests authoritative.
+- Multi-pen/layer job output: per-layer/per-colour SVG or G-code export, a
+  combined job with explicit pen-change pauses, ordered layer previews, and
+  generated setup notes. Prefer Gantry's station/layer model over literal CMYK
+  unless the source is a colour image.
+- Multipass as an art-facing feature: presets for single fineliner, ballpoint
+  shadow boost, heavy black fill, and light watercolor wash; cap pass counts and
+  warn when passes multiply draw time or risk over-inking paper.
+- Local helper boundary: if browser/static tools such as GenerativeArt need
+  vpype-like or machine-aware processing later, Gantry should be the local helper
+  or canonical importer/exporter rather than duplicating hardware logic in the
+  browser app.
+
+Candidate first slice after Milestone 9: add one image-art preset, preferably
+**Squiggle shading**, that produces `ProcessorOutput` through the existing image
+import/vectorize path, shows before/after metrics, can export G-code headlessly,
+and has a small committed sample plus automated tests for deterministic geometry,
+bounds, and plot-time estimate.
+
 ### Deliberately deferred
 
 - Resume across application restarts: controller/head state recovery is unsafe
