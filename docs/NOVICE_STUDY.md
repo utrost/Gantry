@@ -8,6 +8,19 @@ goal is to observe the product, not teach plotting.
 
 1. Use the same Gantry build and a fresh working directory for every person.
    It must contain no `config.json`, recovery file, project, or plot history.
+   The recommended launcher creates this isolated profile automatically:
+
+   ```bash
+   scripts/start-novice-study.sh --profile .novice-study-profiles/P1 --reset
+   ```
+
+   For a rehearsal that only verifies the profile path and does not launch the
+   app, run:
+
+   ```bash
+   scripts/start-novice-study.sh --profile .novice-study-profiles/P1 --reset --dry-run
+   ```
+
 2. Launch Gantry so **Your first plot** is open when the participant begins.
    Do not configure the mock backend for them: guided practice does that itself.
 3. Use a 1024×800 or larger screen. Record the display scale and operating

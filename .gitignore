@@ -11,6 +11,7 @@ dependency-reduced-pom.xml
 config.json
 .gantry-recovery
 plot-history.json
+.novice-study-profiles/
 dist/
 release-results/*
 !release-results/.gitkeep

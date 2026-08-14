@@ -145,7 +145,13 @@ a `testdata/` folder.
    - [ ] **Plot another copy** opens the safety check; it never starts movement immediately.
 
 #### TS-A3 — Guided first plot, local feedback, and recovery *(mock OK)*
-1. Launch from a clean working directory with no `config.json` or recovery file.
+1. Launch from a clean novice-study profile:
+
+   ```bash
+   scripts/start-novice-study.sh --profile .novice-study-profiles/TS-A3 --reset
+   ```
+
+   The profile must start with no `config.json`, recovery file, project, or plot history.
    - [ ] **Your first plot** explains that artwork cannot move a machine, offers **Start guided practice**, **Machine setup only**, and **Close**, and includes **Show this welcome when Gantry starts**.
 2. Choose **Start guided practice** and finish Machine Setup with its defaults.
    - [ ] Mock backend is selected by default, calibration is not forced, and a supplied 80×60 mm **Practice pen** drawing appears.
