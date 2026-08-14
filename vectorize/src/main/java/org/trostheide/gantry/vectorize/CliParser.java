@@ -42,6 +42,12 @@ public class CliParser {
     private static final int DEFAULT_PBN_MIN_AREA = 100;
     private static final int DEFAULT_PBN_FONT_SIZE = 14;
 
+    // --- Tonal Squiggle Defaults ---
+    private static final double DEFAULT_SQUIGGLE_DENSITY = 1.0;
+    private static final double DEFAULT_SQUIGGLE_AMPLITUDE = 3.5;
+    private static final double DEFAULT_SQUIGGLE_TONE = 0.72;
+    private static final double DEFAULT_SQUIGGLE_BACKGROUND = 0.85;
+
     private final Options options = new Options();
     private final Map<String, VectorizationStrategy> strategyMap = new HashMap<>();
 
@@ -303,6 +309,35 @@ public class CliParser {
                 .desc("PBN: Omit color legend from output.")
                 .build());
 
+        // --- Tonal Squiggle Options ---
+        options.addOption(Option.builder()
+                .longOpt("squiggle-density")
+                .hasArg()
+                .type(Number.class)
+                .desc("Squiggle: line/path density multiplier, 0.25-3.0. Default: " + DEFAULT_SQUIGGLE_DENSITY)
+                .build());
+
+        options.addOption(Option.builder()
+                .longOpt("squiggle-amplitude")
+                .hasArg()
+                .type(Number.class)
+                .desc("Squiggle: wiggle amplitude in pixels. Default: " + DEFAULT_SQUIGGLE_AMPLITUDE)
+                .build());
+
+        options.addOption(Option.builder()
+                .longOpt("squiggle-tone")
+                .hasArg()
+                .type(Number.class)
+                .desc("Squiggle: tonal shading strength, 0.0-1.0. Default: " + DEFAULT_SQUIGGLE_TONE)
+                .build());
+
+        options.addOption(Option.builder()
+                .longOpt("squiggle-background")
+                .hasArg()
+                .type(Number.class)
+                .desc("Squiggle: flat background suppression, 0.0-1.0. Default: " + DEFAULT_SQUIGGLE_BACKGROUND)
+                .build());
+
     }
 
     // --- Centerline Getters ---
@@ -395,6 +430,22 @@ public class CliParser {
     public double getDetailLevel(CommandLine cmd) {
         double detail = getDouble(cmd, "d", DEFAULT_DETAIL);
         return Math.max(0.0, Math.min(1.0, detail)); // clamp 0–1
+    }
+
+    public double getSquiggleDensity(CommandLine cmd) {
+        return Math.max(0.25, Math.min(3.0, getDouble(cmd, "squiggle-density", DEFAULT_SQUIGGLE_DENSITY)));
+    }
+
+    public double getSquiggleAmplitude(CommandLine cmd) {
+        return Math.max(0.0, getDouble(cmd, "squiggle-amplitude", DEFAULT_SQUIGGLE_AMPLITUDE));
+    }
+
+    public double getSquiggleTone(CommandLine cmd) {
+        return Math.max(0.0, Math.min(1.0, getDouble(cmd, "squiggle-tone", DEFAULT_SQUIGGLE_TONE)));
+    }
+
+    public double getSquiggleBackgroundSuppression(CommandLine cmd) {
+        return Math.max(0.0, Math.min(1.0, getDouble(cmd, "squiggle-background", DEFAULT_SQUIGGLE_BACKGROUND)));
     }
 
     public double getMinLength(CommandLine cmd) {

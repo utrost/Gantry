@@ -20,9 +20,20 @@ public final class TonalSquiggleProcessor {
             double squiggleAmplitude,
             double detailStrength,
             double toneStrength,
-            double backgroundSuppression) {
+            double backgroundSuppression,
+            double density) {
+        public Options(double rowSpacing, double squiggleAmplitude, double detailStrength,
+                       double toneStrength, double backgroundSuppression) {
+            this(rowSpacing, squiggleAmplitude, detailStrength, toneStrength, backgroundSuppression, 1.0);
+        }
+
         public static Options defaults() {
-            return new Options(8.0, 3.5, 0.60, 0.72, 0.85);
+            return new Options(8.0, 3.5, 0.60, 0.72, 0.85, 1.0);
+        }
+
+        public Options withDensity(double nextDensity) {
+            return new Options(rowSpacing, squiggleAmplitude, detailStrength,
+                    toneStrength, backgroundSuppression, nextDensity);
         }
     }
 
@@ -42,7 +53,9 @@ public final class TonalSquiggleProcessor {
         double[][] edges = edgeMagnitude(gray);
         List<VectorGeometry> geometry = new ArrayList<>();
 
-        int spacing = Math.max(3, (int) Math.round(safe.rowSpacing()));
+        double density = Math.max(0.25, Math.min(3.0, safe.density()));
+        int spacing = Math.max(3, (int) Math.round(safe.rowSpacing() / density));
+        int xStep = Math.max(2, (int) Math.round(4.0 / density));
         double amp = Math.max(0.0, safe.squiggleAmplitude());
         double toneStrength = clamp01(safe.toneStrength());
         double detailStrength = clamp01(safe.detailStrength());
@@ -51,7 +64,7 @@ public final class TonalSquiggleProcessor {
 
         for (int y = spacing; y < height - spacing; y += spacing) {
             List<Point2D_I32> current = new ArrayList<>();
-            for (int x = spacing; x < width - spacing; x += 4) {
+            for (int x = spacing; x < width - spacing; x += xStep) {
                 double foreground = foregroundWeight(x, y, width, height);
                 double darkness = 1.0 - gray[y][x];
                 double localContrast = Math.abs(gray[y][x] - local[y][x]);

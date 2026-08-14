@@ -92,6 +92,39 @@ class TonalSquiggleProcessorTest {
         assertEquals(VectorizationStrategy.WorkflowType.TONAL_SQUIGGLE, strategy.getWorkflowType());
     }
 
+    @Test
+    void cliParsesExplicitSquiggleControls() throws Exception {
+        CliParser parser = new CliParser();
+        CommandLine cmd = parser.parse(new String[] {
+                "-i", "in.png", "-s", "squiggle",
+                "--squiggle-density", "1.8",
+                "--squiggle-amplitude", "4.5",
+                "--squiggle-tone", "0.6",
+                "--squiggle-background", "0.9"
+        });
+
+        assertEquals(1.8, parser.getSquiggleDensity(cmd), 0.001);
+        assertEquals(4.5, parser.getSquiggleAmplitude(cmd), 0.001);
+        assertEquals(0.6, parser.getSquiggleTone(cmd), 0.001);
+        assertEquals(0.9, parser.getSquiggleBackgroundSuppression(cmd), 0.001);
+    }
+
+    @Test
+    void densityControlChangesPathCountPredictably() {
+        BufferedImage image = whiteImage(90, 70);
+        Graphics2D g = image.createGraphics();
+        g.setColor(Color.BLACK);
+        g.fillOval(24, 12, 42, 46);
+        g.dispose();
+
+        int sparse = TonalSquiggleProcessor.process(image,
+                TonalSquiggleProcessor.Options.defaults().withDensity(0.7)).size();
+        int dense = TonalSquiggleProcessor.process(image,
+                TonalSquiggleProcessor.Options.defaults().withDensity(1.6)).size();
+
+        assertTrue(dense > sparse, "higher density should produce more plot paths");
+    }
+
     private static BufferedImage whiteImage(int width, int height) {
         BufferedImage image = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
         Graphics2D g = image.createGraphics();

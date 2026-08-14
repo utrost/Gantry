@@ -95,6 +95,10 @@ public final class VectorizeStudioDialog extends JDialog {
     private final JSpinner b2ColorsSpinner = new JSpinner(new SpinnerNumberModel(16, 2, 64, 1));
     private final JCheckBox b2OutlineCheck = new JCheckBox("Outline mode (fills → strokes)");
     private final JSpinner pbnNumColorsSpinner = new JSpinner(new SpinnerNumberModel(6, 2, 32, 1));
+    private final JSpinner squiggleDensitySpinner = new JSpinner(new SpinnerNumberModel(1.0, 0.25, 3.0, 0.1));
+    private final JSpinner squiggleAmplitudeSpinner = new JSpinner(new SpinnerNumberModel(3.5, 0.0, 20.0, 0.5));
+    private final JSpinner squiggleToneSpinner = new JSpinner(new SpinnerNumberModel(0.72, 0.0, 1.0, 0.05));
+    private final JSpinner squiggleBackgroundSpinner = new JSpinner(new SpinnerNumberModel(0.85, 0.0, 1.0, 0.05));
     private final JToggleButton cropToggle = new JToggleButton("Crop");
 
     // --- preview machinery ---
@@ -208,6 +212,10 @@ public final class VectorizeStudioDialog extends JDialog {
         addRow(form, gbc, "ImageTracer colours", b2ColorsSpinner);
         addSpan(form, gbc, b2OutlineCheck);
         addRow(form, gbc, "Paint-by-Numbers colours", pbnNumColorsSpinner);
+        addRow(form, gbc, "Squiggle density", squiggleDensitySpinner);
+        addRow(form, gbc, "Squiggle amplitude", squiggleAmplitudeSpinner);
+        addRow(form, gbc, "Squiggle tone", squiggleToneSpinner);
+        addRow(form, gbc, "Background suppression", squiggleBackgroundSpinner);
         addRow(form, gbc, "Stroke colour", strokeColorField);
         addRow(form, gbc, "Stroke width", strokeWidthSpinner);
         addSpan(form, gbc, smoothCurvesCheck);
@@ -218,7 +226,8 @@ public final class VectorizeStudioDialog extends JDialog {
         for (JComponent c : new JComponent[] {presetCombo, strategyCombo, toleranceSpinner,
                 detailSpinner, cannyLowSpinner, cannyHighSpinner, clThresholdSpinner,
                 bezierColorsSpinner, bezierDetailSpinner, b2ColorsSpinner, pbnNumColorsSpinner,
-                strokeColorField, strokeWidthSpinner}) {
+                squiggleDensitySpinner, squiggleAmplitudeSpinner, squiggleToneSpinner,
+                squiggleBackgroundSpinner, strokeColorField, strokeWidthSpinner}) {
             Dimension pref = c.getPreferredSize();
             c.setPreferredSize(new Dimension(170, pref.height));
             c.setMinimumSize(new Dimension(80, pref.height));
@@ -330,6 +339,10 @@ public final class VectorizeStudioDialog extends JDialog {
             strategyCombo.setSelectedItem(Strategy.SQUIGGLE);
             toleranceSpinner.setValue(2.0);
             detailSpinner.setValue(0.7);
+            squiggleDensitySpinner.setValue(1.2);
+            squiggleAmplitudeSpinner.setValue(3.5);
+            squiggleToneSpinner.setValue(0.72);
+            squiggleBackgroundSpinner.setValue(0.85);
             strokeWidthSpinner.setValue(1.0);
         }));
         presetCombo.addItem(new Preset("Paint by Numbers", () -> {
@@ -369,7 +382,9 @@ public final class VectorizeStudioDialog extends JDialog {
         sourcePanel.setRoiListener(roi -> onControlChanged());
         for (JSpinner s : new JSpinner[] {toleranceSpinner, detailSpinner, cannyLowSpinner,
                 cannyHighSpinner, clThresholdSpinner, bezierColorsSpinner, bezierDetailSpinner,
-                b2ColorsSpinner, pbnNumColorsSpinner, strokeWidthSpinner}) {
+                b2ColorsSpinner, pbnNumColorsSpinner, squiggleDensitySpinner,
+                squiggleAmplitudeSpinner, squiggleToneSpinner, squiggleBackgroundSpinner,
+                strokeWidthSpinner}) {
             s.addChangeListener(e -> onControlChanged());
         }
         strokeColorField.getDocument().addDocumentListener(new DocumentListener() {
@@ -414,6 +429,10 @@ public final class VectorizeStudioDialog extends JDialog {
         b2ColorsSpinner.setEnabled(bezier2);
         b2OutlineCheck.setEnabled(bezier2);
         pbnNumColorsSpinner.setEnabled(pbn);
+        squiggleDensitySpinner.setEnabled(squiggle);
+        squiggleAmplitudeSpinner.setEnabled(squiggle);
+        squiggleToneSpinner.setEnabled(squiggle);
+        squiggleBackgroundSpinner.setEnabled(squiggle);
 
         boolean stroked = canny || centerline || bezier || squiggle;
         strokeColorField.setEnabled(stroked);
@@ -467,6 +486,10 @@ public final class VectorizeStudioDialog extends JDialog {
             case SQUIGGLE -> {
                 addNum(a, "-t", toleranceSpinner);
                 addNum(a, "--detail", detailSpinner);
+                addNum(a, "--squiggle-density", squiggleDensitySpinner);
+                addNum(a, "--squiggle-amplitude", squiggleAmplitudeSpinner);
+                addNum(a, "--squiggle-tone", squiggleToneSpinner);
+                addNum(a, "--squiggle-background", squiggleBackgroundSpinner);
                 addStrokeStyle(a, false);
             }
         }
@@ -520,6 +543,10 @@ public final class VectorizeStudioDialog extends JDialog {
                     case "--bezier-detail" -> { setInt(bezierDetailSpinner, v); i += 2; }
                     case "--b2-colors" -> { setInt(b2ColorsSpinner, v); i += 2; }
                     case "--pbn-num-colors" -> { setInt(pbnNumColorsSpinner, v); i += 2; }
+                    case "--squiggle-density" -> { setDouble(squiggleDensitySpinner, v); i += 2; }
+                    case "--squiggle-amplitude" -> { setDouble(squiggleAmplitudeSpinner, v); i += 2; }
+                    case "--squiggle-tone" -> { setDouble(squiggleToneSpinner, v); i += 2; }
+                    case "--squiggle-background" -> { setDouble(squiggleBackgroundSpinner, v); i += 2; }
                     case "--crop" -> {
                         if (v != null) {
                             String[] parts = v.split(",");

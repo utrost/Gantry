@@ -216,6 +216,11 @@ public class Main {
             pbnNoLegend = cli.isPbnNoLegend(cmd);
         }
 
+        double squiggleDensity = cli.getSquiggleDensity(cmd);
+        double squiggleAmplitude = cli.getSquiggleAmplitude(cmd);
+        double squiggleTone = cli.getSquiggleTone(cmd);
+        double squiggleBackground = cli.getSquiggleBackgroundSuppression(cmd);
+
         // --- Determine Output Paths ---
         String svgOutputPath;
         String jsonOutputPath;
@@ -301,8 +306,12 @@ public class Main {
         case TONAL_SQUIGGLE -> System.out.printf("""
                       Row Spacing: %.1f px
                       Amplitude:   %.1f px
+                      Density:     %.2f
                       Detail:      %.2f
-                    """, Math.max(3.0, tolerance * 4.0), Math.max(0.5, strokeWidth * 3.5), detailFactor);
+                      Tone:        %.2f
+                      Background:  %.2f
+                    """, Math.max(3.0, tolerance * 4.0), squiggleAmplitude, squiggleDensity,
+                    detailFactor, squiggleTone, squiggleBackground);
         case CANNY_CONTOUR ->
             System.out.printf("""
                       Tolerance: %.2f
@@ -351,10 +360,11 @@ public class Main {
                 System.out.println("Running Tonal Squiggle strategy...");
                 TonalSquiggleProcessor.Options squiggleOptions = new TonalSquiggleProcessor.Options(
                         Math.max(3.0, tolerance * 4.0),
-                        Math.max(0.5, strokeWidth * 3.5),
+                        squiggleAmplitude,
                         detailFactor,
-                        0.72,
-                        0.85);
+                        squiggleTone,
+                        squiggleBackground,
+                        squiggleDensity);
                 List<VectorGeometry> geometry = TonalSquiggleProcessor.process(image, squiggleOptions);
                 BoofcvBatikVector.createSvgFileFromGeometry(
                         geometry, image.getWidth(), image.getHeight(), svgOutputPath,

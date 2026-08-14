@@ -144,7 +144,8 @@ public class VectorizationWorker extends SwingWorker<File, Void> {
                         Math.max(0.5, controls.getStrokeWidth() * 3.5),
                         controls.getDetailFactor(),
                         0.72,
-                        0.85);
+                        0.85,
+                        1.0);
                 List<VectorGeometry> geometry = TonalSquiggleProcessor.process(sourceImage, options);
                 if (isCancelled()) return null;
                 reportProgress("Writing SVG (" + geometry.size() + " paths)...");
