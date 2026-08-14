@@ -15,7 +15,8 @@ public interface VectorizationStrategy {
         WHOLE_IMAGE_BEZIER,
         WHOLE_IMAGE_IMAGETRACER,
         SKELETON,
-        PAINT_BY_NUMBERS
+        PAINT_BY_NUMBERS,
+        TONAL_SQUIGGLE
     }
 
     default WorkflowType getWorkflowType() {

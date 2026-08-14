@@ -48,6 +48,7 @@ public final class VectorizeStudioDialog extends JDialog {
         CENTERLINE("Centerline / single-stroke (skeleton)", "centerline", Group.CENTERLINE),
         BEZIER("Bézier outlines (DrPTrace)", "bezier", Group.BEZIER),
         BEZIER2("Colour fills (ImageTracer)", "bezier2", Group.BEZIER2),
+        SQUIGGLE("Tonal squiggle / portrait", "squiggle", Group.SQUIGGLE),
         PBN("Paint by Numbers", "pbn", Group.PBN);
 
         final String label;
@@ -66,7 +67,7 @@ public final class VectorizeStudioDialog extends JDialog {
         }
     }
 
-    private enum Group { CANNY, CENTERLINE, BEZIER, BEZIER2, PBN }
+    private enum Group { CANNY, CENTERLINE, BEZIER, BEZIER2, SQUIGGLE, PBN }
 
     /** A quick-start preset: a label and the controls it applies. */
     private record Preset(String label, Runnable apply) {
@@ -325,6 +326,12 @@ public final class VectorizeStudioDialog extends JDialog {
             strategyCombo.setSelectedItem(Strategy.BEZIER2);
             b2ColorsSpinner.setValue(8);
         }));
+        presetCombo.addItem(new Preset("Tonal squiggle portrait", () -> {
+            strategyCombo.setSelectedItem(Strategy.SQUIGGLE);
+            toleranceSpinner.setValue(2.0);
+            detailSpinner.setValue(0.7);
+            strokeWidthSpinner.setValue(1.0);
+        }));
         presetCombo.addItem(new Preset("Paint by Numbers", () -> {
             strategyCombo.setSelectedItem(Strategy.PBN);
             pbnNumColorsSpinner.setValue(12);
@@ -391,10 +398,11 @@ public final class VectorizeStudioDialog extends JDialog {
         boolean centerline = g == Group.CENTERLINE;
         boolean bezier = g == Group.BEZIER;
         boolean bezier2 = g == Group.BEZIER2;
+        boolean squiggle = g == Group.SQUIGGLE;
         boolean pbn = g == Group.PBN;
 
-        toleranceSpinner.setEnabled(canny || centerline || pbn);
-        detailSpinner.setEnabled(canny);
+        toleranceSpinner.setEnabled(canny || centerline || pbn || squiggle);
+        detailSpinner.setEnabled(canny || squiggle);
         cannyAutoCheck.setEnabled(canny);
         boolean manualCanny = canny && !cannyAutoCheck.isSelected();
         cannyLowSpinner.setEnabled(manualCanny);
@@ -407,7 +415,7 @@ public final class VectorizeStudioDialog extends JDialog {
         b2OutlineCheck.setEnabled(bezier2);
         pbnNumColorsSpinner.setEnabled(pbn);
 
-        boolean stroked = canny || centerline || bezier;
+        boolean stroked = canny || centerline || bezier || squiggle;
         strokeColorField.setEnabled(stroked);
         strokeWidthSpinner.setEnabled(stroked);
         smoothCurvesCheck.setEnabled(canny);
@@ -455,6 +463,11 @@ public final class VectorizeStudioDialog extends JDialog {
             case PBN -> {
                 addNum(a, "--pbn-num-colors", pbnNumColorsSpinner);
                 addNum(a, "-t", toleranceSpinner);
+            }
+            case SQUIGGLE -> {
+                addNum(a, "-t", toleranceSpinner);
+                addNum(a, "--detail", detailSpinner);
+                addStrokeStyle(a, false);
             }
         }
 

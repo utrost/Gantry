@@ -6,6 +6,7 @@ import org.trostheide.gantry.vectorize.BoofcvBatikVector;
 import org.trostheide.gantry.vectorize.SvgOptimizer;
 import org.trostheide.gantry.vectorize.strategies.*;
 import org.trostheide.gantry.vectorize.PaintByNumbersProcessor;
+import org.trostheide.gantry.vectorize.TonalSquiggleProcessor;
 import org.trostheide.gantry.vectorize.VectorGeometry;
 import georegression.struct.point.Point2D_I32;
 
@@ -68,6 +69,7 @@ public class VectorizationWorker extends SwingWorker<File, Void> {
             case "bezier2" -> new ImageTracerStrategy();
             case "centerline" -> new SkeletonStrategy();
             case "pbn" -> new PaintByNumbersStrategy();
+            case "squiggle" -> new TonalSquiggleStrategy();
             default -> new DouglasPeuckerStrategy();
         };
 
@@ -133,6 +135,22 @@ public class VectorizationWorker extends SwingWorker<File, Void> {
                 boolean showNumbers = controls.isPbnShowNumbers();
                 boolean showLegend = controls.isPbnShowLegend();
                 PaintByNumbersProcessor.writeSvg(result, outputPath, fontSize, showNumbers, showLegend);
+            }
+            case TONAL_SQUIGGLE -> {
+                if (isCancelled()) return null;
+                reportProgress("Drawing tonal squiggles...");
+                TonalSquiggleProcessor.Options options = new TonalSquiggleProcessor.Options(
+                        Math.max(3.0, controls.getTolerance() * 4.0),
+                        Math.max(0.5, controls.getStrokeWidth() * 3.5),
+                        controls.getDetailFactor(),
+                        0.72,
+                        0.85);
+                List<VectorGeometry> geometry = TonalSquiggleProcessor.process(sourceImage, options);
+                if (isCancelled()) return null;
+                reportProgress("Writing SVG (" + geometry.size() + " paths)...");
+                BoofcvBatikVector.createSvgFileFromGeometry(
+                        geometry, sourceImage.getWidth(), sourceImage.getHeight(), outputPath,
+                        controls.getStrokeColor(), controls.getStrokeWidth());
             }
             case CANNY_CONTOUR -> {
                 double tolerance = controls.getTolerance();

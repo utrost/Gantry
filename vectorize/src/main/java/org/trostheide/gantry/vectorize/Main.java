@@ -298,6 +298,11 @@ public class Main {
                       Show Numbers:  %b
                       Show Legend:   %b
                     """, pbnColors.length, pbnMinArea, pbnFontSize, !pbnNoNumbers, !pbnNoLegend);
+        case TONAL_SQUIGGLE -> System.out.printf("""
+                      Row Spacing: %.1f px
+                      Amplitude:   %.1f px
+                      Detail:      %.2f
+                    """, Math.max(3.0, tolerance * 4.0), Math.max(0.5, strokeWidth * 3.5), detailFactor);
         case CANNY_CONTOUR ->
             System.out.printf("""
                       Tolerance: %.2f
@@ -341,6 +346,19 @@ public class Main {
                 System.out.println("Running Paint by Numbers strategy...");
                 PaintByNumbersProcessor.PbnResult result = PaintByNumbersProcessor.process(image, pbnColors, pbnMinArea, tolerance);
                 PaintByNumbersProcessor.writeSvg(result, svgOutputPath, pbnFontSize, !pbnNoNumbers, !pbnNoLegend);
+            }
+            case TONAL_SQUIGGLE -> {
+                System.out.println("Running Tonal Squiggle strategy...");
+                TonalSquiggleProcessor.Options squiggleOptions = new TonalSquiggleProcessor.Options(
+                        Math.max(3.0, tolerance * 4.0),
+                        Math.max(0.5, strokeWidth * 3.5),
+                        detailFactor,
+                        0.72,
+                        0.85);
+                List<VectorGeometry> geometry = TonalSquiggleProcessor.process(image, squiggleOptions);
+                BoofcvBatikVector.createSvgFileFromGeometry(
+                        geometry, image.getWidth(), image.getHeight(), svgOutputPath,
+                        strokeColor, strokeWidth);
             }
             case CANNY_CONTOUR -> {
                 List<List<Point2D_I32>> contours = BoofcvBatikVector.extractContours(

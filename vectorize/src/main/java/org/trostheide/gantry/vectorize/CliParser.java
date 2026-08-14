@@ -55,6 +55,7 @@ public class CliParser {
         strategyMap.put("bezier2", new ImageTracerStrategy());
         strategyMap.put("centerline", new SkeletonStrategy());
         strategyMap.put("pbn", new PaintByNumbersStrategy());
+        strategyMap.put("squiggle", new TonalSquiggleStrategy());
 
         StringBuilder sb = new StringBuilder("Vectorization strategy. Available: ");
         strategyMap.keySet().stream().sorted().forEach(key -> sb.append(key).append(" | "));
