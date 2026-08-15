@@ -162,6 +162,24 @@ class SvgImportCliTest {
         assertTrue(report.at("/plotTime/formatted").asText().matches("\\d+:\\d{2}"));
     }
 
+    @Test
+    void metricsSidecarFlagsPlottabilityWarnings() throws Exception {
+        Path input = writeSvg("""
+                <path d=\"M10,10 L10.2,10\" fill=\"none\" stroke=\"#000000\"/>
+                <path d=\"M90,90 L90.2,90\" fill=\"none\" stroke=\"#000000\"/>
+                """);
+        Path output = tmp.resolve("warnings.json");
+        Path metrics = tmp.resolve("warnings.metrics.json");
+
+        SvgImportCli.main(new String[] {
+                "-i", input.toString(), "-o", output.toString(), "--metrics", metrics.toString()});
+
+        JsonNode warnings = new ObjectMapper().readTree(Files.readString(metrics)).get("warnings");
+        assertTrue(warnings.isArray(), "warnings should be machine-readable review codes");
+        assertTrue(hasWarning(warnings, "HIGH_TRAVEL_RATIO"), "scattered tiny strokes should flag high pen-up travel");
+        assertTrue(hasWarning(warnings, "TINY_SEGMENTS"), "sub-0.5mm drawn segments should be explicit");
+    }
+
     private Path writeSvg(String body) throws Exception {
         Path input = tmp.resolve("input-" + System.nanoTime() + ".svg");
         Files.writeString(input, """
@@ -179,6 +197,15 @@ class SvgImportCliTest {
 
     private static int commandCount(ProcessorOutput output) {
         return output.layers().stream().mapToInt(layer -> layer.commands().size()).sum();
+    }
+
+    private static boolean hasWarning(JsonNode warnings, String code) {
+        for (JsonNode warning : warnings) {
+            if (code.equals(warning.get("code").asText())) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static DrawCommand firstDraw(ProcessorOutput output) {

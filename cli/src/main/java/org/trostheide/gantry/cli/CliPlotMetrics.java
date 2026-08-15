@@ -10,6 +10,7 @@ import org.trostheide.gantry.model.command.MoveCommand;
 import org.trostheide.gantry.plotter.GcodeOptions;
 
 import java.io.File;
+import java.util.ArrayList;
 import java.util.List;
 
 /** Headless plotter-cost metrics for batch/import validation sidecars. */
@@ -24,13 +25,19 @@ public record CliPlotMetrics(
         double travelRatio,
         int tinySegments,
         Bounds bounds,
-        PlotTime plotTime) {
+        PlotTime plotTime,
+        List<Warning> warnings) {
 
     private static final double TINY_SEGMENT_MM = 0.5;
+    private static final double HIGH_TRAVEL_RATIO = 0.50;
 
     /** Optional plot-time estimate based on batch G-code feed rates. */
     public record PlotTime(int feedRateDraw, int feedRateTravel, int penDownDelayMillis,
                            double estimatedSeconds, String formatted) {
+    }
+
+    /** Machine-readable plottability warning for review queues and batch reports. */
+    public record Warning(String code, String message) {
     }
 
     static CliPlotMetrics of(ProcessorOutput output, File commandFile) {
@@ -86,7 +93,9 @@ public record CliPlotMetrics(
         }
 
         double total = draw + travel;
+        double travelRatio = total <= 0 ? 0 : travel / total;
         PlotTime plotTime = estimatePlotTime(gcode, draw, travel, strokes);
+        List<Warning> warnings = warnings(travelRatio, tinySegments, plotTime);
         return new CliPlotMetrics(
                 commandFile.getName(),
                 output.layers().size(),
@@ -95,10 +104,28 @@ public record CliPlotMetrics(
                 points,
                 draw,
                 travel,
-                total <= 0 ? 0 : travel / total,
+                travelRatio,
                 tinySegments,
                 output.metadata().bounds(),
-                plotTime);
+                plotTime,
+                warnings);
+    }
+
+    private static List<Warning> warnings(double travelRatio, int tinySegments, PlotTime plotTime) {
+        List<Warning> warnings = new ArrayList<>();
+        if (travelRatio >= HIGH_TRAVEL_RATIO) {
+            warnings.add(new Warning("HIGH_TRAVEL_RATIO",
+                    "Pen-up travel is at least half of all motion; try path reordering, merging, or a less scattered preset."));
+        }
+        if (tinySegments > 0) {
+            warnings.add(new Warning("TINY_SEGMENTS",
+                    "Contains sub-0.5 mm draw segments that may chatter, blob, or vanish on paper."));
+        }
+        if (plotTime != null && plotTime.estimatedSeconds() >= 3600.0) {
+            warnings.add(new Warning("LONG_PLOT_TIME",
+                    "Estimated plot time is at least one hour; verify paper, ink, and machine supervision before running."));
+        }
+        return warnings;
     }
 
     private static PlotTime estimatePlotTime(GcodeOptions gcode, double draw, double travel, int penDownCount) {
