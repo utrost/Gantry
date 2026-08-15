@@ -17,7 +17,7 @@ public final class SketchTraceProcessor {
 
     public record Options(int window, double offset, int minLength, boolean skeleton) {
         public static Options defaults() {
-            return new Options(15, 0.08, 8, true);
+            return new Options(21, 0.04, 6, true);
         }
     }
 
@@ -78,10 +78,65 @@ public final class SketchTraceProcessor {
         List<VectorGeometry> result = new ArrayList<>();
         for (List<Point2D_I32> path : rawPaths) {
             if (path.size() >= minLength && !isBorderArtifact(path, binary.width, binary.height)) {
-                result.add(new PolylineGeometry(copy(path)));
+                List<Point2D_I32> simplified = simplify(path, 1.25);
+                if (simplified.size() >= 2) {
+                    result.add(new PolylineGeometry(copy(simplified)));
+                }
             }
         }
         return result;
+    }
+
+    private static List<Point2D_I32> simplify(List<Point2D_I32> points, double tolerance) {
+        if (points.size() < 3 || tolerance <= 0.0) {
+            return points;
+        }
+        boolean[] keep = new boolean[points.size()];
+        keep[0] = true;
+        keep[points.size() - 1] = true;
+        simplifyRecursive(points, 0, points.size() - 1, tolerance, keep);
+        List<Point2D_I32> result = new ArrayList<>();
+        for (int i = 0; i < points.size(); i++) {
+            if (keep[i]) {
+                result.add(points.get(i));
+            }
+        }
+        return result;
+    }
+
+    private static void simplifyRecursive(List<Point2D_I32> points, int start, int end,
+                                          double tolerance, boolean[] keep) {
+        if (start + 1 >= end) {
+            return;
+        }
+        Point2D_I32 a = points.get(start);
+        Point2D_I32 b = points.get(end);
+        double maxDistance = -1.0;
+        int index = -1;
+        for (int i = start + 1; i < end; i++) {
+            double distance = perpendicularDistance(points.get(i), a, b);
+            if (distance > maxDistance) {
+                maxDistance = distance;
+                index = i;
+            }
+        }
+        if (maxDistance > tolerance) {
+            keep[index] = true;
+            simplifyRecursive(points, start, index, tolerance, keep);
+            simplifyRecursive(points, index, end, tolerance, keep);
+        }
+    }
+
+    private static double perpendicularDistance(Point2D_I32 p, Point2D_I32 a, Point2D_I32 b) {
+        double dx = b.x - a.x;
+        double dy = b.y - a.y;
+        if (dx == 0.0 && dy == 0.0) {
+            return Math.hypot(p.x - a.x, p.y - a.y);
+        }
+        double t = ((p.x - a.x) * dx + (p.y - a.y) * dy) / (dx * dx + dy * dy);
+        double px = a.x + t * dx;
+        double py = a.y + t * dy;
+        return Math.hypot(p.x - px, p.y - py);
     }
 
     private static boolean isBorderArtifact(List<Point2D_I32> path, int width, int height) {

@@ -62,9 +62,9 @@ public class CliParser {
     private static final double DEFAULT_ISOLINE_THRESHOLD = 0.06;
 
     // --- Sketch Trace Defaults ---
-    private static final int DEFAULT_SKETCH_WINDOW = 15;
-    private static final double DEFAULT_SKETCH_OFFSET = 0.08;
-    private static final int DEFAULT_SKETCH_MIN_LENGTH = 8;
+    private static final int DEFAULT_SKETCH_WINDOW = 21;
+    private static final double DEFAULT_SKETCH_OFFSET = 0.04;
+    private static final int DEFAULT_SKETCH_MIN_LENGTH = 6;
     private static final boolean DEFAULT_SKETCH_SKELETON = true;
 
     private final Options options = new Options();

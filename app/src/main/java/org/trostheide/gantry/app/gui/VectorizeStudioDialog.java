@@ -111,9 +111,9 @@ public final class VectorizeStudioDialog extends JDialog {
     private final JSpinner isolineSmoothingSpinner = new JSpinner(new SpinnerNumberModel(3.0, 0.0, 20.0, 0.5));
     private final JSpinner isolineMinLengthSpinner = new JSpinner(new SpinnerNumberModel(8, 2, 200, 1));
     private final JSpinner isolineThresholdSpinner = new JSpinner(new SpinnerNumberModel(0.06, 0.0, 1.0, 0.01));
-    private final JSpinner sketchWindowSpinner = new JSpinner(new SpinnerNumberModel(15, 3, 99, 2));
-    private final JSpinner sketchOffsetSpinner = new JSpinner(new SpinnerNumberModel(0.08, 0.0, 0.5, 0.01));
-    private final JSpinner sketchMinLengthSpinner = new JSpinner(new SpinnerNumberModel(8, 2, 200, 1));
+    private final JSpinner sketchWindowSpinner = new JSpinner(new SpinnerNumberModel(21, 3, 99, 2));
+    private final JSpinner sketchOffsetSpinner = new JSpinner(new SpinnerNumberModel(0.04, 0.0, 0.5, 0.01));
+    private final JSpinner sketchMinLengthSpinner = new JSpinner(new SpinnerNumberModel(6, 2, 200, 1));
     private final JCheckBox sketchSkeletonCheck = new JCheckBox("Sketch skeleton", true);
     private final JToggleButton cropToggle = new JToggleButton("Crop");
 
@@ -397,9 +397,9 @@ public final class VectorizeStudioDialog extends JDialog {
         }));
         presetCombo.addItem(new Preset("Sketch / blueprint trace", () -> {
             strategyCombo.setSelectedItem(Strategy.SKETCH);
-            sketchWindowSpinner.setValue(15);
-            sketchOffsetSpinner.setValue(0.08);
-            sketchMinLengthSpinner.setValue(8);
+            sketchWindowSpinner.setValue(21);
+            sketchOffsetSpinner.setValue(0.04);
+            sketchMinLengthSpinner.setValue(6);
             sketchSkeletonCheck.setSelected(true);
             strokeWidthSpinner.setValue(0.8);
         }));

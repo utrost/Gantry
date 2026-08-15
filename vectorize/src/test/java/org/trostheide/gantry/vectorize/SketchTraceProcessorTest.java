@@ -23,7 +23,7 @@ class SketchTraceProcessorTest {
 
         assertFalse(geometry.isEmpty(), "faint pencil strokes on paper should be detected");
         PolylineGeometry longest = longestPolyline(geometry);
-        assertTrue(longest.points.size() >= 20, "skeleton trace should preserve a long line path");
+        assertTrue(longest.points.size() >= 2, "skeleton trace should preserve a drawable line path");
         assertTrue(horizontalSpan(longest) > verticalSpan(longest) * 4,
                 "horizontal source stroke should remain a horizontal plot stroke");
     }
@@ -65,6 +65,24 @@ class SketchTraceProcessorTest {
         List<VectorGeometry> geometry = SketchTraceProcessor.process(image, SketchTraceProcessor.Options.defaults());
 
         assertEquals(0, geometry.size(), "scanner/photo borders should not dominate a sketch trace");
+    }
+
+    @Test
+    void diagonalSketchLineIsSimplifiedOutOfPixelStairSteps() {
+        BufferedImage image = new BufferedImage(96, 96, BufferedImage.TYPE_INT_RGB);
+        Graphics2D g = image.createGraphics();
+        g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+        g.setColor(new Color(245, 245, 240));
+        g.fillRect(0, 0, image.getWidth(), image.getHeight());
+        g.setColor(new Color(105, 105, 105));
+        g.setStroke(new BasicStroke(4.0f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+        g.drawLine(16, 78, 78, 18);
+        g.dispose();
+
+        PolylineGeometry longest = longestPolyline(SketchTraceProcessor.process(image, SketchTraceProcessor.Options.defaults()));
+
+        assertTrue(longest.points.size() <= 12,
+                "sketch traces should be plotter strokes, not raw pixel staircases; points=" + longest.points.size());
     }
 
     @Test
