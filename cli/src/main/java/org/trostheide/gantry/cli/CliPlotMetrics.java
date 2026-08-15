@@ -37,7 +37,7 @@ public record CliPlotMetrics(
     }
 
     /** Machine-readable plottability warning for review queues and batch reports. */
-    public record Warning(String code, String message) {
+    public record Warning(String code, String message, double value, double threshold) {
     }
 
     static CliPlotMetrics of(ProcessorOutput output, File commandFile) {
@@ -115,15 +115,18 @@ public record CliPlotMetrics(
         List<Warning> warnings = new ArrayList<>();
         if (travelRatio >= HIGH_TRAVEL_RATIO) {
             warnings.add(new Warning("HIGH_TRAVEL_RATIO",
-                    "Pen-up travel is at least half of all motion; try path reordering, merging, or a less scattered preset."));
+                    "Pen-up travel is at least half of all motion; try path reordering, merging, or a less scattered preset.",
+                    travelRatio, HIGH_TRAVEL_RATIO));
         }
         if (tinySegments > 0) {
             warnings.add(new Warning("TINY_SEGMENTS",
-                    "Contains sub-0.5 mm draw segments that may chatter, blob, or vanish on paper."));
+                    "Contains sub-0.5 mm draw segments that may chatter, blob, or vanish on paper.",
+                    tinySegments, TINY_SEGMENT_MM));
         }
         if (plotTime != null && plotTime.estimatedSeconds() >= 3600.0) {
             warnings.add(new Warning("LONG_PLOT_TIME",
-                    "Estimated plot time is at least one hour; verify paper, ink, and machine supervision before running."));
+                    "Estimated plot time is at least one hour; verify paper, ink, and machine supervision before running.",
+                    plotTime.estimatedSeconds(), 3600.0));
         }
         return warnings;
     }

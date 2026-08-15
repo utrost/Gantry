@@ -114,7 +114,7 @@ bounds, and plot-time estimate tests. A first headless validation hook now exist
 `SvgImportCli --metrics` writes JSON with layers, command/stroke/point counts,
 draw/travel distance, travel ratio, tiny segments, bounds, and — when a batch
 `--config` is supplied — a feed-rate-based plot-time estimate and machine-readable
-plottability warnings (`HIGH_TRAVEL_RATIO`, `TINY_SEGMENTS`, `LONG_PLOT_TIME`) for any chained
+plottability warnings with measured values and thresholds (`HIGH_TRAVEL_RATIO`, `TINY_SEGMENTS`, `LONG_PLOT_TIME`) for any chained
 `VectorizeCli` output. After that evidence, the next new
 algorithm candidate is **Continuous-line image mode**.
 

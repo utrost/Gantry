@@ -178,6 +178,9 @@ class SvgImportCliTest {
         assertTrue(warnings.isArray(), "warnings should be machine-readable review codes");
         assertTrue(hasWarning(warnings, "HIGH_TRAVEL_RATIO"), "scattered tiny strokes should flag high pen-up travel");
         assertTrue(hasWarning(warnings, "TINY_SEGMENTS"), "sub-0.5mm drawn segments should be explicit");
+        JsonNode travelWarning = warning(warnings, "HIGH_TRAVEL_RATIO");
+        assertTrue(travelWarning.get("value").asDouble() > 0.9, "warning should expose the measured ratio");
+        assertEquals(0.5, travelWarning.get("threshold").asDouble(), 0.001);
     }
 
     private Path writeSvg(String body) throws Exception {
@@ -200,12 +203,16 @@ class SvgImportCliTest {
     }
 
     private static boolean hasWarning(JsonNode warnings, String code) {
+        return warning(warnings, code) != null;
+    }
+
+    private static JsonNode warning(JsonNode warnings, String code) {
         for (JsonNode warning : warnings) {
             if (code.equals(warning.get("code").asText())) {
-                return true;
+                return warning;
             }
         }
-        return false;
+        return null;
     }
 
     private static DrawCommand firstDraw(ProcessorOutput output) {
