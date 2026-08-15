@@ -6,6 +6,7 @@ import org.apache.commons.cli.DefaultParser;
 import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.trostheide.gantry.model.ProcessorOutput;
 import org.trostheide.gantry.pipeline.io.ProcessorOutputIO;
 import org.trostheide.gantry.pipeline.optimize.MultipassStage;
@@ -69,6 +70,8 @@ public final class SvgImportCli {
                 .desc("Map layer colours to stations from --config.").build());
         options.addOption(Option.builder().longOpt("gcode").hasArg()
                 .desc("Also write plot-ready G-code using --config.").build());
+        options.addOption(Option.builder().longOpt("metrics").hasArg()
+                .desc("Also write a JSON sidecar with plotter-cost metrics for validation.").build());
         options.addOption(Option.builder("h").longOpt("help").desc("Show help.").build());
 
         // SVGToolBox pre-processing options
@@ -198,6 +201,10 @@ public final class SvgImportCli {
             }
             output = MultipassStage.apply(output, passes);
             ProcessorOutputIO.save(output, outputFile);
+            if (cmd.hasOption("metrics")) {
+                new ObjectMapper().writerWithDefaultPrettyPrinter()
+                        .writeValue(new File(cmd.getOptionValue("metrics")), CliPlotMetrics.of(output, outputFile));
+            }
             if (cmd.hasOption("gcode")) {
                 if (batch == null) {
                     throw new IllegalArgumentException("--gcode requires --config");

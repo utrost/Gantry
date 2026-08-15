@@ -1,5 +1,7 @@
 package org.trostheide.gantry.cli;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.trostheide.gantry.model.ProcessorOutput;
@@ -109,6 +111,31 @@ class SvgImportCliTest {
         ProcessorOutput result = ProcessorOutputIO.load(output.toFile());
         assertEquals("red-pot", result.layers().get(0).stationId());
         assertTrue(Files.readString(gcode).contains("G1"));
+    }
+
+    @Test
+    void metricsSidecarSummarizesPlotterCostForHeadlessImageArtValidation() throws Exception {
+        Path input = writeSvg("""
+                <path d=\"M10,10 L90,10\" fill=\"none\" stroke=\"#000000\"/>
+                <path d=\"M10,30 L90,30\" fill=\"none\" stroke=\"#000000\"/>
+                """);
+        Path output = tmp.resolve("metrics.json");
+        Path metrics = tmp.resolve("metrics-sidecar.json");
+
+        SvgImportCli.main(new String[] {
+                "-i", input.toString(), "-o", output.toString(), "--metrics", metrics.toString()});
+
+        JsonNode report = new ObjectMapper().readTree(Files.readString(metrics));
+        assertEquals(output.getFileName().toString(), report.get("commandFile").asText());
+        assertTrue(report.get("layers").asInt() >= 1);
+        assertTrue(report.get("commands").asInt() >= 2);
+        assertTrue(report.get("strokes").asInt() >= 2);
+        assertTrue(report.get("points").asInt() >= 4);
+        assertTrue(report.get("drawDistanceMm").asDouble() > 100.0);
+        assertTrue(report.get("travelDistanceMm").asDouble() > 0.0);
+        assertTrue(report.get("travelRatio").asDouble() > 0.0);
+        assertTrue(report.get("tinySegments").asInt() >= 0);
+        assertEquals(10.0, report.at("/bounds/minX").asDouble(), 0.01);
     }
 
     private Path writeSvg(String body) throws Exception {

@@ -813,6 +813,7 @@ Key flags:
 | `--config FILE` | Read shared batch settings and station definitions from JSON |
 | `--map-stations` | Map layers to stations from the batch config |
 | `--gcode FILE` | Also emit a directly runnable G-code artifact |
+| `--metrics FILE` | Also emit a JSON sidecar with layers, commands, strokes, points, draw/travel distance, travel ratio, tiny segment count, and bounds |
 | `--toolbox-crop FORMAT` | Crop: A4 / Letter / WxH |
 | `--toolbox-stats` | Print statistics |
 
@@ -830,9 +831,11 @@ commands), with the produced SVG injected as the import's `-i`.
 java -cp cli/target/cli-1.0.0.jar org.trostheide.gantry.cli.VectorizeCli \
   -i photo.jpg -o photo.svg -s dp --canny-auto
 
-# image -> SVG -> command JSON in one command (fit to A4)
+# image -> SVG -> command JSON, metrics, and G-code validation artifacts
 java -cp cli/target/cli-1.0.0.jar org.trostheide.gantry.cli.VectorizeCli \
-  -i photo.jpg -o photo.svg -s centerline -- -o photo.json --fit-to A4
+  -i photo.jpg -o photo.svg -s sketch --sketch-skeleton true -- \
+  -o photo.json --fit-to A4 --optimize-reorder \
+  --metrics photo.metrics.json --config batch-config.json --gcode photo.gcode
 ```
 
 The vectorize options (`-s` strategy and its parameters) mirror the standalone
