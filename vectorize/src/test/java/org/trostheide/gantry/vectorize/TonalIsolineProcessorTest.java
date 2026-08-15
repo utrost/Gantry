@@ -65,6 +65,40 @@ class TonalIsolineProcessorTest {
     }
 
     @Test
+    void asymmetricFeaturesDoNotCreateLongCentroidSortedChordJumps() {
+        BufferedImage image = portraitLikeFeatureImage();
+
+        List<VectorGeometry> geometry = TonalIsolineProcessor.process(image,
+                new TonalIsolineProcessor.Options(5, 1.0, 4, 0.05));
+
+        assertFalse(geometry.isEmpty(), "portrait-like tonal features should produce isolines");
+        double longestStep = geometry.stream()
+                .map(PolylineGeometry.class::cast)
+                .flatMapToDouble(polyline -> maxStepLengths(polyline).stream().mapToDouble(Double::doubleValue))
+                .max()
+                .orElse(0.0);
+        assertTrue(longestStep <= 3.0,
+                "isolines should follow local contour adjacency, not connect distant feature points with chord jumps; longest step=" + longestStep);
+    }
+
+    @Test
+    void diagonalGradientProducesOpenLocalContoursWithoutEndToEndClosure() {
+        BufferedImage image = diagonalGradient(80, 80);
+
+        List<VectorGeometry> geometry = TonalIsolineProcessor.process(image,
+                new TonalIsolineProcessor.Options(4, 0.0, 4, 0.05));
+
+        assertFalse(geometry.isEmpty(), "a diagonal tonal ramp should produce contour lines");
+        double longestStep = geometry.stream()
+                .map(PolylineGeometry.class::cast)
+                .flatMapToDouble(polyline -> maxStepLengths(polyline).stream().mapToDouble(Double::doubleValue))
+                .max()
+                .orElse(0.0);
+        assertTrue(longestStep <= 3.0,
+                "open isolines should not be forcibly closed across the image; longest step=" + longestStep);
+    }
+
+    @Test
     void cliRegistersIsolinesAsWholeImageStrategyAndParsesControls() throws Exception {
         CliParser parser = new CliParser();
         CommandLine cmd = parser.parse(new String[] {
@@ -98,6 +132,43 @@ class TonalIsolineProcessorTest {
             }
         }
         return image;
+    }
+
+    private static BufferedImage portraitLikeFeatureImage() {
+        BufferedImage image = new BufferedImage(96, 96, BufferedImage.TYPE_INT_RGB);
+        Graphics2D g = image.createGraphics();
+        g.setColor(new Color(230, 230, 230));
+        g.fillRect(0, 0, 96, 96);
+        g.setColor(new Color(90, 90, 90));
+        g.fillOval(18, 18, 60, 66); // face oval shadow
+        g.setColor(new Color(230, 230, 230));
+        g.fillOval(25, 24, 46, 54); // hollow center creates non-radial contours
+        g.setColor(new Color(35, 35, 35));
+        g.fillOval(32, 38, 8, 6);
+        g.fillOval(56, 38, 8, 6);
+        g.fillArc(37, 55, 24, 14, 180, 180);
+        g.dispose();
+        return image;
+    }
+
+    private static BufferedImage diagonalGradient(int width, int height) {
+        BufferedImage image = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
+        double denom = width + height - 2.0;
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                int v = (int) Math.round(255 * ((x + y) / denom));
+                image.setRGB(x, y, new Color(v, v, v).getRGB());
+            }
+        }
+        return image;
+    }
+
+    private static List<Double> maxStepLengths(PolylineGeometry polyline) {
+        java.util.ArrayList<Double> lengths = new java.util.ArrayList<>();
+        for (int i = 1; i < polyline.points.size(); i++) {
+            lengths.add(distance(polyline.points.get(i - 1), polyline.points.get(i)));
+        }
+        return lengths;
     }
 
     private static double distance(Point2D_I32 a, Point2D_I32 b) {
