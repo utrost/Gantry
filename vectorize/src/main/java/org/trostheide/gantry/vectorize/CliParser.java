@@ -61,6 +61,12 @@ public class CliParser {
     private static final int DEFAULT_ISOLINE_MIN_LENGTH = 8;
     private static final double DEFAULT_ISOLINE_THRESHOLD = 0.06;
 
+    // --- Sketch Trace Defaults ---
+    private static final int DEFAULT_SKETCH_WINDOW = 15;
+    private static final double DEFAULT_SKETCH_OFFSET = 0.08;
+    private static final int DEFAULT_SKETCH_MIN_LENGTH = 8;
+    private static final boolean DEFAULT_SKETCH_SKELETON = true;
+
     private final Options options = new Options();
     private final Map<String, VectorizationStrategy> strategyMap = new HashMap<>();
 
@@ -77,6 +83,7 @@ public class CliParser {
         strategyMap.put("squiggle", new TonalSquiggleStrategy());
         strategyMap.put("needles", new OrientedNeedleStrategy());
         strategyMap.put("isolines", new TonalIsolineStrategy());
+        strategyMap.put("sketch", new SketchTraceStrategy());
 
         StringBuilder sb = new StringBuilder("Vectorization strategy. Available: ");
         strategyMap.keySet().stream().sorted().forEach(key -> sb.append(key).append(" | "));
@@ -416,6 +423,33 @@ public class CliParser {
                 .desc("Isolines: minimum tonal range, 0.0-1.0. Default: " + DEFAULT_ISOLINE_THRESHOLD)
                 .build());
 
+        options.addOption(Option.builder()
+                .longOpt("sketch-window")
+                .hasArg()
+                .type(Number.class)
+                .desc("Sketch trace: local adaptive-threshold window in pixels. Default: " + DEFAULT_SKETCH_WINDOW)
+                .build());
+
+        options.addOption(Option.builder()
+                .longOpt("sketch-offset")
+                .hasArg()
+                .type(Number.class)
+                .desc("Sketch trace: local darkening offset, 0.0-0.5. Default: " + DEFAULT_SKETCH_OFFSET)
+                .build());
+
+        options.addOption(Option.builder()
+                .longOpt("sketch-min-length")
+                .hasArg()
+                .type(Number.class)
+                .desc("Sketch trace: minimum traced stroke point count. Default: " + DEFAULT_SKETCH_MIN_LENGTH)
+                .build());
+
+        options.addOption(Option.builder()
+                .longOpt("sketch-skeleton")
+                .hasArg()
+                .desc("Sketch trace: true for centerline skeleton, false for threshold traces. Default: " + DEFAULT_SKETCH_SKELETON)
+                .build());
+
     }
 
     // --- Centerline Getters ---
@@ -560,6 +594,26 @@ public class CliParser {
 
     public double getIsolineThreshold(CommandLine cmd) {
         return Math.max(0.0, Math.min(1.0, getDouble(cmd, "isoline-threshold", DEFAULT_ISOLINE_THRESHOLD)));
+    }
+
+    public int getSketchWindow(CommandLine cmd) {
+        int window = Math.max(3, Math.min(99, (int) Math.round(getDouble(cmd, "sketch-window", DEFAULT_SKETCH_WINDOW))));
+        return window % 2 == 0 ? window + 1 : window;
+    }
+
+    public double getSketchOffset(CommandLine cmd) {
+        return Math.max(0.0, Math.min(0.5, getDouble(cmd, "sketch-offset", DEFAULT_SKETCH_OFFSET)));
+    }
+
+    public int getSketchMinLength(CommandLine cmd) {
+        return Math.max(2, (int) Math.round(getDouble(cmd, "sketch-min-length", DEFAULT_SKETCH_MIN_LENGTH)));
+    }
+
+    public boolean getSketchSkeleton(CommandLine cmd) {
+        if (!cmd.hasOption("sketch-skeleton")) {
+            return DEFAULT_SKETCH_SKELETON;
+        }
+        return Boolean.parseBoolean(cmd.getOptionValue("sketch-skeleton", String.valueOf(DEFAULT_SKETCH_SKELETON)));
     }
 
     public double getMinLength(CommandLine cmd) {
@@ -838,6 +892,14 @@ public class CliParser {
                 if (isolines.has("smoothing")) { argList.add("--isoline-smoothing"); argList.add(String.valueOf(isolines.getDouble("smoothing"))); }
                 if (isolines.has("minLength")) { argList.add("--isoline-min-length"); argList.add(String.valueOf(isolines.getInt("minLength"))); }
                 if (isolines.has("threshold")) { argList.add("--isoline-threshold"); argList.add(String.valueOf(isolines.getDouble("threshold"))); }
+            }
+
+            if (json.has("sketch")) {
+                org.json.JSONObject sketch = json.getJSONObject("sketch");
+                if (sketch.has("window")) { argList.add("--sketch-window"); argList.add(String.valueOf(sketch.getInt("window"))); }
+                if (sketch.has("offset")) { argList.add("--sketch-offset"); argList.add(String.valueOf(sketch.getDouble("offset"))); }
+                if (sketch.has("minLength")) { argList.add("--sketch-min-length"); argList.add(String.valueOf(sketch.getInt("minLength"))); }
+                if (sketch.has("skeleton")) { argList.add("--sketch-skeleton"); argList.add(String.valueOf(sketch.getBoolean("skeleton"))); }
             }
 
             // Paint by Numbers params

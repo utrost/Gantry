@@ -232,6 +232,11 @@ public class Main {
         int isolineMinLength = cli.getIsolineMinLength(cmd);
         double isolineThreshold = cli.getIsolineThreshold(cmd);
 
+        int sketchWindow = cli.getSketchWindow(cmd);
+        double sketchOffset = cli.getSketchOffset(cmd);
+        int sketchMinLength = cli.getSketchMinLength(cmd);
+        boolean sketchSkeleton = cli.getSketchSkeleton(cmd);
+
         // --- Determine Output Paths ---
         String svgOutputPath;
         String jsonOutputPath;
@@ -336,6 +341,12 @@ public class Main {
                       Min Length:  %d pts
                       Threshold:   %.2f
                     """, isolineLevels, isolineSmoothing, isolineMinLength, isolineThreshold);
+        case SKETCH_TRACE -> System.out.printf("""
+                      Window:      %d px
+                      Offset:      %.2f
+                      Min Length:  %d pts
+                      Skeleton:    %b
+                    """, sketchWindow, sketchOffset, sketchMinLength, sketchSkeleton);
         case CANNY_CONTOUR ->
             System.out.printf("""
                       Tolerance: %.2f
@@ -415,6 +426,18 @@ public class Main {
                         isolineMinLength,
                         isolineThreshold);
                 List<VectorGeometry> geometry = TonalIsolineProcessor.process(image, isolineOptions);
+                BoofcvBatikVector.createSvgFileFromGeometry(
+                        geometry, image.getWidth(), image.getHeight(), svgOutputPath,
+                        strokeColor, strokeWidth);
+            }
+            case SKETCH_TRACE -> {
+                System.out.println("Running Sketch Trace strategy...");
+                SketchTraceProcessor.Options sketchOptions = new SketchTraceProcessor.Options(
+                        sketchWindow,
+                        sketchOffset,
+                        sketchMinLength,
+                        sketchSkeleton);
+                List<VectorGeometry> geometry = SketchTraceProcessor.process(image, sketchOptions);
                 BoofcvBatikVector.createSvgFileFromGeometry(
                         geometry, image.getWidth(), image.getHeight(), svgOutputPath,
                         strokeColor, strokeWidth);

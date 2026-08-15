@@ -51,6 +51,7 @@ public final class VectorizeStudioDialog extends JDialog {
         SQUIGGLE("Tonal squiggle / portrait", "squiggle", Group.SQUIGGLE),
         NEEDLES("Oriented needles / texture", "needles", Group.NEEDLES),
         ISOLINES("Tonal isolines / contours", "isolines", Group.ISOLINES),
+        SKETCH("Sketch / blueprint trace", "sketch", Group.SKETCH),
         PBN("Paint by Numbers", "pbn", Group.PBN);
 
         final String label;
@@ -69,7 +70,7 @@ public final class VectorizeStudioDialog extends JDialog {
         }
     }
 
-    private enum Group { CANNY, CENTERLINE, BEZIER, BEZIER2, SQUIGGLE, NEEDLES, ISOLINES, PBN }
+    private enum Group { CANNY, CENTERLINE, BEZIER, BEZIER2, SQUIGGLE, NEEDLES, ISOLINES, SKETCH, PBN }
 
     /** A quick-start preset: a label and the controls it applies. */
     private record Preset(String label, Runnable apply) {
@@ -110,6 +111,10 @@ public final class VectorizeStudioDialog extends JDialog {
     private final JSpinner isolineSmoothingSpinner = new JSpinner(new SpinnerNumberModel(3.0, 0.0, 20.0, 0.5));
     private final JSpinner isolineMinLengthSpinner = new JSpinner(new SpinnerNumberModel(8, 2, 200, 1));
     private final JSpinner isolineThresholdSpinner = new JSpinner(new SpinnerNumberModel(0.06, 0.0, 1.0, 0.01));
+    private final JSpinner sketchWindowSpinner = new JSpinner(new SpinnerNumberModel(15, 3, 99, 2));
+    private final JSpinner sketchOffsetSpinner = new JSpinner(new SpinnerNumberModel(0.08, 0.0, 0.5, 0.01));
+    private final JSpinner sketchMinLengthSpinner = new JSpinner(new SpinnerNumberModel(8, 2, 200, 1));
+    private final JCheckBox sketchSkeletonCheck = new JCheckBox("Sketch skeleton", true);
     private final JToggleButton cropToggle = new JToggleButton("Crop");
 
     // --- preview machinery ---
@@ -236,6 +241,10 @@ public final class VectorizeStudioDialog extends JDialog {
         addRow(form, gbc, "Isoline smoothing", isolineSmoothingSpinner);
         addRow(form, gbc, "Isoline min length", isolineMinLengthSpinner);
         addRow(form, gbc, "Isoline tone threshold", isolineThresholdSpinner);
+        addRow(form, gbc, "Sketch window", sketchWindowSpinner);
+        addRow(form, gbc, "Sketch offset", sketchOffsetSpinner);
+        addRow(form, gbc, "Sketch min length", sketchMinLengthSpinner);
+        addSpan(form, gbc, sketchSkeletonCheck);
         addRow(form, gbc, "Stroke colour", strokeColorField);
         addRow(form, gbc, "Stroke width", strokeWidthSpinner);
         addSpan(form, gbc, smoothCurvesCheck);
@@ -250,7 +259,8 @@ public final class VectorizeStudioDialog extends JDialog {
                 squiggleBackgroundSpinner, needleSpacingSpinner, needleLengthSpinner,
                 needleThresholdSpinner, needleGradientSpinner, needleToneSpinner,
                 isolineLevelsSpinner, isolineSmoothingSpinner, isolineMinLengthSpinner,
-                isolineThresholdSpinner, strokeColorField, strokeWidthSpinner}) {
+                isolineThresholdSpinner, sketchWindowSpinner, sketchOffsetSpinner,
+                sketchMinLengthSpinner, strokeColorField, strokeWidthSpinner}) {
             Dimension pref = c.getPreferredSize();
             c.setPreferredSize(new Dimension(170, pref.height));
             c.setMinimumSize(new Dimension(80, pref.height));
@@ -385,6 +395,14 @@ public final class VectorizeStudioDialog extends JDialog {
             isolineThresholdSpinner.setValue(0.06);
             strokeWidthSpinner.setValue(0.8);
         }));
+        presetCombo.addItem(new Preset("Sketch / blueprint trace", () -> {
+            strategyCombo.setSelectedItem(Strategy.SKETCH);
+            sketchWindowSpinner.setValue(15);
+            sketchOffsetSpinner.setValue(0.08);
+            sketchMinLengthSpinner.setValue(8);
+            sketchSkeletonCheck.setSelected(true);
+            strokeWidthSpinner.setValue(0.8);
+        }));
         presetCombo.addItem(new Preset("Paint by Numbers", () -> {
             strategyCombo.setSelectedItem(Strategy.PBN);
             pbnNumColorsSpinner.setValue(12);
@@ -410,7 +428,7 @@ public final class VectorizeStudioDialog extends JDialog {
 
         strategyCombo.addActionListener(e -> onControlChanged());
         cannyAutoCheck.addActionListener(e -> onControlChanged());
-        for (JCheckBox c : new JCheckBox[] {colorEdgesCheck, smoothCurvesCheck, b2OutlineCheck}) {
+        for (JCheckBox c : new JCheckBox[] {colorEdgesCheck, smoothCurvesCheck, b2OutlineCheck, sketchSkeletonCheck}) {
             c.addActionListener(e -> onControlChanged());
         }
         cropToggle.addActionListener(e -> {
@@ -427,6 +445,7 @@ public final class VectorizeStudioDialog extends JDialog {
                 needleSpacingSpinner, needleLengthSpinner, needleThresholdSpinner,
                 needleGradientSpinner, needleToneSpinner, isolineLevelsSpinner,
                 isolineSmoothingSpinner, isolineMinLengthSpinner, isolineThresholdSpinner,
+                sketchWindowSpinner, sketchOffsetSpinner, sketchMinLengthSpinner,
                 strokeWidthSpinner}) {
             s.addChangeListener(e -> onControlChanged());
         }
@@ -459,6 +478,7 @@ public final class VectorizeStudioDialog extends JDialog {
         boolean squiggle = g == Group.SQUIGGLE;
         boolean needles = g == Group.NEEDLES;
         boolean isolines = g == Group.ISOLINES;
+        boolean sketch = g == Group.SKETCH;
         boolean pbn = g == Group.PBN;
 
         toleranceSpinner.setEnabled(canny || centerline || pbn || squiggle);
@@ -487,8 +507,12 @@ public final class VectorizeStudioDialog extends JDialog {
         isolineSmoothingSpinner.setEnabled(isolines);
         isolineMinLengthSpinner.setEnabled(isolines);
         isolineThresholdSpinner.setEnabled(isolines);
+        sketchWindowSpinner.setEnabled(sketch);
+        sketchOffsetSpinner.setEnabled(sketch);
+        sketchMinLengthSpinner.setEnabled(sketch);
+        sketchSkeletonCheck.setEnabled(sketch);
 
-        boolean stroked = canny || centerline || bezier || squiggle || needles || isolines;
+        boolean stroked = canny || centerline || bezier || squiggle || needles || isolines || sketch;
         strokeColorField.setEnabled(stroked);
         strokeWidthSpinner.setEnabled(stroked);
         smoothCurvesCheck.setEnabled(canny);
@@ -561,6 +585,14 @@ public final class VectorizeStudioDialog extends JDialog {
                 addNum(a, "--isoline-threshold", isolineThresholdSpinner);
                 addStrokeStyle(a, false);
             }
+            case SKETCH -> {
+                addNum(a, "--sketch-window", sketchWindowSpinner);
+                addNum(a, "--sketch-offset", sketchOffsetSpinner);
+                addNum(a, "--sketch-min-length", sketchMinLengthSpinner);
+                a.add("--sketch-skeleton");
+                a.add(Boolean.toString(sketchSkeletonCheck.isSelected()));
+                addStrokeStyle(a, false);
+            }
         }
 
         Rectangle roi = sourcePanel.getRoi();
@@ -625,6 +657,10 @@ public final class VectorizeStudioDialog extends JDialog {
                     case "--isoline-smoothing" -> { setDouble(isolineSmoothingSpinner, v); i += 2; }
                     case "--isoline-min-length" -> { setInt(isolineMinLengthSpinner, v); i += 2; }
                     case "--isoline-threshold" -> { setDouble(isolineThresholdSpinner, v); i += 2; }
+                    case "--sketch-window" -> { setInt(sketchWindowSpinner, v); i += 2; }
+                    case "--sketch-offset" -> { setDouble(sketchOffsetSpinner, v); i += 2; }
+                    case "--sketch-min-length" -> { setInt(sketchMinLengthSpinner, v); i += 2; }
+                    case "--sketch-skeleton" -> { sketchSkeletonCheck.setSelected(Boolean.parseBoolean(v)); i += 2; }
                     case "--crop" -> {
                         if (v != null) {
                             String[] parts = v.split(",");

@@ -13,8 +13,8 @@ leaves a fully functional plotter (same priority encoding as `watercolor/`).
 
 `dp`, `line`, `raw`, `convexhull`, `centerline`, `pbn` (Paint-by-Numbers),
 `squiggle` (tonal shading lines), `needles` (oriented gradient texture),
-`isolines` (topographic brightness contours), `bezier` (DrPTrace outlines), and
-`bezier2` (ImageTracer colour fills).
+`isolines` (topographic brightness contours), `sketch` (adaptive sketch/blueprint
+trace), `bezier` (DrPTrace outlines), and `bezier2` (ImageTracer colour fills).
 
 ## Third-party tracers not on Maven Central
 

@@ -595,6 +595,16 @@ public class BoofcvBatikVector {
             isolines.put("strokeWidth", tempParser.getStrokeWidth(cmd));
             params.put("isolines", isolines);
 
+        } else if (strategyName.equals("sketch")) {
+            JSONObject sketch = new JSONObject();
+            sketch.put("window", tempParser.getSketchWindow(cmd));
+            sketch.put("offset", tempParser.getSketchOffset(cmd));
+            sketch.put("minLength", tempParser.getSketchMinLength(cmd));
+            sketch.put("skeleton", tempParser.getSketchSkeleton(cmd));
+            sketch.put("strokeColor", tempParser.getStrokeColor(cmd));
+            sketch.put("strokeWidth", tempParser.getStrokeWidth(cmd));
+            params.put("sketch", sketch);
+
         } else {
             JSONObject contour = new JSONObject();
             contour.put("tolerance", tempParser.getTolerance(cmd));
