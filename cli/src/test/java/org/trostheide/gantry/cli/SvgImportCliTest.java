@@ -138,6 +138,30 @@ class SvgImportCliTest {
         assertEquals(10.0, report.at("/bounds/minX").asDouble(), 0.01);
     }
 
+    @Test
+    void metricsSidecarIncludesPlotTimeEstimateWhenBatchConfigIsProvided() throws Exception {
+        Path input = writeSvg("""
+                <path d=\"M10,10 L90,10\" fill=\"none\" stroke=\"#000000\"/>
+                <path d=\"M10,30 L90,30\" fill=\"none\" stroke=\"#000000\"/>
+                """);
+        Path output = tmp.resolve("estimate.json");
+        Path metrics = tmp.resolve("estimate.metrics.json");
+        Path config = tmp.resolve("estimate-config.json");
+        Files.writeString(config, """
+                {"gcode":{"feedRateTravel":2400,"feedRateDraw":1200,"penDownDelayMillis":100}}
+                """);
+
+        SvgImportCli.main(new String[] {
+                "-i", input.toString(), "-o", output.toString(),
+                "--config", config.toString(), "--metrics", metrics.toString()});
+
+        JsonNode report = new ObjectMapper().readTree(Files.readString(metrics));
+        assertEquals(1200, report.at("/plotTime/feedRateDraw").asInt());
+        assertEquals(2400, report.at("/plotTime/feedRateTravel").asInt());
+        assertTrue(report.at("/plotTime/estimatedSeconds").asDouble() > 0.0);
+        assertTrue(report.at("/plotTime/formatted").asText().matches("\\d+:\\d{2}"));
+    }
+
     private Path writeSvg(String body) throws Exception {
         Path input = tmp.resolve("input-" + System.nanoTime() + ".svg");
         Files.writeString(input, """

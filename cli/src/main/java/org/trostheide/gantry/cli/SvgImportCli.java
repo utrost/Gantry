@@ -203,7 +203,8 @@ public final class SvgImportCli {
             ProcessorOutputIO.save(output, outputFile);
             if (cmd.hasOption("metrics")) {
                 new ObjectMapper().writerWithDefaultPrettyPrinter()
-                        .writeValue(new File(cmd.getOptionValue("metrics")), CliPlotMetrics.of(output, outputFile));
+                        .writeValue(new File(cmd.getOptionValue("metrics")),
+                                CliPlotMetrics.of(output, outputFile, batch == null ? null : batch.gcode));
             }
             if (cmd.hasOption("gcode")) {
                 if (batch == null) {

@@ -813,7 +813,7 @@ Key flags:
 | `--config FILE` | Read shared batch settings and station definitions from JSON |
 | `--map-stations` | Map layers to stations from the batch config |
 | `--gcode FILE` | Also emit a directly runnable G-code artifact |
-| `--metrics FILE` | Also emit a JSON sidecar with layers, commands, strokes, points, draw/travel distance, travel ratio, tiny segment count, and bounds |
+| `--metrics FILE` | Also emit a JSON sidecar with layers, commands, strokes, points, draw/travel distance, travel ratio, tiny segment count, bounds, and a plot-time estimate when `--config` is supplied |
 | `--toolbox-crop FORMAT` | Crop: A4 / Letter / WxH |
 | `--toolbox-stats` | Print statistics |
 

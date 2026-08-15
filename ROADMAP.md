@@ -112,7 +112,8 @@ for **Squiggle shading**, **Oriented needles**, **Tonal isolines/topographic
 contours**, and **Sketch/blueprint trace**, and record deterministic geometry,
 bounds, and plot-time estimate tests. A first headless validation hook now exists:
 `SvgImportCli --metrics` writes JSON with layers, command/stroke/point counts,
-draw/travel distance, travel ratio, tiny segments, and bounds for any chained
+draw/travel distance, travel ratio, tiny segments, bounds, and — when a batch
+`--config` is supplied — a feed-rate-based plot-time estimate for any chained
 `VectorizeCli` output. After that evidence, the next new
 algorithm candidate is **Continuous-line image mode**.
 

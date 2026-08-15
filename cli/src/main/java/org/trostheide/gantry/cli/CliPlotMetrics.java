@@ -7,6 +7,7 @@ import org.trostheide.gantry.model.ProcessorOutput;
 import org.trostheide.gantry.model.command.Command;
 import org.trostheide.gantry.model.command.DrawCommand;
 import org.trostheide.gantry.model.command.MoveCommand;
+import org.trostheide.gantry.plotter.GcodeOptions;
 
 import java.io.File;
 import java.util.List;
@@ -22,11 +23,21 @@ public record CliPlotMetrics(
         double travelDistanceMm,
         double travelRatio,
         int tinySegments,
-        Bounds bounds) {
+        Bounds bounds,
+        PlotTime plotTime) {
 
     private static final double TINY_SEGMENT_MM = 0.5;
 
+    /** Optional plot-time estimate based on batch G-code feed rates. */
+    public record PlotTime(int feedRateDraw, int feedRateTravel, int penDownDelayMillis,
+                           double estimatedSeconds, String formatted) {
+    }
+
     static CliPlotMetrics of(ProcessorOutput output, File commandFile) {
+        return of(output, commandFile, null);
+    }
+
+    static CliPlotMetrics of(ProcessorOutput output, File commandFile, GcodeOptions gcode) {
         int strokes = 0;
         int points = 0;
         int tinySegments = 0;
@@ -75,6 +86,7 @@ public record CliPlotMetrics(
         }
 
         double total = draw + travel;
+        PlotTime plotTime = estimatePlotTime(gcode, draw, travel, strokes);
         return new CliPlotMetrics(
                 commandFile.getName(),
                 output.layers().size(),
@@ -85,7 +97,28 @@ public record CliPlotMetrics(
                 travel,
                 total <= 0 ? 0 : travel / total,
                 tinySegments,
-                output.metadata().bounds());
+                output.metadata().bounds(),
+                plotTime);
+    }
+
+    private static PlotTime estimatePlotTime(GcodeOptions gcode, double draw, double travel, int penDownCount) {
+        if (gcode == null) {
+            return null;
+        }
+        double drawSeconds = gcode.feedRateDraw <= 0 ? 0 : (draw / gcode.feedRateDraw) * 60.0;
+        double travelSeconds = gcode.feedRateTravel <= 0 ? 0 : (travel / gcode.feedRateTravel) * 60.0;
+        double penDownSeconds = penDownCount * Math.max(0, gcode.penDownDelayMillis) / 1000.0;
+        double seconds = drawSeconds + travelSeconds + penDownSeconds;
+        return new PlotTime(gcode.feedRateDraw, gcode.feedRateTravel,
+                gcode.penDownDelayMillis, seconds, formatDuration(seconds));
+    }
+
+    private static String formatDuration(double seconds) {
+        long total = Math.round(Math.max(0, seconds));
+        long h = total / 3600;
+        long m = (total % 3600) / 60;
+        long s = total % 60;
+        return h > 0 ? String.format("%d:%02d:%02d", h, m, s) : String.format("%d:%02d", m, s);
     }
 
     private static double dist(double x1, double y1, double x2, double y2) {
