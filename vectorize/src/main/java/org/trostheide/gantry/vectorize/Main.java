@@ -227,6 +227,11 @@ public class Main {
         double needleGradient = cli.getNeedleGradientThreshold(cmd);
         double needleTone = cli.getNeedleTone(cmd);
 
+        int isolineLevels = cli.getIsolineLevels(cmd);
+        double isolineSmoothing = cli.getIsolineSmoothing(cmd);
+        int isolineMinLength = cli.getIsolineMinLength(cmd);
+        double isolineThreshold = cli.getIsolineThreshold(cmd);
+
         // --- Determine Output Paths ---
         String svgOutputPath;
         String jsonOutputPath;
@@ -325,6 +330,12 @@ public class Main {
                       Gradient:    %.2f
                       Tone:        %.2f
                     """, needleSpacing, needleLength, needleThreshold, needleGradient, needleTone);
+        case TONAL_ISOLINES -> System.out.printf("""
+                      Levels:      %d
+                      Smoothing:   %.1f px
+                      Min Length:  %d pts
+                      Threshold:   %.2f
+                    """, isolineLevels, isolineSmoothing, isolineMinLength, isolineThreshold);
         case CANNY_CONTOUR ->
             System.out.printf("""
                       Tolerance: %.2f
@@ -392,6 +403,18 @@ public class Main {
                         needleGradient,
                         needleTone);
                 List<VectorGeometry> geometry = OrientedNeedleProcessor.process(image, needleOptions);
+                BoofcvBatikVector.createSvgFileFromGeometry(
+                        geometry, image.getWidth(), image.getHeight(), svgOutputPath,
+                        strokeColor, strokeWidth);
+            }
+            case TONAL_ISOLINES -> {
+                System.out.println("Running Tonal Isolines strategy...");
+                TonalIsolineProcessor.Options isolineOptions = new TonalIsolineProcessor.Options(
+                        isolineLevels,
+                        isolineSmoothing,
+                        isolineMinLength,
+                        isolineThreshold);
+                List<VectorGeometry> geometry = TonalIsolineProcessor.process(image, isolineOptions);
                 BoofcvBatikVector.createSvgFileFromGeometry(
                         geometry, image.getWidth(), image.getHeight(), svgOutputPath,
                         strokeColor, strokeWidth);

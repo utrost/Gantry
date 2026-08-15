@@ -17,7 +17,8 @@ public interface VectorizationStrategy {
         SKELETON,
         PAINT_BY_NUMBERS,
         TONAL_SQUIGGLE,
-        ORIENTED_NEEDLES
+        ORIENTED_NEEDLES,
+        TONAL_ISOLINES
     }
 
     default WorkflowType getWorkflowType() {

@@ -70,13 +70,12 @@ for SVG preprocessing, `pipeline-core` for command transforms, and `plotter`/`ap
 for machine-aware execution.
 
 - Image-art engines in the vectorizer/import workflow:
-  - **Implemented experimental modes:** **Squiggle shading** and **Oriented
-    needles** now exist in the vectorizer, CLI, and live preview studio. They
-    still need real-image sample evidence, plot-time/plottability review, and
+  - **Implemented experimental modes:** **Squiggle shading**, **Oriented
+    needles**, and **Tonal isolines/topographic contours** now exist in the
+    vectorizer, CLI, metadata replay, and live preview studio. They still need
+    real-image sample evidence, plot-time/plottability review, and
     beginner-facing preset tuning before they should be treated as validated
     defaults.
-  - **Tonal isolines/topographic contours**: brightness-level contour extraction
-    as a plotter-native alternative to filled vectorization.
   - **Sketch/blueprint trace preset**: adaptive thresholding, light welding, and
     optional skeleton-style output for scanned ink/pencil drawings.
   - **Continuous-line image mode**: image-weighted point placement plus a greedy
@@ -111,9 +110,10 @@ for machine-aware execution.
 Candidate first validation slice after Milestone 9: productize the new
 image-art modes rather than adding another unvalidated engine. Commit a small
 sample corpus, expose before/after plotter metrics, verify headless G-code export
-for **Squiggle shading** and **Oriented needles**, and record deterministic
-geometry, bounds, and plot-time estimate tests. After that evidence, the next new
-algorithm candidate is **Tonal isolines/topographic contours**.
+for **Squiggle shading**, **Oriented needles**, and **Tonal isolines/topographic
+contours**, and record deterministic geometry, bounds, and plot-time estimate
+tests. After that evidence, the next new algorithm candidates are
+**Sketch/blueprint trace preset** and **Continuous-line image mode**.
 
 ### Deliberately deferred
 

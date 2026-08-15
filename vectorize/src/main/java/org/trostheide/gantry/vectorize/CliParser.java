@@ -55,6 +55,12 @@ public class CliParser {
     private static final double DEFAULT_NEEDLE_GRADIENT = 0.04;
     private static final double DEFAULT_NEEDLE_TONE = 1.0;
 
+    // --- Tonal Isoline Defaults ---
+    private static final int DEFAULT_ISOLINE_LEVELS = 6;
+    private static final double DEFAULT_ISOLINE_SMOOTHING = 3.0;
+    private static final int DEFAULT_ISOLINE_MIN_LENGTH = 8;
+    private static final double DEFAULT_ISOLINE_THRESHOLD = 0.06;
+
     private final Options options = new Options();
     private final Map<String, VectorizationStrategy> strategyMap = new HashMap<>();
 
@@ -70,6 +76,7 @@ public class CliParser {
         strategyMap.put("pbn", new PaintByNumbersStrategy());
         strategyMap.put("squiggle", new TonalSquiggleStrategy());
         strategyMap.put("needles", new OrientedNeedleStrategy());
+        strategyMap.put("isolines", new TonalIsolineStrategy());
 
         StringBuilder sb = new StringBuilder("Vectorization strategy. Available: ");
         strategyMap.keySet().stream().sorted().forEach(key -> sb.append(key).append(" | "));
@@ -381,6 +388,34 @@ public class CliParser {
                 .desc("Needles: tone-to-length strength. Default: " + DEFAULT_NEEDLE_TONE)
                 .build());
 
+        options.addOption(Option.builder()
+                .longOpt("isoline-levels")
+                .hasArg()
+                .type(Number.class)
+                .desc("Isolines: number of brightness contour levels. Default: " + DEFAULT_ISOLINE_LEVELS)
+                .build());
+
+        options.addOption(Option.builder()
+                .longOpt("isoline-smoothing")
+                .hasArg()
+                .type(Number.class)
+                .desc("Isolines: blur radius in pixels before contour extraction. Default: " + DEFAULT_ISOLINE_SMOOTHING)
+                .build());
+
+        options.addOption(Option.builder()
+                .longOpt("isoline-min-length")
+                .hasArg()
+                .type(Number.class)
+                .desc("Isolines: minimum contour point count. Default: " + DEFAULT_ISOLINE_MIN_LENGTH)
+                .build());
+
+        options.addOption(Option.builder()
+                .longOpt("isoline-threshold")
+                .hasArg()
+                .type(Number.class)
+                .desc("Isolines: minimum tonal range, 0.0-1.0. Default: " + DEFAULT_ISOLINE_THRESHOLD)
+                .build());
+
     }
 
     // --- Centerline Getters ---
@@ -509,6 +544,22 @@ public class CliParser {
 
     public double getNeedleTone(CommandLine cmd) {
         return Math.max(0.0, getDouble(cmd, "needle-tone", DEFAULT_NEEDLE_TONE));
+    }
+
+    public int getIsolineLevels(CommandLine cmd) {
+        return Math.max(1, Math.min(24, (int) Math.round(getDouble(cmd, "isoline-levels", DEFAULT_ISOLINE_LEVELS))));
+    }
+
+    public double getIsolineSmoothing(CommandLine cmd) {
+        return Math.max(0.0, getDouble(cmd, "isoline-smoothing", DEFAULT_ISOLINE_SMOOTHING));
+    }
+
+    public int getIsolineMinLength(CommandLine cmd) {
+        return Math.max(2, (int) Math.round(getDouble(cmd, "isoline-min-length", DEFAULT_ISOLINE_MIN_LENGTH)));
+    }
+
+    public double getIsolineThreshold(CommandLine cmd) {
+        return Math.max(0.0, Math.min(1.0, getDouble(cmd, "isoline-threshold", DEFAULT_ISOLINE_THRESHOLD)));
     }
 
     public double getMinLength(CommandLine cmd) {
@@ -779,6 +830,14 @@ public class CliParser {
                 if (needles.has("threshold")) { argList.add("--needle-threshold"); argList.add(String.valueOf(needles.getDouble("threshold"))); }
                 if (needles.has("gradient")) { argList.add("--needle-gradient"); argList.add(String.valueOf(needles.getDouble("gradient"))); }
                 if (needles.has("tone")) { argList.add("--needle-tone"); argList.add(String.valueOf(needles.getDouble("tone"))); }
+            }
+
+            if (json.has("isolines")) {
+                org.json.JSONObject isolines = json.getJSONObject("isolines");
+                if (isolines.has("levels")) { argList.add("--isoline-levels"); argList.add(String.valueOf(isolines.getInt("levels"))); }
+                if (isolines.has("smoothing")) { argList.add("--isoline-smoothing"); argList.add(String.valueOf(isolines.getDouble("smoothing"))); }
+                if (isolines.has("minLength")) { argList.add("--isoline-min-length"); argList.add(String.valueOf(isolines.getInt("minLength"))); }
+                if (isolines.has("threshold")) { argList.add("--isoline-threshold"); argList.add(String.valueOf(isolines.getDouble("threshold"))); }
             }
 
             // Paint by Numbers params

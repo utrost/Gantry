@@ -585,6 +585,16 @@ public class BoofcvBatikVector {
             needles.put("strokeWidth", tempParser.getStrokeWidth(cmd));
             params.put("needles", needles);
 
+        } else if (strategyName.equals("isolines")) {
+            JSONObject isolines = new JSONObject();
+            isolines.put("levels", tempParser.getIsolineLevels(cmd));
+            isolines.put("smoothing", tempParser.getIsolineSmoothing(cmd));
+            isolines.put("minLength", tempParser.getIsolineMinLength(cmd));
+            isolines.put("threshold", tempParser.getIsolineThreshold(cmd));
+            isolines.put("strokeColor", tempParser.getStrokeColor(cmd));
+            isolines.put("strokeWidth", tempParser.getStrokeWidth(cmd));
+            params.put("isolines", isolines);
+
         } else {
             JSONObject contour = new JSONObject();
             contour.put("tolerance", tempParser.getTolerance(cmd));
