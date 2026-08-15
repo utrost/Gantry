@@ -110,13 +110,18 @@ image-art modes rather than adding another unvalidated engine. Commit a small
 sample corpus, expose before/after plotter metrics, verify headless G-code export
 for **Squiggle shading**, **Oriented needles**, **Tonal isolines/topographic
 contours**, and **Sketch/blueprint trace**, and record deterministic geometry,
-bounds, and plot-time estimate tests. A first headless validation hook now exists:
+bounds, and plot-time estimate tests. The headless validation spine now exists:
 `SvgImportCli --metrics` writes JSON with layers, command/stroke/point counts,
-draw/travel distance, travel ratio, tiny segments, bounds, and — when a batch
-`--config` is supplied — a feed-rate-based plot-time estimate and machine-readable
-plottability warnings with measured values and thresholds (`HIGH_TRAVEL_RATIO`, `TINY_SEGMENTS`, `LONG_PLOT_TIME`) for any chained
-`VectorizeCli` output. After that evidence, the next new
-algorithm candidate is **Continuous-line image mode**.
+draw/travel distance, travel ratio,
+tiny segments, bounds, and — when a batch `--config` is supplied — a
+feed-rate-based plot-time estimate and machine-readable plottability warnings
+with measured values and thresholds (`HIGH_TRAVEL_RATIO`, `TINY_SEGMENTS`,
+`LONG_PLOT_TIME`) for any chained `VectorizeCli` output. `ImageArtValidationCli`
+aggregates those sidecars into a compact comparison report that identifies the
+lowest-travel, fastest-estimated, and fewest-tiny-segment artifact. The remaining
+validation work is to run that spine on a small committed real-image corpus and
+record the evidence before treating the modes as defaults. After that evidence,
+the next new algorithm candidate is **Continuous-line image mode**.
 
 ### Deliberately deferred
 

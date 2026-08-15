@@ -842,6 +842,24 @@ The vectorize options (`-s` strategy and its parameters) mirror the standalone
 vectorizer; run `VectorizeCli` with no arguments for usage, and see the
 `vectorize` module for the full option list.
 
+### Comparing image-art validation runs
+
+For processor bake-offs, first run each image-art strategy through the chained
+`VectorizeCli` command above with its own `--metrics <mode>.metrics.json` file.
+Then aggregate the sidecars into one compact review report:
+
+```bash
+java -cp cli/target/cli-1.0.0.jar org.trostheide.gantry.cli.ImageArtValidationCli \
+  -o image-art-validation.json \
+  sketch.metrics.json squiggle.metrics.json needles.metrics.json isolines.metrics.json
+```
+
+The report keeps one row per artifact with command/stroke/point counts,
+draw/travel distance, travel ratio, tiny segment count, plot-time estimate, and
+compact warning codes. Its summary identifies the lowest-travel, fastest
+estimated, and fewest-tiny-segment artifact so a validation review can compare
+plotter practicality rather than judging only the SVG preview.
+
 ---
 
 ## Troubleshooting
