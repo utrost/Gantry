@@ -221,6 +221,12 @@ public class Main {
         double squiggleTone = cli.getSquiggleTone(cmd);
         double squiggleBackground = cli.getSquiggleBackgroundSuppression(cmd);
 
+        double needleSpacing = cli.getNeedleSpacing(cmd);
+        double needleLength = cli.getNeedleLength(cmd);
+        double needleThreshold = cli.getNeedleThreshold(cmd);
+        double needleGradient = cli.getNeedleGradientThreshold(cmd);
+        double needleTone = cli.getNeedleTone(cmd);
+
         // --- Determine Output Paths ---
         String svgOutputPath;
         String jsonOutputPath;
@@ -312,6 +318,13 @@ public class Main {
                       Background:  %.2f
                     """, Math.max(3.0, tolerance * 4.0), squiggleAmplitude, squiggleDensity,
                     detailFactor, squiggleTone, squiggleBackground);
+        case ORIENTED_NEEDLES -> System.out.printf("""
+                      Spacing:     %.1f px
+                      Length:      %.1f px
+                      Threshold:   %.2f
+                      Gradient:    %.2f
+                      Tone:        %.2f
+                    """, needleSpacing, needleLength, needleThreshold, needleGradient, needleTone);
         case CANNY_CONTOUR ->
             System.out.printf("""
                       Tolerance: %.2f
@@ -366,6 +379,19 @@ public class Main {
                         squiggleBackground,
                         squiggleDensity);
                 List<VectorGeometry> geometry = TonalSquiggleProcessor.process(image, squiggleOptions);
+                BoofcvBatikVector.createSvgFileFromGeometry(
+                        geometry, image.getWidth(), image.getHeight(), svgOutputPath,
+                        strokeColor, strokeWidth);
+            }
+            case ORIENTED_NEEDLES -> {
+                System.out.println("Running Oriented Needles strategy...");
+                OrientedNeedleProcessor.Options needleOptions = new OrientedNeedleProcessor.Options(
+                        needleSpacing,
+                        needleLength,
+                        needleThreshold,
+                        needleGradient,
+                        needleTone);
+                List<VectorGeometry> geometry = OrientedNeedleProcessor.process(image, needleOptions);
                 BoofcvBatikVector.createSvgFileFromGeometry(
                         geometry, image.getWidth(), image.getHeight(), svgOutputPath,
                         strokeColor, strokeWidth);

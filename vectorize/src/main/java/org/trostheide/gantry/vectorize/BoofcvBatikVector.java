@@ -574,6 +574,17 @@ public class BoofcvBatikVector {
             pbn.put("noLegend", tempParser.isPbnNoLegend(cmd));
             params.put("pbn", pbn);
 
+        } else if (strategyName.equals("needles")) {
+            JSONObject needles = new JSONObject();
+            needles.put("spacing", tempParser.getNeedleSpacing(cmd));
+            needles.put("length", tempParser.getNeedleLength(cmd));
+            needles.put("threshold", tempParser.getNeedleThreshold(cmd));
+            needles.put("gradient", tempParser.getNeedleGradientThreshold(cmd));
+            needles.put("tone", tempParser.getNeedleTone(cmd));
+            needles.put("strokeColor", tempParser.getStrokeColor(cmd));
+            needles.put("strokeWidth", tempParser.getStrokeWidth(cmd));
+            params.put("needles", needles);
+
         } else {
             JSONObject contour = new JSONObject();
             contour.put("tolerance", tempParser.getTolerance(cmd));

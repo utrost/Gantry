@@ -38,7 +38,7 @@ The Maven reactor contains eight modules:
 - `cli` — headless SVG/image batch conversion and optional G-code output.
 - `app` — Swing GUI, orchestration, persistence, recovery, history, visualization, and help surface.
 
-Test inventory observed during this digest: 72 Java test files across the reactor (`app` 34, `svgtoolbox-core` 17, `plotter` 6, `vectorize` 5, `pipeline-core` 4, `cli` 2, `model` 2, `watercolor` 2). The docs already describe the test suite in detail rather than relying on a raw count.
+Test inventory observed after the image-art update: 77 Java test files across the reactor (`app` 36, `svgtoolbox-core` 17, `vectorize` 7, `plotter` 6, `pipeline-core` 5, `cli` 2, `model` 2, `watercolor` 2). The docs already describe the test suite in detail rather than relying on a raw count.
 
 ## Roadmap state
 

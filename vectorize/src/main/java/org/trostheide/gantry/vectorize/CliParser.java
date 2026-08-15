@@ -48,6 +48,13 @@ public class CliParser {
     private static final double DEFAULT_SQUIGGLE_TONE = 0.72;
     private static final double DEFAULT_SQUIGGLE_BACKGROUND = 0.85;
 
+    // --- Oriented Needle Defaults ---
+    private static final double DEFAULT_NEEDLE_SPACING = 6.0;
+    private static final double DEFAULT_NEEDLE_LENGTH = 10.0;
+    private static final double DEFAULT_NEEDLE_THRESHOLD = 0.12;
+    private static final double DEFAULT_NEEDLE_GRADIENT = 0.04;
+    private static final double DEFAULT_NEEDLE_TONE = 1.0;
+
     private final Options options = new Options();
     private final Map<String, VectorizationStrategy> strategyMap = new HashMap<>();
 
@@ -62,6 +69,7 @@ public class CliParser {
         strategyMap.put("centerline", new SkeletonStrategy());
         strategyMap.put("pbn", new PaintByNumbersStrategy());
         strategyMap.put("squiggle", new TonalSquiggleStrategy());
+        strategyMap.put("needles", new OrientedNeedleStrategy());
 
         StringBuilder sb = new StringBuilder("Vectorization strategy. Available: ");
         strategyMap.keySet().stream().sorted().forEach(key -> sb.append(key).append(" | "));
@@ -338,6 +346,41 @@ public class CliParser {
                 .desc("Squiggle: flat background suppression, 0.0-1.0. Default: " + DEFAULT_SQUIGGLE_BACKGROUND)
                 .build());
 
+        options.addOption(Option.builder()
+                .longOpt("needle-spacing")
+                .hasArg()
+                .type(Number.class)
+                .desc("Needles: grid spacing in pixels. Default: " + DEFAULT_NEEDLE_SPACING)
+                .build());
+
+        options.addOption(Option.builder()
+                .longOpt("needle-length")
+                .hasArg()
+                .type(Number.class)
+                .desc("Needles: maximum dash length in pixels. Default: " + DEFAULT_NEEDLE_LENGTH)
+                .build());
+
+        options.addOption(Option.builder()
+                .longOpt("needle-threshold")
+                .hasArg()
+                .type(Number.class)
+                .desc("Needles: minimum local darkness, 0.0-1.0. Default: " + DEFAULT_NEEDLE_THRESHOLD)
+                .build());
+
+        options.addOption(Option.builder()
+                .longOpt("needle-gradient")
+                .hasArg()
+                .type(Number.class)
+                .desc("Needles: minimum tonal gradient, 0.0-1.0. Default: " + DEFAULT_NEEDLE_GRADIENT)
+                .build());
+
+        options.addOption(Option.builder()
+                .longOpt("needle-tone")
+                .hasArg()
+                .type(Number.class)
+                .desc("Needles: tone-to-length strength. Default: " + DEFAULT_NEEDLE_TONE)
+                .build());
+
     }
 
     // --- Centerline Getters ---
@@ -446,6 +489,26 @@ public class CliParser {
 
     public double getSquiggleBackgroundSuppression(CommandLine cmd) {
         return Math.max(0.0, Math.min(1.0, getDouble(cmd, "squiggle-background", DEFAULT_SQUIGGLE_BACKGROUND)));
+    }
+
+    public double getNeedleSpacing(CommandLine cmd) {
+        return Math.max(2.0, getDouble(cmd, "needle-spacing", DEFAULT_NEEDLE_SPACING));
+    }
+
+    public double getNeedleLength(CommandLine cmd) {
+        return Math.max(1.0, getDouble(cmd, "needle-length", DEFAULT_NEEDLE_LENGTH));
+    }
+
+    public double getNeedleThreshold(CommandLine cmd) {
+        return Math.max(0.0, Math.min(1.0, getDouble(cmd, "needle-threshold", DEFAULT_NEEDLE_THRESHOLD)));
+    }
+
+    public double getNeedleGradientThreshold(CommandLine cmd) {
+        return Math.max(0.0, Math.min(1.0, getDouble(cmd, "needle-gradient", DEFAULT_NEEDLE_GRADIENT)));
+    }
+
+    public double getNeedleTone(CommandLine cmd) {
+        return Math.max(0.0, getDouble(cmd, "needle-tone", DEFAULT_NEEDLE_TONE));
     }
 
     public double getMinLength(CommandLine cmd) {
@@ -707,6 +770,15 @@ public class CliParser {
             if (json.has("clThreshold")) {
                 argList.add("--cl-threshold");
                 argList.add(String.valueOf(json.getInt("clThreshold")));
+            }
+
+            if (json.has("needles")) {
+                org.json.JSONObject needles = json.getJSONObject("needles");
+                if (needles.has("spacing")) { argList.add("--needle-spacing"); argList.add(String.valueOf(needles.getDouble("spacing"))); }
+                if (needles.has("length")) { argList.add("--needle-length"); argList.add(String.valueOf(needles.getDouble("length"))); }
+                if (needles.has("threshold")) { argList.add("--needle-threshold"); argList.add(String.valueOf(needles.getDouble("threshold"))); }
+                if (needles.has("gradient")) { argList.add("--needle-gradient"); argList.add(String.valueOf(needles.getDouble("gradient"))); }
+                if (needles.has("tone")) { argList.add("--needle-tone"); argList.add(String.valueOf(needles.getDouble("tone"))); }
             }
 
             // Paint by Numbers params

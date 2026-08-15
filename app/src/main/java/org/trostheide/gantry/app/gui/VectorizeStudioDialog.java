@@ -49,6 +49,7 @@ public final class VectorizeStudioDialog extends JDialog {
         BEZIER("Bézier outlines (DrPTrace)", "bezier", Group.BEZIER),
         BEZIER2("Colour fills (ImageTracer)", "bezier2", Group.BEZIER2),
         SQUIGGLE("Tonal squiggle / portrait", "squiggle", Group.SQUIGGLE),
+        NEEDLES("Oriented needles / texture", "needles", Group.NEEDLES),
         PBN("Paint by Numbers", "pbn", Group.PBN);
 
         final String label;
@@ -67,7 +68,7 @@ public final class VectorizeStudioDialog extends JDialog {
         }
     }
 
-    private enum Group { CANNY, CENTERLINE, BEZIER, BEZIER2, SQUIGGLE, PBN }
+    private enum Group { CANNY, CENTERLINE, BEZIER, BEZIER2, SQUIGGLE, NEEDLES, PBN }
 
     /** A quick-start preset: a label and the controls it applies. */
     private record Preset(String label, Runnable apply) {
@@ -99,6 +100,11 @@ public final class VectorizeStudioDialog extends JDialog {
     private final JSpinner squiggleAmplitudeSpinner = new JSpinner(new SpinnerNumberModel(3.5, 0.0, 20.0, 0.5));
     private final JSpinner squiggleToneSpinner = new JSpinner(new SpinnerNumberModel(0.72, 0.0, 1.0, 0.05));
     private final JSpinner squiggleBackgroundSpinner = new JSpinner(new SpinnerNumberModel(0.85, 0.0, 1.0, 0.05));
+    private final JSpinner needleSpacingSpinner = new JSpinner(new SpinnerNumberModel(6.0, 2.0, 40.0, 0.5));
+    private final JSpinner needleLengthSpinner = new JSpinner(new SpinnerNumberModel(10.0, 1.0, 80.0, 0.5));
+    private final JSpinner needleThresholdSpinner = new JSpinner(new SpinnerNumberModel(0.12, 0.0, 1.0, 0.02));
+    private final JSpinner needleGradientSpinner = new JSpinner(new SpinnerNumberModel(0.04, 0.0, 1.0, 0.01));
+    private final JSpinner needleToneSpinner = new JSpinner(new SpinnerNumberModel(1.0, 0.0, 4.0, 0.1));
     private final JToggleButton cropToggle = new JToggleButton("Crop");
 
     // --- preview machinery ---
@@ -216,6 +222,11 @@ public final class VectorizeStudioDialog extends JDialog {
         addRow(form, gbc, "Squiggle amplitude", squiggleAmplitudeSpinner);
         addRow(form, gbc, "Squiggle tone", squiggleToneSpinner);
         addRow(form, gbc, "Background suppression", squiggleBackgroundSpinner);
+        addRow(form, gbc, "Needle spacing", needleSpacingSpinner);
+        addRow(form, gbc, "Needle length", needleLengthSpinner);
+        addRow(form, gbc, "Needle dark threshold", needleThresholdSpinner);
+        addRow(form, gbc, "Needle gradient", needleGradientSpinner);
+        addRow(form, gbc, "Needle tone", needleToneSpinner);
         addRow(form, gbc, "Stroke colour", strokeColorField);
         addRow(form, gbc, "Stroke width", strokeWidthSpinner);
         addSpan(form, gbc, smoothCurvesCheck);
@@ -227,7 +238,9 @@ public final class VectorizeStudioDialog extends JDialog {
                 detailSpinner, cannyLowSpinner, cannyHighSpinner, clThresholdSpinner,
                 bezierColorsSpinner, bezierDetailSpinner, b2ColorsSpinner, pbnNumColorsSpinner,
                 squiggleDensitySpinner, squiggleAmplitudeSpinner, squiggleToneSpinner,
-                squiggleBackgroundSpinner, strokeColorField, strokeWidthSpinner}) {
+                squiggleBackgroundSpinner, needleSpacingSpinner, needleLengthSpinner,
+                needleThresholdSpinner, needleGradientSpinner, needleToneSpinner,
+                strokeColorField, strokeWidthSpinner}) {
             Dimension pref = c.getPreferredSize();
             c.setPreferredSize(new Dimension(170, pref.height));
             c.setMinimumSize(new Dimension(80, pref.height));
@@ -345,6 +358,15 @@ public final class VectorizeStudioDialog extends JDialog {
             squiggleBackgroundSpinner.setValue(0.85);
             strokeWidthSpinner.setValue(1.0);
         }));
+        presetCombo.addItem(new Preset("Oriented needles texture", () -> {
+            strategyCombo.setSelectedItem(Strategy.NEEDLES);
+            needleSpacingSpinner.setValue(6.0);
+            needleLengthSpinner.setValue(10.0);
+            needleThresholdSpinner.setValue(0.12);
+            needleGradientSpinner.setValue(0.04);
+            needleToneSpinner.setValue(1.0);
+            strokeWidthSpinner.setValue(1.0);
+        }));
         presetCombo.addItem(new Preset("Paint by Numbers", () -> {
             strategyCombo.setSelectedItem(Strategy.PBN);
             pbnNumColorsSpinner.setValue(12);
@@ -384,7 +406,8 @@ public final class VectorizeStudioDialog extends JDialog {
                 cannyHighSpinner, clThresholdSpinner, bezierColorsSpinner, bezierDetailSpinner,
                 b2ColorsSpinner, pbnNumColorsSpinner, squiggleDensitySpinner,
                 squiggleAmplitudeSpinner, squiggleToneSpinner, squiggleBackgroundSpinner,
-                strokeWidthSpinner}) {
+                needleSpacingSpinner, needleLengthSpinner, needleThresholdSpinner,
+                needleGradientSpinner, needleToneSpinner, strokeWidthSpinner}) {
             s.addChangeListener(e -> onControlChanged());
         }
         strokeColorField.getDocument().addDocumentListener(new DocumentListener() {
@@ -414,6 +437,7 @@ public final class VectorizeStudioDialog extends JDialog {
         boolean bezier = g == Group.BEZIER;
         boolean bezier2 = g == Group.BEZIER2;
         boolean squiggle = g == Group.SQUIGGLE;
+        boolean needles = g == Group.NEEDLES;
         boolean pbn = g == Group.PBN;
 
         toleranceSpinner.setEnabled(canny || centerline || pbn || squiggle);
@@ -433,8 +457,13 @@ public final class VectorizeStudioDialog extends JDialog {
         squiggleAmplitudeSpinner.setEnabled(squiggle);
         squiggleToneSpinner.setEnabled(squiggle);
         squiggleBackgroundSpinner.setEnabled(squiggle);
+        needleSpacingSpinner.setEnabled(needles);
+        needleLengthSpinner.setEnabled(needles);
+        needleThresholdSpinner.setEnabled(needles);
+        needleGradientSpinner.setEnabled(needles);
+        needleToneSpinner.setEnabled(needles);
 
-        boolean stroked = canny || centerline || bezier || squiggle;
+        boolean stroked = canny || centerline || bezier || squiggle || needles;
         strokeColorField.setEnabled(stroked);
         strokeWidthSpinner.setEnabled(stroked);
         smoothCurvesCheck.setEnabled(canny);
@@ -492,6 +521,14 @@ public final class VectorizeStudioDialog extends JDialog {
                 addNum(a, "--squiggle-background", squiggleBackgroundSpinner);
                 addStrokeStyle(a, false);
             }
+            case NEEDLES -> {
+                addNum(a, "--needle-spacing", needleSpacingSpinner);
+                addNum(a, "--needle-length", needleLengthSpinner);
+                addNum(a, "--needle-threshold", needleThresholdSpinner);
+                addNum(a, "--needle-gradient", needleGradientSpinner);
+                addNum(a, "--needle-tone", needleToneSpinner);
+                addStrokeStyle(a, false);
+            }
         }
 
         Rectangle roi = sourcePanel.getRoi();
@@ -547,6 +584,11 @@ public final class VectorizeStudioDialog extends JDialog {
                     case "--squiggle-amplitude" -> { setDouble(squiggleAmplitudeSpinner, v); i += 2; }
                     case "--squiggle-tone" -> { setDouble(squiggleToneSpinner, v); i += 2; }
                     case "--squiggle-background" -> { setDouble(squiggleBackgroundSpinner, v); i += 2; }
+                    case "--needle-spacing" -> { setDouble(needleSpacingSpinner, v); i += 2; }
+                    case "--needle-length" -> { setDouble(needleLengthSpinner, v); i += 2; }
+                    case "--needle-threshold" -> { setDouble(needleThresholdSpinner, v); i += 2; }
+                    case "--needle-gradient" -> { setDouble(needleGradientSpinner, v); i += 2; }
+                    case "--needle-tone" -> { setDouble(needleToneSpinner, v); i += 2; }
                     case "--crop" -> {
                         if (v != null) {
                             String[] parts = v.split(",");
