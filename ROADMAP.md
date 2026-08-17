@@ -42,8 +42,12 @@ validation, support, compatibility evidence, and low-key public outreach.
 
 ### Validate before scheduling
 
-- Multi-document composition: first validate a real sticker-sheet or mixed-art
-  workflow; prefer a small append/compose feature over a full editor initially.
+- Multi-document composition: first validation slice is now implemented as
+  **File > Append SVG to Current Artwork...**. It appends another SVG as
+  additional layers, places it to the right of the current drawing with a 10 mm
+  gap, remaps command IDs, is undoable, and persists in `.gantry` projects.
+  Future work can add per-artwork dragging/placement if dogfooding proves the
+  fixed side-by-side append is not enough.
 - Same-colour SVG group/element hatch overrides: click-to-hatch already covers
   most interactive use cases; build group overrides only for repeatable batch
   processing demand.

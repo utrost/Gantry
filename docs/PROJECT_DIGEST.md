@@ -110,6 +110,11 @@ Risks:
    - First useful slice: import visible centerline strokes at a chosen physical size, preserve layer/stroke order, ignore pressure for motion, and keep pressure metadata in `.gantry` provenance.
    - Pressure-to-Z or pressure-to-feed behavior needs per-tool calibration and real Z-axis hardware testing before any hardware-ready claim.
 
+7. Dogfood composition before building a full editor.
+   - The first append-SVG slice now supports File > Append SVG to Current Artwork.
+   - Use it for sticker sheets, borders, registration marks, and mixed generated art.
+   - Only add per-artwork dragging/placement or richer composition controls after real daily-use friction appears.
+
 ## Decision frame for incoming work
 
 Favor work that helps another person complete a safe first plot:

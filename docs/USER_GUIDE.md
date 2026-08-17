@@ -186,7 +186,7 @@ which one it works on so you always know what you're handling:
 
 | Format | What it is | How Gantry uses it |
 |---|---|---|
-| **SVG** (`.svg`) | Vector *artwork* — the drawing you start from | **File > Add SVG or vector drawing…** fits it safely to the machine bed and converts it into Gantry's editable drawing. **Edit > Re-process Source SVG…** re-runs the conversion against the same file. |
+| **SVG** (`.svg`) | Vector *artwork* — the drawing you start from or append to a composition | **File > Open SVG or Vector Drawing…** fits it safely to the machine bed and converts it into Gantry's editable drawing, replacing the current artwork. **File > Append SVG to Current Artwork…** imports another SVG as additional layers. **Edit > Re-process Source SVG…** re-runs the conversion against the same file when the document still has one SVG source. |
 | **Gantry project** (`.gantry`) | The editable working session: commands, placement, selected layers, passes, and source/import/vectorizer provenance | **File > Open Project… / Save Project…** restores the state needed to continue the job later. This is the preferred working format. |
 | **Flattened commands — JSON** (`.json`) | Interchange output with the current placement, layer selection, and passes baked into commands | **File > Export Flattened Commands (JSON)…** writes it. **Open Commands (JSON)…** can still load existing command files, but JSON does not preserve the complete editable project. |
 | **G-code** (`.gcode`) | Machine instructions for the *plotter* | **File > Export G-code (for plotter)…** writes it; **File > Replay G-code…** streams an existing one straight to the machine. One-way output — G-code can't be reopened for editing. |
@@ -255,10 +255,10 @@ Used for watercolor painting. Each station has:
 
 ---
 
-## Adding an SVG or vector drawing
+## Opening or composing SVG/vector artwork
 
 When the Live View is empty, use its large **Add artwork** card, the guidance
-banner's **Add artwork** action, or **File > Add SVG or vector drawing...**.
+banner's **Add artwork** action, or **File > Open SVG or Vector Drawing...**.
 Choose an SVG file. The **Add artwork** tab is immediately ready with a safe
 default: the configured machine-bed dimensions, preserved aspect ratio, and a
 10 mm margin. The summary states the physical target before you import.
@@ -293,6 +293,29 @@ or cancel. The warning is also written to the Console. Convert text to paths in
 the source SVG when exact typography or portable output is important.
 
 Inkscape layers (`inkscape:groupmode="layer"`) become separate `Layer1`, `Layer2`, … entries, each mapped to a refill station. If a file has no Inkscape layers but groups its content into two or more top-level `<g>` elements (common with non-Inkscape SVG exporters), each such group is also treated as its own layer. SVGs with neither become a single "Default" layer.
+
+### Appending another SVG to the current artwork
+
+Use **File > Append SVG to Current Artwork...** when you want to build a sheet or
+combined plot from more than one SVG without going back to an external editor.
+Gantry imports the chosen SVG with the same import/process dialog, then adds it as
+new layers in the current command model.
+
+The first implementation is deliberately simple and safe:
+
+- the appended SVG is placed to the right of the current drawing with a 10 mm gap;
+- appended layer names are prefixed with the file name, for example
+  `border.svg / ink`;
+- command IDs are remapped so click-to-delete, duplicate, move, and undo still
+  target a single line unambiguously;
+- the append is undoable with **Edit > Undo**;
+- saving as `.gantry` preserves the composed command model and selected layers.
+
+After appending, use the existing canvas placement and machine alignment controls
+to position the whole composed job on the bed. This is not a full vector editor:
+individual appended artworks cannot yet be dragged as separate objects, and a
+composed document no longer has one source SVG for **Re-process Source SVG...**.
+If you need to tune one SVG's import/process recipe, do that before appending it.
 
 The importer flips the Y axis automatically: SVG uses a top-left origin with Y growing downward, while the plotter measures Y upward from the machine origin, so drawings are turned upright on import (they would otherwise appear upside down). The **Flip Y** setting remains available as a manual override for unusual hardware — leave it off for normal use.
 

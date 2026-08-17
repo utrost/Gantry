@@ -372,7 +372,10 @@ public class PlotterPanel extends JPanel {
     private void showAddArtworkMenu(Component invoker) {
         JPopupMenu menu = new JPopupMenu();
         // These are transient popup entries, not long-lived controls that need plot-state tracking.
-        menu.add(menuItem("Add SVG or vector drawing", e -> onImportSvg(), false));
+        menu.add(menuItem("Open SVG or vector drawing", e -> onImportSvg(), false));
+        if (documentSession.currentOutput() != null) {
+            menu.add(menuItem("Append SVG to current artwork", e -> onAppendSvg(), false));
+        }
         menu.add(menuItem("Add image or photo", e -> onImportImage(), false));
         menu.add(menuItem("Open Gantry project", e -> onOpenProject(), false));
         menu.show(invoker, 0, invoker.getHeight());
@@ -476,9 +479,12 @@ public class PlotterPanel extends JPanel {
                 "Open a saved Gantry command file (.json) — the editable drawing model "
                         + "(layers, moves, draws, refills). Not an SVG and not G-code."),
                 KeyEvent.VK_O, shortcut | java.awt.event.InputEvent.SHIFT_DOWN_MASK));
-        fileMenu.add(accel(tip(menuItem("Add SVG or vector drawing...", e -> onImportSvg(), true),
-                "Choose an SVG drawing and fit it safely inside the configured machine bed."),
+        fileMenu.add(accel(tip(menuItem("Open SVG or Vector Drawing...", e -> onImportSvg(), true),
+                "Choose an SVG drawing and fit it safely inside the configured machine bed. Replaces the current artwork."),
                 KeyEvent.VK_I, shortcut));
+        fileMenu.add(accel(tip(menuItem("Append SVG to Current Artwork...", e -> onAppendSvg(), true),
+                "Import another SVG as additional layers, placed to the right of the current drawing with a small gap. Undoable."),
+                KeyEvent.VK_I, shortcut | java.awt.event.InputEvent.ALT_DOWN_MASK));
         fileMenu.add(accel(tip(menuItem("Add image or photo...", e -> onImportImage(), true),
                 "Choose a PNG or JPG and convert it into lines the plotter can draw."),
                 KeyEvent.VK_I, shortcut | java.awt.event.InputEvent.SHIFT_DOWN_MASK));
@@ -976,6 +982,7 @@ public class PlotterPanel extends JPanel {
     /** Creates a file chooser starting in the last directory a file was opened/saved in. */
     private void onLoadCommands() { fileWorkflow.loadCommands(); }
     private void onImportSvg() { fileWorkflow.importSvg(); }
+    private void onAppendSvg() { fileWorkflow.appendSvg(); }
     private void onImportImage() { fileWorkflow.importImage(); }
     private void onReVectorizeImage() { fileWorkflow.revectorize(); }
     private void onEditProcessSvg() { fileWorkflow.reprocessSvg(); }

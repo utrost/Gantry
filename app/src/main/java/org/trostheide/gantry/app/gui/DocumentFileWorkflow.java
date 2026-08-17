@@ -98,6 +98,21 @@ final class DocumentFileWorkflow {
         },()->actions.feedback().accept("Import cancelled. Artwork was not changed."));
     }
 
+    void appendSvg() {
+        JFileChooser chooser=chooser("Append vector artwork — SVG (*.svg)","svg");
+        if(chooser.showOpenDialog(parent)!=JFileChooser.APPROVE_OPTION)return;
+        File file=chooser.getSelectedFile();remember(file);
+        SvgImportDialog.Result options=importDialog(file).showDialog();if(options==null)return;
+        if(!confirmSvgFonts(file))return;
+        actions.cancellableBusy().run("Append SVG",cancel->{ProcessorOutput imported=map(options.toolboxConfig()!=null
+                ?SvgImportStage.importSvg(file,options.toolboxConfig(),options.importOptions())
+                :SvgImportStage.importSvg(file,options.importOptions()));if(cancel.getAsBoolean())throw new CancellationException();return imported;},out->{
+            session.appendArtwork(out,file.getName());visualization.loadFromOutput(session.currentOutput());actions.refresh().run();
+            editor.historyAvailability();actions.revectorizeEnabled().accept(false);
+            String result=summary("Appended "+file.getName(),session.currentOutput());actions.log().accept(result);actions.feedback().accept(result);
+        },()->actions.feedback().accept("Append cancelled. Artwork was not changed."));
+    }
+
     void importImage(){
         JFileChooser chooser=chooser("Raster image — PNG/JPG (*.png, *.jpg, *.jpeg, *.bmp)","png","jpg","jpeg","bmp");
         if(chooser.showOpenDialog(parent)!=JFileChooser.APPROVE_OPTION)return;

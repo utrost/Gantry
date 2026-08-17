@@ -1,7 +1,14 @@
 package org.trostheide.gantry.app.session;
 
+import org.trostheide.gantry.model.Bounds;
 import org.trostheide.gantry.model.Layer;
+import org.trostheide.gantry.model.Metadata;
+import org.trostheide.gantry.model.Point;
 import org.trostheide.gantry.model.ProcessorOutput;
+import org.trostheide.gantry.model.command.Command;
+import org.trostheide.gantry.model.command.DrawCommand;
+import org.trostheide.gantry.model.command.MoveCommand;
+import org.trostheide.gantry.model.command.RefillCommand;
 import org.trostheide.gantry.pipeline.optimize.MultipassStage;
 import org.trostheide.gantry.pipeline.svgimport.SvgImportOptions;
 
@@ -54,6 +61,27 @@ public final class DocumentSession {
                 .filter(index -> index >= 0 && index < output.layers().size())
                 .toList();
         dirty = true;
+    }
+
+    /**
+     * Appends another imported artwork to the current document as additional layers.
+     *
+     * <p>The appended artwork is placed to the right of the current drawing with a small gap,
+     * layer names are made unique, and command ids are remapped so canvas editing remains
+     * unambiguous. Appending is undoable like any other document edit.</p>
+     */
+    public void appendArtwork(ProcessorOutput addition, String label) {
+        Objects.requireNonNull(addition, "addition");
+        if (currentOutput == null) {
+            replace(addition);
+            return;
+        }
+        snapshotForUndo();
+        currentOutput = compose(currentOutput, addition, label == null || label.isBlank()
+                ? addition.metadata().source() : label);
+        selectedLayerIndices = allLayerIndices(currentOutput);
+        dirty = true;
+        clearSource();
     }
 
     public void clear() {
@@ -207,6 +235,83 @@ public final class DocumentSession {
         processingRecipe = recipe;
         sourceImage = image;
         vectorizeArgs = args == null ? List.of() : List.copyOf(args);
+    }
+
+    private static ProcessorOutput compose(ProcessorOutput base, ProcessorOutput addition, String label) {
+        Bounds baseBounds = base.metadata().bounds();
+        Bounds addBounds = addition.metadata().bounds();
+        double dx = appendOffsetX(baseBounds, addBounds);
+        int nextId = maxCommandId(base) + 1;
+        List<Layer> layers = new ArrayList<>(base.layers());
+        String prefix = label == null || label.isBlank() ? "Added artwork" : label;
+        for (Layer layer : addition.layers()) {
+            List<Command> shifted = new ArrayList<>(layer.commands().size());
+            for (Command command : layer.commands()) {
+                shifted.add(shiftAndRenumber(command, nextId++, dx, 0));
+            }
+            layers.add(new Layer(uniqueLayerId(prefix + " / " + layer.id(), layers),
+                    layer.stationId(), layer.color(), List.copyOf(shifted)));
+        }
+        int totalCommands = layers.stream().mapToInt(layer -> layer.commands().size()).sum();
+        Bounds shiftedAddBounds = shift(addBounds, dx, 0);
+        Metadata metadata = base.metadata();
+        String source = joinSources(metadata.source(), addition.metadata().source());
+        return new ProcessorOutput(new Metadata(source, metadata.generatedAt(), metadata.stationId(),
+                metadata.units(), totalCommands, union(baseBounds, shiftedAddBounds)), List.copyOf(layers));
+    }
+
+    private static double appendOffsetX(Bounds base, Bounds addition) {
+        if (!valid(base) || !valid(addition)) return 0;
+        return base.maxX() - addition.minX() + 10.0;
+    }
+
+    private static Command shiftAndRenumber(Command command, int id, double dx, double dy) {
+        if (command instanceof MoveCommand move) return new MoveCommand(id, move.x + dx, move.y + dy);
+        if (command instanceof DrawCommand draw) return new DrawCommand(id, draw.points.stream()
+                .map(point -> new Point(point.x() + dx, point.y() + dy)).toList());
+        if (command instanceof RefillCommand refill) return new RefillCommand(id, refill.stationId);
+        throw new IllegalArgumentException("Unsupported command " + command.getClass().getName());
+    }
+
+    private static int maxCommandId(ProcessorOutput output) {
+        return output.layers().stream()
+                .flatMap(layer -> layer.commands().stream())
+                .mapToInt(Command::getId)
+                .max().orElse(0);
+    }
+
+    private static Bounds shift(Bounds bounds, double dx, double dy) {
+        return valid(bounds) ? new Bounds(bounds.minX() + dx, bounds.minY() + dy,
+                bounds.maxX() + dx, bounds.maxY() + dy) : bounds;
+    }
+
+    private static Bounds union(Bounds a, Bounds b) {
+        if (!valid(a)) return b;
+        if (!valid(b)) return a;
+        return new Bounds(Math.min(a.minX(), b.minX()), Math.min(a.minY(), b.minY()),
+                Math.max(a.maxX(), b.maxX()), Math.max(a.maxY(), b.maxY()));
+    }
+
+    private static boolean valid(Bounds bounds) {
+        return bounds != null
+                && Double.isFinite(bounds.minX()) && Double.isFinite(bounds.minY())
+                && Double.isFinite(bounds.maxX()) && Double.isFinite(bounds.maxY())
+                && bounds.maxX() >= bounds.minX() && bounds.maxY() >= bounds.minY();
+    }
+
+    private static String uniqueLayerId(String candidate, List<Layer> existing) {
+        String clean = candidate == null || candidate.isBlank() ? "Added artwork" : candidate;
+        List<String> ids = existing.stream().map(Layer::id).toList();
+        if (!ids.contains(clean)) return clean;
+        int suffix = 2;
+        while (ids.contains(clean + " " + suffix)) suffix++;
+        return clean + " " + suffix;
+    }
+
+    private static String joinSources(String a, String b) {
+        if (a == null || a.isBlank()) return b;
+        if (b == null || b.isBlank()) return a;
+        return a + " + " + b;
     }
 
     private static List<Integer> allLayerIndices(ProcessorOutput output) {
