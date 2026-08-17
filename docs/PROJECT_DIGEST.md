@@ -113,8 +113,9 @@ Risks:
 7. Dogfood composition before building a full editor.
    - File > Append SVG to Current Artwork adds another SVG as an addressable artwork group.
    - Edit > Transform Artwork can move, scale, or mirror one artwork group while leaving the others alone.
+   - Edit > Re-process Selected Artwork can re-run SVG processors for one provenance-backed artwork while preserving its transform.
    - Use it for sticker sheets, borders, registration marks, and mixed generated art.
-   - Only add direct canvas handles, per-artwork re-processing, or richer composition controls after real daily-use friction appears.
+   - Only add direct canvas handles, a persistent artwork panel, or richer composition controls after real daily-use friction appears.
 
 ## Decision frame for incoming work
 

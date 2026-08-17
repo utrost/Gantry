@@ -15,6 +15,7 @@ import org.trostheide.gantry.app.session.CompositionArtwork;
 import org.trostheide.gantry.app.session.DocumentSession;
 import org.trostheide.gantry.app.session.GantryProject;
 import org.trostheide.gantry.app.session.GantryProjectIO;
+import org.trostheide.gantry.model.Bounds;
 import org.trostheide.gantry.model.CoordinateTransform;
 import org.trostheide.gantry.model.Layer;
 import org.trostheide.gantry.model.Point;
@@ -529,6 +530,8 @@ public class PlotterPanel extends JPanel {
                 "Re-run the SVGToolBox processors against the SVG you imported, replacing the current "
                         + "drawing. Only available after Import SVG (a loaded .json command file has no source SVG)."),
                 KeyEvent.VK_R, shortcut));
+        editMenu.add(tip(menuItem("Re-process Selected Artwork...", e -> onReprocessSelectedArtwork(), true),
+                "For composed projects, re-run SVG processors for one artwork group while preserving its transform."));
         reVectorizeMenuItem = tip(menuItem("Re-vectorize Image...", e -> onReVectorizeImage(), true),
                 "Reopen the vectorize studio on the last imported image, pre-loaded with the parameters "
                         + "you used, to re-tune the trace. Available after Import Image (vectorize).");
@@ -989,6 +992,25 @@ public class PlotterPanel extends JPanel {
     private void onImportImage() { fileWorkflow.importImage(); }
     private void onReVectorizeImage() { fileWorkflow.revectorize(); }
     private void onEditProcessSvg() { fileWorkflow.reprocessSvg(); }
+    private void onReprocessSelectedArtwork() {
+        if (documentSession.currentOutput() == null || documentSession.artworks().isEmpty()) {
+            info("Import or append artwork first.");
+            return;
+        }
+        List<CompositionArtwork> candidates = documentSession.artworks().stream()
+                .filter(artwork -> artwork.sourcePath() != null && artwork.importOptions() != null)
+                .toList();
+        if (candidates.isEmpty()) {
+            info("No artwork in this document has saved SVG import provenance.");
+            return;
+        }
+        JComboBox<String> chooser = new JComboBox<>(candidates.stream()
+                .map(PlotterPanel::artworkSummary)
+                .toArray(String[]::new));
+        int choice = JOptionPane.showConfirmDialog(this, chooser, "Re-process Selected Artwork",
+                JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
+        if (choice == JOptionPane.OK_OPTION) fileWorkflow.reprocessArtwork(candidates.get(chooser.getSelectedIndex()));
+    }
     private void onMapColorsToStations() { fileWorkflow.mapColors(); }
     private void onOpenProject() { fileWorkflow.openProject(); }
     private void onSaveProject() {
@@ -1047,6 +1069,13 @@ public class PlotterPanel extends JPanel {
         y.setText(String.format("%.2f", artwork.transform().y()));
         scale.setText(String.format("%.3f", artwork.transform().scale()));
         mirror.setSelected(artwork.transform().mirror());
+    }
+
+    static String artworkSummary(CompositionArtwork artwork) {
+        Bounds bounds = artwork.bounds();
+        String size = bounds == null ? "unknown size" : String.format("%.1f × %.1f mm",
+                Math.max(0, bounds.maxX() - bounds.minX()), Math.max(0, bounds.maxY() - bounds.minY()));
+        return artwork.label() + " — " + artwork.layerIndices().size() + " layer(s), " + size;
     }
 
     private void onOptimize(ApplicationDialogs.OptimizeOptions options) {

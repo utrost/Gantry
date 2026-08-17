@@ -16,8 +16,10 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.ArrayDeque;
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 import java.util.function.UnaryOperator;
 
 /**
@@ -135,6 +137,55 @@ public final class DocumentSession {
         nextArtworks.set(artworkIndex, target.withBoundsAndTransform(nextBounds, transform));
         artworks = List.copyOf(nextArtworks);
         dirty = true;
+    }
+
+    public void replaceArtwork(String artworkId, ProcessorOutput replacement, String sourcePath,
+            SvgImportOptions importOptions, ProcessingRecipe recipe) {
+        Objects.requireNonNull(artworkId, "artworkId");
+        Objects.requireNonNull(replacement, "replacement");
+        if (currentOutput == null) return;
+        int artworkIndex = indexOfArtwork(artworkId);
+        if (artworkIndex < 0) return;
+        CompositionArtwork target = artworks.get(artworkIndex);
+        List<Integer> oldIndices = target.layerIndices().stream().sorted().toList();
+        if (oldIndices.isEmpty()) return;
+        int insertAt = oldIndices.get(0);
+        snapshotForUndo();
+
+        Set<Integer> replacing = Set.copyOf(oldIndices);
+        List<Layer> layers = new ArrayList<>();
+        for (int i = 0; i < currentOutput.layers().size(); i++) {
+            if (!replacing.contains(i)) layers.add(currentOutput.layers().get(i));
+        }
+        int nextId = maxCommandId(layers) + 1;
+        List<Layer> replacementLayers = transformedReplacementLayers(replacement, labelFor(replacement),
+                target.transform(), nextId, layers);
+        layers.addAll(insertAt, replacementLayers);
+
+        List<Integer> replacementIndices = indices(insertAt, insertAt + replacementLayers.size());
+        Bounds replacementBounds = boundsForLayers(layers.subList(insertAt, insertAt + replacementLayers.size()));
+        Bounds originalBounds = replacement.metadata().bounds();
+        List<CompositionArtwork> nextArtworks = new ArrayList<>();
+        int delta = replacementLayers.size() - oldIndices.size();
+        for (int i = 0; i < artworks.size(); i++) {
+            CompositionArtwork artwork = artworks.get(i);
+            if (i == artworkIndex) {
+                nextArtworks.add(new CompositionArtwork(artwork.id(), labelFor(replacement), sourcePath,
+                        replacementIndices, originalBounds, replacementBounds, artwork.transform(),
+                        importOptions, recipe));
+            } else {
+                nextArtworks.add(artwork.withLayerIndices(shiftLayerIndices(artwork.layerIndices(), insertAt,
+                        oldIndices.get(oldIndices.size() - 1), delta)));
+            }
+        }
+        Metadata metadata = currentOutput.metadata();
+        currentOutput = new ProcessorOutput(new Metadata(joinSources(null, metadata.source()), metadata.generatedAt(),
+                metadata.stationId(), metadata.units(), layers.stream().mapToInt(layer -> layer.commands().size()).sum(),
+                boundsForLayers(layers)), List.copyOf(layers));
+        artworks = List.copyOf(nextArtworks);
+        selectedLayerIndices = allLayerIndices(currentOutput);
+        dirty = true;
+        clearSource();
     }
 
     public void restoreArtworks(Collection<CompositionArtwork> restoredArtworks) {
@@ -423,6 +474,50 @@ public final class DocumentSession {
         return null;
     }
 
+    private static List<Layer> transformedReplacementLayers(ProcessorOutput replacement, String label,
+            CompositionArtwork.Transform transform, int firstCommandId, List<Layer> existingLayers) {
+        Bounds originalBounds = replacement.metadata().bounds();
+        CompositionArtwork.Transform identity = transformAtOriginalPosition(originalBounds);
+        int nextId = firstCommandId;
+        List<Layer> result = new ArrayList<>(replacement.layers().size());
+        for (Layer layer : replacement.layers()) {
+            List<Command> commands = new ArrayList<>(layer.commands().size());
+            for (Command command : layer.commands()) {
+                commands.add(renumber(transformCommand(command, originalBounds, identity, transform), nextId++));
+            }
+            result.add(new Layer(uniqueLayerId(label + " / " + layer.id(), concat(existingLayers, result)),
+                    layer.stationId(), layer.color(), List.copyOf(commands)));
+        }
+        return List.copyOf(result);
+    }
+
+    private static CompositionArtwork.Transform transformAtOriginalPosition(Bounds bounds) {
+        return new CompositionArtwork.Transform(bounds == null ? 0 : bounds.minX(), bounds == null ? 0 : bounds.minY(),
+                1.0, false);
+    }
+
+    private static Command renumber(Command command, int id) {
+        if (command instanceof MoveCommand move) return new MoveCommand(id, move.x, move.y);
+        if (command instanceof DrawCommand draw) return new DrawCommand(id, draw.points);
+        if (command instanceof RefillCommand refill) return new RefillCommand(id, refill.stationId);
+        throw new IllegalArgumentException("Unsupported command " + command.getClass().getName());
+    }
+
+    private static List<Layer> concat(List<Layer> a, List<Layer> b) {
+        List<Layer> result = new ArrayList<>(a.size() + b.size());
+        result.addAll(a);
+        result.addAll(b);
+        return result;
+    }
+
+    private static List<Integer> shiftLayerIndices(List<Integer> layerIndices, int replacedStart, int replacedEndInclusive,
+            int delta) {
+        return layerIndices.stream()
+                .map(index -> index > replacedEndInclusive ? index + delta : index)
+                .sorted(Comparator.naturalOrder())
+                .toList();
+    }
+
     private static ProcessorOutput compose(ProcessorOutput base, ProcessorOutput addition, String label) {
         Bounds baseBounds = base.metadata().bounds();
         Bounds addBounds = addition.metadata().bounds();
@@ -460,7 +555,11 @@ public final class DocumentSession {
     }
 
     private static int maxCommandId(ProcessorOutput output) {
-        return output.layers().stream()
+        return maxCommandId(output.layers());
+    }
+
+    private static int maxCommandId(List<Layer> layers) {
+        return layers.stream()
                 .flatMap(layer -> layer.commands().stream())
                 .mapToInt(Command::getId)
                 .max().orElse(0);

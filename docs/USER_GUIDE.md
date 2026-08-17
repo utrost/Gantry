@@ -306,6 +306,9 @@ The first implementation is deliberately simple and safe:
 - each imported/appended SVG is tracked as an addressable artwork group;
 - **Edit > Transform Artwork...** can move, scale, or mirror one artwork group
   without changing the others;
+- **Edit > Re-process Selected Artwork...** can re-run SVG processors for one
+  provenance-backed artwork group while preserving its transform and the other
+  artwork groups;
 - the appended SVG is initially placed to the right of the current drawing with a 10 mm gap;
 - appended layer names are prefixed with the file name, for example
   `border.svg / ink`;
@@ -316,12 +319,13 @@ The first implementation is deliberately simple and safe:
   artwork groups, their transforms, and available source/process provenance.
 
 After appending, use **Edit > Transform Artwork...** for rough composition and
+**Edit > Re-process Selected Artwork...** when one source SVG needs a different
+processor recipe after it is already placed. The re-process action is available
+only for artwork groups that still have saved SVG import provenance; command JSON
+or older projects without source provenance cannot recreate the source SVG. Use
 the existing canvas placement and machine alignment controls to position the whole
 composed job on the bed. This is not a full vector editor: individual path nodes
-are still edited with the existing line tools, and per-artwork re-processing is
-not wired yet. A composed document no longer has one simple source SVG for
-**Re-process Source SVG...**; if you need to tune one SVG's import/process recipe,
-do that before appending it.
+are still edited with the existing line tools.
 
 The importer flips the Y axis automatically: SVG uses a top-left origin with Y growing downward, while the plotter measures Y upward from the machine origin, so drawings are turned upright on import (they would otherwise appear upside down). The **Flip Y** setting remains available as a manual override for unusual hardware — leave it off for normal use.
 

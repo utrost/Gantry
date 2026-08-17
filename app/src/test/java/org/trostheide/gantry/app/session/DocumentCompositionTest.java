@@ -95,6 +95,35 @@ class DocumentCompositionTest {
         assertEquals(new Bounds(0, 0, 10, 10), session.artworks().get(0).bounds());
     }
 
+    @Test
+    void replaceArtworkPreservesTransformAndOtherArtworkLayers() {
+        DocumentSession session = new DocumentSession();
+        session.replace(output("main.svg", "main", 0, 0, 10, 10, 1));
+        session.appendArtwork(output("mark.svg", "mark", 0, 0, 10, 10, 10), "mark.svg");
+        String markId = session.artworks().get(1).id();
+        session.transformArtwork(markId, new CompositionArtwork.Transform(40, 5, 2.0, true));
+        List<Command> mainBefore = session.currentOutput().layers().get(0).commands();
+
+        session.replaceArtwork(markId, output("mark-v2.svg", "mark", 0, 0, 5, 5, 100),
+                "/tmp/mark-v2.svg", null, null);
+
+        assertEquals(mainBefore, session.currentOutput().layers().get(0).commands(),
+                "replacing one artwork should not touch the other artwork group's commands");
+        assertEquals(2, session.currentOutput().layers().size());
+        assertEquals(List.of(0, 1), session.selectedLayerIndices());
+        CompositionArtwork replaced = session.artworks().get(1);
+        assertEquals(markId, replaced.id());
+        assertEquals("mark-v2.svg", replaced.label());
+        assertEquals("/tmp/mark-v2.svg", replaced.sourcePath());
+        assertEquals(new CompositionArtwork.Transform(40, 5, 2.0, true), replaced.transform());
+        assertEquals(new Bounds(40, 5, 50, 15), replaced.bounds());
+        assertEquals(new Bounds(0, 0, 50, 15), session.currentOutput().metadata().bounds());
+        MoveCommand replacedMove = assertInstanceOf(MoveCommand.class, session.currentOutput().layers().get(1).commands().get(0));
+        assertEquals(50, replacedMove.x, 0.0001);
+        DrawCommand replacedDraw = assertInstanceOf(DrawCommand.class, session.currentOutput().layers().get(1).commands().get(1));
+        assertEquals(new Point(40, 15), replacedDraw.points.get(0));
+    }
+
     private static ProcessorOutput output(String source, String layerId,
             double minX, double minY, double maxX, double maxY, int firstId) {
         List<Command> commands = List.of(

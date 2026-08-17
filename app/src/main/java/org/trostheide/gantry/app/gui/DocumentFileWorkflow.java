@@ -1,6 +1,7 @@
 package org.trostheide.gantry.app.gui;
 
 import org.trostheide.gantry.app.plot.*;
+import org.trostheide.gantry.app.session.CompositionArtwork;
 import org.trostheide.gantry.app.session.DocumentSession;
 import org.trostheide.gantry.app.session.GantryProject;
 import org.trostheide.gantry.app.session.GantryProjectIO;
@@ -158,6 +159,28 @@ final class DocumentFileWorkflow {
             if(cancel.getAsBoolean())throw new CancellationException();return processed;},out->{
             editor.snapshot();editor.update(out);session.recordSvgSource(source,session.sourceSvgOptions(),process?ProcessingRecipe.fromConfig(toolbox):null);
             visualization.loadPathsPreservingOverlay(out);actions.refresh().run();actions.log().accept("Reprocessed "+source.getName());},
+            ()->actions.feedback().accept("Processing cancelled. Artwork was not changed."));
+    }
+
+    void reprocessArtwork(CompositionArtwork artwork){
+        if(artwork==null){actions.info().accept("Choose an artwork first.");return;}
+        if(artwork.sourcePath()==null||artwork.sourcePath().isBlank()||artwork.importOptions()==null){
+            actions.info().accept("That artwork has no saved SVG import provenance. Append or import it from SVG first.");return;}
+        File source=new File(artwork.sourcePath());
+        if(!source.isFile()){actions.error().accept("Artwork source is missing: "+source.getAbsolutePath());return;}
+        org.trostheide.gantry.svgtoolbox.Config initial=artwork.processingRecipe()==null?null:artwork.processingRecipe().toConfig();
+        EditProcessDialog dialog=new EditProcessDialog(owner(),source,initial);
+        org.trostheide.gantry.svgtoolbox.Config toolbox=dialog.showDialog();if(toolbox==null)return;
+        boolean process=dialog.processingEnabled();
+        if(!confirmSvgFonts(source))return;
+        actions.cancellableBusy().run("Process Artwork",cancel->{ProcessorOutput processed=process
+                ?SvgImportStage.importSvg(source,toolbox,artwork.importOptions())
+                :SvgImportStage.importSvg(source,artwork.importOptions());
+            if(cancel.getAsBoolean())throw new CancellationException();return map(processed);},out->{
+            session.replaceArtwork(artwork.id(),out,source.getAbsolutePath(),artwork.importOptions(),process?ProcessingRecipe.fromConfig(toolbox):null);
+            visualization.loadPathsPreservingOverlay(session.currentOutput());actions.refresh().run();
+            actions.log().accept("Reprocessed artwork "+artwork.label()+" from "+source.getName());
+            actions.feedback().accept("Artwork reprocessed: "+artwork.label());},
             ()->actions.feedback().accept("Processing cancelled. Artwork was not changed."));
     }
 
