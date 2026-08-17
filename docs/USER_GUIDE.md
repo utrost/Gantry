@@ -303,19 +303,25 @@ new layers in the current command model.
 
 The first implementation is deliberately simple and safe:
 
-- the appended SVG is placed to the right of the current drawing with a 10 mm gap;
+- each imported/appended SVG is tracked as an addressable artwork group;
+- **Edit > Transform Artwork...** can move, scale, or mirror one artwork group
+  without changing the others;
+- the appended SVG is initially placed to the right of the current drawing with a 10 mm gap;
 - appended layer names are prefixed with the file name, for example
   `border.svg / ink`;
 - command IDs are remapped so click-to-delete, duplicate, move, and undo still
   target a single line unambiguously;
-- the append is undoable with **Edit > Undo**;
-- saving as `.gantry` preserves the composed command model and selected layers.
+- transforms and appends are undoable with **Edit > Undo**;
+- saving as `.gantry` preserves the composed command model, selected layers,
+  artwork groups, their transforms, and available source/process provenance.
 
-After appending, use the existing canvas placement and machine alignment controls
-to position the whole composed job on the bed. This is not a full vector editor:
-individual appended artworks cannot yet be dragged as separate objects, and a
-composed document no longer has one source SVG for **Re-process Source SVG...**.
-If you need to tune one SVG's import/process recipe, do that before appending it.
+After appending, use **Edit > Transform Artwork...** for rough composition and
+the existing canvas placement and machine alignment controls to position the whole
+composed job on the bed. This is not a full vector editor: individual path nodes
+are still edited with the existing line tools, and per-artwork re-processing is
+not wired yet. A composed document no longer has one simple source SVG for
+**Re-process Source SVG...**; if you need to tune one SVG's import/process recipe,
+do that before appending it.
 
 The importer flips the Y axis automatically: SVG uses a top-left origin with Y growing downward, while the plotter measures Y upward from the machine origin, so drawings are turned upright on import (they would otherwise appear upside down). The **Flip Y** setting remains available as a manual override for unusual hardware — leave it off for normal use.
 

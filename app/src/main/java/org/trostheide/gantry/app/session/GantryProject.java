@@ -8,14 +8,20 @@ import java.util.List;
 /** Complete editable Gantry session persisted independently from flattened command JSON. */
 public record GantryProject(int formatVersion, ProcessorOutput output,
                             List<Integer> selectedLayers, Placement placement, int passes,
-                            Source source) {
+                            Source source, List<CompositionArtwork> artworks) {
     public static final int CURRENT_VERSION = 1;
+
+    public GantryProject(int formatVersion, ProcessorOutput output,
+            List<Integer> selectedLayers, Placement placement, int passes, Source source) {
+        this(formatVersion, output, selectedLayers, placement, passes, source, List.of());
+    }
 
     public GantryProject {
         selectedLayers = selectedLayers == null ? List.of() : List.copyOf(selectedLayers);
         placement = placement == null ? Placement.identity() : placement;
         passes = Math.max(1, passes);
         source = source == null ? Source.empty() : source;
+        artworks = artworks == null ? List.of() : List.copyOf(artworks);
     }
 
     public record Placement(double offsetX, double offsetY, double scale,

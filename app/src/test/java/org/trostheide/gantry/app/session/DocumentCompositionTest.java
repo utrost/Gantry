@@ -58,6 +58,43 @@ class DocumentCompositionTest {
         assertEquals(base, session.undo());
     }
 
+    @Test
+    void artworksAreAddressableAndTransformableAsGroups() {
+        DocumentSession session = new DocumentSession();
+        session.replace(output("main.svg", "main", 0, 0, 10, 10, 1));
+        session.appendArtwork(output("mark.svg", "mark", 0, 0, 10, 10, 1), "mark.svg");
+
+        assertEquals(List.of("main.svg", "mark.svg"), session.artworks().stream().map(CompositionArtwork::label).toList());
+        String appendedId = session.artworks().get(1).id();
+
+        session.transformArtwork(appendedId, new CompositionArtwork.Transform(5, -2, 2.0, true));
+
+        CompositionArtwork transformed = session.artworks().get(1);
+        assertEquals(new CompositionArtwork.Transform(5, -2, 2.0, true), transformed.transform());
+        assertEquals(new Bounds(5, -2, 25, 18), transformed.bounds());
+        assertEquals(new Bounds(0, -2, 25, 18), session.currentOutput().metadata().bounds());
+
+        MoveCommand moved = assertInstanceOf(MoveCommand.class, session.currentOutput().layers().get(1).commands().get(0));
+        assertEquals(25, moved.x, 0.0001, "mirrored/scaled group should keep its original left edge plus dx");
+        assertEquals(-2, moved.y, 0.0001);
+        DrawCommand drawn = assertInstanceOf(DrawCommand.class, session.currentOutput().layers().get(1).commands().get(1));
+        assertEquals(new Point(5, 18), drawn.points.get(0));
+    }
+
+    @Test
+    void artworkTransformsAreUndoable() {
+        DocumentSession session = new DocumentSession();
+        session.replace(output("main.svg", "main", 0, 0, 10, 10, 1));
+        String id = session.artworks().get(0).id();
+
+        session.transformArtwork(id, new CompositionArtwork.Transform(3, 4, 1.5, false));
+
+        assertEquals(new Bounds(3, 4, 18, 19), session.artworks().get(0).bounds());
+        assertTrue(session.canUndo());
+        session.undo();
+        assertEquals(new Bounds(0, 0, 10, 10), session.artworks().get(0).bounds());
+    }
+
     private static ProcessorOutput output(String source, String layerId,
             double minX, double minY, double maxX, double maxY, int firstId) {
         List<Command> commands = List.of(

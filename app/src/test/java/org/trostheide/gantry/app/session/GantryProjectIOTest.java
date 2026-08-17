@@ -45,7 +45,7 @@ class GantryProjectIOTest {
         session.replace(output("base", "ink", 0, 0, 20, 10, 1));
         session.appendArtwork(output("border", "ink", 0, 0, 5, 5, 1), "border.svg");
         GantryProject project = new GantryProject(1, session.currentOutput(), session.selectedLayerIndices(),
-                GantryProject.Placement.identity(), 1, GantryProject.Source.empty());
+                GantryProject.Placement.identity(), 1, GantryProject.Source.empty(), session.artworks());
 
         var file = tmp.resolve("composed.gantry").toFile();
         GantryProjectIO.save(project, file);
@@ -54,6 +54,8 @@ class GantryProjectIOTest {
         assertEquals(List.of("ink", "border.svg / ink"), loaded.output().layers().stream().map(Layer::id).toList());
         assertEquals(new Bounds(0, 0, 35, 10), loaded.output().metadata().bounds());
         assertEquals(List.of(0, 1), loaded.selectedLayers());
+        assertEquals(List.of("base", "border.svg"), loaded.artworks().stream().map(CompositionArtwork::label).toList());
+        assertEquals(new Bounds(30, 0, 35, 5), loaded.artworks().get(1).bounds());
     }
 
     private static ProcessorOutput output(String source, String layerId,

@@ -11,6 +11,7 @@ import org.trostheide.gantry.app.plot.PlotJobHistory;
 import org.trostheide.gantry.app.plot.PlotSettings;
 import org.trostheide.gantry.app.plot.StationConfig;
 import org.trostheide.gantry.app.plot.TimeEstimator;
+import org.trostheide.gantry.app.session.CompositionArtwork;
 import org.trostheide.gantry.app.session.DocumentSession;
 import org.trostheide.gantry.app.session.GantryProject;
 import org.trostheide.gantry.app.session.GantryProjectIO;
@@ -536,6 +537,8 @@ public class PlotterPanel extends JPanel {
         editMenu.add(tip(menuItem("Optimize Commands (JSON)...", e -> onOptimizeDialog(), true),
                 "Clean up the current drawing in place — simplify, reorder, and weld touching strokes. "
                         + "Edits the command model; does not touch any SVG or G-code file."));
+        editMenu.add(tip(menuItem("Transform Artwork...", e -> onTransformArtwork(), true),
+                "Move, scale, or mirror one appended artwork group without touching the other artwork groups."));
         editMenu.add(menuItem("Map Layer Colors to Stations", e -> onMapColorsToStations(), true));
         editMenu.addSeparator();
         hatchRegionModeItem = new JCheckBoxMenuItem("Hatch Region (click areas to fill)");
@@ -994,6 +997,57 @@ public class PlotterPanel extends JPanel {
         updateDirtyIndicator();
     }
     private void onExportCommands() { fileWorkflow.exportCommands(); }
+
+    private void onTransformArtwork() {
+        if (documentSession.currentOutput() == null || documentSession.artworks().isEmpty()) {
+            info("Import or append artwork first.");
+            return;
+        }
+        List<CompositionArtwork> artworks = documentSession.artworks();
+        JComboBox<String> chooser = new JComboBox<>(artworks.stream()
+                .map(artwork -> artwork.label() + " — layers " + artwork.layerIndices().stream()
+                        .map(i -> Integer.toString(i + 1)).toList())
+                .toArray(String[]::new));
+        JTextField x = new JTextField("0", 8);
+        JTextField y = new JTextField("0", 8);
+        JTextField scale = new JTextField("1.0", 8);
+        JCheckBox mirror = new JCheckBox("Mirror horizontally");
+        chooser.addActionListener(e -> fillArtworkTransformFields(artworks.get(chooser.getSelectedIndex()), x, y, scale, mirror));
+        fillArtworkTransformFields(artworks.get(0), x, y, scale, mirror);
+
+        JPanel form = new JPanel(new GridLayout(0, 2, 6, 6));
+        form.add(new JLabel("Artwork")); form.add(chooser);
+        form.add(new JLabel("X position (mm)")); form.add(x);
+        form.add(new JLabel("Y position (mm)")); form.add(y);
+        form.add(new JLabel("Scale")); form.add(scale);
+        form.add(new JLabel("Mirror")); form.add(mirror);
+        int choice = JOptionPane.showConfirmDialog(this, form, "Transform Artwork",
+                JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
+        if (choice != JOptionPane.OK_OPTION) return;
+        try {
+            CompositionArtwork selected = artworks.get(chooser.getSelectedIndex());
+            documentSession.transformArtwork(selected.id(), new CompositionArtwork.Transform(
+                    Double.parseDouble(x.getText().trim()),
+                    Double.parseDouble(y.getText().trim()),
+                    Double.parseDouble(scale.getText().trim()),
+                    mirror.isSelected()));
+            visPanel.loadPathsPreservingOverlay(documentSession.currentOutput());
+            refreshDocumentUi();
+            documentEditor.historyAvailability();
+            log("Transformed artwork " + selected.label());
+            showUndoFeedback("Artwork transformed.");
+        } catch (NumberFormatException ex) {
+            error("Transform values must be numbers. Scale must be greater than 0.");
+        }
+    }
+
+    private static void fillArtworkTransformFields(CompositionArtwork artwork, JTextField x, JTextField y,
+            JTextField scale, JCheckBox mirror) {
+        x.setText(String.format("%.2f", artwork.transform().x()));
+        y.setText(String.format("%.2f", artwork.transform().y()));
+        scale.setText(String.format("%.3f", artwork.transform().scale()));
+        mirror.setSelected(artwork.transform().mirror());
+    }
 
     private void onOptimize(ApplicationDialogs.OptimizeOptions options) {
         if (documentSession.currentOutput() == null) {
@@ -1521,11 +1575,12 @@ public class PlotterPanel extends JPanel {
                 new GantryProject.Source(svg == null ? null : svg.getAbsolutePath(),
                         documentSession.sourceSvgOptions(),
                         image == null ? null : image.getAbsolutePath(),
-                        documentSession.vectorizeArgs(), documentSession.processingRecipe()));
+                        documentSession.vectorizeArgs(), documentSession.processingRecipe()),
+                documentSession.artworks());
     }
 
     private void openProject(GantryProject project) {
-        documentEditor.restore(project.output(), project.selectedLayers());
+        documentEditor.restore(project.output(), project.selectedLayers(), project.artworks());
         GantryProject.Source source = project.source();
         documentSession.restoreSource(source.svgPath() == null ? null : new File(source.svgPath()),
                 source.importOptions(), source.imagePath() == null ? null : new File(source.imagePath()),

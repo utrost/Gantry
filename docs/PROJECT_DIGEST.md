@@ -111,9 +111,10 @@ Risks:
    - Pressure-to-Z or pressure-to-feed behavior needs per-tool calibration and real Z-axis hardware testing before any hardware-ready claim.
 
 7. Dogfood composition before building a full editor.
-   - The first append-SVG slice now supports File > Append SVG to Current Artwork.
+   - File > Append SVG to Current Artwork adds another SVG as an addressable artwork group.
+   - Edit > Transform Artwork can move, scale, or mirror one artwork group while leaving the others alone.
    - Use it for sticker sheets, borders, registration marks, and mixed generated art.
-   - Only add per-artwork dragging/placement or richer composition controls after real daily-use friction appears.
+   - Only add direct canvas handles, per-artwork re-processing, or richer composition controls after real daily-use friction appears.
 
 ## Decision frame for incoming work
 

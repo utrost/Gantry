@@ -107,7 +107,7 @@ final class DocumentFileWorkflow {
         actions.cancellableBusy().run("Append SVG",cancel->{ProcessorOutput imported=map(options.toolboxConfig()!=null
                 ?SvgImportStage.importSvg(file,options.toolboxConfig(),options.importOptions())
                 :SvgImportStage.importSvg(file,options.importOptions()));if(cancel.getAsBoolean())throw new CancellationException();return imported;},out->{
-            session.appendArtwork(out,file.getName());visualization.loadFromOutput(session.currentOutput());actions.refresh().run();
+            session.appendArtwork(out,file.getName(),file,options.importOptions(),recipe(options.toolboxConfig()));visualization.loadFromOutput(session.currentOutput());actions.refresh().run();
             editor.historyAvailability();actions.revectorizeEnabled().accept(false);
             String result=summary("Appended "+file.getName(),session.currentOutput());actions.log().accept(result);actions.feedback().accept(result);
         },()->actions.feedback().accept("Append cancelled. Artwork was not changed."));

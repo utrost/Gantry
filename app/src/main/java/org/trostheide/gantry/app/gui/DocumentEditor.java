@@ -1,5 +1,6 @@
 package org.trostheide.gantry.app.gui;
 
+import org.trostheide.gantry.app.session.CompositionArtwork;
 import org.trostheide.gantry.app.session.DocumentSession;
 import org.trostheide.gantry.model.Point;
 import org.trostheide.gantry.model.ProcessorOutput;
@@ -9,6 +10,7 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.geom.Path2D;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -42,7 +44,10 @@ final class DocumentEditor {
 
     void replace(ProcessorOutput output){session.replace(output);hatchIds.clear();historyAvailability();}
     void restore(ProcessorOutput output, List<Integer> selectedLayers) {
-        session.restore(output, selectedLayers);
+        restore(output, selectedLayers, List.of());
+    }
+    void restore(ProcessorOutput output, List<Integer> selectedLayers, Collection<CompositionArtwork> artworks) {
+        session.restore(output, selectedLayers, artworks);
         hatchIds.clear();
         historyAvailability();
     }

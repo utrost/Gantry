@@ -40,9 +40,14 @@ public final class DocumentSession {
     private ProcessingRecipe processingRecipe;
     private File sourceImage;
     private List<String> vectorizeArgs = List.of();
+    private List<CompositionArtwork> artworks = List.of();
 
     public ProcessorOutput currentOutput() {
         return currentOutput;
+    }
+
+    public List<CompositionArtwork> artworks() {
+        return artworks;
     }
 
     /** Replaces the document, selects every layer, and starts a new undo history. */
@@ -51,6 +56,8 @@ public final class DocumentSession {
         undoHistory.clear();
         redoHistory.clear();
         selectedLayerIndices = allLayerIndices(output);
+        artworks = output == null ? List.of() : List.of(artwork("artwork-1", labelFor(output), null,
+                selectedLayerIndices, output.metadata().bounds(), null, null, null));
         dirty = true;
     }
 
@@ -60,6 +67,7 @@ public final class DocumentSession {
         selectedLayerIndices = selectedLayerIndices.stream()
                 .filter(index -> index >= 0 && index < output.layers().size())
                 .toList();
+        artworks = refreshArtworkBounds(artworks, currentOutput);
         dirty = true;
     }
 
@@ -71,17 +79,66 @@ public final class DocumentSession {
      * unambiguous. Appending is undoable like any other document edit.</p>
      */
     public void appendArtwork(ProcessorOutput addition, String label) {
+        appendArtwork(addition, label, null, null, null);
+    }
+
+    public void appendArtwork(ProcessorOutput addition, String label, File sourceFile,
+            SvgImportOptions importOptions, ProcessingRecipe recipe) {
         Objects.requireNonNull(addition, "addition");
         if (currentOutput == null) {
             replace(addition);
             return;
         }
         snapshotForUndo();
+        int firstNewLayer = currentOutput.layers().size();
         currentOutput = compose(currentOutput, addition, label == null || label.isBlank()
                 ? addition.metadata().source() : label);
         selectedLayerIndices = allLayerIndices(currentOutput);
+        List<CompositionArtwork> nextArtworks = new ArrayList<>(artworks.isEmpty()
+                ? List.of(artwork("artwork-1", labelFor(currentOutput), null,
+                        indices(0, firstNewLayer), currentOutput.metadata().bounds(),
+                        null, null, null))
+                : artworks);
+        List<Integer> addedLayers = indices(firstNewLayer, currentOutput.layers().size());
+        Bounds addedBounds = boundsForLayers(currentOutput, addedLayers);
+        nextArtworks.add(artwork("artwork-" + (nextArtworks.size() + 1),
+                label == null || label.isBlank() ? addition.metadata().source() : label,
+                sourceFile == null ? null : sourceFile.getAbsolutePath(), addedLayers, addedBounds,
+                null, importOptions, recipe));
+        artworks = List.copyOf(nextArtworks);
         dirty = true;
         clearSource();
+    }
+
+    public void transformArtwork(String artworkId, CompositionArtwork.Transform transform) {
+        Objects.requireNonNull(artworkId, "artworkId");
+        Objects.requireNonNull(transform, "transform");
+        if (currentOutput == null) return;
+        int artworkIndex = indexOfArtwork(artworkId);
+        if (artworkIndex < 0) return;
+        CompositionArtwork target = artworks.get(artworkIndex);
+        snapshotForUndo();
+        List<Layer> layers = new ArrayList<>(currentOutput.layers());
+        for (int layerIndex : target.layerIndices()) {
+            if (layerIndex < 0 || layerIndex >= layers.size()) continue;
+            Layer layer = layers.get(layerIndex);
+            layers.set(layerIndex, new Layer(layer.id(), layer.stationId(), layer.color(), layer.commands().stream()
+                    .map(command -> transformCommand(command, target.originalBounds(), target.transform(), transform))
+                    .toList()));
+        }
+        Metadata metadata = currentOutput.metadata();
+        currentOutput = new ProcessorOutput(new Metadata(metadata.source(), metadata.generatedAt(), metadata.stationId(),
+                metadata.units(), layers.stream().mapToInt(layer -> layer.commands().size()).sum(), boundsForLayers(layers)),
+                List.copyOf(layers));
+        Bounds nextBounds = boundsForLayers(currentOutput, target.layerIndices());
+        List<CompositionArtwork> nextArtworks = new ArrayList<>(artworks);
+        nextArtworks.set(artworkIndex, target.withBoundsAndTransform(nextBounds, transform));
+        artworks = List.copyOf(nextArtworks);
+        dirty = true;
+    }
+
+    public void restoreArtworks(Collection<CompositionArtwork> restoredArtworks) {
+        artworks = restoredArtworks == null ? List.of() : List.copyOf(restoredArtworks);
     }
 
     public void clear() {
@@ -90,6 +147,7 @@ public final class DocumentSession {
         undoHistory.clear();
         redoHistory.clear();
         dirty = false;
+        artworks = List.of();
         clearSource();
     }
 
@@ -135,7 +193,7 @@ public final class DocumentSession {
 
     public void snapshotForUndo() {
         if (currentOutput == null) return;
-        undoHistory.addLast(new HistoryState(currentOutput, selectedLayerIndices, processingRecipe));
+        undoHistory.addLast(new HistoryState(currentOutput, selectedLayerIndices, processingRecipe, artworks));
         while (undoHistory.size() > HISTORY_LIMIT) undoHistory.removeFirst();
         redoHistory.clear();
     }
@@ -151,13 +209,13 @@ public final class DocumentSession {
         if (undoHistory.isEmpty()) {
             return null;
         }
-        redoHistory.addLast(new HistoryState(currentOutput, selectedLayerIndices, processingRecipe));
+        redoHistory.addLast(new HistoryState(currentOutput, selectedLayerIndices, processingRecipe, artworks));
         return restore(undoHistory.removeLast());
     }
 
     public ProcessorOutput redo() {
         if (redoHistory.isEmpty()) return null;
-        undoHistory.addLast(new HistoryState(currentOutput, selectedLayerIndices, processingRecipe));
+        undoHistory.addLast(new HistoryState(currentOutput, selectedLayerIndices, processingRecipe, artworks));
         return restore(redoHistory.removeLast());
     }
 
@@ -167,8 +225,17 @@ public final class DocumentSession {
 
     /** Restores a persisted document and its selection as a clean new history root. */
     public void restore(ProcessorOutput output, Collection<Integer> selection) {
+        restore(output, selection, List.of());
+    }
+
+    /** Restores a persisted composed document with addressable artwork metadata. */
+    public void restore(ProcessorOutput output, Collection<Integer> selection, Collection<CompositionArtwork> restoredArtworks) {
         replace(Objects.requireNonNull(output, "output"));
         selectLayers(selection == null ? allLayerIndices(output) : selection);
+        artworks = restoredArtworks == null || restoredArtworks.isEmpty()
+                ? List.of(artwork("artwork-1", labelFor(output), null, allLayerIndices(output),
+                        output.metadata().bounds(), null, null, null))
+                : List.copyOf(restoredArtworks);
         dirty = false;
     }
 
@@ -176,12 +243,17 @@ public final class DocumentSession {
         currentOutput = state.output();
         selectedLayerIndices = state.selection();
         processingRecipe = state.processingRecipe();
+        artworks = state.artworks();
         dirty = true;
         return currentOutput;
     }
 
-    private record HistoryState(ProcessorOutput output, List<Integer> selection, ProcessingRecipe processingRecipe) {
-        HistoryState { selection = List.copyOf(selection); }
+    private record HistoryState(ProcessorOutput output, List<Integer> selection, ProcessingRecipe processingRecipe,
+                                List<CompositionArtwork> artworks) {
+        HistoryState {
+            selection = List.copyOf(selection);
+            artworks = artworks == null ? List.of() : List.copyOf(artworks);
+        }
     }
 
     public void recordSvgSource(File file, SvgImportOptions options) {
@@ -192,6 +264,11 @@ public final class DocumentSession {
         sourceSvg = Objects.requireNonNull(file, "file");
         sourceSvgOptions = Objects.requireNonNull(options, "options");
         processingRecipe = recipe;
+        if (!artworks.isEmpty()) {
+            List<CompositionArtwork> next = new ArrayList<>(artworks);
+            next.set(0, next.get(0).withSource(file.getAbsolutePath(), options, recipe));
+            artworks = List.copyOf(next);
+        }
     }
 
     public void recordImageSource(File file, List<String> args) {
@@ -235,6 +312,115 @@ public final class DocumentSession {
         processingRecipe = recipe;
         sourceImage = image;
         vectorizeArgs = args == null ? List.of() : List.copyOf(args);
+    }
+
+    private static CompositionArtwork artwork(String id, String label, String sourcePath, List<Integer> layerIndices,
+            Bounds bounds, CompositionArtwork.Transform transform, SvgImportOptions importOptions,
+            ProcessingRecipe recipe) {
+        CompositionArtwork.Transform actualTransform = transform == null
+                ? new CompositionArtwork.Transform(bounds == null ? 0 : bounds.minX(), bounds == null ? 0 : bounds.minY(), 1.0, false)
+                : transform;
+        return new CompositionArtwork(id, label == null || label.isBlank() ? id : label, sourcePath,
+                layerIndices, bounds, bounds, actualTransform, importOptions, recipe);
+    }
+
+    private int indexOfArtwork(String artworkId) {
+        for (int i = 0; i < artworks.size(); i++) {
+            if (artworkId.equals(artworks.get(i).id())) return i;
+        }
+        return -1;
+    }
+
+    private static List<Integer> indices(int startInclusive, int endExclusive) {
+        List<Integer> result = new ArrayList<>();
+        for (int i = startInclusive; i < endExclusive; i++) result.add(i);
+        return List.copyOf(result);
+    }
+
+    private static String labelFor(ProcessorOutput output) {
+        String source = output == null || output.metadata() == null ? null : output.metadata().source();
+        return source == null || source.isBlank() ? "Artwork" : source;
+    }
+
+    private static List<CompositionArtwork> refreshArtworkBounds(List<CompositionArtwork> sourceArtworks,
+            ProcessorOutput output) {
+        if (sourceArtworks == null || sourceArtworks.isEmpty() || output == null) return List.of();
+        List<CompositionArtwork> refreshed = new ArrayList<>(sourceArtworks.size());
+        for (CompositionArtwork artwork : sourceArtworks) {
+            refreshed.add(artwork.withBoundsAndTransform(boundsForLayers(output, artwork.layerIndices()), artwork.transform()));
+        }
+        return List.copyOf(refreshed);
+    }
+
+    private static Command transformCommand(Command command, Bounds originalBounds,
+            CompositionArtwork.Transform oldTransform, CompositionArtwork.Transform newTransform) {
+        if (command instanceof MoveCommand move) {
+            Point p = transformPoint(new Point(move.x, move.y), originalBounds, oldTransform, newTransform);
+            return new MoveCommand(command.getId(), p.x(), p.y());
+        }
+        if (command instanceof DrawCommand draw) {
+            return new DrawCommand(command.getId(), draw.points.stream()
+                    .map(point -> transformPoint(point, originalBounds, oldTransform, newTransform)).toList());
+        }
+        if (command instanceof RefillCommand refill) return new RefillCommand(command.getId(), refill.stationId);
+        throw new IllegalArgumentException("Unsupported command " + command.getClass().getName());
+    }
+
+    private static Point transformPoint(Point point, Bounds originalBounds,
+            CompositionArtwork.Transform oldTransform, CompositionArtwork.Transform newTransform) {
+        double originalX = untransformX(point.x(), originalBounds, oldTransform);
+        double originalY = untransformY(point.y(), originalBounds, oldTransform);
+        return new Point(transformX(originalX, originalBounds, newTransform),
+                transformY(originalY, originalBounds, newTransform));
+    }
+
+    private static double untransformX(double x, Bounds bounds, CompositionArtwork.Transform transform) {
+        if (transform.mirror()) return bounds.maxX() - ((x - transform.x()) / transform.scale());
+        return bounds.minX() + ((x - transform.x()) / transform.scale());
+    }
+
+    private static double untransformY(double y, Bounds bounds, CompositionArtwork.Transform transform) {
+        return bounds.minY() + ((y - transform.y()) / transform.scale());
+    }
+
+    private static double transformX(double originalX, Bounds bounds, CompositionArtwork.Transform transform) {
+        return transform.mirror()
+                ? transform.x() + (bounds.maxX() - originalX) * transform.scale()
+                : transform.x() + (originalX - bounds.minX()) * transform.scale();
+    }
+
+    private static double transformY(double originalY, Bounds bounds, CompositionArtwork.Transform transform) {
+        return transform.y() + (originalY - bounds.minY()) * transform.scale();
+    }
+
+    private static Bounds boundsForLayers(ProcessorOutput output, List<Integer> layerIndices) {
+        List<Layer> layers = new ArrayList<>();
+        for (int index : layerIndices) {
+            if (index >= 0 && index < output.layers().size()) layers.add(output.layers().get(index));
+        }
+        return boundsForLayers(layers);
+    }
+
+    private static Bounds boundsForLayers(List<Layer> layers) {
+        Bounds result = null;
+        for (Layer layer : layers) {
+            for (Command command : layer.commands()) {
+                result = union(result, boundsForCommand(command));
+            }
+        }
+        return result == null ? Bounds.empty() : result;
+    }
+
+    private static Bounds boundsForCommand(Command command) {
+        if (command instanceof MoveCommand move) return new Bounds(move.x, move.y, move.x, move.y);
+        if (command instanceof DrawCommand draw) {
+            Bounds result = null;
+            for (Point point : draw.points) {
+                result = union(result, new Bounds(point.x(), point.y(), point.x(), point.y()));
+            }
+            return result == null ? Bounds.empty() : result;
+        }
+        return null;
     }
 
     private static ProcessorOutput compose(ProcessorOutput base, ProcessorOutput addition, String label) {
