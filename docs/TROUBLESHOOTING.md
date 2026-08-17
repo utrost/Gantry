@@ -150,7 +150,13 @@ open a bug report.
 
 ## What to include in a bug report
 
-Include:
+Start with **Help > Copy Diagnostics** in Gantry and paste the copied plain-text
+summary into the issue. It includes the Gantry version, Java/OS information,
+backend type, selected serial/configuration details, the last console error, and
+the recent Console tail without requiring users to find log files manually.
+
+If you cannot launch Gantry or cannot use the menu, include these details
+manually:
 
 - Gantry version or commit;
 - operating system;

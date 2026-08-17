@@ -172,11 +172,10 @@ Turn one successful external test into repeatable onboarding.
    - Fix observed blockers and repeat affected sessions when findings affect
      onboarding, safety, or release confidence.
 
-2. **Add a support bundle path**
-   - Add or plan a Help action such as **Copy diagnostics** or **Open logs/config
-     folder**.
-   - Include Gantry version, Java version, OS, selected backend, relevant config
-     without secrets, last error, and recent log tail.
+2. **Done:** Add a support bundle path
+   - **Help > Copy Diagnostics** copies a plain-text support summary with Gantry
+     version, Java version, OS, selected backend, relevant config without
+     secrets, last error, and recent console tail.
 
 3. **Harden serial setup documentation**
    - Document Windows COM ports, macOS serial-device naming, Linux `dialout`,

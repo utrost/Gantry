@@ -54,7 +54,7 @@ Active adoption roadmap:
 - First public alpha exists: `v1.0.0-alpha.1`.
 - Release artifacts/checksums and CLI artifact smoke evidence are recorded.
 - GitHub metadata, issue templates, and labels are seeded.
-- First-plot quickstart, troubleshooting, release checklist, and compatibility-matrix shell exist.
+- First-plot quickstart, troubleshooting, Help > Copy Diagnostics, release checklist, and compatibility-matrix shell exist.
 - Manual adoption blockers remain: full real-hardware acceptance evidence, external tester recruitment, structured novice-study evidence, first demo GIF/video, and external known-good setup entries.
 
 ## Documentation health

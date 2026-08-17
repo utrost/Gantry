@@ -611,6 +611,7 @@ public class PlotterPanel extends JPanel {
         helpMenu.setMnemonic(KeyEvent.VK_H);
         helpMenu.add(menuItem("Guided First Plot...", e -> onGuidedFirstPlot(), false));
         helpMenu.add(menuItem("User Guide...", e -> onShowHelp(), false));
+        helpMenu.add(menuItem("Copy Diagnostics", e -> onCopyDiagnostics(), false));
         helpMenu.add(menuItem("About Gantry...", e -> onShowAbout(), false));
         menuBar.add(helpMenu);
 
@@ -656,6 +657,29 @@ public class PlotterPanel extends JPanel {
 
     private void onShowHelp() {
         new HelpDialog(SwingUtilities.getWindowAncestor(this)).setVisible(true);
+    }
+
+    private void onCopyDiagnostics() {
+        try {
+            new SupportDiagnosticsClipboardAction(Toolkit.getDefaultToolkit().getSystemClipboard(),
+                    this::buildSupportDiagnostics, this::showFeedback).copy();
+            log("Copied support diagnostics to clipboard.");
+        } catch (IllegalStateException | HeadlessException ex) {
+            error("Could not copy diagnostics to clipboard: " + ex.getMessage());
+        }
+    }
+
+    private String buildSupportDiagnostics() {
+        String consoleText = console.getText();
+        return SupportDiagnostics.build(new SupportDiagnostics.Snapshot(
+                appVersion(), config, plotJobController.isConnected(),
+                SupportDiagnostics.lastErrorFromConsole(consoleText), consoleText));
+    }
+
+    private static String appVersion() {
+        Package pkg = PlotterPanel.class.getPackage();
+        String version = pkg == null ? null : pkg.getImplementationVersion();
+        return version == null || version.isBlank() ? "1.0.0-dev" : version;
     }
 
     private void onShowAbout() {

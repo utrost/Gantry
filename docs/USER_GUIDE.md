@@ -69,6 +69,11 @@ their physical size, connection and plot outcomes are visible without opening
 the Console, and command-model edits offer a contextual **Undo** action. The
 Console remains available under **Advanced controls** for diagnostics.
 
+If you need to report a connection, plotting, or setup problem, use
+**Help > Copy Diagnostics** before closing Gantry. It copies a plain-text support
+summary with the Gantry version, Java/OS details, backend and safe configuration
+summary, the last console error, and the recent Console tail.
+
 Equivalently, open **Settings** directly and work through the sections top to
 bottom, then **Save**:
 
