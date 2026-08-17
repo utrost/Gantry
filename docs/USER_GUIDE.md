@@ -69,6 +69,11 @@ their physical size, connection and plot outcomes are visible without opening
 the Console, and command-model edits offer a contextual **Undo** action. The
 Console remains available under **Advanced controls** for diagnostics.
 
+If you need ready-made things to draw, verify, or turn into plotter input, use
+**Help > Plotter Resources**. It opens related web tools: VHS for handwriting
+SVGs, PPCT for pen/paper calibration targets, and Generative Art for
+plotter-ready SVG generators. The submenu also links to their GitHub projects.
+
 If you need to report a connection, plotting, or setup problem, use
 **Help > Copy Diagnostics** before closing Gantry. It copies a plain-text support
 summary with the Gantry version, Java/OS details, backend and safe configuration

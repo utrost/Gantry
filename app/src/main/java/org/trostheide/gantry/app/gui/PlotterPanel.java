@@ -42,6 +42,7 @@ import java.awt.event.ActionListener;
 import java.awt.event.KeyEvent;
 import java.io.File;
 import java.io.IOException;
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -623,10 +624,8 @@ public class PlotterPanel extends JPanel {
 
         JMenu helpMenu = new JMenu("Help");
         helpMenu.setMnemonic(KeyEvent.VK_H);
-        helpMenu.add(menuItem("Guided First Plot...", e -> onGuidedFirstPlot(), false));
-        helpMenu.add(menuItem("User Guide...", e -> onShowHelp(), false));
-        helpMenu.add(menuItem("Copy Diagnostics", e -> onCopyDiagnostics(), false));
-        helpMenu.add(menuItem("About Gantry...", e -> onShowAbout(), false));
+        addHelpMenuItems(helpMenu, this::onGuidedFirstPlot, this::onShowHelp,
+                uri -> openResource(uri, uri.getHost()), this::onCopyDiagnostics, this::onShowAbout);
         menuBar.add(helpMenu);
 
         return menuBar;
@@ -649,6 +648,44 @@ public class PlotterPanel extends JPanel {
     private static JMenuItem accel(JMenuItem item, int keyCode, int modifiers) {
         item.setAccelerator(javax.swing.KeyStroke.getKeyStroke(keyCode, modifiers));
         return item;
+    }
+
+    static void addHelpMenuItems(JMenu helpMenu, Runnable guidedFirstPlot, Runnable userGuide,
+                                 Consumer<URI> resourceOpener, Runnable copyDiagnostics, Runnable about) {
+        helpMenu.add(actionItem("Guided First Plot...", guidedFirstPlot));
+        helpMenu.add(actionItem("User Guide...", userGuide));
+        helpMenu.add(PlotterResourceLinks.buildMenu(resourceOpener));
+        helpMenu.addSeparator();
+        helpMenu.add(actionItem("Copy Diagnostics", copyDiagnostics));
+        helpMenu.add(actionItem("About Gantry...", about));
+    }
+
+    private static JMenuItem actionItem(String label, Runnable action) {
+        JMenuItem item = new JMenuItem(label);
+        item.addActionListener(e -> action.run());
+        return item;
+    }
+
+    private void openResource(URI uri, String label) {
+        if (!Desktop.isDesktopSupported() || !Desktop.getDesktop().isSupported(Desktop.Action.BROWSE)) {
+            showResourceLinkFallback(uri, label, "Desktop browser integration is not available.");
+            return;
+        }
+        try {
+            Desktop.getDesktop().browse(uri);
+            showFeedback("Opened " + label + " in your browser: " + uri);
+        } catch (IOException | SecurityException ex) {
+            showResourceLinkFallback(uri, label, ex.getMessage());
+        }
+    }
+
+    private void showResourceLinkFallback(URI uri, String label, String reason) {
+        String message = "Could not open " + label + " automatically";
+        if (reason != null && !reason.isBlank()) {
+            message += ": " + reason;
+        }
+        message += "\n\nCopy this link:\n" + uri;
+        JOptionPane.showMessageDialog(this, message, "Plotter Resource", JOptionPane.INFORMATION_MESSAGE);
     }
 
     private void onExit() {
