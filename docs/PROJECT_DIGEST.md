@@ -16,7 +16,7 @@ The project has moved past core capability discovery. The active challenge is ad
 - `docs/FIRST_PLOT.md` — shortest safe path for a new tester.
 - `docs/USER_GUIDE.md` — full operator guide.
 - `docs/TROUBLESHOOTING.md` — serial, GRBL, launch, and first-run failure help.
-- `docs/KNOWN_GOOD_SETUPS.md` — evidence-based compatibility matrix; currently still waiting for real accepted entries.
+- `docs/KNOWN_GOOD_SETUPS.md` — evidence-based compatibility matrix; currently includes Uwe's Uuna Tek A1 H as working, with detailed acceptance fields still pending.
 - `docs/TESTING.md` — automated coverage inventory and manual acceptance scripts.
 - `docs/USABILITY.md` — scoped Beginner Usability milestone, now closed; novice validation remains an adoption-evidence path.
 - `docs/TRACER_CAPTURE_IMPORT.md` — future Tracer JSON capture handoff contract; documents pressure-bearing gesture import without claiming current implementation.
@@ -55,7 +55,7 @@ Active adoption roadmap:
 - Release artifacts/checksums and CLI artifact smoke evidence are recorded.
 - GitHub metadata, issue templates, and labels are seeded.
 - First-plot quickstart, troubleshooting, release checklist, and compatibility-matrix shell exist.
-- Manual adoption blockers remain: real-hardware acceptance, external tester recruitment, structured novice-study evidence, first demo GIF/video, and real known-good setup entries.
+- Manual adoption blockers remain: full real-hardware acceptance evidence, external tester recruitment, structured novice-study evidence, first demo GIF/video, and external known-good setup entries.
 
 ## Documentation health
 
@@ -70,7 +70,7 @@ Risks:
 
 - There is a lot of documentation. For a new tester, README → FIRST_PLOT must stay the obvious path; everything else should remain secondary.
 - The adoption roadmap contains issue numbers and release details that can drift unless checked after GitHub changes.
-- `docs/KNOWN_GOOD_SETUPS.md` is still a template plus pending candidate. It should not be marketed as compatibility evidence until the first real acceptance entry lands.
+- `docs/KNOWN_GOOD_SETUPS.md` now has Uwe's Uuna Tek A1 H working report, but it should not be marketed as broad compatibility evidence until the detailed acceptance fields and external entries land.
 - Screenshots and demo media are repeatedly referenced as pending. Once captured, update README, FIRST_PLOT, release notes, and adoption status together.
 - The user guide is comprehensive, but long. If adoption reaches broader public testing, split it into focused pages only after real users show where they get lost.
 - Tracer JSON capture is now documented as a future pressure-bearing import path. Keep it out of current user instructions until implemented and tested.
@@ -79,8 +79,8 @@ Risks:
 
 1. Record real-hardware acceptance for `v1.0.0-alpha.1` or the next alpha.
    - Fill `release-results/` using the release checklist.
-   - Promote the verified setup into `docs/KNOWN_GOOD_SETUPS.md`.
-   - Keep hardware readiness language conservative until this exists.
+   - Fill in the remaining fields for the Uuna Tek A1 H entry in `docs/KNOWN_GOOD_SETUPS.md`.
+   - Keep hardware readiness language conservative until detailed acceptance evidence exists.
 
 2. Run one external guided mock test before broad outreach.
    - Use only the release link and `docs/FIRST_PLOT.md`.

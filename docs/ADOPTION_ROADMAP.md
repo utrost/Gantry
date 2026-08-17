@@ -386,8 +386,9 @@ external people, or media production.
 8. **Done:** Add serial-permission and GRBL-alarm troubleshooting.
 9. **Blocked/manual:** Publish a one-minute demo video or GIF — tracked in
    [#18](https://github.com/utrost/Gantry/issues/18).
-10. **Started:** Start the compatibility matrix from real tester reports. The
-    matrix document exists; real entries still need acceptance evidence.
+10. **Started:** Start the compatibility matrix from real tester reports. Uwe's
+    Uuna Tek A1 H plotter is recorded as working; detailed acceptance evidence
+    and external entries are still needed.
 
 Additional support hardening now tracked in
 [#17](https://github.com/utrost/Gantry/issues/17).

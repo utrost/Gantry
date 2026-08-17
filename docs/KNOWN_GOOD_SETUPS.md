@@ -40,17 +40,18 @@ example, a pen-plot acceptance run does not prove watercolor station behavior.
 - Linked release result or issue:
 ```
 
-## Candidate: primary development setup
+## Uwe primary setup — Uuna Tek A1 H plotter
 
-This entry still needs a recorded hardware acceptance pass before it should be
-used as public compatibility evidence.
+Gantry has been reported working on this hardware by Uwe. This is the first
+real-hardware compatibility entry, but the detailed release-acceptance checklist
+still needs to be filled before making broad hardware-readiness claims.
 
-- Date: pending
+- Date: 2026-08-17
 - Tester: Uwe
-- Gantry version or commit: pending
-- Operating system: pending
-- Java version: pending
-- Plotter/mechanics: GRBL-based pen plotter, details pending
+- Gantry version or commit: `29f5c03`
+- Operating system: Linux 6.8.0-136-generic x86_64 GNU/Linux
+- Java version: OpenJDK 17.0.19
+- Plotter/mechanics: Uuna Tek A1 H pen plotter
 - Controller / GRBL version: pending
 - Connection: USB serial, pending details
 - Baud rate: expected 115200 unless acceptance records otherwise
@@ -68,6 +69,7 @@ used as public compatibility evidence.
   - [ ] small real pen plot
   - [ ] watercolor station dry visit
   - [ ] watercolor wet/refill job
-- Result: pending
-- Caveats: do not cite as known-good until acceptance evidence exists
-- Linked release result or issue: pending
+- Result: Gantry works on this hardware per Uwe's report.
+- Caveats: detailed acceptance evidence, controller/GRBL version, travel,
+  origin, pen mode, and exact tested workflow list are still pending.
+- Linked release result or issue: [#15](https://github.com/utrost/Gantry/issues/15)
