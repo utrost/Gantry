@@ -18,7 +18,7 @@ The project has moved past core capability discovery. The active challenge is ad
 - `docs/TROUBLESHOOTING.md` — serial, GRBL, launch, and first-run failure help.
 - `docs/KNOWN_GOOD_SETUPS.md` — evidence-based compatibility matrix; currently still waiting for real accepted entries.
 - `docs/TESTING.md` — automated coverage inventory and manual acceptance scripts.
-- `docs/USABILITY.md` — scoped Beginner Usability milestone, including remaining Slice D novice validation.
+- `docs/USABILITY.md` — scoped Beginner Usability milestone, now closed; novice validation remains an adoption-evidence path.
 - `docs/TRACER_CAPTURE_IMPORT.md` — future Tracer JSON capture handoff contract; documents pressure-bearing gesture import without claiming current implementation.
 - `docs/ARCHITECTURE.md` — developer/LLM technical reference for module graph, data model, pipeline, threading, and extension points.
 - `docs/LESSONS_LEARNED.md` — invariants, fixed-bug ledger, development gotchas, and FAQ.
@@ -44,10 +44,10 @@ Test inventory observed after the sketch-trace image-art update: 79 Java test fi
 
 Active product roadmap:
 
-- Milestones 1–8 are complete or code-complete.
-- Milestone 9, Beginner usability, remains active.
+- Milestones 1–9 are complete, code-complete, or closed by product-owner decision.
+- Beginner usability is no longer the active product-roadmap blocker.
 - Slices A–C and processor-studio Slice E are documented as complete.
-- Slice D remains the real blocker: five-person novice validation, followed by fixes from observed friction.
+- The five-person novice study remains useful adoption evidence, but it no longer blocks Milestone 9 closure.
 
 Active adoption roadmap:
 
@@ -55,7 +55,7 @@ Active adoption roadmap:
 - Release artifacts/checksums and CLI artifact smoke evidence are recorded.
 - GitHub metadata, issue templates, and labels are seeded.
 - First-plot quickstart, troubleshooting, release checklist, and compatibility-matrix shell exist.
-- Manual blockers remain: real-hardware acceptance, external tester recruitment, five-person novice study, first demo GIF/video, and real known-good setup entries.
+- Manual adoption blockers remain: real-hardware acceptance, external tester recruitment, structured novice-study evidence, first demo GIF/video, and real known-good setup entries.
 
 ## Documentation health
 
@@ -87,10 +87,10 @@ Risks:
    - Capture every point where spoken explanation feels necessary.
    - Convert each friction point into a docs fix, product issue, or test-environment note.
 
-3. Complete Beginner Usability Slice D.
+3. Run structured novice validation when external testers are available.
    - Use `docs/NOVICE_STUDY.md` and `docs/NOVICE_STUDY_RESULTS_TEMPLATE.md`.
-   - Do not mark the milestone done from screenshots or agent-driven UI checks.
-   - Update `docs/USABILITY.md`, `docs/TESTING.md`, `docs/USER_GUIDE.md`, and release evidence after the study.
+   - Treat results as adoption/release evidence, not as a blocker for the already-closed usability milestone.
+   - Update `docs/TESTING.md`, `docs/USER_GUIDE.md`, release evidence, and roadmap candidates after the study.
 
 4. Produce the missing adoption assets.
    - First: one-minute demo GIF/video of launch → guided mock plot → export/plot result.

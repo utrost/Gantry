@@ -29,7 +29,7 @@ acceptance plan lives in [`docs/USABILITY.md`](docs/USABILITY.md).
 | 6 | Focused polish | Full SVG colour discovery for hatch overrides, accurate travel accounting/labeling, and vectorizer crop restoration | Complete |
 | 7 | CLI batch artifacts | Post-import optimize, shared config/station mapping, and optional G-code output work headlessly with end-to-end tests | Complete |
 | 8 | Exact-job history | Re-plot uses an immutable prepared-job snapshot; recent successful jobs persist and can be reopened/replotted | Complete |
-| 9 | Beginner usability | A default basic workflow leads from artwork to a safe first plot with progressive disclosure, plain language, actionable guidance, safe import defaults, visible feedback, and novice acceptance evidence; advanced workflows remain available | In progress — Slices A–C and processor-studio Slice E complete; Slice D validation and five-person study pending |
+| 9 | Beginner usability | A default basic workflow leads from artwork to a safe first plot with progressive disclosure, plain language, actionable guidance, safe import defaults, visible feedback, and novice acceptance evidence; advanced workflows remain available | Closed by product-owner decision; Slices A–C and processor-studio Slice E complete. Novice-study protocol remains available as adoption validation, not a blocker for this milestone. |
 
 ## Adoption roadmap
 
@@ -63,8 +63,8 @@ studio with Streamlit image-art engines, vpype-style export optimization,
 CMYK/layer output, pen passes, and a lightweight serial backend. Use it as a
 feature reference only; do not copy code unless licensing is clarified.
 
-These ideas are useful, but they should not interrupt Milestone 9 beginner
-usability. Treat them as post-validation candidates and route them through the
+These ideas are useful, but they should not interrupt adoption validation or
+release hardening. Treat them as post-validation candidates and route them through the
 existing Gantry architecture: `vectorize` for raster-to-line art, `svgtoolbox-core`
 for SVG preprocessing, `pipeline-core` for command transforms, and `plotter`/`app`
 for machine-aware execution.

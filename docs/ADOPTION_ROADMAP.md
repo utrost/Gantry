@@ -29,8 +29,9 @@ Repository evidence at the start of this adoption plan:
 - release workflow: tag-triggered GitHub release artifacts and checksums
 - docs already present: user guide, architecture, testing, usability, release
   checklist, novice-study protocol, roadmap history
-- current active product gap: Beginner Usability Slice D — five-person novice
-  validation and follow-up polish
+- current active product status: Beginner Usability Milestone 9 is closed by
+  product-owner decision; novice-study evidence remains useful adoption
+  validation rather than a product-roadmap blocker
 
 The main adoption gap is not core capability. It is confidence: can someone who
 is not Uwe download Gantry, understand the safe path, complete a mock plot, and
@@ -164,11 +165,12 @@ Turn one successful external test into repeatable onboarding.
 
 ### Product and code work
 
-1. **Finish Beginner Usability Slice D**
-   - Run the five-person novice study defined in [`NOVICE_STUDY.md`](NOVICE_STUDY.md).
+1. **Run structured novice validation as adoption evidence**
+   - Use the five-person novice study defined in [`NOVICE_STUDY.md`](NOVICE_STUDY.md)
+     when enough testers are available.
    - Record results with [`NOVICE_STUDY_RESULTS_TEMPLATE.md`](NOVICE_STUDY_RESULTS_TEMPLATE.md).
-   - Fix observed blockers and repeat affected sessions until the stated pass
-     criteria are met.
+   - Fix observed blockers and repeat affected sessions when findings affect
+     onboarding, safety, or release confidence.
 
 2. **Add a support bundle path**
    - Add or plan a Help action such as **Copy diagnostics** or **Open logs/config
@@ -377,8 +379,8 @@ external people, or media production.
    in [#15](https://github.com/utrost/Gantry/issues/15).
 4. **Blocked/manual:** Recruit one external tester for the 2-user milestone.
 5. **Done:** Seed GitHub issue labels and issue templates.
-6. **Blocked/manual:** Finish the five-person novice study — tracked in
-   [#16](https://github.com/utrost/Gantry/issues/16).
+6. **Manual/adoption evidence:** Run the five-person novice study when testers
+   are available — tracked in [#16](https://github.com/utrost/Gantry/issues/16).
 7. **Done:** Write a “First plot with Gantry” quickstart. Screenshots can be
    added after the next guided-practice capture.
 8. **Done:** Add serial-permission and GRBL-alarm troubleshooting.

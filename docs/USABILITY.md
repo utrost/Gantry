@@ -259,8 +259,9 @@ step without external help.
 
 ### Slice D — novice validation and polish
 
-**Status: In progress — study protocol and repeatable result template are ready;
-five-participant evidence remains required.**
+**Status: Closed by product-owner decision.** The study protocol and repeatable
+result template remain available for adoption validation, but five-participant
+evidence is no longer a blocker for closing Beginner Usability Milestone 9.
 
 - Run the novice study described below.
 - Fix the observed blockers and repeat until the completion target is met.
@@ -268,12 +269,14 @@ five-participant evidence remains required.**
 - Record rejected or deferred ideas explicitly instead of quietly expanding the
   milestone.
 
-**Exit:** acceptance evidence satisfies the success measures and all automated,
-mock-GUI, and required hardware checks pass.
+**Exit:** the beginner-usability implementation is accepted as complete. Future
+study findings should be handled as adoption feedback, release blockers, or new
+roadmap items instead of reopening this milestone by default.
 
-The facilitator protocol is [`NOVICE_STUDY.md`](NOVICE_STUDY.md); record each
-round with [`NOVICE_STUDY_RESULTS_TEMPLATE.md`](NOVICE_STUDY_RESULTS_TEMPLATE.md).
-Automated or agent-driven UI checks do not substitute for the five participants.
+The facilitator protocol is [`NOVICE_STUDY.md`](NOVICE_STUDY.md); record any
+future round with [`NOVICE_STUDY_RESULTS_TEMPLATE.md`](NOVICE_STUDY_RESULTS_TEMPLATE.md).
+Automated or agent-driven UI checks are useful supporting evidence, but they do
+not replace real participant evidence when making adoption claims.
 
 ## Acceptance criteria
 
@@ -351,8 +354,9 @@ Add tests in proportion to each slice:
 - mock-backend end-to-end first-plot acceptance;
 - real-hardware safety acceptance before a hardware release.
 
-Update `docs/TESTING.md` with stable script IDs as slices land; do not mark the
-milestone complete from design review or screenshots alone.
+Update `docs/TESTING.md` with stable script IDs as future checks land. Treat
+manual study evidence as adoption or release evidence rather than as required
+milestone-closure evidence.
 
 ## Delivered Slice E — understandable artwork processing
 
@@ -410,11 +414,10 @@ monster class.
 
 ## Scope control
 
-New ideas enter this milestone only when they directly reduce a documented
-novice blocker in the five-step journey. Otherwise they remain backlog candidates
-under `ROADMAP.md`'s validate-before-scheduling rules.
+This milestone is closed. New beginner-flow ideas should become adoption
+feedback, release blockers, or explicit roadmap candidates under `ROADMAP.md`'s
+validate-before-scheduling rules instead of expanding the closed milestone.
 
-Completion requires implementation, automated regression coverage, a live mock
-GUI acceptance run, novice-study evidence, documentation, and the usual
-hardware-dependent release checks. It is not complete when the new layout merely
-looks simpler.
+Future hardware-ready releases still require the usual hardware-dependent
+release checks; closing this usability milestone does not claim hardware
+readiness or external participant evidence.
