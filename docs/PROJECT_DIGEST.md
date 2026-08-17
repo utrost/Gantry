@@ -93,9 +93,11 @@ Risks:
    - Update `docs/TESTING.md`, `docs/USER_GUIDE.md`, release evidence, and roadmap candidates after the study.
 
 4. Produce the missing adoption assets.
-   - First: one-minute demo GIF/video of launch → guided mock plot → export/plot result.
+   - Done: the first committed SVG sample gallery exists for simple line,
+     hatch/fill, multi-colour/layer, and text-outline practice.
+   - Next: one-minute demo GIF/video of launch → guided mock plot → export/plot result.
    - Then: screenshots for README/FIRST_PLOT if they reduce first-run uncertainty.
-   - Later: sample gallery only after at least a few known-good inputs/settings exist.
+   - Later: image/vectorize gallery entries only after validation evidence exists.
 
 5. Keep roadmap maintenance strict.
    - `ROADMAP.md`: Now / current status only.

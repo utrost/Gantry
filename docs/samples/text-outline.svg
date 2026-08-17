@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Gantry sample: text represented as outline paths, not SVG <text>. -->
+<svg xmlns="http://www.w3.org/2000/svg" width="130mm" height="70mm" viewBox="0 0 130 70">
+  <g id="text-outline" fill="none" stroke="#111111" stroke-width="0.7" stroke-linejoin="round" stroke-linecap="round">
+    <!-- G -->
+    <path d="M30 20 H18 V50 H36 V38 H28"/>
+    <!-- A -->
+    <path d="M48 50 L58 20 L68 50 M52 39 H64"/>
+    <!-- N -->
+    <path d="M80 50 V20 L100 50 V20"/>
+    <!-- tiny baseline and frame so scaling is easy to see -->
+    <path d="M14 56 H108" stroke-dasharray="2 3"/>
+    <rect x="10" y="12" width="106" height="50" rx="2"/>
+  </g>
+</svg>

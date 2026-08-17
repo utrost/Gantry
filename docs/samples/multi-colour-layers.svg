@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Gantry sample: colour/layer separation for station mapping and layer preview. -->
+<svg xmlns="http://www.w3.org/2000/svg" width="140mm" height="100mm" viewBox="0 0 140 100">
+  <g id="red-layer" fill="none" stroke="#d62728" stroke-width="0.7">
+    <path d="M14 22 H126"/>
+    <circle cx="38" cy="50" r="18"/>
+  </g>
+  <g id="blue-layer" fill="none" stroke="#1f77b4" stroke-width="0.7">
+    <path d="M14 50 H126"/>
+    <rect x="76" y="32" width="34" height="34"/>
+  </g>
+  <g id="green-layer" fill="none" stroke="#2ca02c" stroke-width="0.7">
+    <path d="M14 78 H126"/>
+    <path d="M48 80 L70 30 L92 80 Z"/>
+  </g>
+</svg>

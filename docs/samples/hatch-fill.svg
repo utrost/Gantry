@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Gantry sample: filled regions for hatch/fill preview and export checks. -->
+<svg xmlns="http://www.w3.org/2000/svg" width="120mm" height="90mm" viewBox="0 0 120 90">
+  <g id="hatch-fill" stroke="#111111" stroke-width="0.4">
+    <rect x="14" y="14" width="42" height="28" fill="#d8d8d8"/>
+    <circle cx="84" cy="28" r="17" fill="#b8b8b8"/>
+    <path d="M22 72 C35 48 54 48 66 72 S96 90 108 58" fill="#eeeeee"/>
+  </g>
+</svg>

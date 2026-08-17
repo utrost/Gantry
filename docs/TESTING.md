@@ -53,7 +53,7 @@ Expected output: `BUILD SUCCESS` with zero failures across all modules.
 | `app` | `PlotJobHistoryTest`, `VisualizationTravelTest` | Persistent prepared-job history and travel accounting across layer boundaries |
 | `vectorize` | `IntegrationTest`, `BoofcvBatikVectorTest`, `StrategiesTest`, `PaintByNumbersTest` (86) | Raster→SVG engine: contour extraction, all eight strategies, polyline/Bézier geometry, auto-Canny, crop, SVG optimisation, Paint-by-Numbers quantisation/regions/labels |
 | `cli` | `VectorizeCliTest` (2) | `VectorizeCli` wiring: image→SVG, and the `--`-separated image→SVG→command-JSON chain (argument split, SVG-path derivation, `-i` injection) |
-| `cli` | `SvgImportCliTest` (4) | SVG→command CLI wiring: help, multipass and per-colour hatch overrides; batch config station mapping and G-code output |
+| `cli` | `SvgImportCliTest` (8), `SampleGalleryDocsTest` | SVG→command CLI wiring: help, multipass and per-colour hatch overrides; batch config station mapping and G-code output; sample gallery contract covering committed parseable SVGs, tester safety metadata, and README/FIRST_PLOT links |
 | `svgtoolbox-core` | `ConfigBuilderTest` | Config builder defaults and overrides |
 | `svgtoolbox-core` | `VisibilityProcessorTest` (4) | Remove hidden layers by colour |
 | `svgtoolbox-core` | `StyleNormalizerProcessorTest` (2) | Move inline `style` attributes to presentation attributes |

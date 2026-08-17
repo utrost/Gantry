@@ -182,11 +182,13 @@ Turn one successful external test into repeatable onboarding.
      common CH340/CP210x boards, baud rate expectations, GRBL alarm/lock states,
      and how to test with the mock backend first.
 
-4. **Create a sample gallery**
-   - Include known-good SVGs/images for: simple line drawing, hatch/fill,
-     multi-colour/layer, text outline, and image/vectorize.
-   - For each sample, document expected preview size, useful settings, and what a
-     successful plot/export looks like.
+4. **Started:** Create a sample gallery
+   - [`SAMPLE_GALLERY.md`](SAMPLE_GALLERY.md) now includes committed SVG samples
+     for simple line drawing, hatch/fill, multi-colour/layer, and text outline.
+   - Each sample documents expected preview size, useful settings, safe mock/export
+     use, real-plot cautions, and what a successful plot/export looks like.
+   - Image/vectorize samples are deliberately still gated on image-art validation
+     evidence before being promoted as beginner defaults.
 
 5. **Improve release instructions**
    - Keep source build instructions, but make release download the primary path.

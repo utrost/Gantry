@@ -84,8 +84,10 @@ Before using hardware:
 5. Run **Check before plotting** and frame the job before putting the pen down.
 6. Keep a hand near power or emergency stop for the first real test.
 
-Start with a small, simple SVG near the centre of the bed. Avoid full-page or
-watercolor jobs until jog, frame, stop, and pen lift have been verified.
+Start with a small, simple SVG near the centre of the bed. The committed sample
+set in [`SAMPLE_GALLERY.md`](SAMPLE_GALLERY.md) gives you known-good files for a
+first manual import, G-code export, and cautious hardware check. Avoid full-page
+or watercolor jobs until jog, frame, stop, and pen lift have been verified.
 
 ## 6. If something is unclear
 

@@ -27,6 +27,8 @@ start with `./scripts/start.sh`.
 
 - [`docs/FIRST_PLOT.md`](docs/FIRST_PLOT.md) — shortest path to a safe guided
   mock plot and then a small real plot.
+- [`docs/SAMPLE_GALLERY.md`](docs/SAMPLE_GALLERY.md) — small known-good SVGs for
+  mock practice, G-code export, and cautious first hardware checks.
 - [`docs/USER_GUIDE.md`](docs/USER_GUIDE.md) — full operating guide.
 - [`docs/TROUBLESHOOTING.md`](docs/TROUBLESHOOTING.md) — serial ports, GRBL
   states, launch problems, and first-run failures.
