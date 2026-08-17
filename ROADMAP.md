@@ -43,15 +43,15 @@ validation, support, compatibility evidence, and low-key public outreach.
 ### Validate before scheduling
 
 - Multi-document composition: validation slices are now implemented as
-  **File > Append SVG to Current Artwork...**, **Edit > Transform Artwork...**,
-  and **Edit > Re-process Selected Artwork...**. Gantry appends another SVG as
-  addressable artwork layers, initially places it to the right of the current
-  drawing with a 10 mm gap, remaps command IDs, lets each artwork group be
-  moved/scaled/mirrored, can re-run SVG processors for a selected provenance-backed
-  artwork while preserving its transform, keeps those edits undoable, and persists
-  artwork metadata in `.gantry` projects. Future work can add a persistent artwork
-  list/panel or direct canvas handles if dogfooding proves the dialog flow is not
-  enough.
+  **File > Append SVG to Current Artwork...**, **Edit > Artwork Groups...**,
+  **Edit > Transform Artwork...**, and **Edit > Re-process Selected Artwork...**.
+  Gantry appends another SVG as addressable artwork layers, initially places it
+  to the right of the current drawing with a 10 mm gap, remaps command IDs, lets
+  each artwork group be inspected/renamed/moved/scaled/mirrored, can re-run SVG
+  processors for a selected provenance-backed artwork while preserving its
+  transform, keeps those edits undoable, and persists artwork metadata in
+  `.gantry` projects. Future work can add direct canvas handles if dogfooding
+  proves the dialog flow is not enough.
 - Same-colour SVG group/element hatch overrides: click-to-hatch already covers
   most interactive use cases; build group overrides only for repeatable batch
   processing demand.

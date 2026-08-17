@@ -124,6 +124,21 @@ class DocumentCompositionTest {
         assertEquals(new Point(40, 15), replacedDraw.points.get(0));
     }
 
+    @Test
+    void renameArtworkUpdatesOnlyTheHandleAndIsUndoable() {
+        DocumentSession session = new DocumentSession();
+        session.replace(output("main.svg", "main", 0, 0, 10, 10, 1));
+        String id = session.artworks().get(0).id();
+
+        session.renameArtwork(id, "Front registration mark");
+
+        assertEquals("Front registration mark", session.artworks().get(0).label());
+        assertEquals("main", session.currentOutput().layers().get(0).id(), "renaming a group should not rename plotted layers");
+        assertTrue(session.canUndo());
+        session.undo();
+        assertEquals("main.svg", session.artworks().get(0).label());
+    }
+
     private static ProcessorOutput output(String source, String layerId,
             double minX, double minY, double maxX, double maxY, int firstId) {
         List<Command> commands = List.of(

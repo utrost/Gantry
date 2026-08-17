@@ -542,6 +542,8 @@ public class PlotterPanel extends JPanel {
                         + "Edits the command model; does not touch any SVG or G-code file."));
         editMenu.add(tip(menuItem("Transform Artwork...", e -> onTransformArtwork(), true),
                 "Move, scale, or mirror one appended artwork group without touching the other artwork groups."));
+        editMenu.add(tip(menuItem("Artwork Groups...", e -> onArtworkGroups(), true),
+                "Inspect composed artwork groups, then transform, re-process, or rename the selected group."));
         editMenu.add(menuItem("Map Layer Colors to Stations", e -> onMapColorsToStations(), true));
         editMenu.addSeparator();
         hatchRegionModeItem = new JCheckBoxMenuItem("Hatch Region (click areas to fill)");
@@ -1045,10 +1047,42 @@ public class PlotterPanel extends JPanel {
         form.add(new JLabel("Mirror")); form.add(mirror);
         int choice = JOptionPane.showConfirmDialog(this, form, "Transform Artwork",
                 JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
-        if (choice != JOptionPane.OK_OPTION) return;
+        if (choice == JOptionPane.OK_OPTION) transformArtwork(artworks.get(chooser.getSelectedIndex()), x, y, scale, mirror);
+    }
+
+    private void onArtworkGroups() {
+        if (documentSession.currentOutput() == null || documentSession.artworks().isEmpty()) {
+            info("Import or append artwork first.");
+            return;
+        }
+        ArtworkGroupsPanel panel = new ArtworkGroupsPanel(documentSession.artworks(), new ArtworkGroupsPanel.Actions(
+                artwork -> showTransformArtworkDialog(artwork),
+                fileWorkflow::reprocessArtwork,
+                this::renameArtwork));
+        JOptionPane.showMessageDialog(this, panel, "Artwork Groups", JOptionPane.PLAIN_MESSAGE);
+    }
+
+    private void showTransformArtworkDialog(CompositionArtwork artwork) {
+        JTextField x = new JTextField("0", 8);
+        JTextField y = new JTextField("0", 8);
+        JTextField scale = new JTextField("1.0", 8);
+        JCheckBox mirror = new JCheckBox("Mirror horizontally");
+        fillArtworkTransformFields(artwork, x, y, scale, mirror);
+        JPanel form = new JPanel(new GridLayout(0, 2, 6, 6));
+        form.add(new JLabel("Artwork")); form.add(new JLabel(artwork.label()));
+        form.add(new JLabel("X position (mm)")); form.add(x);
+        form.add(new JLabel("Y position (mm)")); form.add(y);
+        form.add(new JLabel("Scale")); form.add(scale);
+        form.add(new JLabel("Mirror")); form.add(mirror);
+        int choice = JOptionPane.showConfirmDialog(this, form, "Transform Artwork",
+                JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
+        if (choice == JOptionPane.OK_OPTION) transformArtwork(artwork, x, y, scale, mirror);
+    }
+
+    private void transformArtwork(CompositionArtwork artwork, JTextField x, JTextField y,
+            JTextField scale, JCheckBox mirror) {
         try {
-            CompositionArtwork selected = artworks.get(chooser.getSelectedIndex());
-            documentSession.transformArtwork(selected.id(), new CompositionArtwork.Transform(
+            documentSession.transformArtwork(artwork.id(), new CompositionArtwork.Transform(
                     Double.parseDouble(x.getText().trim()),
                     Double.parseDouble(y.getText().trim()),
                     Double.parseDouble(scale.getText().trim()),
@@ -1056,11 +1090,21 @@ public class PlotterPanel extends JPanel {
             visPanel.loadPathsPreservingOverlay(documentSession.currentOutput());
             refreshDocumentUi();
             documentEditor.historyAvailability();
-            log("Transformed artwork " + selected.label());
+            log("Transformed artwork " + artwork.label());
             showUndoFeedback("Artwork transformed.");
         } catch (NumberFormatException ex) {
             error("Transform values must be numbers. Scale must be greater than 0.");
         }
+    }
+
+    private void renameArtwork(CompositionArtwork artwork) {
+        String label = JOptionPane.showInputDialog(this, "Artwork label", artwork.label());
+        if (label == null || label.isBlank()) return;
+        documentSession.renameArtwork(artwork.id(), label);
+        refreshDocumentUi();
+        documentEditor.historyAvailability();
+        log("Renamed artwork " + artwork.label() + " to " + label.trim());
+        showUndoFeedback("Artwork renamed.");
     }
 
     private static void fillArtworkTransformFields(CompositionArtwork artwork, JTextField x, JTextField y,

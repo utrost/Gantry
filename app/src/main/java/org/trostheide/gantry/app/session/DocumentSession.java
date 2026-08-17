@@ -188,6 +188,17 @@ public final class DocumentSession {
         clearSource();
     }
 
+    public void renameArtwork(String artworkId, String label) {
+        Objects.requireNonNull(artworkId, "artworkId");
+        int artworkIndex = indexOfArtwork(artworkId);
+        if (artworkIndex < 0 || label == null || label.isBlank()) return;
+        snapshotForUndo();
+        List<CompositionArtwork> nextArtworks = new ArrayList<>(artworks);
+        nextArtworks.set(artworkIndex, nextArtworks.get(artworkIndex).withLabel(label.trim()));
+        artworks = List.copyOf(nextArtworks);
+        dirty = true;
+    }
+
     public void restoreArtworks(Collection<CompositionArtwork> restoredArtworks) {
         artworks = restoredArtworks == null ? List.of() : List.copyOf(restoredArtworks);
     }

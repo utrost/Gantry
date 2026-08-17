@@ -26,6 +26,11 @@ public record CompositionArtwork(String id, String label, String sourcePath,
                 importOptions, processingRecipe);
     }
 
+    public CompositionArtwork withLabel(String nextLabel) {
+        return new CompositionArtwork(id, nextLabel == null || nextLabel.isBlank() ? label : nextLabel, sourcePath,
+                layerIndices, originalBounds, bounds, transform, importOptions, processingRecipe);
+    }
+
     public CompositionArtwork withBoundsAndTransform(Bounds nextBounds, Transform nextTransform) {
         return new CompositionArtwork(id, label, sourcePath, layerIndices, originalBounds, nextBounds, nextTransform,
                 importOptions, processingRecipe);
