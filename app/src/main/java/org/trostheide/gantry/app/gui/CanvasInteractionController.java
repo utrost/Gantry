@@ -79,6 +79,18 @@ final class CanvasInteractionController {
                         }
                     }
                 }
+                if (SwingUtilities.isLeftMouseButton(e) && panel.interactionMode == VisualizationPanel.InteractionMode.NONE
+                        && panel.artworks.size() > 1) {
+                    org.trostheide.gantry.app.session.CompositionArtwork artwork = panel.artworkAt(e.getX(), e.getY());
+                    panel.selectedArtworkId = artwork == null ? null : artwork.id();
+                    panel.repaint();
+                    if (artwork != null) {
+                        panel.artworkDragStart = panel.interaction.screenToModel(e.getX(), e.getY());
+                        panel.artworkDragCurrent = panel.artworkDragStart;
+                        panel.setCursor(Cursor.getPredefinedCursor(Cursor.MOVE_CURSOR));
+                        return;
+                    }
+                }
                 // Drawing move/resize handles only act in the default (NONE) mode; in an edit mode an
                 // unconsumed left-press pans instead of grabbing the whole-drawing handle.
                 int handle = (panel.interactionMode == VisualizationPanel.InteractionMode.NONE && !panel.allPaths.isEmpty())
@@ -98,6 +110,10 @@ final class CanvasInteractionController {
 
             @Override
             public void mouseDragged(MouseEvent e) {
+                if (panel.artworkDragStart != null) {
+                    panel.artworkDragCurrent = panel.interaction.screenToModel(e.getX(), e.getY());
+                    return;
+                }
                 if (panel.panning) {
                     panel.viewPanX += e.getX() - panel.panLastX;
                     panel.viewPanY += e.getY() - panel.panLastY;
@@ -145,6 +161,19 @@ final class CanvasInteractionController {
             @Override
             public void mouseReleased(MouseEvent e) {
                 if (maybeShowPopup(e)) return;
+                if (panel.artworkDragStart != null) {
+                    double[] end = panel.artworkDragCurrent;
+                    double dx = end == null ? 0 : end[0] - panel.artworkDragStart[0];
+                    double dy = end == null ? 0 : end[1] - panel.artworkDragStart[1];
+                    panel.artworkDragStart = null;
+                    panel.artworkDragCurrent = null;
+                    panel.setCursor(Cursor.getDefaultCursor());
+                    if ((Math.abs(dx) > 1e-6 || Math.abs(dy) > 1e-6)
+                            && panel.artworkInteractionListener != null && panel.selectedArtworkId != null) {
+                        panel.artworkInteractionListener.onArtworkMoved(panel.selectedArtworkId, dx, dy);
+                    }
+                    return;
+                }
                 if (panel.panning) {
                     panel.panning = false;
                     panel.setCursor(Cursor.getPredefinedCursor(panel.interactionMode == VisualizationPanel.InteractionMode.NONE
@@ -184,9 +213,14 @@ final class CanvasInteractionController {
                 panel.lastPopupX = e.getX();
                 panel.lastPopupY = e.getY();
                 panel.lastPopupMm = panel.interaction.screenToPhysical(e.getX(), e.getY());
+                org.trostheide.gantry.app.session.CompositionArtwork artwork = panel.artworkAt(e.getX(), e.getY());
+                if (artwork != null) panel.selectedArtworkId = artwork.id();
                 boolean hasDrawing = !panel.allPaths.isEmpty();
                 for (Component item : panel.drawingMenuItems) {
                     item.setEnabled(hasDrawing);
+                }
+                for (Component item : panel.artworkMenuItems) {
+                    item.setEnabled(panel.selectedArtworkId != null);
                 }
                 panel.ctxHatchItem.setSelected(panel.interactionMode == VisualizationPanel.InteractionMode.HATCH);
                 panel.ctxDeleteItem.setSelected(panel.interactionMode == VisualizationPanel.InteractionMode.DELETE_STROKE);

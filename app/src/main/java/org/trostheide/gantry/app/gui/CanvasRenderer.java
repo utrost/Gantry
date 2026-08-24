@@ -221,10 +221,14 @@ final class CanvasRenderer {
 
         // --- Draw Interactive Bounding Box ---
         if (!panel.allPaths.isEmpty()) {
+            org.trostheide.gantry.app.session.CompositionArtwork selectedArtwork = panel.selectedArtwork();
+            org.trostheide.gantry.model.Bounds selectedBounds = selectedArtwork == null ? null : selectedArtwork.bounds();
             // Transform raw content corners through the full pipeline
             VisualizationPanel.Point2D[] corners = {
-                new VisualizationPanel.Point2D(panel.rawMinX, panel.rawMinY), new VisualizationPanel.Point2D(panel.rawMaxX, panel.rawMinY),
-                new VisualizationPanel.Point2D(panel.rawMinX, panel.rawMaxY), new VisualizationPanel.Point2D(panel.rawMaxX, panel.rawMaxY)
+                new VisualizationPanel.Point2D(selectedBounds == null ? panel.rawMinX : selectedBounds.minX(), selectedBounds == null ? panel.rawMinY : selectedBounds.minY()),
+                new VisualizationPanel.Point2D(selectedBounds == null ? panel.rawMaxX : selectedBounds.maxX(), selectedBounds == null ? panel.rawMinY : selectedBounds.minY()),
+                new VisualizationPanel.Point2D(selectedBounds == null ? panel.rawMinX : selectedBounds.minX(), selectedBounds == null ? panel.rawMaxY : selectedBounds.maxY()),
+                new VisualizationPanel.Point2D(selectedBounds == null ? panel.rawMaxX : selectedBounds.maxX(), selectedBounds == null ? panel.rawMaxY : selectedBounds.maxY())
             };
             double sMinX = Double.MAX_VALUE, sMinY = Double.MAX_VALUE;
             double sMaxX = -Double.MAX_VALUE, sMaxY = -Double.MAX_VALUE;

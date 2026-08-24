@@ -114,9 +114,10 @@ Risks:
    - File > Append SVG to Current Artwork adds another SVG as an addressable artwork group.
    - Edit > Artwork Groups lists groups with size/source/transform and offers transform, re-process, and rename actions.
    - Edit > Transform Artwork can move, scale, or mirror one artwork group while leaving the others alone.
+   - The Live View can select and drag one artwork group directly; its context menu exposes precise per-artwork transforms and the shared Add artwork flow.
    - Edit > Re-process Selected Artwork can re-run SVG processors for one provenance-backed artwork while preserving its transform.
    - Use it for sticker sheets, borders, registration marks, and mixed generated art.
-   - Only add direct canvas handles or richer composition controls after real daily-use friction appears.
+   - Direct selection and movement are now available; add richer per-artwork handles only when daily-use evidence justifies them.
 
 ## Decision frame for incoming work
 

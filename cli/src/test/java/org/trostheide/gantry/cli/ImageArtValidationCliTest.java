@@ -7,6 +7,7 @@ import org.junit.jupiter.api.io.TempDir;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Locale;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -52,7 +53,7 @@ class ImageArtValidationCliTest {
                          int tinySegments, double estimatedSeconds, String formatted,
                          String warningsJson) throws Exception {
         Path path = tmp.resolve(fileName);
-        Files.writeString(path, """
+        Files.writeString(path, String.format(Locale.ROOT, """
                 {
                   "commandFile": "%s",
                   "layers": 1,
@@ -67,7 +68,7 @@ class ImageArtValidationCliTest {
                   "plotTime": {"feedRateDraw": 1200, "feedRateTravel": 2400, "penDownDelayMillis": 100, "estimatedSeconds": %.4f, "formatted": "%s"},
                   "warnings": %s
                 }
-                """.formatted(commandFile, commands, commands / 2, commands * 2,
+                """, commandFile, commands, commands / 2, commands * 2,
                 travelRatio * 100.0, travelRatio, tinySegments, estimatedSeconds, formatted, warningsJson));
         return path;
     }

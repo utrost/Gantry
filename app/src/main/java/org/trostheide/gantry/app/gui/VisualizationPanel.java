@@ -1,6 +1,8 @@
 package org.trostheide.gantry.app.gui;
 
 import org.trostheide.gantry.app.session.GantryProject;
+import org.trostheide.gantry.app.session.CompositionArtwork;
+import org.trostheide.gantry.model.Bounds;
 import org.trostheide.gantry.model.CoordinateTransform;
 import org.trostheide.gantry.model.Layer;
 import org.trostheide.gantry.model.ProcessorOutput;
@@ -45,6 +47,11 @@ public class VisualizationPanel extends JPanel {
      *  its {@code DrawCommand} for deletion (Tier A stroke editing). */
     final List<Integer> pathCommandId = new ArrayList<>();
     final List<String> pathLayerId = new ArrayList<>();
+    List<CompositionArtwork> artworks = List.of();
+    String selectedArtworkId;
+    double[] artworkDragStart;
+    double[] artworkDragCurrent;
+    ArtworkInteractionListener artworkInteractionListener;
 
     enum StrokeProgressState { PENDING, ACTIVE, COMPLETED }
     private record StrokeKey(String layerId, int commandId) { }
@@ -302,6 +309,8 @@ public class VisualizationPanel extends JPanel {
     // Listener invoked when the user removes the drawing via the context menu, so the containing
     // panel can drop its own loaded-output state (otherwise a plot/export would still use it).
     Runnable removeDrawingListener;
+    // Opens the application's existing add-artwork choices from the canvas context menu.
+    Runnable addArtworkAction;
 
     public void setOverlayChangeListener(Runnable listener) {
         this.overlayChangeListener = listener;
@@ -309,6 +318,44 @@ public class VisualizationPanel extends JPanel {
 
     public void setRemoveDrawingListener(Runnable listener) {
         this.removeDrawingListener = listener;
+    }
+
+    public void setAddArtworkAction(Runnable action) {
+        this.addArtworkAction = action;
+    }
+
+    public interface ArtworkInteractionListener {
+        void onArtworkMoved(String artworkId, double dx, double dy);
+        void onTransformArtwork(String artworkId);
+    }
+
+    public void setArtworkInteractionListener(ArtworkInteractionListener listener) {
+        artworkInteractionListener = listener;
+    }
+
+    public void setArtworks(List<CompositionArtwork> nextArtworks) {
+        artworks = nextArtworks == null ? List.of() : List.copyOf(nextArtworks);
+        if (selectedArtworkId != null && artworks.stream().noneMatch(a -> a.id().equals(selectedArtworkId))) {
+            selectedArtworkId = null;
+        }
+        repaint();
+    }
+
+    CompositionArtwork selectedArtwork() {
+        if (selectedArtworkId == null) return null;
+        return artworks.stream().filter(a -> a.id().equals(selectedArtworkId)).findFirst().orElse(null);
+    }
+
+    CompositionArtwork artworkAt(int px, int py) {
+        double[] point = interaction.screenToModel(px, py);
+        if (point == null) return null;
+        for (int i = artworks.size() - 1; i >= 0; i--) {
+            CompositionArtwork artwork = artworks.get(i);
+            Bounds bounds = artwork.bounds();
+            if (bounds != null && point[0] >= bounds.minX() && point[0] <= bounds.maxX()
+                    && point[1] >= bounds.minY() && point[1] <= bounds.maxY()) return artwork;
+        }
+        return null;
     }
 
     /** Clears the loaded drawing and resets the overlay transform, leaving an empty bed. */
@@ -560,6 +607,7 @@ public class VisualizationPanel extends JPanel {
 
     /** Context-menu entries that only make sense with a loaded drawing (toggled per right-click). */
     List<JMenuItem> drawingMenuItems = new ArrayList<>();
+    List<JMenuItem> artworkMenuItems = new ArrayList<>();
 
     // ----- Data Loading -----
 

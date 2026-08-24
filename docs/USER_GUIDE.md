@@ -239,6 +239,7 @@ sensible size; pick a tab to edit that group. Changes take effect after clicking
 | Z up / down | Z-axis positions (mm) for pen-up / pen-down when using `zaxis` mode |
 | Draw feed rate | Mm/min while drawing (default 1000) |
 | Travel feed rate | Mm/min while moving without drawing (default 3000) |
+| G-code timeout (seconds) | Maximum wait for a controller acknowledgement (default 600). Increase it for firmware that acknowledges only after completing very long, low-speed moves. |
 | Pen down delay (ms) | Dwell after lowering the pen before drawing starts (default 80). If your lines begin with a small ink blob/dot — the pen sitting still on the paper while ink bleeds — lower this (try 40, or 0 for a fast pen). Raise it only if a slow pen mechanism skips the first millimetre of a line. |
 
 Saving pen, Z, or feed-rate settings updates an already connected backend
@@ -329,10 +330,13 @@ transform it, or re-process it. **Edit > Transform Artwork...** and
 **Edit > Re-process Selected Artwork...** remain available as direct menu shortcuts.
 The re-process action is available only for artwork groups that still have saved
 SVG import provenance; command JSON or older projects without source provenance
-cannot recreate the source SVG. Use the existing canvas placement and machine
-alignment controls to position the whole composed job on the bed. This is not a
-full vector editor: individual path nodes are still edited with the existing line
-tools.
+cannot recreate the source SVG. On the canvas, click an artwork in a composition
+to select that group. Its selection box replaces the whole-composition box, and
+dragging moves only that artwork. Right-click the selected group and choose
+**Transform selected artwork...** for precise X/Y, scale, and mirror controls.
+Click empty canvas space to clear the group selection and return to positioning
+the whole composed job. This is not a full vector editor: individual path nodes
+are still edited with the existing line tools.
 
 The importer flips the Y axis automatically: SVG uses a top-left origin with Y growing downward, while the plotter measures Y upward from the machine origin, so drawings are turned upright on import (they would otherwise appear upside down). The **Flip Y** setting remains available as a manual override for unusual hardware — leave it off for normal use.
 

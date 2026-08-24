@@ -8,6 +8,7 @@ import javax.swing.border.EmptyBorder;
 import java.awt.*;
 import java.io.File;
 import java.util.List;
+import java.util.Locale;
 import java.util.function.Consumer;
 
 /** Inspector/actions panel for addressable artwork groups in a composed document. */
@@ -116,17 +117,17 @@ final class ArtworkGroupsPanel extends JPanel {
 
     private static String boundsLabel(Bounds bounds) {
         if (bounds == null) return "unknown";
-        return String.format("x %.1f, y %.1f, %s", bounds.minX(), bounds.minY(), sizeLabel(bounds));
+        return String.format(Locale.ROOT, "x %.1f, y %.1f, %s", bounds.minX(), bounds.minY(), sizeLabel(bounds));
     }
 
     private static String sizeLabel(Bounds bounds) {
         if (bounds == null) return "unknown size";
-        return String.format("%.1f × %.1f mm", Math.max(0, bounds.maxX() - bounds.minX()),
+        return String.format(Locale.ROOT, "%.1f × %.1f mm", Math.max(0, bounds.maxX() - bounds.minX()),
                 Math.max(0, bounds.maxY() - bounds.minY()));
     }
 
     private static String transformLabel(CompositionArtwork.Transform transform) {
-        return String.format("x %.1f, y %.1f, scale %.3f%s", transform.x(), transform.y(), transform.scale(),
+        return String.format(Locale.ROOT, "x %.1f, y %.1f, scale %.3f%s", transform.x(), transform.y(), transform.scale(),
                 transform.mirror() ? ", mirrored" : "");
     }
 }

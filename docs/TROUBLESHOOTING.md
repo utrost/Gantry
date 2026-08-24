@@ -141,6 +141,14 @@ Check the configured pen mode:
 Test lift with the pen clear of the paper first. For early tests, keep the pen
 holder high enough that a wrong value cannot gouge the paper or bed.
 
+## Long, slow move reports a G-code response timeout
+
+Some controller firmware sends `ok` only after a move completes. A long segment
+at a low feed rate can therefore be healthy even when no acknowledgement arrives
+for several minutes. Open **Settings > Pen / Speed** and increase **G-code Timeout
+(seconds)**. The default is 600 seconds (10 minutes), and the maximum is 3600
+seconds. Gantry still reports a closed serial port or GRBL alarm immediately.
+
 ## Stop/cancel behavior
 
 Gantry's safety invariant is that stopping, cancelling, or failing should raise

@@ -185,6 +185,24 @@ public class PlotterPanel extends JPanel {
             public void overlayChanged(){resetReplot();documentSession.markDirty();scheduleRecovery();updateDirtyIndicator();refreshGuidance();}
             public void log(String line){PlotterPanel.this.log(line);}
         });
+        visPanel.setAddArtworkAction(() -> showAddArtworkMenu(visPanel));
+        visPanel.setArtworkInteractionListener(new VisualizationPanel.ArtworkInteractionListener() {
+            public void onArtworkMoved(String artworkId, double dx, double dy) {
+                CompositionArtwork artwork = artworkById(artworkId);
+                if (artwork == null) return;
+                CompositionArtwork.Transform transform = artwork.transform();
+                documentSession.transformArtwork(artworkId, new CompositionArtwork.Transform(
+                        transform.x() + dx, transform.y() + dy, transform.scale(), transform.mirror()));
+                visPanel.loadPathsPreservingOverlay(documentSession.currentOutput());
+                refreshDocumentUi();
+                documentEditor.historyAvailability();
+                showUndoFeedback("Artwork moved.");
+            }
+            public void onTransformArtwork(String artworkId) {
+                CompositionArtwork artwork = artworkById(artworkId);
+                if (artwork != null) showTransformArtworkDialog(artwork);
+            }
+        });
         dialogs = new ApplicationDialogs(this, () -> config, this::saveSettings, this::onSetupWizard,
                 this::onOptimize, () -> documentSession.currentOutput() != null);
         rawCommands = new RawCommandPanel(this::runOnBackend, this::log);
@@ -1099,6 +1117,11 @@ public class PlotterPanel extends JPanel {
         JOptionPane.showMessageDialog(this, panel, "Artwork Groups", JOptionPane.PLAIN_MESSAGE);
     }
 
+    private CompositionArtwork artworkById(String artworkId) {
+        return documentSession.artworks().stream()
+                .filter(artwork -> artwork.id().equals(artworkId)).findFirst().orElse(null);
+    }
+
     private void showTransformArtworkDialog(CompositionArtwork artwork) {
         JTextField x = new JTextField("0", 8);
         JTextField y = new JTextField("0", 8);
@@ -1662,6 +1685,7 @@ public class PlotterPanel extends JPanel {
 
     private void refreshDocumentUi() {
         artworkWorkspace.setHasArtwork(documentSession.currentOutput() != null);
+        visPanel.setArtworks(documentSession.artworks());
         refreshLayerSelector();
         overlayControls.refreshPosition();
         refreshTimeEstimate();

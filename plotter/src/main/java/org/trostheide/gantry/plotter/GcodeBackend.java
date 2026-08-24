@@ -440,7 +440,7 @@ public class GcodeBackend implements PlotterBackend {
     }
 
     private void waitForOk() {
-        waitForOk(30);
+        waitForOk(Math.max(1, options.responseTimeoutSeconds));
     }
 
     private void waitForOk(long timeoutSeconds) {

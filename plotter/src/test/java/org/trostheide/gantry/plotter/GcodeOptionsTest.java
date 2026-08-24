@@ -16,6 +16,7 @@ class GcodeOptionsTest {
         changed.zDown = -0.01;
         changed.penServoUp = 0;
         changed.penServoDown = 0;
+        changed.responseTimeoutSeconds = 900;
 
         live.copyFrom(changed);
 
@@ -25,5 +26,11 @@ class GcodeOptionsTest {
         assertEquals(-0.01, backend.getOptions().zDown);
         assertEquals(0, backend.getOptions().penServoUp);
         assertEquals(0, backend.getOptions().penServoDown);
+        assertEquals(900, backend.getOptions().responseTimeoutSeconds);
+    }
+
+    @Test
+    void slowMotionFriendlyResponseTimeoutDefaultsToTenMinutes() {
+        assertEquals(600, new GcodeOptions().responseTimeoutSeconds);
     }
 }

@@ -336,7 +336,9 @@ Implementations:
 
 `GcodeOptions` holds serial + machine + pen + feed-rate config (`serialPort`,
 `baudRate`, `penMode`, `feedRateDraw/Travel`, `penServoUp/Down`, `zUp/zDown`,
-`machineWidth/Height`, poll interval, boot delay). Settings apply changes with
+`machineWidth/Height`, poll interval, boot delay, and the configurable
+`responseTimeoutSeconds` (600 seconds by default for firmware that acknowledges
+only after completing long moves). Settings apply changes with
 `GcodeOptions.copyFrom(...)` so an active backend retains the same options
 instance and observes pen/Z/feed updates without reconnecting.
 
@@ -412,10 +414,14 @@ Swing + FlatLaf dark theme. `GantryApp#main` sets up `FlatDarkLaf`, builds a
   `CanvasInteractionGeometry`, and popup construction to `CanvasContextMenu`.
   Deterministic colour and segment calculations live in the directly tested
   `CanvasPalette` and `CanvasGeometry`. The canvas draws the bed, drawing, moving
-  cursor, and interactive positioning overlay
-  (`overlayOffsetX/Y`, `overlayScale`, `overlayRotation`, `overlayMirror` — a
-  **single global transform**, i.e. exactly one drawing today; multi-document is
-  deliberately deferred pending a validated workflow). Drag/scale/rotate/mirror + a right-click context menu. Uses
+  cursor, and interactive positioning overlay. Composed documents push their
+  `CompositionArtwork` list into the canvas; click hit-testing selects one artwork,
+  drag gestures commit one undoable `DocumentSession.transformArtwork(...)`, and
+  `CanvasContextMenu` routes Add artwork and precise selected-artwork transforms.
+  Whole-document positioning uses `overlayOffsetX/Y`, `overlayScale`,
+  `overlayRotation`, and `overlayMirror` as a single final placement transform
+  over the composed command model. Drag/scale/rotate/mirror and the right-click
+  context menu share that canvas pipeline. It uses
   `CoordinateTransform.applyOverlayRaw` + `physicalToScreen` so preview matches
   plotted output. Tracks each rendered stroke's source layer (`pathLayer`) so
   `setSelectedLayers(indices)` can draw a chosen subset of layers in full colour and

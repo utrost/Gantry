@@ -28,6 +28,13 @@ public class GcodeOptions {
     public int bootDelayMillis = 2000;
 
     /**
+     * Maximum wait for a command acknowledgement. Some controller firmware acknowledges a move
+     * only after motion completes, so low-feed or long-distance segments can legitimately take
+     * several minutes. Serial disconnects and GRBL alarms are still reported immediately.
+     */
+    public int responseTimeoutSeconds = 600;
+
+    /**
      * Dwell after each pen-down, in milliseconds, to let a (possibly slow) servo/Z move finish
      * lowering before drawing starts. Kept short by default: a long dwell leaves a wet pen
      * sitting motionless on the paper, which pools ink into a visible dot at the start of every
@@ -58,6 +65,7 @@ public class GcodeOptions {
         machineHeight = source.machineHeight;
         positionPollIntervalSeconds = source.positionPollIntervalSeconds;
         bootDelayMillis = source.bootDelayMillis;
+        responseTimeoutSeconds = source.responseTimeoutSeconds;
         penDownDelayMillis = source.penDownDelayMillis;
     }
 }

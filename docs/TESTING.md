@@ -41,7 +41,7 @@ Expected output: `BUILD SUCCESS` with zero failures across all modules.
 | `model` | `ProcessorOutputJsonTest`, `CoordinateTransformTest` | JSON round-trip of `ProcessorOutput`; coordinate transform (rotate/swap/invert/align) in all axis combinations |
 | `pipeline-core` | `SvgImportStageTest` | SVG parsing and command-model extraction: paths/primitives and text-to-glyph outlines, layered SVG, content-fit and preserved-viewBox A4 scaling, refill insertion, curve flattening, transforms, mirroring, and page-border filtering |
 | `pipeline-core` | `OptimizeStageTest` (8), `MultipassStageTest` | RDP simplify, greedy-NN reorder, cooperative cancellation without input mutation, multipass command expansion; stroke welding (touching segments merge into one polyline, reverse-when-only-end-touches, disjoint stay separate, zero tolerance disables) |
-| `plotter` | `GcodeBackendTest`, `GcodeOptionsTest` | G-code formatting and GRBL safety: init, pen modes, moves, raw send, realtime state, Alarm recovery, acknowledged pen-up before homing, serial failure propagation, and in-place live option updates |
+| `plotter` | `GcodeBackendTest`, `GcodeOptionsTest` | G-code formatting and GRBL safety: init, pen modes, moves, raw send, realtime state, Alarm recovery, acknowledged pen-up before homing, serial failure propagation, configurable long-move response timeouts, and in-place live option updates |
 | `app` | `PlotServiceTest` | Full plot orchestration: layer sequencing, refill at layer boundary, cancel mid-plot, OOB clamping, per-waypoint position callbacks |
 | `app` | `StudioMetricsTest` (4) | Vectorize-studio plottability metrics: stroke/point counts, draw-vs-travel separation, scale-invariant travel ratio, no-double-count on stroke approach |
 | `app` | `BusyOverlayTest` | Cancellable background-work overlay exposes animated progress, invokes Cancel, and changes to a disabled Cancelling state |
@@ -49,7 +49,7 @@ Expected output: `BUILD SUCCESS` with zero failures across all modules.
 | `app` | `SoftLimitsTest` (7) | Orientation-aware jog soft-limit clamp: within-bounds passthrough, clamp at 0/width/height, inverted-X negative bed, top-right origin (negative both axes), swapped-axis bounds, at-wall returns same point (stops continuous jog) |
 | `app` | `TimeEstimatorTest` (7) | Travel/draw distances use their respective feed rates; refill travel + fixed dip overhead; unknown station falls back to default; pen-down settle overhead charged once per `DrawCommand` and driven by the configurable `penDownDelayMillis` (0 removes it); multi-layer totals; `H:MM:SS` formatting |
 | `app` | `HatchOverridesPanelTest`, `ToolboxOptionsPanelTest`, `SvgFillColorsTest` | Per-colour hatch table validation and mapping into `Config.overrides`; discovery of explicit SVG fill colours |
-| `app` | `DocumentSessionTest`, `DocumentCompositionTest`, `GantryProjectIOTest` | Multi-level model undo/redo, append-SVG composition with addressable artwork groups, side-by-side placement, unique command IDs, per-artwork move/scale/mirror transforms, and `.gantry` project round-trip |
+| `app` | `DocumentSessionTest`, `DocumentCompositionTest`, `GantryProjectIOTest`, `CanvasContextMenuTest` | Multi-level model undo/redo, append-SVG composition with addressable artwork groups, side-by-side placement, unique command IDs, per-artwork move/scale/mirror transforms, canvas artwork action routing, and `.gantry` project round-trip |
 | `app` | `PlotJobHistoryTest`, `VisualizationTravelTest` | Persistent prepared-job history and travel accounting across layer boundaries |
 | `vectorize` | `IntegrationTest`, `BoofcvBatikVectorTest`, `StrategiesTest`, `PaintByNumbersTest` (86) | Raster→SVG engine: contour extraction, all eight strategies, polyline/Bézier geometry, auto-Canny, crop, SVG optimisation, Paint-by-Numbers quantisation/regions/labels |
 | `cli` | `VectorizeCliTest` (2) | `VectorizeCli` wiring: image→SVG, and the `--`-separated image→SVG→command-JSON chain (argument split, SVG-path derivation, `-i` injection) |
@@ -455,11 +455,25 @@ a `testdata/` folder.
 
 #### TS-K2 — Live View context menu *(mock OK)*
 1. **Right-click** the Live View with a drawing loaded.
-   - [ ] Context menu: **Add station here**, then (after a separator) **Remove Drawing**, **Reset Position**, **Rotate 90°**, **Mirror**.
+   - [ ] Context menu includes **Add artwork...**, **Add station here**, then drawing/edit actions including **Remove Drawing**, **Reset Position**, **Rotate 90°**, and **Mirror**.
+   - [ ] **Add artwork...** opens the normal artwork choices; with artwork loaded it includes **Append SVG to current artwork**.
 2. **Remove Drawing**.
    - [ ] Canvas clears; console logs `Removed the loaded drawing.`; a subsequent Start Plot / Export reports nothing loaded.
 3. Right-click again with nothing loaded.
-   - [ ] The drawing-specific items (**Remove Drawing**, **Reset Position**, **Rotate 90°**, **Mirror**) are greyed out, but **Add station here** stays enabled (it does not depend on a loaded drawing).
+   - [ ] The drawing-specific items (**Remove Drawing**, **Reset Position**, **Rotate 90°**, **Mirror**) are greyed out, but **Add artwork...** and **Add station here** stay enabled.
+
+#### TS-K3 — Per-artwork composition manipulation *(mock OK)*
+1. Open one SVG, then use **File > Append SVG to Current Artwork...** to add a second.
+   - [ ] Both SVGs remain visible as separate artwork groups.
+2. Click the appended artwork and drag it.
+   - [ ] The selection box surrounds only that artwork and only that artwork moves.
+   - [ ] **Edit > Undo** restores its previous position without changing the other artwork.
+3. Right-click the selected artwork and choose **Transform selected artwork...**.
+   - [ ] Precise X/Y, scale, and mirror changes apply only to the selected artwork.
+4. Save as `.gantry`, close, and reopen the project.
+   - [ ] Both artworks and their independent transforms are restored.
+5. Click empty canvas space.
+   - [ ] Artwork selection clears and whole-composition positioning is available again.
 
 ---
 

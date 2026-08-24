@@ -9,6 +9,20 @@ final class CanvasContextMenu {
     static JPopupMenu build(VisualizationPanel panel) {
         JPopupMenu menu = new JPopupMenu();
 
+        JMenuItem addArtwork = new JMenuItem("Add artwork...");
+        addArtwork.addActionListener(e -> {
+            if (panel.addArtworkAction != null) panel.addArtworkAction.run();
+        });
+        menu.add(addArtwork);
+        JMenuItem transformArtwork = new JMenuItem("Transform selected artwork...");
+        transformArtwork.addActionListener(e -> {
+            if (panel.artworkInteractionListener != null && panel.selectedArtworkId != null) {
+                panel.artworkInteractionListener.onTransformArtwork(panel.selectedArtworkId);
+            }
+        });
+        menu.add(transformArtwork);
+        menu.addSeparator();
+
         // Always available (Phase 17): drop a refill station at the clicked bed position. The
         // controller turns the mm coordinate into a real StationConfig and re-pushes the list.
         JMenuItem addStation = new JMenuItem("Add station here");
@@ -110,6 +124,7 @@ final class CanvasContextMenu {
 
         panel.drawingMenuItems = List.of(remove, reset, rotate, mirror, hatchHere, clearHatchHere,
                 deleteHere, duplicateHere);
+        panel.artworkMenuItems = List.of(transformArtwork);
         return menu;
 
     }

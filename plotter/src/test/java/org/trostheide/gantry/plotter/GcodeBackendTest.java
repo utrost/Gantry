@@ -61,6 +61,20 @@ class GcodeBackendTest {
     }
 
     @Test
+    void configuredResponseTimeoutIsUsedForCommands() {
+        GcodeOptions options = new GcodeOptions();
+        options.responseTimeoutSeconds = 1;
+        GcodeBackend b = newBackend(options);
+        assertTrue(b.connect());
+        fake.setAutoAck(false);
+
+        GcodeBackendException failure = assertThrows(GcodeBackendException.class,
+                () -> b.moveto(100, 100));
+
+        assertTrue(failure.getMessage().contains("timeout after 1s"));
+    }
+
+    @Test
     void linetoLowersPenThenSendsDrawMoveWithDrawFeed() {
         GcodeBackend b = connected();
 
