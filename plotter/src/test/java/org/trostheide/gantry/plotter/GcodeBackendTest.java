@@ -322,11 +322,73 @@ class GcodeBackendTest {
         b.home();
 
         List<String> homing = fake.sentCommands().subList(beforeHome, fake.sentCommands().size());
-        assertTrue(homing.size() >= 4, "expected unlock, pen-up, home, and origin reset: " + homing);
+        assertTrue(homing.size() >= 5, "expected unlock, pen-up, home, final pen-up, and origin reset: " + homing);
         assertEquals("$X", homing.get(0)); // unlock only; it cannot move an axis
         assertEquals("G0 Z7.50", homing.get(1)); // first motion must lift the pen
         assertEquals("$H", homing.get(2)); // homing motion may only start after the lift is acknowledged
-        assertEquals("G92 X0 Y0", homing.get(3));
+        assertEquals("G0 Z7.50", homing.get(3)); // $H may home/pull off Z; restore safe pen-up
+        assertEquals("G92 X0 Y0", homing.get(4));
+    }
+
+    @Test
+    void homeAfterStoppedPlotLiftsThenHomesOnFirstRequest() {
+        GcodeOptions options = new GcodeOptions();
+        options.penMode = "zaxis";
+        options.zUp = 7.5;
+        GcodeBackend b = newBackend(options);
+        assertTrue(b.connect());
+        b.pendown();
+        b.haltMotion();
+
+        int beforeHome = fake.sentCommands().size();
+        b.home();
+
+        List<String> homing = fake.sentCommands().subList(beforeHome, fake.sentCommands().size());
+        assertEquals(List.of("$X", "G0 Z7.50", "$H", "G0 Z7.50", "G92 X0 Y0"), homing,
+                "Home must establish pen-up before $H and restore it after firmware Z pull-off");
+    }
+
+    @Test
+    void homeWaitsForPenLiftMotionToBecomeIdleBeforeSendingHomingCycle() throws Exception {
+        GcodeOptions options = new GcodeOptions();
+        options.penMode = "zaxis";
+        options.zUp = 7.5;
+        options.positionPollIntervalSeconds = 60;
+        GcodeBackend b = newBackend(options);
+        assertTrue(b.connect());
+        fake.holdZMotionUntilReleased();
+
+        Thread home = new Thread(b::home, "home-test");
+        home.start();
+        awaitCommand("G0 Z7.50");
+        Thread.sleep(100);
+        assertFalse(fake.sentCommands().contains("$H"),
+                "$H must not be sent while the pen-up move still reports Run");
+
+        fake.releaseZMotion();
+        home.join(2000);
+        assertFalse(home.isAlive(), "home did not continue after the controller became Idle");
+        assertTrue(fake.sentCommands().contains("$H"));
+        List<String> sent = fake.sentCommands();
+        assertEquals("G0 Z7.50", sent.get(sent.lastIndexOf("$H") + 1));
+    }
+
+    @Test
+    void drawCoreHomesXAndYWithoutIncludingPenLiftZAxis() {
+        GcodeOptions options = new GcodeOptions();
+        options.penMode = "zaxis";
+        options.zUp = 3.0;
+        fake.setBuildInfo("[VER:1.1h DrawCore V2.22.20260207:]");
+        GcodeBackend b = newBackend(options);
+        assertTrue(b.connect());
+        b.pendown();
+
+        int beforeHome = fake.sentCommands().size();
+        b.home();
+
+        List<String> homing = fake.sentCommands().subList(beforeHome, fake.sentCommands().size());
+        assertEquals(List.of("$X", "G0 Z3.00", "$HX", "$HY", "G0 Z3.00", "G92 X0 Y0"), homing);
+        assertFalse(homing.contains("$H"), "DrawCore $H would include the pen-lift Z axis");
     }
 
     @Test

@@ -94,7 +94,8 @@ final class DocumentFileWorkflow {
         actions.cancellableBusy().run("Import",cancel->{ProcessorOutput imported=map(options.toolboxConfig()!=null
                 ?SvgImportStage.importSvg(file,options.toolboxConfig(),options.importOptions())
                 :SvgImportStage.importSvg(file,options.importOptions()));if(cancel.getAsBoolean())throw new CancellationException();return imported;},out->{
-            editor.replace(out);session.recordSvgSource(file,options.importOptions(),recipe(options.toolboxConfig()));loaded(false);
+            editor.replace(out);session.recordSvgSource(file,options.importOptions(),recipe(options.toolboxConfig()));
+            loaded(options.importOptions().preserveSvgViewport());
             String result=summary("Imported "+file.getName(),out);actions.log().accept(result);actions.feedback().accept(result);
         },()->actions.feedback().accept("Import cancelled. Artwork was not changed."));
     }
@@ -141,7 +142,8 @@ final class DocumentFileWorkflow {
             return map(options.toolboxConfig()!=null?SvgImportStage.importSvg(svg,options.toolboxConfig(),options.importOptions())
                     :SvgImportStage.importSvg(svg,options.importOptions()));
         },out->{editor.replace(out);session.recordSvgSource(svg,options.importOptions(),recipe(options.toolboxConfig()));
-            session.recordImageSource(image,vector.vectorizeArgs());actions.revectorizeEnabled().accept(true);loaded(false);
+            session.recordImageSource(image,vector.vectorizeArgs());actions.revectorizeEnabled().accept(true);
+            loaded(options.importOptions().preserveSvgViewport());
             String result=summary("Vectorized "+image.getName()+" ("+vector.strategyLabel()+")",out);actions.log().accept(result);actions.feedback().accept(result);});
     }
 
@@ -201,8 +203,9 @@ final class DocumentFileWorkflow {
         catch(IOException ex){actions.error().accept("Failed to save "+file.getName()+": "+ex.getMessage());}
     }
 
-    private void loaded(boolean preserve){actions.resetReplot().run();visualization.loadFromOutput(session.currentOutput());
-        visualization.setContentMotorMin(0,0);actions.refresh().run();}
+    private void loaded(boolean preservePagePlacement){actions.resetReplot().run();visualization.loadFromOutput(session.currentOutput());
+        if(preservePagePlacement)visualization.setSuppressAlignment(true);else visualization.setContentMotorMin(0,0);
+        actions.refresh().run();}
     private ProcessorOutput map(ProcessorOutput output){List<PaintStation>s=stations();return s.isEmpty()?output:StationMapper.assignByColor(output,s);}
     private List<PaintStation> stations(){List<PaintStation> result=new ArrayList<>();for(Map.Entry<String,StationConfig> e:actions.config().get().stations.entrySet())
         if(e.getValue().color()!=null&&!e.getValue().color().isBlank())result.add(new PaintStation(e.getKey(),e.getValue().color()));return result;}

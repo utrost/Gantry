@@ -280,11 +280,11 @@ Expand **Advanced options** only when you need to override the safe default:
 | Max draw distance (mm) | Insert a REFILL command every N mm of drawing. Set to 0 for no refill (pure pen plotting). |
 | Default station ID | Refill station used for layers that have no explicit station assignment. |
 | Curve step (mm) | Bezier curve linearization resolution (default 0.1 mm — smaller = smoother curves, more points). |
-| Fit to | Defaults to **Machine bed**. Advanced choices are A6 · A5 · A4 · A3 · A2 · A1 · XL · Custom (WxH mm). When the SVG declares a physical width and height, **SVG document size** is also offered. Custom disables **Import** until its size is valid; all valid choices keep the button green and ready. |
+| Fit to | Defaults to **SVG document size** when the file declares a valid physical width and height; otherwise it falls back to **Machine bed**. Advanced choices are A6 · A5 · A4 · A3 · A2 · A1 · XL · Custom (WxH mm). Custom disables **Import** until its size is valid; all valid choices keep the button green and ready. |
 | Custom size | WxH in mm, e.g. `210x297`. Active only when Fit to = Custom. |
 | Padding (mm) | Margin inside the target format when using Fit to. |
 | Keep aspect ratio | Prevents distortion when fitting to a format. |
-| Preserve SVG page and empty margins | Fits the complete SVG `viewBox`, not just visible marks. Use this for artwork aligned to a pre-printed paper template. Padding remains editable and is applied around the preserved page; set it to 0 for an exact page-to-target mapping. |
+| Preserve SVG page and empty margins | Fits the complete SVG `viewBox`, not just visible marks. Use this for artwork aligned to a pre-printed paper template. Padding remains editable and is applied around the preserved page; set it to 0 for an exact page-to-target mapping. The imported page origin is kept on the machine bed, so canvas alignment does not snap the first visible stroke to the bed edge and discard the empty margin. |
 | Mirror | Flip the drawing horizontally before importing. |
 
 Curve step accepts values down to **0.01 mm**. Very small values preserve more
@@ -486,6 +486,10 @@ position — it changes only what you *see*, never where the drawing plots:
 The current zoom level shows in the HUD as **View: N%**. Loading a new drawing
 resets the view to 100%. Zoom is purely a viewing aid: G-code, positioning and
 the bed coordinates are unaffected.
+
+Move the pointer anywhere over the Live View to see **Cursor: X, Y mm** in the
+HUD. These are machine-space coordinates at the pointer, so the reading follows
+the configured origin and orientation and remains accurate while zooming or panning.
 
 **Right-click the Live View** for a context menu with **Add station here** (drops
 a new refill station at the clicked bed position — see [Placing refill stations](#placing-refill-stations)),
@@ -775,7 +779,7 @@ what is actually happening:
 | Step (mm) spinner | Distance per jog tap (0.1–1000 mm) |
 | Pen Up / Pen Down | Raise / lower pen manually |
 | Speed − / + / Reset | Decrease, increase, or reset the plotter's feed-rate override while jogging or plotting |
-| Find starting corner (Home) | Unlocks GRBL, raises and acknowledges the pen-up command, then runs the homing cycle (`$H`) against the machine's physical limit switches at 0/0 and zeroes the work origin. Asks for confirmation first, since the plotter will move on its own. Requires GRBL homing to be enabled and configured on the controller (`$22=1` and the related `$23`/`$24`/`$25` settings). |
+| Find starting corner (Home) | Unlocks GRBL, raises the pen, waits for that motion to finish, then runs the homing cycle against the machine's physical limit switches at 0/0 and zeroes the work origin. Gantry identifies DrawCore firmware from its build information and homes X then Y (`$HX`, `$HY`) instead of using all-axis `$H`, so the Z-axis pen actuator is not included in the homing move; it raises and verifies the pen again afterward. Other GRBL controllers use `$H`. The action asks for confirmation first, since the plotter will move on its own. Requires GRBL homing to be enabled and configured on the controller (`$22=1` and the related `$23`/`$24`/`$25` settings). |
 
 **Soft limits.** With **Soft limits** enabled (Settings → Geometry; on by
 default), jog moves — including press-and-hold continuous jogging — are clamped
@@ -838,7 +842,7 @@ Key flags:
 | `-d MM` | Max draw distance; 0 = no refill |
 | `-s ID` | Default station ID |
 | `-c MM` | Curve step (default 0.1) |
-| `-f FORMAT` | Fit to: A5, A4, A3, XL, or WxH mm |
+| `-f FORMAT` | Fit to: A6, A5, A4, A3, A2, A1, XL, or WxH mm |
 | `-p MM` | Padding for fit-to |
 | `-m` | Mirror horizontally |
 | `--passes N` | Repeat every stroke N times (default 1; minimum 1) |
@@ -982,8 +986,11 @@ command — it doesn't enable or configure homing on the controller itself.
 
 | Name | Size (mm) |
 |---|---|
+| A6 | 105 × 148 |
 | A5 | 148 × 210 |
 | A4 | 210 × 297 |
 | A3 | 297 × 420 |
+| A2 | 420 × 594 |
+| A1 | 594 × 841 |
 | XL | 430 × 600 |
 | Custom | any WxH |

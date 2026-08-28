@@ -29,10 +29,26 @@ class VisualizationArtworkSizeTest {
         assertArrayEquals(new double[] {25, 40}, panel.getContentMotorSize(), 1e-9);
     }
 
+    @Test
+    void suppressingAlignmentRetainsImportedPageMarginOffsets() {
+        VisualizationPanel panel = new VisualizationPanel();
+        panel.setMachineSize(594, 841);
+        panel.setCanvasAlignment("Bottom Left");
+        panel.loadFromOutput(rectangleAt(15, 32, 180, 233));
+
+        panel.setSuppressAlignment(true);
+
+        assertArrayEquals(new double[] {15, 32}, panel.getContentMotorMin(), 1e-9);
+    }
+
     private static ProcessorOutput rectangle(double width, double height) {
+        return rectangleAt(0, 0, width, height);
+    }
+
+    private static ProcessorOutput rectangleAt(double x, double y, double width, double height) {
         DrawCommand outline = new DrawCommand(1, List.of(
-                new Point(0, 0), new Point(width, 0), new Point(width, height),
-                new Point(0, height), new Point(0, 0)));
+                new Point(x, y), new Point(x + width, y), new Point(x + width, y + height),
+                new Point(x, y + height), new Point(x, y)));
         return new ProcessorOutput(
                 new Metadata("size.svg", Instant.EPOCH, "test", "mm", 1, Bounds.empty()),
                 List.of(new Layer("artwork", "default", "#ffffff", List.of(outline))));

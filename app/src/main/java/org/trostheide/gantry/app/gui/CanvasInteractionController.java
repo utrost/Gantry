@@ -232,6 +232,8 @@ final class CanvasInteractionController {
 
             @Override
             public void mouseMoved(MouseEvent e) {
+                panel.mousePointerMm = panel.interaction.screenToPhysical(e.getX(), e.getY());
+                panel.repaint();
                 // In an interaction mode the crosshair stays put (don't let the drag-handle hit-test
                 // swap it), and a mode-specific preview tracks the cursor.
                 if (panel.interactionMode != VisualizationPanel.InteractionMode.NONE) {
@@ -255,6 +257,12 @@ final class CanvasInteractionController {
                 if (panel.allPaths.isEmpty()) { panel.setCursor(Cursor.getDefaultCursor()); return; }
                 int handle = panel.interaction.hitTestHandle(e.getX(), e.getY());
                 panel.setCursor(panel.interaction.cursorForHandle(handle));
+            }
+
+            @Override
+            public void mouseExited(MouseEvent e) {
+                panel.mousePointerMm = null;
+                panel.repaint();
             }
 
             @Override

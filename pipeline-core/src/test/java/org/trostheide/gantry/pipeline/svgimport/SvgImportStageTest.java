@@ -65,6 +65,21 @@ class SvgImportStageTest {
         }
 
         @Test
+        void allIsoPresetsUsePortraitMillimetres() {
+            String[] names = {"A6", "A5", "A4", "A3", "A2", "A1"};
+            double[][] dimensions = {
+                    {105, 148}, {148, 210}, {210, 297},
+                    {297, 420}, {420, 594}, {594, 841}
+            };
+            for (int i = 0; i < names.length; i++) {
+                PaperFormat format = PaperFormat.fromString(names[i]);
+                assertNotNull(format, names[i]);
+                assertEquals(dimensions[i][0], format.width(), names[i] + " width");
+                assertEquals(dimensions[i][1], format.height(), names[i] + " height");
+            }
+        }
+
+        @Test
         void fromStringCustom() {
             PaperFormat format = PaperFormat.fromString("300x400");
             assertNotNull(format);

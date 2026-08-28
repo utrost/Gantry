@@ -51,7 +51,7 @@ public final class SvgImportCli {
         options.addOption(Option.builder("c").longOpt("curve-step").hasArg()
                 .desc("Curve linearization step (mm, default 0.1).").build());
         options.addOption(Option.builder("f").longOpt("fit-to").hasArg()
-                .desc("Fit to paper format: A5, A4, A3, XL, or WxH (mm).").build());
+                .desc("Fit to paper format: A6, A5, A4, A3, A2, A1, XL, or WxH (mm).").build());
         options.addOption(Option.builder("p").longOpt("padding").hasArg()
                 .desc("Padding for --fit-to (mm, default 10.0).").build());
         options.addOption(Option.builder("m").longOpt("mirror")

@@ -29,6 +29,8 @@ class FakeGrblTransport implements SerialTransport {
     private volatile int feedOverride = 100;
     private volatile String machineState = "Idle";
     private volatile boolean autoAck = true;
+    private volatile boolean holdZMotion;
+    private volatile String buildInfo;
     private volatile IOException readFailure;
     private volatile IOException nextLineWriteFailure;
 
@@ -46,6 +48,19 @@ class FakeGrblTransport implements SerialTransport {
 
     void setAutoAck(boolean enabled) {
         autoAck = enabled;
+    }
+
+    void holdZMotionUntilReleased() {
+        holdZMotion = true;
+    }
+
+    void releaseZMotion() {
+        holdZMotion = false;
+        machineState = "Idle";
+    }
+
+    void setBuildInfo(String buildInfo) {
+        this.buildInfo = buildInfo;
     }
 
     void failReads(IOException failure) {
@@ -110,6 +125,14 @@ class FakeGrblTransport implements SerialTransport {
 
     private void handleCommand(String cmd) {
         sentCommands.add(cmd);
+        if ("$I".equals(cmd) && buildInfo != null) {
+            toClient.add(buildInfo);
+        }
+        if ("$X".equals(cmd)) {
+            machineState = "Idle";
+        } else if (holdZMotion && (cmd.startsWith("G0 Z") || cmd.startsWith("G1 Z"))) {
+            machineState = "Run";
+        }
         Matcher m = XY_MOVE.matcher(cmd);
         if (m.find()) {
             x = Double.parseDouble(m.group(1));

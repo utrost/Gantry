@@ -9,6 +9,9 @@ import org.trostheide.gantry.model.ProcessorOutput;
 import org.trostheide.gantry.model.command.DrawCommand;
 
 import java.time.Instant;
+import java.awt.event.MouseEvent;
+import java.awt.event.MouseListener;
+import java.awt.event.MouseMotionListener;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -39,6 +42,35 @@ class CanvasInteractionGeometryTest {
                         "vertical drag at " + transform);
             }
         }
+    }
+
+    @Test
+    void mouseMovementTracksMachineCoordinatesAndExitClearsThem() {
+        VisualizationPanel panel = panelWithArtwork();
+        panel.paintScale = 2.5;
+        panel.paintTx = 31;
+        panel.paintTy = 47;
+
+        double expectedX = 72.0;
+        double expectedY = 54.0;
+        double[] screen = panel.physicalToScreen(expectedX, expectedY);
+        int mouseX = (int) Math.round(screen[0] * panel.paintScale + panel.paintTx);
+        int mouseY = (int) Math.round(screen[1] * panel.paintScale + panel.paintTy);
+        MouseEvent moved = new MouseEvent(panel, MouseEvent.MOUSE_MOVED, 0, 0,
+                mouseX, mouseY, 0, false);
+        for (MouseMotionListener listener : panel.getMouseMotionListeners()) {
+            listener.mouseMoved(moved);
+        }
+
+        assertEquals(expectedX, panel.mousePointerMm[0], 0.21);
+        assertEquals(expectedY, panel.mousePointerMm[1], 0.21);
+
+        MouseEvent exited = new MouseEvent(panel, MouseEvent.MOUSE_EXITED, 0, 0,
+                mouseX, mouseY, 0, false);
+        for (MouseListener listener : panel.getMouseListeners()) {
+            listener.mouseExited(exited);
+        }
+        org.junit.jupiter.api.Assertions.assertNull(panel.mousePointerMm);
     }
 
     private static VisualizationPanel panelWithArtwork() {

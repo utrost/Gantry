@@ -2,7 +2,7 @@ package org.trostheide.gantry.pipeline.svgimport;
 
 /**
  * Common paper sizes (in mm) for the "fit to page" option, plus a parser for
- * the {@code A5}/{@code A4}/{@code A3}/{@code XL}/{@code WxH} format strings used by the
+ * the {@code A6} through {@code A1}, {@code XL}, and {@code WxH} format strings used by the
  * legacy SVG2WaterColor CLI and GUI.
  */
 public record PaperFormat(double width, double height) {

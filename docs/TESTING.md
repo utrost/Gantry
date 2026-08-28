@@ -256,8 +256,9 @@ a `testdata/` folder.
 1. Connect (mock). Choose **Machine > Find Starting Corner (Home)** (or the same action under **Move pen manually**).
    - [ ] A confirmation dialog appears (the head will move). Click **Cancel** — nothing happens.
 2. Trigger **Home** again and confirm.
-   - [ ] Console logs the homing cycle and origin-zeroed message (mock simulates instantly; hardware runs GRBL `$H`).
-   - [ ] On hardware, the pen raises before any homing-axis motion begins and remains clear while travelling to the switches.
+   - [ ] Console logs the homing cycle and origin-zeroed message (mock simulates instantly; ordinary GRBL hardware runs `$H`; DrawCore runs `$HX` followed by `$HY`).
+   - [ ] On hardware, Gantry waits for the pen-up motion to finish before homing; the pen remains clear while travelling to the switches and is raised and verified again after homing.
+   - [ ] On DrawCore, the Z-axis pen actuator is not included in the homing move.
    - [ ] Home is disabled while a plot is running.
 
 ---
@@ -345,14 +346,14 @@ a `testdata/` folder.
    - [ ] **Add artwork** opens with **Advanced options** collapsed.
    - [ ] The summary names the configured machine-bed dimensions and a **10 mm safety margin**.
    - [ ] **Import** is immediately enabled and green; **Keep aspect ratio** is part of the default.
-   - [ ] Expand **Advanced options**: **Fit to = Machine bed**, padding = `10`, curve step = `0.1` mm (minimum `0.01`), and **Preserve SVG page and empty margins** is available.
+   - [ ] Expand **Advanced options**: an SVG with a declared physical width/height defaults to **Fit to = SVG document size**; one without it defaults to **Machine bed**. Padding is `10`, curve step is `0.1` mm (minimum `0.01`), and **Preserve SVG page and empty margins** is available.
    - [ ] Pick **Fit to = Custom** with a blank size — Import disables; enter `210x297` — it re-enables/greens and the summary identifies the advanced target.
 2. Import `framed.svg` with Max draw distance = 0.
    - [ ] The full-page background border rectangle is dropped; the pen does not trace the outer frame.
 3. Import `single-rect.svg`.
    - [ ] The single rect **is** drawn (a lone shape is the content and must not be discarded as a page border).
 4. Import a portrait A4 SVG with `viewBox="0 0 210 297"` whose visible marks leave empty top/bottom margins. Choose Custom `210x297` and enable **Preserve SVG page and empty margins**.
-   - [ ] Padding remains editable. At `0`, the visible marks retain their original offsets within the exact A4 page instead of being enlarged to their own content bounds; at a non-zero value, the preserved page is inset by that safety margin.
+   - [ ] Padding remains editable. At `0`, the visible marks retain their original offsets within the exact A4 page instead of being enlarged to their own content bounds or snapped to the bed origin; at a non-zero value, the preserved page is inset by that safety margin.
 5. Import an SVG containing `<text font-family="monospace">PPCT abc 123</text>`.
    - [ ] The text appears as glyph outlines in Live View and contributes normal move/draw commands when plotted.
 
@@ -444,6 +445,7 @@ a `testdata/` folder.
 
 #### TS-K1 — Direct manipulation *(mock OK)*
 1. Import a drawing.
+   - [ ] Moving the pointer anywhere over the Live View updates **Cursor: X, Y mm** in machine coordinates; the value remains correct after zooming, panning, or changing origin/orientation, and clears when the pointer leaves.
    - [ ] **Drag** the drawing — it moves; the X/Y position fields update live.
    - [ ] **Drag a corner handle** — it scales uniformly.
    - [ ] **Rotate 90°** — rotates 90° clockwise.

@@ -5,6 +5,7 @@ import java.awt.geom.AffineTransform;
 import java.awt.geom.Path2D;
 import java.awt.geom.Rectangle2D;
 import java.util.List;
+import java.util.Locale;
 
 final class CanvasRenderer {
     private CanvasRenderer() {}
@@ -280,10 +281,14 @@ final class CanvasRenderer {
         String travelHud = (panel.travelTotalMm > 0)
                 ? String.format(" | Pen-down efficiency: %.0f%%", 100.0 * panel.travelPenDownMm / panel.travelTotalMm)
                 : "";
+        String cursorHud = panel.mousePointerMm == null
+                ? " | Cursor: --"
+                : String.format(Locale.ROOT, " | Cursor: %.1f, %.1f mm",
+                        panel.mousePointerMm[0], panel.mousePointerMm[1]);
         double[] artworkSize = panel.getContentMotorSize();
         g2.drawString(String.format(
-                "Pos: %.1f, %.1f | Speed: %d%% | View: %.0f%% | Align: %s | Rot: %d | Origin: %s | %s%s",
-                panel.currentX, panel.currentY, panel.speedPercent, panel.viewZoom * 100, panel.canvasAlignment, panel.dataRotation,
+                "Pos: %.1f, %.1f%s | Speed: %d%% | View: %.0f%% | Align: %s | Rot: %d | Origin: %s | %s%s",
+                panel.currentX, panel.currentY, cursorHud, panel.speedPercent, panel.viewZoom * 100, panel.canvasAlignment, panel.dataRotation,
                 panel.machineOrigin, panel.orientation, travelHud), 10, h - 10);
         if (panel.hasOverlayTransform()) {
             g2.drawString(String.format(

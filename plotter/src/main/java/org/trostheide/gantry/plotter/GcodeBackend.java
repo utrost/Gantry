@@ -49,8 +49,14 @@ public class GcodeBackend implements PlotterBackend {
     /** True while $H is intentionally recovering GRBL from its normal alarm lock. */
     private volatile boolean homingFromAlarm;
     private volatile MachineState machineState = MachineState.UNKNOWN;
+    /** DrawCore supports $HX/$HY, allowing XY homing without moving its pen-lift Z axis. */
+    private volatile boolean drawCoreController;
+    /** Incremented for every fresh realtime status report, including repeated states. */
+    private long stateRevision;
 
     private final Object writeLock = new Object();
+    /** Prevents Stop recovery and Home recovery from resetting/interleaving with one another. */
+    private final Object recoveryLock = new Object();
     private final Object stateLock = new Object();
     private final BlockingQueue<String> ackQueue = new LinkedBlockingQueue<>();
     private final BlockingQueue<String> rawQueue = new LinkedBlockingQueue<>();
@@ -176,6 +182,11 @@ public class GcodeBackend implements PlotterBackend {
                 waitForOk();
             }
 
+            // Identify DrawCore from its GRBL build info. Its Z axis is the pen actuator, so the
+            // generic all-axis $H cycle is unsafe: it can lower the pen before XY has finished.
+            drawCoreController = sendRaw("$I").stream()
+                    .anyMatch(line -> line.toLowerCase(Locale.ROOT).contains("drawcore"));
+
             // Start realtime position polling.
             pollerThread = new Thread(this::pollerLoop, "gcode-poller");
             pollerThread.setDaemon(true);
@@ -291,6 +302,12 @@ public class GcodeBackend implements PlotterBackend {
      */
     @Override
     public void home() {
+        synchronized (recoveryLock) {
+            homeAfterRecovery();
+        }
+    }
+
+    private void homeAfterRecovery() {
         SerialTransport t = transport;
         if (t == null || !t.isOpen()) {
             return;
@@ -310,8 +327,26 @@ public class GcodeBackend implements PlotterBackend {
             // Raise the pen before $H can move any axis. $X must precede this because GRBL rejects
             // ordinary pen commands while alarm-locked, but unlocking itself causes no motion.
             penup();
-            send(GcodeFormatter.homingCycle());
-            waitForOk(120);
+            // GRBL acknowledges a G0/G1 when it accepts it into the planner, not when motion has
+            // completed. $H requires Idle, so wait for a fresh status report confirming the lift
+            // has physically finished before starting the homing cycle.
+            awaitFreshIdle(30);
+            if (drawCoreController) {
+                send("$HX");
+                waitForOk(120);
+                awaitFreshIdle(120);
+                send("$HY");
+                waitForOk(120);
+            } else {
+                send(GcodeFormatter.homingCycle());
+                waitForOk(120);
+            }
+            // DrawCore exposes the pen actuator as Z, so its firmware homing cycle may also home
+            // and pull off Z. Wait for the complete cycle, then restore the configured absolute
+            // pen-up height; Home must always finish with the pen safely clear of the paper.
+            awaitFreshIdle(120);
+            penup();
+            awaitFreshIdle(30);
         } finally {
             homingFromAlarm = false;
         }
@@ -328,6 +363,12 @@ public class GcodeBackend implements PlotterBackend {
      */
     @Override
     public void haltMotion() {
+        synchronized (recoveryLock) {
+            haltAndRecover();
+        }
+    }
+
+    private void haltAndRecover() {
         SerialTransport t = transport;
         if (t == null || !t.isOpen()) {
             return;
@@ -671,8 +712,11 @@ public class GcodeBackend implements PlotterBackend {
 
     private void updateMachineState(MachineState state) {
         MachineState previous = machineState;
-        machineState = state;
-        wakeStateWaiters();
+        synchronized (stateLock) {
+            machineState = state;
+            stateRevision++;
+            stateLock.notifyAll();
+        }
         if (state != previous && stateCallback != null) {
             try {
                 stateCallback.accept(state);
@@ -685,6 +729,47 @@ public class GcodeBackend implements PlotterBackend {
     private void wakeStateWaiters() {
         synchronized (stateLock) {
             stateLock.notifyAll();
+        }
+    }
+
+    /** Waits for a newly requested realtime report to say Idle, never trusting a stale cached state. */
+    private void awaitFreshIdle(long timeoutSeconds) {
+        long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(timeoutSeconds);
+        while (true) {
+            long observedRevision;
+            synchronized (stateLock) {
+                observedRevision = stateRevision;
+            }
+            SerialTransport t = transport;
+            if (t == null || !t.isOpen()) {
+                throw new GcodeBackendException("Lost connection while waiting for pen-up motion to finish");
+            }
+            synchronized (writeLock) {
+                try {
+                    t.writeBytes(new byte[] {'?'});
+                } catch (IOException e) {
+                    throw recordSerialFailure("Serial status request failed", e);
+                }
+            }
+            synchronized (stateLock) {
+                while (stateRevision <= observedRevision) {
+                    long remaining = deadline - System.nanoTime();
+                    if (remaining <= 0) {
+                        throw new GcodeBackendException(
+                                "Timed out waiting for pen-up motion to finish before homing");
+                    }
+                    try {
+                        TimeUnit.NANOSECONDS.timedWait(stateLock, remaining);
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        throw new GcodeBackendException(
+                                "Interrupted while waiting for pen-up motion to finish", e);
+                    }
+                }
+                if (machineState == MachineState.IDLE) {
+                    return;
+                }
+            }
         }
     }
 

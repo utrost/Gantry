@@ -142,6 +142,8 @@ public class VisualizationPanel extends JPanel {
     // Cached paint-time values for screen-to-mm inversion
     double paintScale = 1.0;
     double paintTx = 0, paintTy = 0;
+    // Live machine-mm coordinate under the mouse, or null while the pointer is outside the canvas.
+    double[] mousePointerMm;
 
     // User viewport zoom/pan, applied *on top of* the fit-to-window transform and folded into
     // paintScale/paintTx/paintTy each paint. Because every hit-test already inverts those cached

@@ -29,8 +29,19 @@ public final class SvgImportDialog extends JDialog {
     private final JSpinner curveStepSpinner = new JSpinner(new SpinnerNumberModel(0.1, 0.01, 10.0, 0.01));
     private static final String FIT_TO_MACHINE = "Machine bed";
     private static final String USE_SVG_SIZE = "SVG document size";
+    private static final String[] PAPER_SIZE_OPTIONS = {
+            "A6 — 105 × 148 mm",
+            "A5 — 148 × 210 mm",
+            "A4 — 210 × 297 mm",
+            "A3 — 297 × 420 mm",
+            "A2 — 420 × 594 mm",
+            "A1 — 594 × 841 mm",
+            "XL — 430 × 600 mm"
+    };
     private final JComboBox<String> fitToCombo = new JComboBox<>(
-            new String[] {FIT_TO_MACHINE, "A6", "A5", "A4", "A3", "A2", "A1", "XL", "Custom"});
+            new String[] {FIT_TO_MACHINE, PAPER_SIZE_OPTIONS[0], PAPER_SIZE_OPTIONS[1],
+                    PAPER_SIZE_OPTIONS[2], PAPER_SIZE_OPTIONS[3], PAPER_SIZE_OPTIONS[4],
+                    PAPER_SIZE_OPTIONS[5], PAPER_SIZE_OPTIONS[6], "Custom"});
     private final JTextField customSizeField = new JTextField("210x297", 10);
     private final JSpinner paddingSpinner = new JSpinner(new SpinnerNumberModel(
             ArtworkImportPolicy.DEFAULT_PADDING_MM, 0.0, 500.0, 1.0));
@@ -68,6 +79,7 @@ public final class SvgImportDialog extends JDialog {
         if (svgDocumentFormat != null) {
             fitToCombo.insertItemAt(USE_SVG_SIZE, 1);
         }
+        fitToCombo.setSelectedItem(initialFitSelection(svgDocumentFormat));
         optionsPanel = new ToolboxOptionsPanel(SvgFillColors.read(sourceSvg));
 
         JTabbedPane tabs = new JTabbedPane();
@@ -221,6 +233,23 @@ public final class SvgImportDialog extends JDialog {
         return value == Math.rint(value) ? Long.toString(Math.round(value)) : Double.toString(value);
     }
 
+    /** Resolves a labelled paper preset such as "A4 — 210 × 297 mm" to its ISO dimensions. */
+    static PaperFormat resolvePaperPreset(String selection) {
+        if (selection == null) return null;
+        int separator = selection.indexOf(' ');
+        String name = separator < 0 ? selection : selection.substring(0, separator);
+        return PaperFormat.fromString(name);
+    }
+
+    static String[] paperSizeOptions() {
+        return PAPER_SIZE_OPTIONS.clone();
+    }
+
+    /** Prefer the SVG's declared physical dimensions; safely fit to the bed when none exist. */
+    static String initialFitSelection(PaperFormat svgSize) {
+        return svgSize == null ? FIT_TO_MACHINE : USE_SVG_SIZE;
+    }
+
     /** Keeps every import view inside the supported 1024x800 screen; long expert forms scroll. */
     private void resizeDialog(Dimension requested) {
         Rectangle bounds = getGraphicsConfiguration() == null
@@ -291,7 +320,7 @@ public final class SvgImportDialog extends JDialog {
                     ? svgDocumentFormat
                 : "Custom".equals(fitToSelection)
                     ? PaperFormat.fromString(customSizeField.getText().trim())
-                    : PaperFormat.fromString(fitToSelection);
+                    : resolvePaperPreset(fitToSelection);
 
         if (format == null) {
             JOptionPane.showMessageDialog(this, "Custom size must be 'WxH' in mm, e.g. 210x297.",
