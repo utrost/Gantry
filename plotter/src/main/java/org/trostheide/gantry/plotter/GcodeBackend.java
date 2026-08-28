@@ -49,8 +49,6 @@ public class GcodeBackend implements PlotterBackend {
     /** True while $H is intentionally recovering GRBL from its normal alarm lock. */
     private volatile boolean homingFromAlarm;
     private volatile MachineState machineState = MachineState.UNKNOWN;
-    /** DrawCore supports $HX/$HY, allowing XY homing without moving its pen-lift Z axis. */
-    private volatile boolean drawCoreController;
     /** Incremented for every fresh realtime status report, including repeated states. */
     private long stateRevision;
 
@@ -181,11 +179,6 @@ public class GcodeBackend implements PlotterBackend {
                 send(cmd);
                 waitForOk();
             }
-
-            // Identify DrawCore from its GRBL build info. Its Z axis is the pen actuator, so the
-            // generic all-axis $H cycle is unsafe: it can lower the pen before XY has finished.
-            drawCoreController = sendRaw("$I").stream()
-                    .anyMatch(line -> line.toLowerCase(Locale.ROOT).contains("drawcore"));
 
             // Start realtime position polling.
             pollerThread = new Thread(this::pollerLoop, "gcode-poller");
@@ -331,19 +324,13 @@ public class GcodeBackend implements PlotterBackend {
             // completed. $H requires Idle, so wait for a fresh status report confirming the lift
             // has physically finished before starting the homing cycle.
             awaitFreshIdle(30);
-            if (drawCoreController) {
-                send("$HX");
-                waitForOk(120);
-                awaitFreshIdle(120);
-                send("$HY");
-                waitForOk(120);
-            } else {
-                send(GcodeFormatter.homingCycle());
-                waitForOk(120);
-            }
-            // DrawCore exposes the pen actuator as Z, so its firmware homing cycle may also home
-            // and pull off Z. Wait for the complete cycle, then restore the configured absolute
-            // pen-up height; Home must always finish with the pen safely clear of the paper.
+            // Use the firmware's configured homing cycle as one atomic operation. In particular,
+            // DrawCore documents $H for homing; splitting it into generic $HX/$HY cycles can
+            // disturb its Z-axis pen actuator and draw during the first axis move.
+            send(GcodeFormatter.homingCycle());
+            waitForOk(120);
+            // A firmware homing cycle may alter or release Z. Wait for it to finish, then restore
+            // the configured absolute pen-up height; Home must always finish safely clear.
             awaitFreshIdle(120);
             penup();
             awaitFreshIdle(30);

@@ -256,9 +256,9 @@ a `testdata/` folder.
 1. Connect (mock). Choose **Machine > Find Starting Corner (Home)** (or the same action under **Move pen manually**).
    - [ ] A confirmation dialog appears (the head will move). Click **Cancel** — nothing happens.
 2. Trigger **Home** again and confirm.
-   - [ ] Console logs the homing cycle and origin-zeroed message (mock simulates instantly; ordinary GRBL hardware runs `$H`; DrawCore runs `$HX` followed by `$HY`).
+   - [ ] Console logs the homing cycle and origin-zeroed message (mock simulates instantly; GRBL and DrawCore hardware run their configured `$H` cycle).
    - [ ] On hardware, Gantry waits for the pen-up motion to finish before homing; the pen remains clear while travelling to the switches and is raised and verified again after homing.
-   - [ ] On DrawCore, the Z-axis pen actuator is not included in the homing move.
+   - [ ] On DrawCore, Gantry does not split homing into `$HX`/`$HY`; the firmware's configured `$H` sequence runs atomically between the two verified pen-up commands.
    - [ ] Home is disabled while a plot is running.
 
 ---

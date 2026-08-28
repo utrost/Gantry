@@ -374,7 +374,7 @@ class GcodeBackendTest {
     }
 
     @Test
-    void drawCoreHomesXAndYWithoutIncludingPenLiftZAxis() {
+    void drawCoreUsesConfiguredHomingCycleBetweenUnconditionalPenLifts() {
         GcodeOptions options = new GcodeOptions();
         options.penMode = "zaxis";
         options.zUp = 3.0;
@@ -387,8 +387,9 @@ class GcodeBackendTest {
         b.home();
 
         List<String> homing = fake.sentCommands().subList(beforeHome, fake.sentCommands().size());
-        assertEquals(List.of("$X", "G0 Z3.00", "$HX", "$HY", "G0 Z3.00", "G92 X0 Y0"), homing);
-        assertFalse(homing.contains("$H"), "DrawCore $H would include the pen-lift Z axis");
+        assertEquals(List.of("$X", "G0 Z3.00", "$H", "G0 Z3.00", "G92 X0 Y0"), homing);
+        assertFalse(homing.contains("$HX"), "DrawCore homing must not be split into generic axis cycles");
+        assertFalse(homing.contains("$HY"), "DrawCore homing must not be split into generic axis cycles");
     }
 
     @Test
