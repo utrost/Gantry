@@ -1710,7 +1710,7 @@ public class PlotterPanel extends JPanel {
                         documentSession.sourceSvgOptions(),
                         image == null ? null : image.getAbsolutePath(),
                         documentSession.vectorizeArgs(), documentSession.processingRecipe()),
-                documentSession.artworks());
+                documentSession.artworks(), visPanel.penWidthsMm());
     }
 
     private void openProject(GantryProject project) {
@@ -1720,6 +1720,7 @@ public class PlotterPanel extends JPanel {
                 source.importOptions(), source.imagePath() == null ? null : new File(source.imagePath()),
                 source.vectorizeArgs(), source.processingRecipe());
         visPanel.loadFromOutput(project.output());
+        visPanel.setPenWidthsMm(project.penWidthsMm());
         visPanel.applyPlacement(project.placement());
         refreshLayerSelector();
         plotControls.setSelectedLayers(project.selectedLayers());

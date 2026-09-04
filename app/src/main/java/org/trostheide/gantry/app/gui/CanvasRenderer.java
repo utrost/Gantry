@@ -94,11 +94,8 @@ final class CanvasRenderer {
         // Each layer is drawn in its own colour (so layers/pens are visually separable). Unselected
         // layers are ghosted (dimmed toward the background), so the operator can focus on a chosen
         // subset of layers without losing the surrounding context.
-        g2.setStroke(new BasicStroke((float) (1.0 / scale)));
-
-        // Draw ghosts first so the selected layers paint on top of them.
-        for (int pass = 0; pass < 2; pass++) {
-            boolean drawingSelected = (pass == 1);
+        // The checkboxes are true visibility controls and also define the layers sent to plot.
+        for (int pass = 0; pass < 1; pass++) {
             for (int i = 0; i < panel.allPaths.size(); i++) {
                 List<VisualizationPanel.Point2D> path = panel.allPaths.get(i);
                 if (path.isEmpty()) {
@@ -106,7 +103,7 @@ final class CanvasRenderer {
                 }
                 int li = panel.pathLayer.get(i);
                 boolean selected = panel.selectedLayers.contains(li);
-                if (selected != drawingSelected) {
+                if (!selected) {
                     continue;
                 }
                 Color base = panel.colorByLayer ? panel.colorForLayer(li) : panel.DEFAULT_PATH;
@@ -116,7 +113,12 @@ final class CanvasRenderer {
                 } else if (progress == VisualizationPanel.StrokeProgressState.COMPLETED) {
                     base = CanvasPalette.COMPLETED_PATH;
                 }
-                g2.setColor(selected ? base : panel.ghost(base));
+                g2.setColor(base);
+                // transformPoint scales the line geometry into bed coordinates. BasicStroke is
+                // already in those physical coordinates, so the nib stays (for example) 0.3 mm
+                // even when the artwork itself is resized.
+                g2.setStroke(new BasicStroke((float) panel.penWidthForLayer(li),
+                        BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
                 Path2D p2d = new Path2D.Double();
                 double[] p0 = panel.transformPoint(path.get(0));
                 p2d.moveTo(p0[0], p0[1]);

@@ -10,6 +10,10 @@ with the processing and plotter-driving of SVG2WaterColor into a single
 Java 17 / Maven multi-module project. Pen-plotting is the first-class, default
 path; watercolor (paint stations + refill) is an optional stage layered on top.
 
+The machine-aware Live View previews the configured workspace, final artwork
+placement, per-layer pen colour, visibility, plot order, and physical nib width
+before paper or ink is committed.
+
 ## Download and first run
 
 For external testing, use the newest pre-release from

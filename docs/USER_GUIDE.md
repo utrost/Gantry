@@ -588,6 +588,13 @@ position — is exactly what gets plotted and exported. The alignment offset sho
 in the live view is carried through to the plotter, so positioning is no longer
 overridden by the canvas-alignment re-centering at plot time.
 
+The preview also models the physical pen assigned to each layer. In the **Layers**
+list, the numbered rows show plot order and source-colour swatches; set the nib
+width beside each layer in millimetres. The canvas redraws immediately. Nib width
+is a physical measurement: scaling a 100 mm drawing to 200 mm scales its geometry,
+but a configured 0.3 mm pen still previews as 0.3 mm on the bed. Save the drawing
+as a `.gantry` project to retain these width assignments.
+
 The visualisation shows:
 - Dark background with the machine bed outline
 - Orange dot at the machine origin
@@ -597,6 +604,7 @@ The visualisation shows:
 - HUD: current position, scale, rotation, alignment
 - During plotting: amber for the active stroke and muted green for strokes whose
   points the controller has accepted
+- Per-layer source colours and physical pen/nib widths
 
 ---
 
@@ -705,13 +713,12 @@ The **Layers** checklist in the Plot section lets you pick any subset of layers 
 show and plot instead of the whole drawing — useful when each layer is a different
 pen or ink colour:
 
-1. The checklist shows one tickbox per layer (labelled with the layer's id and source
-   colour, and tinted with that layer's preview colour so the list doubles as a
-   legend). All layers start ticked.
-2. **Tick the layers you want, untick the rest.** Ticked layers are drawn in full
-   colour in the Live View; unticked layers are **ghosted** (drawn dimmed) so you can
-   still see where the visible layers sit relative to the whole piece and confirm
-   you've loaded the right pen. Use **All** / **None** to toggle everything at once.
+1. The checklist shows one numbered row per layer in plot order, with its id,
+   source-colour swatch, and physical nib-width control. All layers start ticked
+   and widths default to 0.3 mm.
+2. **Tick the layers you want, untick the rest.** Ticked layers are visible in the
+   Live View; unticked layers are hidden and excluded from plotting/export. Use
+   **All** / **None** to toggle everything at once.
 3. The time estimate updates to reflect just the ticked layers.
 4. Click **Start plotting** — only the ticked layers are plotted (and exported, if you use
    **Export G-code**). The drawing's position on the bed is unchanged, so every layer
@@ -727,8 +734,7 @@ is drawn in its own colour — taken from the layer's source colour, brightened 
 needed so dark colours (e.g. black line art) stay visible on the dark canvas, and
 falling back to a distinct hue when a layer has no colour or two layers would look
 alike. This makes it easy to tell layers/pens apart at a glance. Untick it to draw
-every layer in one uniform colour. Unticked (ghosted) layers are shown as dimmed
-versions of their own colours.
+every visible layer in one uniform colour.
 
 While a plot is running, the jog/pen/edit controls (jog arrows and keyboard/numpad
 jogging, Pen Up/Down, Home, position fields, Optimize, Overlay, Load/Import/Save,

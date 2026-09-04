@@ -80,6 +80,9 @@ public class VisualizationPanel extends JPanel {
      * visually separable. Kept in lockstep with the loaded output's layer list.
      */
     final List<Color> layerColors = new ArrayList<>();
+    /** Physical nib widths in millimetres, kept in lockstep with the layers. */
+    final List<Double> layerPenWidthsMm = new ArrayList<>();
+    static final double DEFAULT_PEN_WIDTH_MM = 0.3;
     boolean colorByLayer = true;
 
     /** The canvas background; layer colours are floored against this so nothing vanishes into it. */
@@ -626,6 +629,9 @@ public class VisualizationPanel extends JPanel {
         viewZoom = 1.0;
         viewPanX = 0;
         viewPanY = 0;
+        // Pen assignments belong to the drawing; a newly opened document starts from the
+        // physical default while in-place reloads below deliberately preserve user choices.
+        layerPenWidthsMm.clear();
         loadPathsPreservingOverlay(output);
     }
 
@@ -648,9 +654,13 @@ public class VisualizationPanel extends JPanel {
         }
 
         layerColors.clear();
+        List<Double> previousWidths = List.copyOf(layerPenWidthsMm);
+        layerPenWidthsMm.clear();
         List<Layer> layers = output.layers();
         for (int li = 0; li < layers.size(); li++) {
             layerColors.add(CanvasPalette.displayColor(layers.get(li).color(), li));
+            layerPenWidthsMm.add(li < previousWidths.size()
+                    ? previousWidths.get(li) : DEFAULT_PEN_WIDTH_MM);
             for (Command cmd : layers.get(li).commands()) {
                 if (cmd instanceof DrawCommand draw) {
                     List<Point2D> stroke = new ArrayList<>();
@@ -784,6 +794,33 @@ public class VisualizationPanel extends JPanel {
             return DEFAULT_PATH;
         }
         return layerColors.get(layerIndex);
+    }
+
+    /** Returns the simulated physical pen/nib width for this layer, in millimetres. */
+    public double penWidthForLayer(int layerIndex) {
+        return layerIndex >= 0 && layerIndex < layerPenWidthsMm.size()
+                ? layerPenWidthsMm.get(layerIndex) : DEFAULT_PEN_WIDTH_MM;
+    }
+
+    /** Changes a layer's physical nib width without scaling it with the artwork geometry. */
+    public void setPenWidthForLayer(int layerIndex, double widthMm) {
+        if (layerIndex < 0 || layerIndex >= layerPenWidthsMm.size()
+                || !Double.isFinite(widthMm) || widthMm <= 0) return;
+        layerPenWidthsMm.set(layerIndex, widthMm);
+        repaint();
+    }
+
+    /** Snapshot used by editable-project persistence. */
+    public List<Double> penWidthsMm() {
+        return List.copyOf(layerPenWidthsMm);
+    }
+
+    /** Restores persisted widths, defaulting any newly added layers to 0.3 mm. */
+    public void setPenWidthsMm(List<Double> widths) {
+        for (int i = 0; i < layerPenWidthsMm.size(); i++) {
+            if (widths != null && i < widths.size()) setPenWidthForLayer(i, widths.get(i));
+        }
+        repaint();
     }
 
     /** A dimmed version of {@code c} for ghosting non-selected layers (blended toward the canvas). */

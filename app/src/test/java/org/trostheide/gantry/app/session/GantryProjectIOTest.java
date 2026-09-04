@@ -19,10 +19,12 @@ class GantryProjectIOTest {
         ProcessorOutput output=new ProcessorOutput(new Metadata("source",Instant.EPOCH,"station","mm",1,Bounds.empty()),
                 List.of(new Layer("ink","station",List.of(new DrawCommand(1,List.of(new Point(1,2),new Point(3,4)))))));
         GantryProject expected=new GantryProject(1,output,List.of(0),new GantryProject.Placement(12,8,1.5,90,true,true),3,
-                new GantryProject.Source("art.svg",SvgImportOptions.defaults(),"art.png",List.of("--strategy","centerline")));
+                new GantryProject.Source("art.svg",SvgImportOptions.defaults(),"art.png",List.of("--strategy","centerline")),
+                List.of(), List.of(0.35));
         var file=tmp.resolve("drawing.gantry").toFile();GantryProjectIO.save(expected,file);
         GantryProject loaded=GantryProjectIO.load(file);
         assertEquals(expected.placement(),loaded.placement());assertEquals(expected.source(),loaded.source());assertEquals(3,loaded.passes());
+        assertEquals(List.of(0.35), loaded.penWidthsMm());
         assertEquals(expected.output().metadata(),loaded.output().metadata());assertEquals(1,loaded.output().layers().get(0).commands().size());
     }
 

@@ -424,13 +424,17 @@ Swing + FlatLaf dark theme. `GantryApp#main` sets up `FlatDarkLaf`, builds a
   context menu share that canvas pipeline. It uses
   `CoordinateTransform.applyOverlayRaw` + `physicalToScreen` so preview matches
   plotted output. Tracks each rendered stroke's source layer (`pathLayer`) so
-  `setSelectedLayers(indices)` can draw a chosen subset of layers in full colour and
-  ghost the rest; alignment/bounds stay computed over **all** paths so the selected
+  `setSelectedLayers(indices)` can draw a chosen subset of layers and hide the rest;
+  alignment/bounds stay computed over **all** paths so the selected
   layers keep their true bed position.
   Each layer is drawn in its own colour (`layerColors`, resolved by `displayColorFor`
   from the layer's source `#rrggbb`, brightened against the dark canvas via
   `ensureReadable` and falling back to `FALLBACK_PALETTE` for unknown/near-black
-  colours); `setColorByLayer(false)` reverts to a single uniform colour.
+  colours); `setColorByLayer(false)` reverts to a single uniform colour. Physical
+  nib widths are stored in `layerPenWidthsMm` and passed directly to `BasicStroke`
+  after the model-to-bed geometry transform. They therefore remain in bed
+  millimetres instead of scaling with `overlayScale`. `.gantry` projects persist
+  the width list alongside the selected layer set.
 - **`ToolboxOptionsPanel`** — the single shared, beginner-first editor for the
   full SVGToolBox option set. Goal presets feed the same `Config` as the
   contextual common controls and disclosed expert controls. `buildConfig()`
