@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+     width="100mm" height="60mm" viewBox="0 0 100 60">
+  <g inkscape:groupmode="layer" inkscape:label="Fine red" fill="none" stroke="#cc0000">
+    <path d="M 10,15 H 90"/>
+  </g>
+  <g inkscape:groupmode="layer" inkscape:label="Broad blue" fill="none" stroke="#0044cc">
+    <path d="M 10,30 H 90"/>
+  </g>
+</svg>

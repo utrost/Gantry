@@ -29,6 +29,7 @@ final class PlotControlsPanel extends JPanel {
     private final JPanel layerList = new JPanel();
     private final JCheckBox colors = new JCheckBox("Colour layers", true);
     private final List<JCheckBox> layers = new ArrayList<>();
+    private final List<JSpinner> penWidths = new ArrayList<>();
     private boolean rebuilding;
     private boolean connected;
 
@@ -64,13 +65,31 @@ final class PlotControlsPanel extends JPanel {
     }
 
     void rebuild(ProcessorOutput output, VisualizationPanel visualization, boolean plotting) {
-        rebuilding = true; layers.clear(); layerList.removeAll();
+        rebuilding = true; layers.clear(); penWidths.clear(); layerList.removeAll();
         if (output != null) for (int i=0;i<output.layers().size();i++) {
             Layer layer=output.layers().get(i);
             String color=layer.color()==null||layer.color().isEmpty()?"no colour":layer.color();
             JCheckBox box=new JCheckBox(layer.id()+" — "+color,true);
             box.setForeground(visualization.colorForLayer(i)); box.setEnabled(!plotting);
-            box.addActionListener(e -> changed()); layers.add(box); layerList.add(box);
+            box.setToolTipText("Visible in the preview and included in the plot");
+            int layerIndex = i;
+            JSpinner width = new JSpinner(new SpinnerNumberModel(
+                    visualization.penWidthForLayer(i), 0.05, 5.0, 0.05));
+            width.setEditor(new JSpinner.NumberEditor(width, "0.00"));
+            width.setToolTipText("Physical pen/nib width in millimetres");
+            width.setEnabled(!plotting);
+            width.addChangeListener(e -> {
+                visualization.setPenWidthForLayer(layerIndex,
+                        ((Number) width.getValue()).doubleValue());
+                if (!rebuilding) actions.projectChanged().run();
+            });
+            box.addActionListener(e -> changed()); layers.add(box); penWidths.add(width);
+            JLabel order = new JLabel((i + 1) + ".");
+            JPanel swatch = new JPanel();
+            swatch.setBackground(visualization.colorForLayer(i));
+            swatch.setPreferredSize(new Dimension(12, 12));
+            swatch.setToolTipText("Pen colour: " + color);
+            layerList.add(row(order, swatch, box, width, new JLabel("mm")));
         }
         rebuilding=false; layerList.revalidate(); layerList.repaint(); actions.selectionChanged().run();
     }
@@ -88,7 +107,8 @@ final class PlotControlsPanel extends JPanel {
         putClientProperty("plotting",plotting); start.setEnabled(!plotting&&connected);
         confirm.setEnabled(plotting); pause.setEnabled(plotting); stop.setEnabled(plotting);
         all.setEnabled(!plotting); none.setEnabled(!plotting); colors.setEnabled(!plotting); passes.setEnabled(!plotting);
-        for(JCheckBox box:layers)box.setEnabled(!plotting); progress.setVisible(plotting);
+        for(JCheckBox box:layers)box.setEnabled(!plotting);
+        for(JSpinner width:penWidths)width.setEnabled(!plotting); progress.setVisible(plotting);
         if(plotting){progress.setValue(0);progress.setString("0%");} else pause.setText("Pause");
     }
     boolean isPlotting(){return Boolean.TRUE.equals(getClientProperty("plotting"));}

@@ -11,7 +11,9 @@ Gantry already provides the full SVG/image-to-plot workflow: SVG processing
 raster vectorization with live preview, command editing, hatching, optimization,
 watercolor station mapping/refill, G-code streaming/export/replay, plot progress,
 machine setup/calibration/pre-flight wizards, travel visualization, and safe
-GRBL cancellation/error handling.
+GRBL cancellation/error handling. Its machine-aware preview also shows ordered
+layers with source pen colours, visibility, and physical nib widths that remain
+constant when artwork is scaled.
 
 The next active work is usability hardening for casual and first-time operators,
 not another plotting feature or geometry subsystem. The detailed scope and
@@ -102,8 +104,9 @@ for machine-aware execution.
   sort, simplify, reloop, and two-opt-like improvements using plotter-community
   language while keeping the Java implementation and tests authoritative.
 - Multi-pen/layer job output: per-layer/per-colour SVG or G-code export, a
-  combined job with explicit pen-change pauses, ordered layer previews, and
-  generated setup notes. Prefer Gantry's station/layer model over literal CMYK
+  combined job with explicit pen-change pauses and generated setup notes.
+  Ordered, physical-width layer previews are implemented. Prefer Gantry's
+  station/layer model over literal CMYK
   unless the source is a colour image.
 - Multipass as an art-facing feature: presets for single fineliner, ballpoint
   shadow boost, heavy black fill, and light watercolor wash; cap pass counts and
