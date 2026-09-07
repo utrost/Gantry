@@ -163,7 +163,7 @@ public class PlotterPanel extends JPanel {
                         task::run, success, cancelled),
                 this::captureProject, this::openProject, this::preparePlotOutput));
         gcodeFiles = new GcodeFileWorkflow(this, configFile, () -> config, this::preparePlotOutput,
-                () -> !selectedLayerIndices().isEmpty(), plotJobController::backend,
+                () -> !selectedLayerIndices().isEmpty(), plotJobController,
                 visPanel::getAlignOffsetX, visPanel::getAlignOffsetY, this::log, this::error, this::info);
         jogPanel = new JogPanel(() -> config, plotJobController, visPanel, this::runOnBackend, this::log, this);
         connections = new BackendConnectionCoordinator(plotJobController, this, new BackendConnectionCoordinator.Listener() {

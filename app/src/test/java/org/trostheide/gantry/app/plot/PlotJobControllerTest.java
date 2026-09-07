@@ -104,6 +104,23 @@ class PlotJobControllerTest {
     }
 
     @Test
+    void exclusiveOperationAndPlotCannotOverlap() {
+        PlotJobController controller = new PlotJobController();
+        PlotService service = serviceThatDoesNotFail();
+
+        assertTrue(controller.tryBeginExclusiveOperation("replay"));
+        assertTrue(controller.isMachineBusy());
+        assertFalse(controller.tryBeginExclusiveOperation("another operation"));
+        assertThrows(IllegalStateException.class, () -> controller.beginPlot(service));
+
+        controller.finishExclusiveOperation();
+        controller.beginPlot(service);
+        assertFalse(controller.tryBeginExclusiveOperation("replay"));
+        controller.finishPlot(false);
+        assertFalse(controller.isMachineBusy());
+    }
+
+    @Test
     void asynchronousPlotCleansUpAndReportsSuccess() throws InterruptedException {
         PlotJobController controller = new PlotJobController();
         CountDownLatch finished = new CountDownLatch(1);
@@ -143,6 +160,72 @@ class PlotJobControllerTest {
         assertTrue(failure.get() instanceof IllegalStateException);
         assertFalse(controller.isPlotting());
         assertFalse(controller.canReplot());
+    }
+
+    @Test
+    void cancelAndDisconnectWaitsForPlotCleanupBeforeClosingBackend() throws InterruptedException {
+        PlotJobController controller = new PlotJobController();
+        RecordingBackend backend = new RecordingBackend(true);
+        controller.connect(backend);
+        CountDownLatch plotting = new CountDownLatch(1);
+        CountDownLatch releaseCleanup = new CountDownLatch(1);
+        PlotService service = new PlotService(backend, new PlotSettings()) {
+            @Override public void plot(ProcessorOutput output) {
+                plotting.countDown();
+                try {
+                    releaseCleanup.await();
+                } catch (InterruptedException interrupted) {
+                    Thread.currentThread().interrupt();
+                }
+            }
+        };
+        controller.startPlot(service, emptyOutput(), (ok, error) -> { });
+        assertTrue(plotting.await(1, TimeUnit.SECONDS));
+
+        Thread release = new Thread(() -> {
+            try {
+                Thread.sleep(50);
+            } catch (InterruptedException interrupted) {
+                Thread.currentThread().interrupt();
+            }
+            assertFalse(backend.disconnected);
+            releaseCleanup.countDown();
+        });
+        release.start();
+
+        assertTrue(controller.cancelAndDisconnect(1000));
+        release.join();
+        assertTrue(backend.disconnected);
+        assertFalse(controller.isConnected());
+    }
+
+    @Test
+    void timedOutPlotRemainsConnected() throws InterruptedException {
+        PlotJobController controller = new PlotJobController();
+        RecordingBackend backend = new RecordingBackend(true);
+        controller.connect(backend);
+        CountDownLatch plotting = new CountDownLatch(1);
+        CountDownLatch release = new CountDownLatch(1);
+        PlotService service = new PlotService(backend, new PlotSettings()) {
+            @Override public void plot(ProcessorOutput output) {
+                plotting.countDown();
+                try {
+                    release.await();
+                } catch (InterruptedException interrupted) {
+                    Thread.currentThread().interrupt();
+                }
+            }
+        };
+        Thread worker = controller.startPlot(service, emptyOutput(), (ok, error) -> { });
+        assertTrue(plotting.await(1, TimeUnit.SECONDS));
+
+        assertFalse(controller.cancelAndDisconnect(10));
+        assertTrue(controller.isConnected());
+        assertFalse(backend.disconnected);
+
+        release.countDown();
+        worker.join(1000);
+        controller.disconnect();
     }
 
     private static PlotService serviceThatDoesNotFail() {

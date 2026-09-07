@@ -6,32 +6,50 @@ import org.trostheide.gantry.plotter.*;
 import javax.swing.*;
 import java.awt.*;
 import java.io.*;
+import java.nio.file.AtomicMoveNotSupportedException;
+import java.nio.file.Files;
+import java.nio.file.StandardCopyOption;
 import java.util.function.*;
 
 /** G-code export and replay file workflows. */
 final class GcodeFileWorkflow {
     private final Component parent; private final File configFile; private final Supplier<GantryConfig> config;
     private final Supplier<ProcessorOutput> prepared; private final Supplier<Boolean> hasSelection;
-    private final Supplier<PlotterBackend> backend; private final DoubleSupplier alignX,alignY;
+    private final PlotJobController jobs; private final DoubleSupplier alignX,alignY;
     private final Consumer<String> log,error,info;
     GcodeFileWorkflow(Component parent,File configFile,Supplier<GantryConfig> config,Supplier<ProcessorOutput> prepared,
-            Supplier<Boolean> hasSelection,Supplier<PlotterBackend> backend,DoubleSupplier alignX,DoubleSupplier alignY,
+            Supplier<Boolean> hasSelection,PlotJobController jobs,DoubleSupplier alignX,DoubleSupplier alignY,
             Consumer<String> log,Consumer<String> error,Consumer<String> info){this.parent=parent;this.configFile=configFile;this.config=config;
-        this.prepared=prepared;this.hasSelection=hasSelection;this.backend=backend;this.alignX=alignX;this.alignY=alignY;this.log=log;this.error=error;this.info=info;}
+        this.prepared=prepared;this.hasSelection=hasSelection;this.jobs=jobs;this.alignX=alignX;this.alignY=alignY;this.log=log;this.error=error;this.info=info;}
     void export(){
         ProcessorOutput output=prepared.get();if(output==null){info.accept("Open a Commands (JSON) file or Import SVG first.");return;}
         if(!hasSelection.get()){info.accept("No layers selected. Tick at least one layer to export.");return;}
         JFileChooser chooser=chooser();if(chooser.showSaveDialog(parent)!=JFileChooser.APPROVE_OPTION)return;File file=chooser.getSelectedFile();
         if(!overwrite(file))return;remember(file);PlotSettings settings=config.get().toPlotSettings();settings.alignmentOffsetOverride=new double[]{alignX.getAsDouble(),alignY.getAsDouble()};
-        new Thread(()->{GcodeFileBackend target=new GcodeFileBackend(config.get().gcode,file);PlotService service=new PlotService(target,settings);service.setLogCallback(log);
-            if(target.connect()){try{service.plot(output);}finally{target.disconnect();}log.accept("Exported G-code to "+file.getName());}
-            else error.accept("Failed to open "+file.getName()+" for writing.");},"gcode-export").start();
+        new Thread(()->exportAtomically(output,settings,file),"gcode-export").start();
     }
     void replay(){
-        if(!(backend.get() instanceof GcodeBackend real)){log.accept("ERROR: Connect to a real G-code backend first (not available in mock mode).");return;}
+        if(!(jobs.backend() instanceof GcodeBackend real)){log.accept("ERROR: Connect to a real G-code backend first (not available in mock mode).");return;}
         JFileChooser chooser=chooser();if(chooser.showOpenDialog(parent)!=JFileChooser.APPROVE_OPTION)return;File file=chooser.getSelectedFile();remember(file);
+        if(!jobs.tryBeginExclusiveOperation("G-code replay")){info.accept("The plotter is busy. Wait for the current operation to finish.");return;}
         new Thread(()->{try{log.accept("Replaying "+file.getName()+"...");GcodeFileReplay.replay(file,real,log);log.accept("--- Replay finished ---");}
-            catch(IOException ex){log.accept("ERROR: Failed to replay "+file.getName()+": "+ex.getMessage());}},"gcode-replay").start();
+            catch(IOException|RuntimeException ex){log.accept("ERROR: Failed to replay "+file.getName()+": "+ex.getMessage());}
+            finally{jobs.finishExclusiveOperation();}},"gcode-replay").start();
+    }
+    private void exportAtomically(ProcessorOutput output,PlotSettings settings,File destination){
+        File parentDir=destination.getAbsoluteFile().getParentFile();
+        File temporary=null;
+        try{
+            temporary=File.createTempFile(destination.getName()+".",".tmp",parentDir);
+            GcodeFileBackend target=new GcodeFileBackend(config.get().gcode,temporary);
+            PlotService service=new PlotService(target,settings);service.setLogCallback(log);
+            if(!target.connect())throw new IOException("Could not open temporary output file");
+            try{service.plot(output);}finally{target.disconnect();}
+            try{Files.move(temporary.toPath(),destination.toPath(),StandardCopyOption.ATOMIC_MOVE,StandardCopyOption.REPLACE_EXISTING);}
+            catch(AtomicMoveNotSupportedException ignored){Files.move(temporary.toPath(),destination.toPath(),StandardCopyOption.REPLACE_EXISTING);}
+            log.accept("Exported G-code to "+destination.getName());
+        }catch(IOException|RuntimeException failure){error.accept("Failed to export "+destination.getName()+": "+failure.getMessage());}
+        finally{if(temporary!=null)try{Files.deleteIfExists(temporary.toPath());}catch(IOException ignored){}}
     }
     private JFileChooser chooser(){JFileChooser c=new JFileChooser();String dir=config.get().lastDirectory;if(dir!=null&&!dir.isBlank()){File f=new File(dir);if(f.isDirectory())c.setCurrentDirectory(f);}
         c.setFileFilter(new javax.swing.filechooser.FileNameExtensionFilter("Plotter G-code (*.gcode)","gcode"));return c;}

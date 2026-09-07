@@ -34,8 +34,15 @@ public class GcodeFileBackend implements PlotterBackend {
                 writeLine(cmd);
             }
             return true;
-        } catch (IOException e) {
+        } catch (IOException | GcodeBackendException e) {
             System.out.println("ERROR: Failed to open G-code file " + file + ": " + e.getMessage());
+            if (writer != null) {
+                try {
+                    writer.close();
+                } catch (IOException ignored) {
+                    // Preserve the original open/setup failure.
+                }
+            }
             writer = null;
             return false;
         }
@@ -48,12 +55,16 @@ public class GcodeFileBackend implements PlotterBackend {
         }
         penup();
         writeLine(GcodeFormatter.home());
+        IOException closeFailure = null;
         try {
             writer.close();
-        } catch (IOException ignored) {
-            // best-effort close
+        } catch (IOException failure) {
+            closeFailure = failure;
         }
         writer = null;
+        if (closeFailure != null) {
+            throw new GcodeBackendException("Failed to finish G-code file " + file, closeFailure);
+        }
     }
 
     @Override
@@ -131,7 +142,7 @@ public class GcodeFileBackend implements PlotterBackend {
             writer.write(line);
             writer.newLine();
         } catch (IOException e) {
-            System.out.println("ERROR: Failed to write G-code line: " + e.getMessage());
+            throw new GcodeBackendException("Failed to write G-code file " + file, e);
         }
     }
 }

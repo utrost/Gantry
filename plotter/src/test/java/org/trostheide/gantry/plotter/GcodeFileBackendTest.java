@@ -9,6 +9,7 @@ import java.nio.file.Files;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class GcodeFileBackendTest {
@@ -36,5 +37,15 @@ class GcodeFileBackendTest {
         // disconnect raises the pen and returns home
         assertEquals("M280 P0 S60", lines.get(7));
         assertEquals("G0 X0 Y0", lines.get(8));
+    }
+
+    @Test
+    void connectFailsWhenDestinationCannotBeOpened() {
+        File directory = new File(tempDir, "directory.gcode");
+        assertTrue(directory.mkdir());
+
+        GcodeFileBackend backend = new GcodeFileBackend(new GcodeOptions(), directory);
+
+        assertFalse(backend.connect());
     }
 }

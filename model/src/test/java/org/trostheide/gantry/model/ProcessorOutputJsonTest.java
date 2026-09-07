@@ -9,10 +9,12 @@ import org.trostheide.gantry.model.command.MoveCommand;
 import org.trostheide.gantry.model.command.RefillCommand;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class ProcessorOutputJsonTest {
 
@@ -44,5 +46,38 @@ class ProcessorOutputJsonTest {
 
         DrawCommand drawCommand = (DrawCommand) parsedCommands.get(1);
         assertEquals(List.of(new Point(1.0, 2.0), new Point(3.0, 4.0)), drawCommand.points);
+    }
+
+    @Test
+    void commandModelDefensivelyCopiesAllCollectionBoundaries() {
+        List<Point> points = new ArrayList<>(List.of(new Point(1, 2), new Point(3, 4)));
+        DrawCommand draw = new DrawCommand(1, points);
+        List<Command> commands = new ArrayList<>(List.of(draw));
+        Layer layer = new Layer("ink", null, commands);
+        List<Layer> layers = new ArrayList<>(List.of(layer));
+        ProcessorOutput output = new ProcessorOutput(null, layers);
+
+        points.clear();
+        commands.clear();
+        layers.clear();
+
+        assertEquals(2, draw.points.size());
+        assertEquals(1, layer.commands().size());
+        assertEquals(1, output.layers().size());
+        assertThrows(UnsupportedOperationException.class,
+                () -> draw.points.add(new Point(5, 6)));
+        assertThrows(UnsupportedOperationException.class,
+                () -> layer.commands().clear());
+        assertThrows(UnsupportedOperationException.class,
+                () -> output.layers().clear());
+    }
+
+    @Test
+    void commandModelRejectsNullCollectionsAndElements() {
+        assertThrows(NullPointerException.class, () -> new DrawCommand(1, null));
+        assertThrows(NullPointerException.class,
+                () -> new DrawCommand(1, java.util.Arrays.asList(new Point(1, 2), null)));
+        assertThrows(NullPointerException.class, () -> new Layer("ink", null, null));
+        assertThrows(NullPointerException.class, () -> new ProcessorOutput(null, null));
     }
 }

@@ -18,7 +18,7 @@ public final class DrawCommand extends Command {
     @JsonCreator
     public DrawCommand(@JsonProperty("id") int id, @JsonProperty("points") List<Point> points) {
         this.id = id;
-        this.points = points;
+        this.points = List.copyOf(points);
     }
 
     @Override

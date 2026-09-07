@@ -22,8 +22,10 @@ public final class PlotJobController {
 
     private PlotterBackend backend;
     private PlotService activeService;
+    private Thread activeWorker;
     private boolean paused;
     private boolean canReplot;
+    private String exclusiveOperation;
 
     /** Connects and adopts {@code candidate} only when its connection succeeds. */
     public boolean connect(PlotterBackend candidate) {
@@ -84,6 +86,9 @@ public final class PlotJobController {
         if (activeService != null) {
             throw new IllegalStateException("A plot is already active");
         }
+        if (exclusiveOperation != null) {
+            throw new IllegalStateException("Machine is busy with " + exclusiveOperation);
+        }
         activeService = service;
         paused = false;
         canReplot = false;
@@ -93,7 +98,6 @@ public final class PlotJobController {
     public Thread startPlot(PlotService service, ProcessorOutput output, CompletionListener listener) {
         Objects.requireNonNull(output, "output");
         Objects.requireNonNull(listener, "listener");
-        beginPlot(service);
         Thread worker = new Thread(() -> {
             boolean completed = false;
             Throwable failure = null;
@@ -107,12 +111,17 @@ public final class PlotJobController {
                 listener.onComplete(completed, failure);
             }
         }, "plot-thread");
+        synchronized (this) {
+            beginPlot(service);
+            activeWorker = worker;
+        }
         worker.start();
         return worker;
     }
 
     public synchronized void finishPlot(boolean successful) {
         activeService = null;
+        activeWorker = null;
         paused = false;
         canReplot = successful;
     }
@@ -122,10 +131,56 @@ public final class PlotJobController {
     public synchronized boolean canReplot() { return canReplot; }
     public synchronized void resetReplot() { canReplot = false; }
 
+    /** Reserves the connected machine for an operation that runs outside PlotService. */
+    public synchronized boolean tryBeginExclusiveOperation(String description) {
+        if (activeService != null || exclusiveOperation != null) return false;
+        exclusiveOperation = Objects.requireNonNull(description, "description");
+        return true;
+    }
+
+    public synchronized void finishExclusiveOperation() {
+        exclusiveOperation = null;
+    }
+
+    public synchronized boolean isMachineBusy() {
+        return activeService != null || exclusiveOperation != null;
+    }
+
     public void cancelPlot() {
         PlotService service;
         synchronized (this) { service = activeService; }
         if (service != null) service.cancel();
+    }
+
+    /**
+     * Cancels an active plot and waits for its safety cleanup before disconnecting. This method
+     * may block and must not be called on the Swing event thread.
+     *
+     * @return {@code false} when the plot did not stop within the timeout; in that case the
+     *         backend deliberately remains connected so cleanup can still finish safely
+     */
+    public boolean cancelAndDisconnect(long timeoutMillis) {
+        PlotService service;
+        Thread worker;
+        PlotterBackend current;
+        synchronized (this) {
+            service = activeService;
+            worker = activeWorker;
+            current = backend;
+        }
+        if (service != null) service.cancel();
+        if (current != null && service != null) current.haltMotion();
+        if (worker != null && worker != Thread.currentThread()) {
+            try {
+                worker.join(Math.max(0, timeoutMillis));
+            } catch (InterruptedException interrupted) {
+                Thread.currentThread().interrupt();
+                return false;
+            }
+            if (worker.isAlive()) return false;
+        }
+        disconnect();
+        return true;
     }
 
     /** Toggles pause and returns the new paused state; false when no plot is active. */

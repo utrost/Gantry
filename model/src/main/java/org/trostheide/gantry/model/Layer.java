@@ -21,6 +21,10 @@ public record Layer(
         String color,
         List<Command> commands
 ) {
+    public Layer {
+        commands = List.copyOf(commands);
+    }
+
     /** Backward-compatible constructor for layers with no known source colour. */
     public Layer(String id, String stationId, List<Command> commands) {
         this(id, stationId, null, commands);

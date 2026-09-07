@@ -28,7 +28,16 @@ final class BackendConnectionCoordinator {
                     listener.connectionState(false,connected,!connected);listener.log(connected?"Connected.":"ERROR: Connection failed.");listener.refreshGuidance();});},"backend-connect").start();
         }else{
             if(plotting&&JOptionPane.showConfirmDialog(parent,"A plot is still running. Stop it and disconnect?","Plot in progress",JOptionPane.YES_NO_OPTION,JOptionPane.WARNING_MESSAGE)!=JOptionPane.YES_OPTION)return;
-            if(plotting)listener.stopPlot();listener.connectionState(false,false,false);new Thread(jobs::disconnect,"backend-disconnect").start();listener.refreshGuidance();
+            if(plotting)listener.stopPlot();
+            listener.connectionState(true,true,false);
+            new Thread(()->{
+                boolean disconnected=jobs.cancelAndDisconnect(5000);
+                SwingUtilities.invokeLater(()->{
+                    listener.connectionState(false,!disconnected,false);
+                    listener.log(disconnected?"Disconnected.":"ERROR: Plot cleanup timed out; the plotter remains connected.");
+                    listener.refreshGuidance();
+                });
+            },"backend-disconnect").start();
         }
     }
 }
