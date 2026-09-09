@@ -124,7 +124,7 @@ public final class DocumentSession {
         for (int layerIndex : target.layerIndices()) {
             if (layerIndex < 0 || layerIndex >= layers.size()) continue;
             Layer layer = layers.get(layerIndex);
-            layers.set(layerIndex, new Layer(layer.id(), layer.stationId(), layer.color(), layer.commands().stream()
+            layers.set(layerIndex, new Layer(layer.id(), layer.stationId(), layer.color(), layer.maxDrawDistance(), layer.dipBehavior(), layer.commands().stream()
                     .map(command -> transformCommand(command, target.originalBounds(), target.transform(), transform))
                     .toList()));
         }
@@ -497,7 +497,7 @@ public final class DocumentSession {
                 commands.add(renumber(transformCommand(command, originalBounds, identity, transform), nextId++));
             }
             result.add(new Layer(uniqueLayerId(label + " / " + layer.id(), concat(existingLayers, result)),
-                    layer.stationId(), layer.color(), List.copyOf(commands)));
+                    layer.stationId(), layer.color(), layer.maxDrawDistance(), layer.dipBehavior(), List.copyOf(commands)));
         }
         return List.copyOf(result);
     }
@@ -542,7 +542,7 @@ public final class DocumentSession {
                 shifted.add(shiftAndRenumber(command, nextId++, dx, 0));
             }
             layers.add(new Layer(uniqueLayerId(prefix + " / " + layer.id(), layers),
-                    layer.stationId(), layer.color(), List.copyOf(shifted)));
+                    layer.stationId(), layer.color(), layer.maxDrawDistance(), layer.dipBehavior(), List.copyOf(shifted)));
         }
         int totalCommands = layers.stream().mapToInt(layer -> layer.commands().size()).sum();
         Bounds shiftedAddBounds = shift(addBounds, dx, 0);

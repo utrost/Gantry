@@ -399,7 +399,7 @@ public class PlotService {
                 strokeProgressCallback.accept(new StrokeProgress(
                         layer.id(), draw.id, StrokeProgressPhase.ACCEPTED));
             } else if (cmd instanceof RefillCommand refill) {
-                performRefill(refill.stationId);
+                performRefill(refill.stationId, layer.dipBehavior());
             }
             doneCommands[0]++;
             progressCallback.update(doneCommands[0], totalCommands);
@@ -466,7 +466,7 @@ public class PlotService {
      * configured radius before lifting. Falls back to the "default_station" entry for unknown
      * station IDs, and logs a warning if neither is configured.
      */
-    private void performRefill(String stationId) {
+    private void performRefill(String stationId, String layerBehavior) {
         StationConfig station = settings.stations.get(stationId);
         if (station == null) {
             station = settings.stations.get("default_station");
@@ -478,7 +478,7 @@ public class PlotService {
         }
 
         logCallback.accept(String.format("--- Refilling at %s (%.1f mm / %.1f mm) ---", stationId, station.x(), station.y()));
-        dip(station);
+        dip(station, effectiveBehavior(layerBehavior, station));
         logCallback.accept("--- Refill Complete ---");
     }
 
@@ -504,7 +504,7 @@ public class PlotService {
     public void wetTestStation(StationConfig station) {
         logCallback.accept(String.format("--- Wet test at (%.1f mm / %.1f mm), behaviour '%s' ---",
                 station.x(), station.y(), station.behavior()));
-        dip(station);
+        dip(station, station.behavior());
         backend.penup();
         logCallback.accept("--- Wet test complete ---");
     }
@@ -513,36 +513,28 @@ public class PlotService {
     private static final int SWIRL_SEGMENTS = 16;
 
     /** Dips the brush in a station's pot and, for swirl/rinse stations, circles it to load/clean evenly. */
-    private void dip(StationConfig station) {
+    private void dip(StationConfig station, String behavior) {
         backend.moveto(station.x(), station.y());
-        dipPenDown(station);
-        sleepQuietly(station.dwellMs());
-        backend.penup();
-
-        String behavior = station.behavior();
-        if ("dip_swirl".equals(behavior) || "rinse".equals(behavior)) {
-            double r = station.swirlRadius();
-            dipPenDown(station);
-            for (int i = 0; i <= SWIRL_SEGMENTS; i++) {
-                double angle = 2 * Math.PI * i / SWIRL_SEGMENTS;
-                backend.lineto(station.x() + r * Math.cos(angle), station.y() + r * Math.sin(angle));
+        boolean swirl = "dip_swirl".equals(behavior) || "rinse".equals(behavior);
+        for (int cycle = 0; cycle < 2; cycle++) {
+            backend.pendown();
+            backend.dwell(station.dwellMs());
+            if (swirl) {
+                double r = station.swirlRadius();
+                double direction = cycle == 0 ? 1 : -1;
+                for (int i = 0; i <= SWIRL_SEGMENTS; i++) {
+                    double angle = direction * 2 * Math.PI * i / SWIRL_SEGMENTS;
+                    backend.lineto(station.x() + r * Math.cos(angle), station.y() + r * Math.sin(angle));
+                }
+                backend.lineto(station.x(), station.y());
             }
-            backend.moveto(station.x(), station.y());
             backend.penup();
+            backend.dwell(1);
         }
     }
 
-    /**
-     * Lowers the pen for a dip, honouring the station's {@code zDown} dip depth on machines with a
-     * real Z axis. A depth of 0 means "unset" — use the backend's normal pen-down depth instead, so
-     * servo pens and unconfigured stations behave exactly as before.
-     */
-    private void dipPenDown(StationConfig station) {
-        if (station.zDown() != 0) {
-            backend.pendown(station.zDown());
-        } else {
-            backend.pendown();
-        }
+    private static String effectiveBehavior(String layerBehavior, StationConfig station) {
+        return layerBehavior == null || layerBehavior.isBlank() ? station.behavior() : layerBehavior;
     }
 
     /** Finds the configured rinse/clean pot (a station whose behavior or id marks it as such), if any. */
@@ -560,7 +552,7 @@ public class PlotService {
     /** Cleans the brush at the rinse station between colour layers. */
     private void performRinse(StationConfig rinse) {
         logCallback.accept(String.format("--- Rinsing brush (%.1f mm / %.1f mm) ---", rinse.x(), rinse.y()));
-        dip(rinse);
+        dip(rinse, rinse.behavior());
         logCallback.accept("--- Rinse Complete ---");
     }
 

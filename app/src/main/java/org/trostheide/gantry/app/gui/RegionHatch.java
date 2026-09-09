@@ -127,7 +127,7 @@ final class RegionHatch {
                     kept.add(c);
                 }
             }
-            layers.add(new Layer(layer.id(), layer.stationId(), layer.color(), kept));
+            layers.add(new Layer(layer.id(), layer.stationId(), layer.color(), layer.maxDrawDistance(), layer.dipBehavior(), kept));
         }
         if (removed.isEmpty()) {
             return new RemoveResult(out, 0, removed);
@@ -150,7 +150,7 @@ final class RegionHatch {
                     found = true;
                 }
             }
-            layers.add(new Layer(layer.id(), layer.stationId(), layer.color(), cmds));
+            layers.add(new Layer(layer.id(), layer.stationId(), layer.color(), layer.maxDrawDistance(), layer.dipBehavior(), cmds));
         }
         return found ? new ProcessorOutput(out.metadata(), layers) : out;
     }
@@ -192,7 +192,7 @@ final class RegionHatch {
                     kept.add(c);
                 }
             }
-            layers.add(new Layer(layer.id(), layer.stationId(), layer.color(), kept));
+            layers.add(new Layer(layer.id(), layer.stationId(), layer.color(), layer.maxDrawDistance(), layer.dipBehavior(), kept));
         }
         if (removed.isEmpty()) {
             return new RemoveResult(out, 0, removed);
@@ -239,7 +239,7 @@ final class RegionHatch {
         Layer target = layers.get(layerIndex);
         List<Command> merged = new ArrayList<>(target.commands());
         merged.addAll(extra);
-        layers.set(layerIndex, new Layer(target.id(), target.stationId(), target.color(), merged));
+        layers.set(layerIndex, new Layer(target.id(), target.stationId(), target.color(), target.maxDrawDistance(), target.dipBehavior(), merged));
 
         Metadata m = out.metadata();
         Metadata m2 = new Metadata(m.source(), m.generatedAt(), m.stationId(), m.units(),

@@ -81,19 +81,18 @@ This is the data that flows through the whole system. All of these are Java
 ProcessorOutput
 ├── Metadata metadata        (source, generatedAt, stationId, units, totalCommands, Bounds)
 └── List<Layer> layers
-        └── Layer            (id, stationId, color, List<Command>)
+        └── Layer            (id, stationId, color, maxDrawDistance, dipBehavior, List<Command>)
                 └── Command  (sealed: MoveCommand | DrawCommand | RefillCommand)
 ```
 
 - **`ProcessorOutput(Metadata, List<Layer>)`** — `model:ProcessorOutput.java`. Root
   object; also the JSON document root.
-- **`Layer(String id, String stationId, String color, List<Command> commands)`** —
-  `model:Layer.java`. Maps to an Inkscape layer. `color` is the layer's source
-  colour as `#rrggbb` (from SVG stroke/fill) or `null`; it drives watercolor
-  station assignment. Has a **backward-compatible 3-arg constructor**
-  `Layer(id, stationId, commands)` (color = null) and a wither
-  `withStationId(newId)`. This is the canonical pattern for evolving a record
-  without breaking callers — follow it when adding fields.
+- **`Layer(id, stationId, color, maxDrawDistance, dipBehavior, commands)`** —
+  `model:Layer.java`. Maps to an Inkscape layer. `color` drives automatic
+  watercolor station assignment; `maxDrawDistance` controls refill spacing;
+  and `dipBehavior` selects the per-layer refill pattern (`null` inherits the
+  station behavior). Backward-compatible constructors keep older command files
+  and callers valid.
 - **`Command`** — `model:command/Command.java`. Sealed base, `permits
   MoveCommand, DrawCommand, RefillCommand`. Jackson polymorphism via a `"op"`
   discriminator property (`@JsonTypeInfo`/`@JsonSubTypes`, names `MOVE`/`DRAW`/
@@ -303,6 +302,8 @@ Optional and isolated. `StationMapper#assignByColor(output, List<PaintStation>)`
 walks each layer, finds the nearest paint station to the layer's `color`
 (CIELAB distance via `ColorUtil`), and returns a new `ProcessorOutput` with each
 layer's `stationId` (and its `RefillCommand`s) rewritten to that station.
+`LayerRefillPlanner` applies explicit layer station/distance/pattern settings and
+rebuilds refill commands, splitting drawing segments at the configured distance.
 `PaintStation` describes a physical pot (id, colour, location, dip depth, etc.).
 Nothing else depends on `watercolor`, so pen-only builds ignore it entirely.
 
@@ -369,8 +370,11 @@ instance and observes pen/Z/feed updates without reconnecting.
 - **`executeLayer`** translates each `Command` into backend calls, running every
   point through `transformAndClamp` → `doTransform`
   (`CoordinateTransform.transformPoint`) → `softClamp` (clamps to bed, counts
-  out-of-bounds). `RefillCommand` → `performRefill` → `dip(station)` (with optional
-  swirl). Reports commanded position for the live cursor at intervals.
+  out-of-bounds). `RefillCommand` → `performRefill` → `dip(station, layer.dipBehavior)`.
+  Built-in patterns execute two complete cycles using the machine's default pen
+  heights; swirl/rinse alternate direction on the second cycle. Controller-side
+  `G4` barriers ensure Z is fully lifted before subsequent XY travel. Reports
+  commanded position for the live cursor at intervals.
 
 ---
 

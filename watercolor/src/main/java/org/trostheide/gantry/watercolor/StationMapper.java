@@ -67,6 +67,6 @@ public final class StationMapper {
                 commands.add(cmd);
             }
         }
-        return new Layer(layer.id(), stationId, layer.color(), commands);
+        return new Layer(layer.id(), stationId, layer.color(), layer.maxDrawDistance(), layer.dipBehavior(), commands);
     }
 }

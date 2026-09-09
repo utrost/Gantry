@@ -287,6 +287,13 @@ public class GcodeBackend implements PlotterBackend {
         sleepQuietly(options.penDownDelayMillis);
     }
 
+    @Override
+    public void dwell(long millis) {
+        if (millis <= 0) return;
+        send(GcodeFormatter.dwell(millis));
+        waitForOk();
+    }
+
     /**
      * Runs GRBL's homing cycle ({@code $H}) against the limit switches, then zeroes the work
      * origin at the resulting position so the plotter's logical (0,0) matches the switches.

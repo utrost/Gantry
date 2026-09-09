@@ -124,6 +124,11 @@ public class GcodeFileBackend implements PlotterBackend {
     }
 
     @Override
+    public void dwell(long millis) {
+        if (millis > 0) writeLine(GcodeFormatter.dwell(millis));
+    }
+
+    @Override
     public double[] queryPosition() {
         return new double[] { x, y };
     }

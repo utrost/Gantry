@@ -9,7 +9,8 @@ import com.fasterxml.jackson.annotation.JsonProperty;
  * @param x station X in mm.
  * @param y station Y in mm.
  * @param zDown dip depth (Z-axis machines only; informational on servo setups).
- * @param behavior "simple_dip" (dip and lift), "dip_swirl" (dip, then swirl the brush in a
+ * @param behavior "simple_dip" (two dips using the machine's default pen heights),
+ *                 "dip_swirl" (dip, then swirl the brush in a
  *                 circle of {@code swirlRadius} before lifting), or "rinse" (a water/clean pot
  *                 visited between colours to clean the brush).
  * @param color the paint colour at this station as a {@code #rrggbb} hex string, or {@code null}.

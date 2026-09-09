@@ -44,6 +44,11 @@ public final class GcodeFormatter {
         return String.format(Locale.ROOT, "G1 X%.3f Y%.3f F%d", x, y, feedRateDraw);
     }
 
+    /** Controller-side dwell, expressed in seconds for GRBL's G4 command. */
+    public static String dwell(long millis) {
+        return String.format(Locale.ROOT, "G4 P%.3f", Math.max(0, millis) / 1000.0);
+    }
+
     /** Relative move bracketed by G91/G90, at the travel feed rate. */
     public static List<String> relativeMove(double dx, double dy, int feedRateTravel) {
         return List.of("G91", String.format(Locale.ROOT, "G1 X%.3f Y%.3f F%d", dx, dy, feedRateTravel), "G90");

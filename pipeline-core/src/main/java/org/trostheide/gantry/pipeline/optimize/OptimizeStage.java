@@ -133,7 +133,7 @@ public final class OptimizeStage {
                 i++;
             }
         }
-        return new Layer(layer.id(), layer.stationId(), layer.color(), result);
+        return new Layer(layer.id(), layer.stationId(), layer.color(), layer.maxDrawDistance(), layer.dipBehavior(), result);
     }
 
     private static Point appendStrokes(List<Command> result, List<MoveCommand> moves, List<DrawCommand> draws,

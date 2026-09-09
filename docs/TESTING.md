@@ -742,7 +742,7 @@ appear in the other.
 3. Click **Move here (pen up)**.
    - [ ] Console logs `--- Over station (X mm / Y mm), pen up ---`; the cursor dot moves to that station with the pen **up** (a dry visit — no dip).
 4. Click **Wet test (dip)**.
-   - [ ] Console logs the wet-test banner and runs the station's real dip: pen down → dwell → pen up, plus a swirl trace for `dip_swirl`/`rinse` stations (the same motion a real plot's refill uses).
+   - [ ] Console logs the wet-test banner and runs two complete cycles using the machine's normal pen heights: down → dwell → up for `simple_dip`, or down → dwell → swirl → centre → up for `dip_swirl`/`rinse`. The second swirl runs in the opposite direction, and no XY travel begins before the final lift completes.
 5. Set the nudge **Step** spinner (e.g. 2 mm) and click **+X** once, then **+Y** once.
    - [ ] The **Position** label increases by the step in X then Y; console shows a pen-up relative move for each nudge (head moves and the stored coordinate tracks it together).
 6. Click **Move here (pen up)** again.

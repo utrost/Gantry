@@ -34,6 +34,19 @@ public interface PlotterBackend {
         pendown();
     }
 
+    /**
+     * Pauses motion for the requested duration. Hardware backends should enqueue this pause on
+     * the controller so it begins only after preceding motion has physically completed.
+     */
+    default void dwell(long millis) {
+        if (millis <= 0) return;
+        try {
+            Thread.sleep(millis);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+    }
+
     /** Returns the last known {x, y} work position in mm, or null if unsupported. */
     default double[] queryPosition() {
         return null;

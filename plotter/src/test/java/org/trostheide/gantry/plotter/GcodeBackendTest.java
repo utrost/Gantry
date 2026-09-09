@@ -123,6 +123,19 @@ class GcodeBackendTest {
     }
 
     @Test
+    void dwellIsQueuedOnControllerAfterMotion() {
+        GcodeBackend b = connected();
+        int before = fake.sentCommands().size();
+
+        b.pendown();
+        b.dwell(750);
+        b.penup();
+
+        List<String> sent = fake.sentCommands().subList(before, fake.sentCommands().size());
+        assertEquals(List.of("M280 P0 S30", "G4 P0.750", "M280 P0 S60"), sent);
+    }
+
+    @Test
     void pendownWithDepthFallsBackToServoCommandWhenNoZAxis() {
         GcodeBackend b = connected(); // default servo mode
 

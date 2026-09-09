@@ -55,6 +55,6 @@ public final class MultipassStage {
                 i++;
             }
         }
-        return new Layer(layer.id(), layer.stationId(), layer.color(), result);
+        return new Layer(layer.id(), layer.stationId(), layer.color(), layer.maxDrawDistance(), layer.dipBehavior(), result);
     }
 }

@@ -140,7 +140,8 @@ public final class SvgImportStage {
                     globalBoundsBuilder, globalTx, commandCounter, preScannedBounds, skipPageBorderFilter);
 
             if (!layerCommands.isEmpty()) {
-                resultLayers.add(new Layer(ctx.layerName, ctx.stationId, ctx.color, layerCommands));
+                resultLayers.add(new Layer(ctx.layerName, ctx.stationId, ctx.color,
+                        options.maxDrawDistance(), layerCommands));
                 totalCommands += layerCommands.size();
             }
         }

@@ -166,7 +166,7 @@ compensate.
 | **Check Before Plotting...** | Opens the guided Pre-Plot Checklist: connect → home → frame the job → confirm the pen, paper, layers, and clear bed. It is the same action as **Check before plotting...** beside **Start plotting**, and runs automatically before plotting when the Settings toggle below is on. |
 | **Setup Wizard...** | The guided first-time setup described in [First start](#first-start) — Connection, Machine geometry/origin/orientation, Pen/speed, in order, re-using the exact same fields as **Settings**. Its final step offers **"Continue to axis calibration now"** (ticked by default), so a first run flows straight from settings into calibration. Safe to re-run any time to revisit those settings step by step. |
 | **Calibrate Axes...** | A guided pass over machine motion. It **connects first** (a Connect step using your saved settings or mock — no need to connect manually beforehand), then: **Direction:** centre the head, jog each motor axis, and click the arrow for the way the pen *actually* moved — the wizard derives the correct swap/invert in one shot (it catches *swapped* axes, not just reversed ones, and applies the result to the live preview). **Scale:** for X and Y, jog a commanded distance, measure what actually moved with a ruler, and the wizard computes a corrected `$100`/`$101` and writes it on request. **Limit switches:** record whether the machine has them, enable the homing cycle (`$22`), and press each switch by hand to watch it register live (a real wiring test, nothing moves). **Pen lift:** pick the lift type (servo / Z-axis / M3-M5), set the up/down values, and **Test** them — edits apply on the next test with no reconnect. The scale, limit and pen steps are each optional (use **Skip**). |
-| **Test Color Stations...** | A guided test run over every configured refill station (watercolor). For each station you can **Move here** (pen-up dry visit so you can eyeball whether the brush lines up with the physical pot), run a **Wet test** (the station's real dip/swirl, so you can check the dip depth and swirl radius clear the pot rim), and **nudge** the position with the **−X/+X/−Y/+Y** buttons if it's off — a nudge moves the head *and* the stored coordinate, and corrected positions are saved when you click **Finish**. Each station step is optional (use **Skip**). Requires a real or mock connection and at least one configured station. See also [placing stations on the canvas](#placing-refill-stations) below. |
+| **Test Color Stations...** | A guided test run over every configured refill station (watercolor). For each station you can **Move here** (pen-up dry visit so you can eyeball whether the brush lines up with the physical pot), run a **Wet test** (the station's real two-cycle dip/swirl using normal pen heights, so you can verify pot and swirl clearance), and **nudge** the position with the **−X/+X/−Y/+Y** buttons if it's off — a nudge moves the head *and* the stored coordinate, and corrected positions are saved when you click **Finish**. Each station step is optional (use **Skip**). Requires a real or mock connection and at least one configured station. See also [placing stations on the canvas](#placing-refill-stations) below. |
 
 ---
 
@@ -253,8 +253,8 @@ Used for watercolor painting. Each station has:
 |---|---|
 | Name | Station ID referenced in the command model (`Layer1`, `default_station`, …) |
 | X / Y | Station position in mm |
-| Z Down | Per-station dip depth in mm. On `zaxis` machines the pen lowers to this depth at the station (servo/M3 pens fall back to the global pen-down position). |
-| Behavior | `simple_dip` — dip and lift · `dip_swirl` — dip + circular swirl · `rinse` — dip + swirl used to clean the brush between colours |
+| Z Down | Reserved per-station depth for custom/future patterns. The built-in patterns use the machine's normal pen-down height. |
+| Behavior | `simple_dip` — two dip/lift cycles · `dip_swirl` — two dip/swirl/lift cycles · `rinse` — two dip/swirl/lift cycles used to clean the brush between colours. All built-ins use the machine's default pen heights. |
 | Color | Hex colour assigned to this station, used by **Map Colors to Stations** to route each drawing colour to its nearest station. |
 | Dwell (ms) | How long to pause at the station while dipping. |
 | Swirl (mm) | Radius of the circular swirl motion for `dip_swirl` / `rinse` behaviours. |
@@ -299,6 +299,25 @@ or cancel. The warning is also written to the Console. Convert text to paths in
 the source SVG when exact typography or portable output is important.
 
 Inkscape layers (`inkscape:groupmode="layer"`) become separate `Layer1`, `Layer2`, … entries, each mapped to a refill station. If a file has no Inkscape layers but groups its content into two or more top-level `<g>` elements (common with non-Inkscape SVG exporters), each such group is also treated as its own layer. SVGs with neither become a single "Default" layer.
+
+### Per-layer watercolor settings
+
+In the **Plot > Layers** list, click **Edit…** beside a layer to override its
+watercolor settings:
+
+- **Refill station** explicitly assigns that layer to a configured station. You
+  can also enter a station ID manually.
+- **Dipping pattern** selects the refill motion for that layer (`simple_dip`,
+  `dip_swirl`, or `rinse`). Older projects without a layer choice inherit the
+  station behavior. The editable value leaves room for additional patterns.
+- **Max drawing distance** controls how many millimetres the layer draws between
+  refills. It starts with the value selected during import; `0` disables
+  automatic refills for that layer.
+- **Pen / nib width** controls the physical-width preview for that layer. It is
+  independent of artwork scaling and is retained in saved projects.
+
+Applying the dialog immediately rebuilds the layer's refill commands. The edit
+is undoable and is retained when the project or command model is saved.
 
 ### Appending another SVG to the current artwork
 
@@ -663,8 +682,10 @@ result and its Undo step are created only after the complete operation succeeds.
 
 For watercolor work, configure each paint pot as a refill station in
 **Settings → Refill stations**, giving each one a **Color** (the paint it holds),
-a dip **Behavior** (`simple_dip`, `dip_swirl`, or `rinse`), a **Z Down** dip depth,
-a **Dwell** time and a **Swirl** radius (see [Refill stations](#refill-stations)).
+a default dip **Behavior** (`simple_dip`, `dip_swirl`, or `rinse`), a **Dwell**
+time and a **Swirl** radius (see [Refill stations](#refill-stations)). Each layer
+can explicitly override its station, dipping pattern, refill distance, and
+preview nib width through **Plot → Layers → Edit…**.
 
 Then, with a colour drawing loaded, use **Map Colors to Stations**: each drawing
 colour is routed to the station whose configured **Color** is closest to it (by
@@ -673,9 +694,11 @@ station markers in the Live View are tinted with their assigned colours, and the
 mapping is logged to the Console. Stations set to `rinse` are used to clean the
 brush between colour changes.
 
-A station's dip depth (**Z Down**) drives a real Z move on `zaxis` machines, so a
-pot of paint can sit lower than the paper; servo / `m3m5` pens fall back to the
-global pen-down position.
+All built-in patterns use the machine's normal pen up/down positions. `simple_dip`
+performs two dip/lift cycles. `dip_swirl` and `rinse` perform two dip/swirl/lift
+cycles, reversing circle direction on the second cycle. Controller-side dwell
+and lift barriers prevent drawing travel from starting before the brush is up.
+Station **Z Down** is reserved for future/custom patterns.
 
 ---
 

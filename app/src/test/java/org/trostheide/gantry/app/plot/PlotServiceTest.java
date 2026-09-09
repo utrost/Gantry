@@ -17,6 +17,7 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class PlotServiceTest {
@@ -134,8 +135,25 @@ class PlotServiceTest {
 
         service.plot(output(layer));
 
-        assertEquals(List.of("MOVETO 10.000 20.000", "PENDOWN", "PENUP",
+        assertEquals(List.of("MOVETO 10.000 20.000", "PENDOWN", "PENUP", "PENDOWN", "PENUP",
                 "PENUP", "MOVETO 0.000 0.000"), backend.calls);
+    }
+
+    @Test
+    void layerDippingPatternOverridesStationBehavior() {
+        FakePlotterBackend backend = new FakePlotterBackend();
+        PlotSettings settings = new PlotSettings();
+        settings.machineWidth = 100.0;
+        settings.machineHeight = 100.0;
+        settings.stations.put("red", new StationConfig(10, 20, 30, "dip_swirl"));
+        PlotService service = new PlotService(backend, settings);
+        Layer layer = new Layer("L1", "red", null, 20, "simple_dip",
+                List.of(new RefillCommand(1, "red")));
+
+        service.plot(output(layer));
+
+        assertEquals(2, backend.calls.stream().filter("PENDOWN"::equals).count());
+        assertFalse(backend.calls.stream().anyMatch(call -> call.startsWith("LINETO")));
     }
 
     @Test
@@ -152,18 +170,15 @@ class PlotServiceTest {
         service.plot(output(layer));
 
         List<String> calls = backend.calls;
-        // Dip (move, pen down for the dwell, up), then a second pen-down for the swirl.
-        assertEquals(List.of("MOVETO 10.000 20.000", "PENDOWN", "PENUP", "PENDOWN"), calls.subList(0, 4));
-        // The swirl traces a full circle of the default 2mm radius (17 points = 16 segments closed).
-        assertEquals("LINETO 12.000 20.000", calls.get(4)); // angle 0 -> centre + (r, 0)
-        assertEquals(17, calls.stream().filter(c -> c.startsWith("LINETO")).count());
-        // Swirl returns to centre and lifts, then the layer parks at the origin.
-        assertEquals(List.of("MOVETO 10.000 20.000", "PENUP", "PENUP", "MOVETO 0.000 0.000"),
+        assertEquals(List.of("MOVETO 10.000 20.000", "PENDOWN", "LINETO 12.000 20.000"), calls.subList(0, 3));
+        assertEquals(36, calls.stream().filter(c -> c.startsWith("LINETO")).count());
+        assertEquals(2, calls.stream().filter("PENDOWN"::equals).count());
+        assertEquals(List.of("LINETO 10.000 20.000", "PENUP", "PENUP", "MOVETO 0.000 0.000"),
                 calls.subList(calls.size() - 4, calls.size()));
     }
 
     @Test
-    void dipUsesStationZDepthWhenConfigured() {
+    void builtInSwirlUsesDefaultPenHeightsRatherThanStationDepth() {
         double[] depth = {Double.NaN};
         FakePlotterBackend backend = new FakePlotterBackend() {
             @Override
@@ -175,12 +190,12 @@ class PlotServiceTest {
         PlotSettings settings = new PlotSettings();
         settings.machineWidth = 100.0;
         settings.machineHeight = 100.0;
-        settings.stations.put("red", new StationConfig(10, 20, 7, "simple_dip"));
+        settings.stations.put("red", new StationConfig(10, 20, 7, "dip_swirl"));
         PlotService service = new PlotService(backend, settings);
 
         service.plot(output(new Layer("L1", "red", List.of(new RefillCommand(1, "red")))));
 
-        assertEquals(7.0, depth[0]); // the station's zDown drives the dip depth
+        assertTrue(Double.isNaN(depth[0]));
     }
 
     @Test
@@ -221,7 +236,7 @@ class PlotServiceTest {
 
         service.plot(output(layer));
 
-        assertEquals(List.of("MOVETO 1.000 2.000", "PENDOWN", "PENUP",
+        assertEquals(List.of("MOVETO 1.000 2.000", "PENDOWN", "PENUP", "PENDOWN", "PENUP",
                 "PENUP", "MOVETO 0.000 0.000"), backend.calls);
         assertTrue(logs.stream().anyMatch(l -> l.contains("Unknown station")));
     }

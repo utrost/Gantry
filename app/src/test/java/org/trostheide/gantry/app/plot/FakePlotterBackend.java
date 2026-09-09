@@ -45,4 +45,9 @@ class FakePlotterBackend implements PlotterBackend {
     public void pendown() {
         calls.add("PENDOWN");
     }
+
+    @Override
+    public void dwell(long millis) {
+        // Controller timing is covered in GcodeBackendTest; keep service tests instantaneous.
+    }
 }

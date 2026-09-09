@@ -18,6 +18,7 @@ import org.trostheide.gantry.app.session.GantryProjectIO;
 import org.trostheide.gantry.model.Bounds;
 import org.trostheide.gantry.model.CoordinateTransform;
 import org.trostheide.gantry.model.Layer;
+import org.trostheide.gantry.model.Metadata;
 import org.trostheide.gantry.model.Point;
 import org.trostheide.gantry.model.ProcessorOutput;
 import org.trostheide.gantry.model.command.Command;
@@ -33,6 +34,7 @@ import org.trostheide.gantry.plotter.MockPlotterBackend;
 import org.trostheide.gantry.plotter.PlotterBackend;
 import org.trostheide.gantry.watercolor.PaintStation;
 import org.trostheide.gantry.watercolor.StationMapper;
+import org.trostheide.gantry.watercolor.LayerRefillPlanner;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
@@ -147,7 +149,8 @@ public class PlotterPanel extends JPanel {
         plotControls = new PlotControlsPanel(new PlotControlsPanel.Actions(
                 () -> { if (config.preflightBeforeStart) onPreflightWizard(); else onStartPlot(); },
                 this::onPreflightWizard, this::onConfirmLayer, this::onPauseToggle,
-                this::onStopPlot, this::onLayerSelectionChanged, this::onProjectSettingsChanged, visPanel::setColorByLayer));
+                this::onStopPlot, this::onLayerSelectionChanged, this::onProjectSettingsChanged,
+                visPanel::setColorByLayer, this::onEditLayerSettings));
         documentEditor = new DocumentEditor(documentSession, this, this::onDocumentEdited,
                 this::setUndoAvailable, this::setRedoAvailable, this::log,
                 new DocumentEditor.Feedback() {
@@ -1069,6 +1072,65 @@ public class PlotterPanel extends JPanel {
         if (choice == JOptionPane.OK_OPTION) fileWorkflow.reprocessArtwork(candidates.get(chooser.getSelectedIndex()));
     }
     private void onMapColorsToStations() { fileWorkflow.mapColors(); }
+    private void onEditLayerSettings(int layerIndex) {
+        ProcessorOutput output = documentSession.currentOutput();
+        if (output == null || layerIndex < 0 || layerIndex >= output.layers().size()) return;
+        Layer layer = output.layers().get(layerIndex);
+        List<String> stationIds = new ArrayList<>(config.stations.keySet());
+        if (layer.stationId() != null && !layer.stationId().isBlank() && !stationIds.contains(layer.stationId())) {
+            stationIds.add(0, layer.stationId());
+        }
+        JComboBox<String> station = new JComboBox<>(stationIds.toArray(new String[0]));
+        station.setEditable(true);
+        station.setSelectedItem(layer.stationId());
+        JSpinner distance = new JSpinner(new SpinnerNumberModel(
+                layer.maxDrawDistance(), 0.0, 100000.0, 10.0));
+        distance.setEditor(new JSpinner.NumberEditor(distance, "0.0"));
+        JSpinner penWidth = new JSpinner(new SpinnerNumberModel(
+                visPanel.penWidthForLayer(layerIndex), 0.05, 5.0, 0.05));
+        penWidth.setEditor(new JSpinner.NumberEditor(penWidth, "0.00"));
+        JComboBox<String> dipBehavior = new JComboBox<>(new String[] {"simple_dip", "dip_swirl", "rinse"});
+        dipBehavior.setEditable(true);
+        String inheritedBehavior = config.stations.containsKey(layer.stationId())
+                ? config.stations.get(layer.stationId()).behavior() : "simple_dip";
+        dipBehavior.setSelectedItem(layer.dipBehavior() == null || layer.dipBehavior().isBlank()
+                ? inheritedBehavior : layer.dipBehavior());
+        JPanel form = new JPanel(new GridLayout(0, 2, 8, 8));
+        form.add(new JLabel("Refill station")); form.add(station);
+        form.add(new JLabel("Dipping pattern")); form.add(dipBehavior);
+        form.add(new JLabel("Max drawing distance (mm)")); form.add(distance);
+        form.add(new JLabel("Pen / nib width (mm)")); form.add(penWidth);
+        JLabel hint = new JLabel("0 disables automatic refills");
+        hint.setForeground(UIManager.getColor("Label.disabledForeground"));
+        form.add(new JLabel()); form.add(hint);
+        if (JOptionPane.showConfirmDialog(this, form, "Watercolor settings — " + layer.id(),
+                JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE) != JOptionPane.OK_OPTION) return;
+        String stationId = String.valueOf(station.getEditor().getItem()).trim();
+        if (stationId.isEmpty()) {
+            info("Choose or enter a refill station ID.");
+            return;
+        }
+        double maxDistance = ((Number) distance.getValue()).doubleValue();
+        double widthMm = ((Number) penWidth.getValue()).doubleValue();
+        String behavior = String.valueOf(dipBehavior.getEditor().getItem()).trim();
+        if (behavior.isEmpty()) behavior = "simple_dip";
+        Layer configured = LayerRefillPlanner.configure(layer, stationId, maxDistance, behavior);
+        List<Layer> layers = new ArrayList<>(output.layers());
+        layers.set(layerIndex, configured);
+        Metadata metadata = output.metadata();
+        int commandCount = layers.stream().mapToInt(item -> item.commands().size()).sum();
+        ProcessorOutput updated = new ProcessorOutput(new Metadata(metadata.source(), metadata.generatedAt(),
+                metadata.stationId(), metadata.units(), commandCount, metadata.bounds()), layers);
+        documentEditor.snapshot();
+        documentEditor.update(updated);
+        onDocumentEdited();
+        visPanel.setPenWidthForLayer(layerIndex, widthMm);
+        visPanel.repaint();
+        documentEditor.historyAvailability();
+        log(String.format("Layer '%s': station '%s', pattern '%s', refill every %.1f mm, pen width %.2f mm.",
+                layer.id(), stationId, behavior, maxDistance, widthMm));
+        showUndoFeedback("Watercolor settings updated for " + layer.id() + ".");
+    }
     private void onOpenProject() { fileWorkflow.openProject(); }
     private void onSaveProject() {
         fileWorkflow.saveProject();
@@ -1584,7 +1646,7 @@ public class PlotterPanel extends JPanel {
                     bakedCommands.add(cmd);
                 }
             }
-            bakedLayers.add(new Layer(layer.id(), layer.stationId(), layer.color(), bakedCommands));
+            bakedLayers.add(new Layer(layer.id(), layer.stationId(), layer.color(), layer.maxDrawDistance(), layer.dipBehavior(), bakedCommands));
         }
         return new ProcessorOutput(output.metadata(), bakedLayers);
     }
