@@ -186,14 +186,6 @@ final class DocumentFileWorkflow {
             ()->actions.feedback().accept("Processing cancelled. Artwork was not changed."));
     }
 
-    void mapColors(){
-        if(session.currentOutput()==null){actions.info().accept("Load or import a drawing first.");return;}
-        List<PaintStation> stations=stations();if(stations.isEmpty()){actions.info().accept("No stations have a colour configured.");return;}
-        editor.snapshot();editor.update(StationMapper.assignByColor(session.currentOutput(),stations));
-        visualization.loadPathsPreservingOverlay(session.currentOutput());actions.refresh().run();
-        for(Layer layer:session.currentOutput().layers())actions.log().accept("Layer '"+layer.id()+"' ("+layer.color()+") → station '"+layer.stationId()+"'");
-    }
-
     void exportCommands(){
         if(session.currentOutput()==null){actions.info().accept("Load or import a drawing first.");return;}
         JFileChooser chooser=chooser("Gantry commands — JSON (*.json)","json");

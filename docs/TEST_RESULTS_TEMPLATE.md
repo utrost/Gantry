@@ -55,7 +55,6 @@ while executing the scripts in [`TESTING.md`](TESTING.md). One row per script ID
 | TS-M1 | Jog & pen | | |
 | TS-M2 | Raw G-code field | | |
 | TS-M3 | Soft limits | | |
-| TS-N1 | Map Colors to Stations | | |
 | TS-O1 | Basic plot | | |
 | TS-O2 | Refill / confirm-layer pauses | | |
 | TS-O3 | Pause / Resume / Stop | | |

@@ -20,7 +20,7 @@ It converts SVG files into G-code and streams it to a GRBL-based plotter over se
 ./scripts/start.sh        # or start.cmd on Windows
 ```
 
-The GUI opens. On a brand-new install (no `config.json` yet), choose **Start
+The GUI opens. On a brand-new install (no saved user configuration yet), choose **Start
 guided practice** for the shortest route to a first plot. Gantry opens the real
 Setup Wizard with the no-hardware mock backend selected, loads a supplied
 80×60 mm practice drawing, then leads into the normal connection and safety
@@ -29,6 +29,14 @@ check. Click **Close** to dismiss the welcome for the current launch. Untick
 launches; that preference is remembered and can be changed under
 **Settings > General**. You can always restart the guided route with
 **Help > Guided First Plot...**.
+
+GUI settings are stored independently of the launch directory. On Windows the
+file is `%APPDATA%\Gantry\config.json`; on macOS it is under
+`~/Library/Application Support/Gantry/`, and on Linux under
+`${XDG_CONFIG_HOME:-~/.config}/gantry/`. On the first launch after upgrading,
+Gantry copies a legacy `config.json` from the current working directory when no
+user-profile configuration exists. Set `-Dgantry.config.file=<path>` only when
+an explicit alternate profile is needed.
 
 ![First-run guided-practice choice](images/first-run-guided-practice.png)
 
@@ -255,7 +263,7 @@ Used for watercolor painting. Each station has:
 | X / Y | Station position in mm |
 | Z Down | Reserved per-station depth for custom/future patterns. The built-in patterns use the machine's normal pen-down height. |
 | Behavior | `simple_dip` — two dip/lift cycles · `dip_swirl` — two dip/swirl/lift cycles · `rinse` — two dip/swirl/lift cycles used to clean the brush between colours. All built-ins use the machine's default pen heights. |
-| Color | Hex colour assigned to this station, used by **Map Colors to Stations** to route each drawing colour to its nearest station. |
+| Color | Hex colour associated with this station and shown in the watercolor setup. |
 | Dwell (ms) | How long to pause at the station while dipping. |
 | Swirl (mm) | Radius of the circular swirl motion for `dip_swirl` / `rinse` behaviours. |
 
@@ -687,12 +695,10 @@ time and a **Swirl** radius (see [Refill stations](#refill-stations)). Each laye
 can explicitly override its station, dipping pattern, refill distance, and
 preview nib width through **Plot → Layers → Edit…**.
 
-Then, with a colour drawing loaded, use **Map Colors to Stations**: each drawing
-colour is routed to the station whose configured **Color** is closest to it (by
-perceptual RGB distance), so the brush picks up the right paint per layer. The
-station markers in the Live View are tinted with their assigned colours, and the
-mapping is logged to the Console. Stations set to `rinse` are used to clean the
-brush between colour changes.
+Assign each drawing layer's refill station and dipping pattern explicitly with
+**Plot → Layers → Edit…**. Station markers in the Live View are tinted with their
+configured colours. Stations set to `rinse` are used to clean the brush between
+colour changes.
 
 All built-in patterns use the machine's normal pen up/down positions. `simple_dip`
 performs two dip/lift cycles. `dip_swirl` and `rinse` perform two dip/swirl/lift

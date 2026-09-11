@@ -60,7 +60,7 @@ Recommended baseline settings unless a sample says otherwise:
 ### Multi-colour / layer check
 
 - Source: [`docs/samples/multi-colour-layers.svg`](samples/multi-colour-layers.svg)
-- What it tests: layer visibility, colour preservation, colour-to-station mapping,
+- What it tests: layer visibility, colour preservation, per-layer station assignment,
   and prompts for multi-pass or multi-colour workflows.
 - Expected preview size: about 140 × 100 mm.
 - Recommended settings: keep red, blue, and green distinct; for watercolor/station

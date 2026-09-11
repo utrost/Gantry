@@ -105,7 +105,7 @@ a `testdata/` folder.
 | `simple.svg` | A handful of paths/lines, one colour, no layers | most import/plot scripts |
 | `layers2.svg` | Two Inkscape layers (`inkscape:groupmode="layer"`), different stroke colours | TS-H1, TS-N1 |
 | `many-segments.svg` | Many short, end-to-end touching `<line>` segments (e.g. a polyline exported as separate lines) | TS-L2 |
-| `colours.svg` | Several distinct stroke colours (for colour→station mapping) | TS-N1 |
+| `colours.svg` | Several distinct stroke colours (for per-layer watercolor settings) | TS-N1 |
 | `framed.svg` | Content plus a full-page background `<rect>` border (Inkscape page outline) | TS-G1 |
 
 ---
@@ -170,16 +170,17 @@ a `testdata/` folder.
 ### Group B — First run & Setup Wizard
 
 #### TS-B1 — First-run guided-practice offer *(mock OK)*
-1. Quit the app. Delete (or rename) `config.json` in the working directory.
+1. Quit the app. Delete (or rename) the user configuration (`%APPDATA%\Gantry\config.json`
+   on Windows). Also move any working-directory `config.json` aside so legacy migration does not restore it.
 2. Launch the app.
    - [ ] A closable **Your first plot** dialog offers guided practice, machine setup only, or **Close**, clearly says artwork cannot move a machine, and shows a selected **Show this welcome when Gantry starts** checkbox.
 3. Untick **Show this welcome when Gantry starts**, then click **Close**.
-   - [ ] The dialog closes, the main window is usable, no wizard opens, and `config.json` records the preference.
-4. Quit and relaunch without deleting `config.json`.
+   - [ ] The dialog closes, the main window is usable, no wizard opens, and the user configuration records the preference.
+4. Quit and relaunch without deleting the user configuration.
    - [ ] No welcome dialog appears.
 5. Open **Settings > General**, enable **Show welcome choices when Gantry starts**, save, then relaunch.
    - [ ] The welcome appears again. Closing the window with its title-bar close control is equivalent to **Close**.
-6. Quit, delete `config.json` again, relaunch, and this time click **Machine setup only**.
+6. Quit, delete the user configuration again, relaunch, and this time click **Machine setup only**.
    - [ ] The **Machine Setup** wizard opens (continue into TS-B2).
 
 #### TS-B2 — Machine Setup Wizard happy path *(mock OK)*
@@ -197,7 +198,7 @@ a `testdata/` folder.
    - [ ] Console logs `Machine setup saved and applied.`
    - [ ] The Live View bed outline updates to the new 250×180 geometry with the origin in the bottom-left.
 6. Open **Settings > Preferences...**.
-   - [ ] The values entered in the wizard are present (proving the wizard and Settings share one config and persisted to `config.json`).
+   - [ ] The values entered in the wizard are present (proving the wizard and Settings share the stable user configuration).
 7. Re-open the wizard and click **Cancel** on any step.
    - [ ] No config change is logged or persisted (Cancel discards).
 
@@ -532,19 +533,18 @@ a `testdata/` folder.
 
 ---
 
-### Group N — Watercolor / colour→station mapping
+### Group N — Per-layer watercolor settings
 
 *(For placing/adjusting stations on the canvas and physically verifying their
 positions with the test-run wizard, see [Group T](#group-t--visual-station-placement--test-run-wizard).)*
 
-#### TS-N1 — Map Colors to Stations *(mock OK)*
-1. In Settings, configure two stations with distinct **Color** values (e.g. `#FF0000`, `#0000FF`) and `simple_dip` behaviour. Save.
-2. Import `colours.svg` (multiple stroke colours).
-3. **Edit > Map Layer Colors to Stations**.
-   - [ ] Each drawing colour is routed to the nearest station colour; the mapping is logged to the console.
-   - [ ] Station markers in the Live View are tinted with their assigned colours.
-4. (zaxis pen mode) Give a station a **Z Down** depth.
-   - [ ] On a plot, that station dips to its own Z depth (servo/m3m5 fall back to the global pen-down position).
+#### TS-N1 — Explicit layer watercolor controls *(mock OK)*
+1. In Settings, configure two stations and save.
+2. Import `colours.svg`, open **Plot > Layers**, select a layer, and click **Edit…**.
+3. Assign a station, select a dipping pattern, and set the maximum drawing distance and pen width.
+   - [ ] The layer list reflects the selected station and configured values.
+4. Re-open the layer editor.
+   - [ ] All four watercolor values were retained.
 
 ---
 
@@ -831,7 +831,7 @@ and mock plotting.
 | Visual station placement & test-run wizard | TS-T1, TS-T2, TS-T3, TS-T4 |
 | Optimise commands | TS-L1, TS-L2 |
 | Jog / raw G-code | TS-M1, TS-M2, TS-M3 |
-| Watercolor mapping | TS-N1 |
+| Per-layer watercolor settings | TS-N1 |
 | Plotting / passes / pause | TS-O1, TS-O2, TS-O3, TS-O4 |
 | Time estimate | TS-P1, TS-P2 |
 | Export / replay / persistence | TS-Q1, TS-Q2, TS-Q3, TS-Q4, TS-Q5 |

@@ -89,4 +89,30 @@ class GantryConfigTest {
 
         assertTrue(ConfigStore.load(file.toFile()).showWelcomeOnStartup);
     }
+
+    @Test
+    void migratesLegacyWorkingDirectoryConfigOnce(@TempDir Path tempDir) throws Exception {
+        Path legacy = tempDir.resolve("old/config.json");
+        Path stable = tempDir.resolve("user/Gantry/config.json");
+        GantryConfig configured = new GantryConfig();
+        configured.gcode.penMode = "zaxis";
+        ConfigStore.save(configured, legacy.toFile());
+
+        assertEquals(stable.toFile().getAbsoluteFile(),
+                ConfigStore.migrateLegacy(legacy.toFile(), stable.toFile()));
+        assertEquals("zaxis", ConfigStore.load(stable.toFile()).gcode.penMode);
+
+        configured.gcode.penMode = "servo";
+        ConfigStore.save(configured, legacy.toFile());
+        ConfigStore.migrateLegacy(legacy.toFile(), stable.toFile());
+        assertEquals("zaxis", ConfigStore.load(stable.toFile()).gcode.penMode,
+                "an existing user config must never be overwritten by the legacy file");
+    }
+
+    @Test
+    void saveCreatesUserConfigDirectories(@TempDir Path tempDir) throws Exception {
+        Path nested = tempDir.resolve("a/b/c/config.json");
+        ConfigStore.save(new GantryConfig(), nested.toFile());
+        assertTrue(nested.toFile().isFile());
+    }
 }

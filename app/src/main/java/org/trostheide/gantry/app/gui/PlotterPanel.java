@@ -67,8 +67,8 @@ public class PlotterPanel extends JPanel {
     private record OptimizationResult(ProcessorOutput output, OptimizeStage.Stats before,
                                       OptimizeStage.Stats after) { }
 
-    private final File configFile = new File("config.json");
-    // Captured before the config loads: a missing config.json means this is a fresh install, which
+    private final File configFile = ConfigStore.guiConfigFile(new File("config.json"));
+    // Captured before the config loads: a missing user config means this is a fresh install, which
     // always gets the startup welcome once before the remembered preference takes over.
     private final boolean firstRun = !configFile.exists();
     private GantryConfig config = ConfigStore.load(configFile);
@@ -566,7 +566,6 @@ public class PlotterPanel extends JPanel {
                 "Move, scale, or mirror one appended artwork group without touching the other artwork groups."));
         editMenu.add(tip(menuItem("Artwork Groups...", e -> onArtworkGroups(), true),
                 "Inspect composed artwork groups, then transform, re-process, or rename the selected group."));
-        editMenu.add(menuItem("Map Layer Colors to Stations", e -> onMapColorsToStations(), true));
         editMenu.addSeparator();
         hatchRegionModeItem = new JCheckBoxMenuItem("Hatch Region (click areas to fill)");
         hatchRegionModeItem.setToolTipText("Click inside a closed traced region to fill it with hatch "
@@ -1071,7 +1070,6 @@ public class PlotterPanel extends JPanel {
                 JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
         if (choice == JOptionPane.OK_OPTION) fileWorkflow.reprocessArtwork(candidates.get(chooser.getSelectedIndex()));
     }
-    private void onMapColorsToStations() { fileWorkflow.mapColors(); }
     private void onEditLayerSettings(int layerIndex) {
         ProcessorOutput output = documentSession.currentOutput();
         if (output == null || layerIndex < 0 || layerIndex >= output.layers().size()) return;

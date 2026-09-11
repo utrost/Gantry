@@ -386,9 +386,12 @@ Swing + FlatLaf dark theme. `GantryApp#main` sets up `FlatDarkLaf`, builds a
 - **`PlotterPanel`** (~1,390 lines) — the composition root for the main window.
   It lays out the preview, console, extracted control panels, menus, and workflow
   entry points, then wires their callbacks to document and plot controllers.
+  Its GUI configuration path comes from `ConfigStore.guiConfigFile`: a stable
+  per-user OS location, with one-time migration from the legacy working-directory
+  `config.json` and a `gantry.config.file` system-property override.
   The completed decomposition and its safety invariants are tracked in
   `docs/REFACTORING.md`. Menu actions include Import SVG (artwork), Re-process Source
-  SVG (`EditProcessDialog`), Optimize Commands, Map Layer Colors to Stations,
+  SVG (`EditProcessDialog`), Optimize Commands,
   Open/Save Project, Open/Export Flattened Commands, Export/Replay G-code, and
   persistent Recent Plot Jobs. Every File/Edit menu item names its format in the
   label and has a tooltip (`tip()` helper) explaining what it reads or writes.
