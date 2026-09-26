@@ -27,6 +27,7 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <maven.compiler.source>17</maven.compiler.source>
         <maven.compiler.target>17</maven.compiler.target>
+        <gantry.release.version>1.0.0-dev</gantry.release.version>
         <batik.version>1.19</batik.version>
         <jackson.version>2.15.2</jackson.version>
         <commons.cli.version>1.6.0</commons.cli.version>

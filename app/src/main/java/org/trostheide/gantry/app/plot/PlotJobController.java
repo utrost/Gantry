@@ -103,7 +103,7 @@ public final class PlotJobController {
             Throwable failure = null;
             try {
                 service.plot(output);
-                completed = true;
+                completed = !service.isCancelled() && !Thread.currentThread().isInterrupted();
             } catch (Throwable thrown) {
                 failure = thrown;
             } finally {

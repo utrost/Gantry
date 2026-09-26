@@ -5,7 +5,7 @@ to a safe first practice plot. Use it before connecting a real machine.
 
 ## What you need
 
-- Java 17 or newer.
+- A Windows/Linux installer (includes Java), or Java 17+ for JAR downloads.
 - For building from source: Maven 3.8 or newer.
 - Optional for a real plot: a GRBL-based pen plotter connected over USB serial.
 
@@ -13,6 +13,10 @@ You can complete the guided practice with **no hardware**. The mock backend uses
 the same application workflow but never talks to a physical controller.
 
 ## 1. Start Gantry
+
+For an installer download, install the MSI on Windows or the DEB on Ubuntu,
+then open **Gantry** from your application menu. No separate Java installation
+is needed. See [README](../README.md#download-and-first-run) for download details.
 
 From a source checkout:
 

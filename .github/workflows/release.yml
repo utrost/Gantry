@@ -1,45 +1,148 @@
-name: Release
+name: Release installers
 
 on:
   push:
     tags: ['v*']
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (MAJOR.MINOR.PATCH or MAJOR.MINOR.PATCH-rc.N)'
+        required: true
+        default: '1.0.0-rc.2'
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  release:
-    runs-on: ubuntu-latest
+  package:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, windows-2022]
+    runs-on: ${{ matrix.os }}
+    env:
+      REQUESTED_VERSION: ${{ inputs.version }}
+      UPGRADE_FROM: 1.0.0-rc.1
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
         with:
-          java-version: '17'
+          java-version: '21'
           distribution: temurin
           cache: maven
-      - name: Build release artifacts
-        run: ./scripts/release.sh "${GITHUB_REF_NAME#v}"
-      - name: Resolve release notes
-        id: notes
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Resolve version
         shell: bash
         run: |
-          NOTES="docs/release-notes/${GITHUB_REF_NAME#v}.md"
-          if [[ -f "$NOTES" ]]; then
-            echo "body_path=$NOTES" >> "$GITHUB_OUTPUT"
-          fi
-          if [[ "$GITHUB_REF_NAME" == *-* ]]; then
-            echo "prerelease=true" >> "$GITHUB_OUTPUT"
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            VERSION="${GITHUB_REF_NAME#v}"
           else
-            echo "prerelease=false" >> "$GITHUB_OUTPUT"
+            VERSION="${REQUESTED_VERSION:-1.0.0-rc.2}"
           fi
-      - name: Publish GitHub release
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+      - name: Linux packaging prerequisites
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y fakeroot xvfb
+          # Headless runners lack the menu directory present on Ubuntu desktops.
+          sudo mkdir -p /usr/share/desktop-directories
+      - name: Locate WiX 3 tools
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $wixBin = Join-Path $env:WIX 'bin'
+          if (!(Test-Path (Join-Path $wixBin 'candle.exe'))) { throw 'WiX 3 is required' }
+          $wixBin | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+      - name: Test packaging and payload rules
+        run: python -m unittest discover -s scripts -p 'test_*.py'
+      - name: Build and test release
+        shell: bash
+        run: python scripts/release.py "$VERSION" --installer --upgrade-from "$UPGRADE_FROM"
+      - name: Linux installed workflows and upgrade acceptance
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          xvfb-run -a python scripts/test_installer_upgrade.py \
+            "dist/upgrade-fixture/$VERSION/$UPGRADE_FROM/Gantry-$UPGRADE_FROM-linux-x64.deb" \
+            "dist/$VERSION/Gantry-$VERSION-linux-x64.deb" \
+            "$UPGRADE_FROM" "$VERSION" dist/validation
+      - name: Windows installed workflows and upgrade acceptance
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          python scripts/test_installer_upgrade.py `
+            "dist/upgrade-fixture/$env:VERSION/$env:UPGRADE_FROM/Gantry-$env:UPGRADE_FROM-windows-x64.msi" `
+            "dist/$env:VERSION/Gantry-$env:VERSION-windows-x64.msi" `
+            "$env:UPGRADE_FROM" "$env:VERSION" dist/validation
+          if ($LASTEXITCODE -ne 0) { throw 'Installed upgrade/workflow acceptance failed' }
+      - name: Stage consistent downloads
+        shell: bash
+        run: python scripts/stage_download.py "$VERSION" "$RUNNER_OS"
+      - name: Upload Linux installer
+        if: runner.os == 'Linux'
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-linux
+          path: dist/downloads/linux/*
+          if-no-files-found: error
+      - name: Upload portable Java downloads
+        if: runner.os == 'Linux'
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-portable
+          path: dist/downloads/portable/*
+          if-no-files-found: error
+      - name: Upload Windows installer
+        if: runner.os == 'Windows'
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-windows
+          path: dist/downloads/windows/*
+          if-no-files-found: error
+      - name: Upload test and install logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: validation-${{ matrix.os }}
+          include-hidden-files: true
+          path: |
+            **/target/surefire-reports/*.xml
+            dist/validation/**
+
+  draft:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: package
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: release-*
+          path: dist/release
+          merge-multiple: true
+      - name: Verify assets and write consolidated checksums
+        shell: bash
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          test -f "docs/release-notes/$VERSION.md"
+          echo "RELEASE_NOTES=docs/release-notes/$VERSION.md" >> "$GITHUB_ENV"
+          cd dist/release
+          for file in "Gantry-$VERSION.jar" "Gantry-CLI-$VERSION.jar" "Gantry-$VERSION-linux-x64.deb" "Gantry-$VERSION-windows-x64.msi" "Gantry-$VERSION-docs.zip" LICENSE README.md VERSION.txt; do
+            test -s "$file"
+            sha256sum "$file"
+          done > SHA256SUMS
+          sha256sum -c SHA256SUMS
+      - name: Create draft release for final acceptance review
         uses: softprops/action-gh-release@v2
         with:
-          prerelease: ${{ steps.notes.outputs.prerelease }}
-          body_path: ${{ steps.notes.outputs.body_path }}
-          generate_release_notes: true
-          files: |
-            dist/Gantry-*.jar
-            dist/SHA256SUMS
-            dist/LICENSE
-            dist/README.md
+          draft: true
+          prerelease: ${{ contains(github.ref_name, '-') }}
+          body_path: ${{ env.RELEASE_NOTES }}
+          files: dist/release/*

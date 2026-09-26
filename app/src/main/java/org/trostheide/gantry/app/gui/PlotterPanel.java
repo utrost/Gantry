@@ -110,7 +110,7 @@ public class PlotterPanel extends JPanel {
     private final Semaphore confirmGate = new Semaphore(0);
     private JMenuItem replotMenuItem;
     private JMenu recentJobsMenu;
-    private final PlotJobHistory plotHistory = new PlotJobHistory(new File("plot-history.json"));
+    private final PlotJobHistory plotHistory = new PlotJobHistory(org.trostheide.gantry.app.plot.UserStateFiles.resolve(configFile, "plot-history.json"));
     private PlotJobHistory.Job pendingJob;
     private JCheckBoxMenuItem showTravelItem;
     /** True after a plot has completed at least once for the current drawing; enables Re-plot. */
@@ -120,7 +120,7 @@ public class PlotterPanel extends JPanel {
     private volatile boolean plotting;
     private volatile boolean awaitingLayerConfirmation;
     private java.awt.KeyEventDispatcher jogKeyDispatcher;
-    private final File recoveryFile = new File(".gantry-recovery");
+    private final File recoveryFile = org.trostheide.gantry.app.plot.UserStateFiles.resolve(configFile, ".gantry-recovery");
     private javax.swing.Timer recoveryTimer;
 
     /** Controls that should be disabled while a plot is running (jog, pen, speed, edit actions). */
@@ -225,8 +225,7 @@ public class PlotterPanel extends JPanel {
         AdvancedControlsDisclosure advancedControls = new AdvancedControlsDisclosure(
                 List.of(jogSection, jogGap, rawSection, rawGap, consoleGap, consoleScroll));
 
-        JPanel right = new JPanel();
-        right.setLayout(new BoxLayout(right, BoxLayout.Y_AXIS));
+        ControlSidebar right = new ControlSidebar();
         right.add(capHeight(advancedControls));
         right.add(Box.createVerticalStrut(3));
         right.add(jogSection);
@@ -240,19 +239,23 @@ public class PlotterPanel extends JPanel {
         // Console absorbs any leftover vertical space; the fixed sections stay at their natural height.
         right.add(consoleScroll);
 
-        int rightWidth = 300;
-        right.setPreferredSize(new Dimension(rightWidth, right.getPreferredSize().height));
-        right.setMaximumSize(new Dimension(rightWidth, Integer.MAX_VALUE));
+        JScrollPane controlsScroll = new JScrollPane(right);
+        controlsScroll.setBorder(BorderFactory.createEmptyBorder());
+        controlsScroll.setMinimumSize(new Dimension(180, 0));
+        int rightWidth = right.getPreferredSize().width
+                + controlsScroll.getVerticalScrollBar().getPreferredSize().width;
+        controlsScroll.setPreferredSize(new Dimension(rightWidth, right.getPreferredSize().height));
 
-        controlSplit = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, artworkWorkspace, right);
-        // Give all extra space to the canvas; keep the control column at its compact width.
+        controlSplit = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, artworkWorkspace, controlsScroll);
         controlSplit.setResizeWeight(1.0);
         controlSplit.addComponentListener(new java.awt.event.ComponentAdapter() {
             @Override
             public void componentResized(java.awt.event.ComponentEvent e) {
                 int w = controlSplit.getWidth();
                 if (w > 0) {
-                    controlSplit.setDividerLocation(w - rightWidth - controlSplit.getDividerSize());
+                    // Reserve canvas space; scroll controls when fonts need more than half the window.
+                    int width = Math.min(rightWidth, w / 2);
+                    controlSplit.setDividerLocation(w - width - controlSplit.getDividerSize());
                 }
             }
         });
@@ -644,6 +647,13 @@ public class PlotterPanel extends JPanel {
 
         JMenu helpMenu = new JMenu("Help");
         helpMenu.setMnemonic(KeyEvent.VK_H);
+        helpMenu.add(actionItem("Getting Started (Offline)...", () -> {
+            try {
+                openResource(org.trostheide.gantry.app.help.OfflineHelp.guide().toUri(), "Getting Started (Offline)");
+            } catch (IOException error) {
+                info(error.getMessage());
+            }
+        }));
         addHelpMenuItems(helpMenu, this::onGuidedFirstPlot, this::onShowHelp,
                 uri -> openResource(uri, uri.getHost()), this::onCopyDiagnostics, this::onShowAbout);
         menuBar.add(helpMenu);
@@ -754,7 +764,7 @@ public class PlotterPanel extends JPanel {
     }
 
     private void onShowAbout() {
-        String message = "Gantry\nVersion 1.0.0\n\nA pen-plotter control and SVG-to-G-code pipeline.";
+        String message = "Gantry\nVersion " + appVersion() + "\n\nA pen-plotter control and SVG-to-G-code pipeline.";
         JOptionPane.showMessageDialog(this, message, "About Gantry", JOptionPane.INFORMATION_MESSAGE);
     }
 
@@ -1782,14 +1792,14 @@ public class PlotterPanel extends JPanel {
         visPanel.loadFromOutput(project.output());
         visPanel.setPenWidthsMm(project.penWidthsMm());
         visPanel.applyPlacement(project.placement());
-        refreshLayerSelector();
-        plotControls.setSelectedLayers(project.selectedLayers());
         plotControls.setPasses(project.passes());
         if (reVectorizeMenuItem != null) {
             reVectorizeMenuItem.setEnabled(documentSession.sourceImage() != null);
         }
         resetReplot();
         refreshDocumentUi();
+        // Refresh rebuilds the layer widgets; restore the saved subset afterwards.
+        plotControls.setSelectedLayers(project.selectedLayers());
         documentEditor.historyAvailability();
         documentSession.markSaved();
         if (recoveryFile.exists()) recoveryFile.delete();

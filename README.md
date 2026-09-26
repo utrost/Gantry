@@ -3,7 +3,7 @@
 An all-Java toolkit that prepares SVGs for pen plotters and drives the plotter
 directly: optimize → position → process → stream/export G-code. Raster images
 (PNG/JPG) can enter the same pipeline through the optional `vectorize` front
-stage (image → SVG), in the GUI (**Import Image**) or headless (`VectorizeCli`).
+stage (image → SVG), in the GUI (**Add image or photo…**) or headless (`VectorizeCli`).
 
 Gantry merges the SVG-prep features of [SVGToolBox](https://github.com/utrost/SVGToolBox)
 with the processing and plotter-driving of SVG2WaterColor into a single
@@ -14,18 +14,35 @@ The machine-aware Live View previews the configured workspace, final artwork
 placement, per-layer pen colour, visibility, plot order, and physical nib width
 before paper or ink is committed.
 
+![Gantry workspace with three colour layers](docs/images/workspace-layer-preview.png)
+
+[More screenshots and capture details](docs/images/README.md) ·
+[Documentation audit](docs/DOCUMENTATION_STATUS.md)
+
 ## Download and first run
 
-For external testing, use the newest pre-release from
-[GitHub Releases](https://github.com/utrost/Gantry/releases). Download the GUI
-JAR and run it with Java 17 or newer:
+Get the newest candidate from [GitHub Releases](https://github.com/utrost/Gantry/releases).
+Installer releases provide **Windows x64 MSI** and **Linux x64 DEB** packages with
+Java included. Windows targets Windows 10/11; Linux targets Ubuntu 22.04/24.04.
+Other distributions and architectures are not yet validated.
 
-```bash
-java -jar Gantry-1.0.0-alpha.1.jar
-```
+- Windows: download `Gantry-<version>-windows-x64.msi`, install it, then open
+  **Gantry** from the Start menu. Installation is for your Windows account and
+  includes `gantry-cli.exe`, bundled Java, offline help and SVG samples. Candidate
+  installers are currently unsigned.
+- Ubuntu: download `Gantry-<version>-linux-x64.deb`, install it with
+  `sudo apt install ./Gantry-<version>-linux-x64.deb`, then open **Gantry** from
+  the applications menu.
 
-If no release is available yet, build from source with `./scripts/build.sh` and
-start with `./scripts/start.sh`.
+The existing alpha and RC1 releases contain JARs only. Until an installer
+candidate is published, download its GUI JAR and run `java -jar Gantry-<version>.jar`
+with Java 17 or newer, or build from source with `./scripts/build.sh`.
+
+Installer downloads contain the platform package, a standalone README, license,
+version information and checksums. Portable GUI/CLI JARs and the complete offline
+documentation ZIP are a separate download. See [installer contents](docs/packaging/README.md).
+
+Start with the [guided mock first plot](docs/FIRST_PLOT.md) before using hardware.
 
 ## Start here
 
@@ -100,10 +117,16 @@ Windows (`.cmd`), all run from the repo root:
 | `update.sh` / `update.cmd` | `git pull` the current branch |
 | `build.sh` / `build.cmd` | `mvn clean install` everything (pass `--skip-tests` to skip tests) |
 | `start.sh` / `start.cmd` | Launch the Gantry GUI (`app/target/app-1.0.0.jar`), building it first if missing |
+| `test-gui.sh [GUI-JAR] [RESULTS]` | Exercise the GUI mock workflow and process-restart recovery (Linux/JDK/display) |
+| `capture-screenshots.sh [GUI-JAR]` | Refresh four real application UI captures using a temporary mock profile (Linux/JDK/display) |
 | `start-novice-study.sh` | Launch the GUI from an isolated clean profile for novice-study participants |
-| `release.sh` / `release.cmd` | Build versioned GUI/CLI artifacts and checksums under `dist/` |
+| `release.sh` / `release.cmd` | Build versioned GUI/CLI artifacts under `dist/<version>/`; add `--installer` for the host installer |
 
-Tagged releases are built by GitHub Actions. See
+Release builds require Python 3.9+ as well as Java/Maven; native installers
+require JDK 21+ with jpackage. Portable JARs still run on Java 17+. For example:
+`./scripts/release.sh 1.0.0-rc.2 --installer` (Windows: `scripts\release.cmd 1.0.0-rc.2 --installer`).
+
+Tagged releases are staged as drafts by GitHub Actions after both installers pass. See
 [`docs/RELEASE_CHECKLIST.md`](docs/RELEASE_CHECKLIST.md) for the required mock
 and real-hardware acceptance record.
 

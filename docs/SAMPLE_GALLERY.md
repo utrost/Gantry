@@ -11,7 +11,7 @@ machine size, origin, pen lift, or GRBL setup.
 ## How to use a sample
 
 1. Open Gantry.
-2. Choose **Add artwork** or **File > Open** and select one of the files under
+2. Choose **Add artwork** or **File > Open SVG or Vector Drawing…** and select one of the files under
    [`docs/samples/`](samples/).
 3. Keep the mock backend selected for the first pass.
 4. Confirm the preview fits inside the configured bed.
