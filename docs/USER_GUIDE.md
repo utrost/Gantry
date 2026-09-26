@@ -221,9 +221,9 @@ File/Edit menu item shows a tooltip reminding you which format it touches.
 ## Settings
 
 Open via **Settings ▸ Preferences…**. The dialog is organised into tabs —
-**Connection**, **Geometry**, **Pen / Speed**, **Stations** — so it stays a
+**Connection**, **General**, **Geometry**, **Pen / Speed**, **Stations** — so it stays a
 sensible size; pick a tab to edit that group. Changes take effect after clicking
-**Save** (OK).
+**OK**.
 
 ### Connection
 
@@ -234,7 +234,14 @@ sensible size; pick a tab to edit that group. Changes take effect after clicking
 | Mock backend | Simulates the plotter without a serial connection — useful for testing |
 | Run Pre-Plot Checklist before Start | When on (default), clicking **Start Plot** opens the **Pre-Plot Checklist** wizard (see [Machine menu](#machine-menu)) instead of plotting immediately. Turn off to skip straight to plotting. |
 
+### General
+
+**Show welcome choices when Gantry starts** controls whether the guided-practice
+welcome appears on subsequent launches.
+
 ### Machine geometry
+
+![Machine geometry preferences](images/preferences-geometry.png)
 
 | Field | Description |
 |---|---|
@@ -317,6 +324,8 @@ the source SVG when exact typography or portable output is important.
 Inkscape layers (`inkscape:groupmode="layer"`) become separate `Layer1`, `Layer2`, … entries, each mapped to a refill station. If a file has no Inkscape layers but groups its content into two or more top-level `<g>` elements (common with non-Inkscape SVG exporters), each such group is also treated as its own layer. SVGs with neither become a single "Default" layer.
 
 ### Per-layer watercolor settings
+
+![Per-layer refill and nib-width settings](images/layer-watercolor-settings.png)
 
 In the **Plot > Layers** list, click **Edit…** beside a layer to override its
 watercolor settings:
@@ -440,8 +449,7 @@ Use whichever fits your workflow — there's no need to enable both.
 
 ## Importing an Image (vectorize)
 
-To bring a **raster image** (PNG/JPG) into Gantry, click **Import Image
-(vectorize)…** (File menu, Ctrl+Shift+I). Gantry traces the image into vector
+To bring a **raster image** (PNG/JPG) into Gantry, click **Add image or photo…** (File menu, Ctrl+Shift+I). Gantry traces the image into vector
 paths, then hands the result to the same SVG import you'd use for hand-authored
 artwork — so a photo, scan, sketch or logo can become a plot.
 
@@ -477,7 +485,7 @@ The flow is two dialogs:
    Stroke colour/width and Smooth curves apply to the polyline/centerline/bézier
    outputs (the colour-fill tracers carry their own colours).
 
-2. **Import SVG dialog** — the *same* dialog as [Importing an SVG](#importing-an-svg):
+2. **Import SVG dialog** — the *same* dialog as [Opening SVG artwork](#opening-or-composing-svgvector-artwork):
    set Fit-to size, refill, curve step, and optional SVGToolBox processing. The
    traced SVG flows through unchanged, so everything downstream (positioning,
    layers, hatching, plotting) behaves exactly as for any imported SVG.

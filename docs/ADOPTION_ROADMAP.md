@@ -107,7 +107,7 @@ bar is desired.
 ### Product and code work
 
 1. **Create the first public pre-release artifact**
-   - Tag a version such as `v0.9.0` or `v1.0.0-alpha.1`.
+   - Prepare the next candidate, `v1.0.0-rc.2`; preserve the existing alpha and RC1 tags.
    - Publish the GUI fat JAR, CLI fat JAR, checksums, license, and release notes.
    - Make the README say how to download and run before explaining how to build
      from source.
@@ -244,7 +244,8 @@ Make Gantry credible as an early open-source tool rather than a personal project
 2. **Decide on native packaging**
    - If JAR launching remains a blocker, provide at least zip bundles with
      platform launch scripts.
-   - Full installers can wait, but the default run path should not require users
+   - Windows MSI and Linux DEB installers now pass automated acceptance; publish
+     them after the remaining release checks. The default run path should not require users
      to know Maven.
 
 3. **Build a compatibility matrix**
@@ -382,8 +383,8 @@ external people, or media production.
 5. **Done:** Seed GitHub issue labels and issue templates.
 6. **Manual/adoption evidence:** Run the five-person novice study when testers
    are available — tracked in [#16](https://github.com/utrost/Gantry/issues/16).
-7. **Done:** Write a “First plot with Gantry” quickstart. Screenshots can be
-   added after the next guided-practice capture.
+7. **Done:** Write a “First plot with Gantry” quickstart and refresh the
+   [welcome and application screenshots](images/README.md).
 8. **Done:** Add serial-permission and GRBL-alarm troubleshooting.
 9. **Blocked/manual:** Publish a one-minute demo video or GIF — tracked in
    [#18](https://github.com/utrost/Gantry/issues/18).
@@ -393,6 +394,9 @@ external people, or media production.
 
 Additional support hardening now tracked in
 [#17](https://github.com/utrost/Gantry/issues/17).
+
+RC1 is also published as JARs. The next installer candidate is prepared but
+unpublished; current evidence is in the [RC2 record](../release-results/1.0.0-rc.2.md).
 
 ## Operating rhythm
 

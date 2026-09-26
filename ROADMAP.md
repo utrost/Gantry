@@ -15,9 +15,11 @@ GRBL cancellation/error handling. Its machine-aware preview also shows ordered
 layers with source pen colours, visibility, and physical nib widths that remain
 constant when artwork is scaled.
 
-The next active work is usability hardening for casual and first-time operators,
-not another plotting feature or geometry subsystem. The detailed scope and
-acceptance plan lives in [`docs/USABILITY.md`](docs/USABILITY.md).
+The current release work is Windows/Linux distribution and acceptance for
+1.0.0-rc.2. Native installation, upgrade, bundled-runtime launch, and persisted
+state checks pass; human desktop and hardware acceptance remain open. See the
+[current acceptance record](release-results/1.0.0-rc.2.md). Beginner usability
+is closed as described in [`docs/USABILITY.md`](docs/USABILITY.md).
 
 ## Delivery plan
 
@@ -27,7 +29,7 @@ acceptance plan lives in [`docs/USABILITY.md`](docs/USABILITY.md).
 | 2 | Roadmap reconciliation | Active plan is concise; historical phase diary is explicitly deprecated and archived | Complete |
 | 3 | Project/session persistence | `.gantry` files preserve commands, placement, selected layers, passes, and source/vectorizer provenance; command JSON is clearly a flattened interchange export | Complete |
 | 4 | Undo/recovery | Multi-level undo/redo covers model edits; dirty state, close protection, and recovery autosave protect unsaved work | Complete for model/project state; canvas gestures remain direct manipulation |
-| 5 | Release readiness | Non-SNAPSHOT version, repeatable release artifacts, checksums, and a recorded acceptance template/workflow | Code complete; real-hardware acceptance required per release |
+| 5 | Release readiness | Non-SNAPSHOT version, repeatable release artifacts, checksums, and a recorded acceptance template/workflow | Windows/Linux automated installer and upgrade checks pass; human desktop and real-hardware acceptance pending |
 | 6 | Focused polish | Full SVG colour discovery for hatch overrides, accurate travel accounting/labeling, and vectorizer crop restoration | Complete |
 | 7 | CLI batch artifacts | Post-import optimize, shared config/station mapping, and optional G-code output work headlessly with end-to-end tests | Complete |
 | 8 | Exact-job history | Re-plot uses an immutable prepared-job snapshot; recent successful jobs persist and can be reopened/replotted | Complete |
@@ -52,8 +54,8 @@ validation, support, compatibility evidence, and low-key public outreach.
   each artwork group be inspected/renamed/moved/scaled/mirrored, can re-run SVG
   processors for a selected provenance-backed artwork while preserving its
   transform, keeps those edits undoable, and persists artwork metadata in
-  `.gantry` projects. Future work can add direct canvas handles if dogfooding
-  proves the dialog flow is not enough.
+  `.gantry` projects. Direct canvas selection and dragging are implemented;
+  richer handles remain subject to dogfooding evidence.
 - Same-colour SVG group/element hatch overrides: click-to-hatch already covers
   most interactive use cases; build group overrides only for repeatable batch
   processing demand.

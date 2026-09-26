@@ -3,7 +3,7 @@
 An all-Java toolkit that prepares SVGs for pen plotters and drives the plotter
 directly: optimize → position → process → stream/export G-code. Raster images
 (PNG/JPG) can enter the same pipeline through the optional `vectorize` front
-stage (image → SVG), in the GUI (**Import Image**) or headless (`VectorizeCli`).
+stage (image → SVG), in the GUI (**Add image or photo…**) or headless (`VectorizeCli`).
 
 Gantry merges the SVG-prep features of [SVGToolBox](https://github.com/utrost/SVGToolBox)
 with the processing and plotter-driving of SVG2WaterColor into a single
@@ -13,6 +13,11 @@ path; watercolor (paint stations + refill) is an optional stage layered on top.
 The machine-aware Live View previews the configured workspace, final artwork
 placement, per-layer pen colour, visibility, plot order, and physical nib width
 before paper or ink is committed.
+
+![Gantry workspace with three colour layers](docs/images/workspace-layer-preview.png)
+
+[More screenshots and capture details](docs/images/README.md) ·
+[Documentation audit](docs/DOCUMENTATION_STATUS.md)
 
 ## Download and first run
 
@@ -106,6 +111,7 @@ Windows (`.cmd`), all run from the repo root:
 | `update.sh` / `update.cmd` | `git pull` the current branch |
 | `build.sh` / `build.cmd` | `mvn clean install` everything (pass `--skip-tests` to skip tests) |
 | `start.sh` / `start.cmd` | Launch the Gantry GUI (`app/target/app-1.0.0.jar`), building it first if missing |
+| `capture-screenshots.sh [GUI-JAR]` | Refresh four real application UI captures using a temporary mock profile (Linux/JDK/display) |
 | `start-novice-study.sh` | Launch the GUI from an isolated clean profile for novice-study participants |
 | `release.sh` / `release.cmd` | Build versioned GUI/CLI artifacts under `dist/<version>/`; add `--installer` for the host installer |
 

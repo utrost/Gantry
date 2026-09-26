@@ -10,12 +10,12 @@ must keep intact.
 The Maven modules provide useful boundaries, but two Swing classes have grown
 far beyond a maintainable size:
 
-| Class | Current size | Responsibilities concentrated there |
+| Class | Size after July persistence work (historical) | Responsibilities concentrated there |
 |---|---:|---|
 | `PlotterPanel` | 1,388 lines | window composition and delegation to focused workflows, controllers, views, project recovery, and recent-job history |
 | `VisualizationPanel` | 951 lines | canvas scene/overlay state delegating rendering, interaction, geometry, and context actions |
 
-`SvgImportStage` (~840 lines), `VectorizeStudioDialog` (~690 lines), and the
+`SvgImportStage`, `VectorizeStudioDialog`, and the
 vectorizer controls remain larger classes, but their responsibilities are more
 cohesive and their deterministic behavior has stronger test coverage. Revisit
 them only when feature work exposes a concrete boundary; size alone is not a
@@ -101,8 +101,10 @@ recovery, and recent-job milestones grew `PlotterPanel` from 1,183 to 1,388
 lines without reversing the controller/view boundaries. That composition root
 is again a maintenance watch item: extract a focused project/recovery or job
 history coordinator when the next feature materially touches those workflows.
-Multi-document composition is deferred pending a validated user workflow, so it
-is not a reason by itself to start another general refactoring campaign.
+Multi-document composition, per-artwork transforms, and direct canvas selection
+and dragging are now implemented. Preserve their undo/persistence boundaries;
+extract focused responsibilities when concrete maintenance work warrants it.
+The size measurements above and in the log are historical, not current counts.
 
 ## Working log
 

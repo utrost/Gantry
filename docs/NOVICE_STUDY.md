@@ -6,9 +6,11 @@ goal is to observe the product, not teach plotting.
 
 ## Prepare each session
 
-1. Use the same Gantry build and a fresh working directory for every person.
+1. Use the same Gantry build and a fresh isolated profile for every person.
    It must contain no `config.json`, recovery file, project, or plot history.
-   The recommended launcher creates this isolated profile automatically:
+   Changing the working directory alone does not isolate the per-user profile.
+   The recommended launcher sets `-Dgantry.config.file` explicitly and creates
+   this isolated profile automatically:
 
    ```bash
    scripts/start-novice-study.sh --profile .novice-study-profiles/P1 --reset
