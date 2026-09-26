@@ -45,7 +45,11 @@ jobs:
           echo "VERSION=$VERSION" >> "$GITHUB_ENV"
       - name: Linux packaging prerequisites
         if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y fakeroot xvfb
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y fakeroot xvfb
+          # Headless runners lack the menu directory present on Ubuntu desktops.
+          sudo mkdir -p /usr/share/desktop-directories
       - name: Locate WiX 3 tools
         if: runner.os == 'Windows'
         shell: pwsh

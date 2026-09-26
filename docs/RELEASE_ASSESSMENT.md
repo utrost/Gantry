@@ -108,3 +108,15 @@ not release readiness.
 The Ubuntu 24.04 host generated dependencies including `libasound2t64` and
 `libglib2.0-0t64`. Do not assume this package supports older Ubuntu/Debian
 releases. Choose and test the oldest supported Linux build baseline explicitly.
+
+## Follow-up implementation
+
+The software gaps identified above are addressed on
+`release/1.0.0-rc.2-installers`, reviewed in
+[PR #28](https://github.com/utrost/Gantry/pull/28): native package automation,
+per-user history/recovery with migration, embedded candidate identity, draft
+release staging, and updated installer documentation. The historical findings
+above describe the assessed baseline, not the updated implementation.
+
+See [RC2 acceptance record](../release-results/1.0.0-rc.2.md) for validation and
+remaining checks requiring desktop testers or a real machine.

@@ -33,7 +33,8 @@ launches; that preference is remembered and can be changed under
 GUI settings are stored independently of the launch directory. On Windows the
 file is `%APPDATA%\Gantry\config.json`; on macOS it is under
 `~/Library/Application Support/Gantry/`, and on Linux under
-`${XDG_CONFIG_HOME:-~/.config}/gantry/`. On the first launch after upgrading,
+`${XDG_CONFIG_HOME:-~/.config}/gantry/`.
+
 Plot history and crash recovery live beside this configuration file, so menu
 launches and upgrades retain them. Existing working-directory history/recovery
 files migrate on first use without replacing newer user state. A migration

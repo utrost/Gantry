@@ -16,8 +16,8 @@ usage() {
 Usage: scripts/start-novice-study.sh [--profile DIR] [--reset] [--dry-run]
 
 Launch Gantry from a clean participant profile for the novice usability study.
-The profile directory becomes Gantry's working directory, isolating config.json,
-plot-history.json, recovery files, projects, and file-chooser history.
+The profile directory becomes Gantry's working directory and explicit config
+profile, isolating settings, plot history, recovery and file-chooser history.
 
 Options:
   --profile DIR  Profile directory to use. Defaults to
@@ -91,7 +91,7 @@ Gantry novice-study profile
 
 This directory is intentionally isolated for one novice-study participant/run.
 Gantry writes config.json, plot-history.json, recovery files, projects, and file
-chooser history relative to this working directory.
+chooser history in this explicit profile.
 
 Protocol: $ROOT/docs/NOVICE_STUDY.md
 Results template: $ROOT/docs/NOVICE_STUDY_RESULTS_TEMPLATE.md
