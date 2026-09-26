@@ -34,8 +34,13 @@ def acceptance(launcher, version, workspace, phase):
     profile = profile_directory(workspace)
     if phase == 'verify':
         verify_preserved(workspace)
-    cwd = workspace / f'launch directory {phase}'
-    cwd.mkdir(exist_ok=True)
+    # Verify from the actual installed directory (root-owned on Linux), not a writable checkout.
+    cwd = launcher.resolve().parent if phase == 'verify' else workspace / 'first launch directory'
+    if phase == 'seed':
+        cwd.mkdir(exist_ok=True)
+    (workspace / f'{phase}-launch.json').write_text(json.dumps({
+        'cwd': str(cwd), 'profile': str(profile), 'cwdWritable': os.access(cwd, os.W_OK)
+    }, indent=2))
     report = workspace / f'{phase}.json'
     # A failed/repeated launch must never reuse a stale success report.
     report.unlink(missing_ok=True)
@@ -56,6 +61,8 @@ def acceptance(launcher, version, workspace, phase):
         (workspace / 'state-sha256.json').write_text(json.dumps(profile_hashes(profile), indent=2))
     else:
         verify_preserved(workspace)
+    if any((cwd / name).exists() for name in ('config.json', 'plot-history.json', '.gantry-recovery')):
+        raise RuntimeError('Runtime state leaked into the launch directory')
     print(f'{phase}: {version}: {len(EXPECTED_CHECKS)} installed-runtime checks passed')
 
 

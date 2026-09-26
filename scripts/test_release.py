@@ -5,6 +5,7 @@ import zipfile
 from pathlib import Path
 from unittest.mock import patch
 import release
+from test_installer_upgrade import shortcut_paths
 from release import native_version
 
 class InstallerVersionTest(unittest.TestCase):
@@ -42,6 +43,16 @@ class UpgradeFixtureTest(unittest.TestCase):
         for baseline in ['1.0.0-rc.2', '1.0.0', '2.0.0']:
             with self.subTest(baseline=baseline), self.assertRaises(ValueError):
                 release.upgrade_fixture('1.0.0-rc.2', baseline, Path('unused'))
+
+class ShortcutDiscoveryTest(unittest.TestCase):
+    def test_searches_both_system_defaults_and_absolute_xdg_roots(self):
+        with patch('test_installer_upgrade.platform.system', return_value='Linux'), \
+             patch.dict('os.environ', {'XDG_DATA_DIRS': '/opt/share:relative:/usr/share'}):
+            paths = shortcut_paths()
+        self.assertIn(Path('/usr/local/share/applications/gantry-Gantry.desktop'), paths)
+        self.assertIn(Path('/usr/share/applications/gantry-Gantry.desktop'), paths)
+        self.assertIn(Path('/opt/share/applications/gantry-Gantry.desktop'), paths)
+        self.assertEqual(len(paths), 3)
 
 if __name__ == '__main__':
     unittest.main()

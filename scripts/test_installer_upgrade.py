@@ -5,6 +5,7 @@ import json
 import os
 from pathlib import Path
 import platform
+import shlex
 import subprocess
 
 from accept_installer import acceptance, verify_preserved
@@ -44,10 +45,13 @@ def installed_version():
     return result.stdout.split('-')[0]
 
 
-def shortcut_path():
+def shortcut_paths():
     if platform.system() == 'Windows':
-        return Path(os.environ['ProgramData']) / 'Microsoft/Windows/Start Menu/Programs/Gantry/Gantry.lnk'
-    return Path('/usr/share/applications/gantry-Gantry.desktop')
+        return [Path(os.environ['ProgramData']) / 'Microsoft/Windows/Start Menu/Programs/Gantry/Gantry.lnk']
+    # sudo may discard XDG_DATA_DIRS; inspect both its defaults and configured roots.
+    roots = ['/usr/local/share', '/usr/share', *os.environ.get('XDG_DATA_DIRS', '').split(':')]
+    return list(dict.fromkeys(Path(root) / 'applications/gantry-Gantry.desktop'
+                              for root in roots if root and Path(root).is_absolute()))
 
 
 def main():
@@ -84,8 +88,15 @@ def main():
         if installed_version() != native_version(args.candidate_version):
             raise RuntimeError('Upgrade did not replace the installed version')
         result['checks'].append('native-upgrade-replaced-product')
-        if not shortcut_path().is_file():
-            raise RuntimeError(f'Application-menu shortcut is missing: {shortcut_path()}')
+        shortcuts = [path for path in shortcut_paths() if path.is_file()]
+        if not shortcuts:
+            raise RuntimeError(f'Application-menu shortcut is missing; searched {shortcut_paths()}')
+        if platform.system() == 'Linux':
+            for shortcut in shortcuts:
+                commands = [line[5:] for line in shortcut.read_text().splitlines() if line.startswith('Exec=')]
+                if len(commands) != 1 or shlex.split(commands[0])[0] != str(launcher):
+                    raise RuntimeError(f'Menu shortcut does not launch the installed app: {shortcut}')
+        result['menuShortcuts'] = [str(path) for path in shortcuts]
         result['checks'].append('application-menu-shortcut-present')
         acceptance(launcher, args.candidate_version, workspace, 'verify')
         result['checks'].append('profile-preserved-and-installed-workflows-passed')
@@ -94,7 +105,7 @@ def main():
         result['checks'].append('upgraded-gui-launch')
         package_operation(candidate, False, workspace / 'uninstall.log')
         installed = None
-        if launcher.exists() or shortcut_path().exists():
+        if launcher.exists() or any(path.exists() for path in shortcut_paths()):
             raise RuntimeError('Uninstall left the native launcher or menu shortcut behind')
         verify_preserved(workspace)
         result['checks'].append('uninstall-preserved-user-files')
