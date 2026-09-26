@@ -225,8 +225,7 @@ public class PlotterPanel extends JPanel {
         AdvancedControlsDisclosure advancedControls = new AdvancedControlsDisclosure(
                 List.of(jogSection, jogGap, rawSection, rawGap, consoleGap, consoleScroll));
 
-        JPanel right = new JPanel();
-        right.setLayout(new BoxLayout(right, BoxLayout.Y_AXIS));
+        ControlSidebar right = new ControlSidebar();
         right.add(capHeight(advancedControls));
         right.add(Box.createVerticalStrut(3));
         right.add(jogSection);
@@ -240,19 +239,23 @@ public class PlotterPanel extends JPanel {
         // Console absorbs any leftover vertical space; the fixed sections stay at their natural height.
         right.add(consoleScroll);
 
-        int rightWidth = 300;
-        right.setPreferredSize(new Dimension(rightWidth, right.getPreferredSize().height));
-        right.setMaximumSize(new Dimension(rightWidth, Integer.MAX_VALUE));
+        JScrollPane controlsScroll = new JScrollPane(right);
+        controlsScroll.setBorder(BorderFactory.createEmptyBorder());
+        controlsScroll.setMinimumSize(new Dimension(180, 0));
+        int rightWidth = right.getPreferredSize().width
+                + controlsScroll.getVerticalScrollBar().getPreferredSize().width;
+        controlsScroll.setPreferredSize(new Dimension(rightWidth, right.getPreferredSize().height));
 
-        controlSplit = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, artworkWorkspace, right);
-        // Give all extra space to the canvas; keep the control column at its compact width.
+        controlSplit = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, artworkWorkspace, controlsScroll);
         controlSplit.setResizeWeight(1.0);
         controlSplit.addComponentListener(new java.awt.event.ComponentAdapter() {
             @Override
             public void componentResized(java.awt.event.ComponentEvent e) {
                 int w = controlSplit.getWidth();
                 if (w > 0) {
-                    controlSplit.setDividerLocation(w - rightWidth - controlSplit.getDividerSize());
+                    // Reserve canvas space; scroll controls when fonts need more than half the window.
+                    int width = Math.min(rightWidth, w / 2);
+                    controlSplit.setDividerLocation(w - width - controlSplit.getDividerSize());
                 }
             }
         });
@@ -1782,14 +1785,14 @@ public class PlotterPanel extends JPanel {
         visPanel.loadFromOutput(project.output());
         visPanel.setPenWidthsMm(project.penWidthsMm());
         visPanel.applyPlacement(project.placement());
-        refreshLayerSelector();
-        plotControls.setSelectedLayers(project.selectedLayers());
         plotControls.setPasses(project.passes());
         if (reVectorizeMenuItem != null) {
             reVectorizeMenuItem.setEnabled(documentSession.sourceImage() != null);
         }
         resetReplot();
         refreshDocumentUi();
+        // Refresh rebuilds the layer widgets; restore the saved subset afterwards.
+        plotControls.setSelectedLayers(project.selectedLayers());
         documentEditor.historyAvailability();
         documentSession.markSaved();
         if (recoveryFile.exists()) recoveryFile.delete();

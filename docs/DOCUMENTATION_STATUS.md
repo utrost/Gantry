@@ -23,3 +23,6 @@ study and complete hardware acceptance remain outstanding.
 
 This audit checks documentation consistency and selected executable contracts;
 it does not claim every manual procedure has been performed on physical hardware.
+
+The subsequent [GUI pass](test-results-2026-09-26-gui.md) records layout,
+cancellation and recovery fixes, refreshed screenshots, and updated local results.

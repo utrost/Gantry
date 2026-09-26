@@ -28,7 +28,12 @@ final class PlotControlsPanel extends JPanel {
     private final JSpinner passes = new JSpinner(new SpinnerNumberModel(1, 1, 10, 1));
     private final JLabel time = new JLabel("Est: --:--");
     private final JProgressBar progress = new JProgressBar(0, 100);
-    private final JPanel layerList = new JPanel();
+    private final JPanel layerList = new JPanel() {
+        @Override public Dimension getPreferredSize() {
+            Dimension preferred = super.getPreferredSize();
+            return new Dimension(0, preferred.height);
+        }
+    };
     private final JCheckBox colors = new JCheckBox("Colour layers", true);
     private final List<JCheckBox> layers = new ArrayList<>();
     private final List<JButton> layerSettings = new ArrayList<>();
@@ -48,20 +53,23 @@ final class PlotControlsPanel extends JPanel {
         progress.setStringPainted(true); progress.setVisible(false);
         layerList.setLayout(new BoxLayout(layerList, BoxLayout.Y_AXIS));
 
-        // Keep every safety/action control visible in the fixed 300 px column at 1024x800.
+        // Separate primary actions so font scaling cannot wrap one into an invisible row.
         JPanel passesRow = row(new JLabel("Passes"), passes);
-        JPanel startRow = row(preflight, start);
+        JPanel preflightRow = row(preflight);
+        JPanel startRow = row(start);
         JPanel runningRow = row(confirm);
         JPanel stopRow = row(pause, stop);
         all.addActionListener(e -> selectAll(true)); none.addActionListener(e -> selectAll(false));
         JPanel header = row(new JLabel("Layers"), all, none);
         JScrollPane scroll = new JScrollPane(layerList);
-        scroll.setPreferredSize(new Dimension(180, 84));
-        scroll.setMaximumSize(new Dimension(Integer.MAX_VALUE, 84));
+        int layerHeight = 3 * (all.getPreferredSize().height + 4) + 4;
+        scroll.setPreferredSize(new Dimension(180, layerHeight));
+        scroll.setMaximumSize(new Dimension(Integer.MAX_VALUE, layerHeight));
+        scroll.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
         colors.addActionListener(e -> actions.colorByLayer().accept(colors.isSelected()));
         JPanel footer = row(time, colors);
         for (JComponent component : List.of(
-                passesRow, startRow, runningRow, stopRow, progress, header, scroll, footer)) {
+                passesRow, preflightRow, startRow, runningRow, stopRow, progress, header, scroll, footer)) {
             component.setAlignmentX(LEFT_ALIGNMENT); add(component);
         }
     }
@@ -73,7 +81,8 @@ final class PlotControlsPanel extends JPanel {
             String color=layer.color()==null||layer.color().isEmpty()?"no colour":layer.color();
             JCheckBox box=new JCheckBox(layer.id()+" — "+color,true);
             box.setForeground(visualization.colorForLayer(i)); box.setEnabled(!plotting);
-            box.setToolTipText("Visible in the preview and included in the plot");
+            box.setToolTipText(layer.id() + " — " + color + ": visible in the preview and included in the plot");
+            box.setMinimumSize(new Dimension(0, box.getPreferredSize().height));
             int layerIndex = i;
             box.addActionListener(e -> changed()); layers.add(box);
             JLabel order = new JLabel((i + 1) + ".");
@@ -86,7 +95,13 @@ final class PlotControlsPanel extends JPanel {
             swatch.setBackground(visualization.colorForLayer(i));
             swatch.setPreferredSize(new Dimension(12, 12));
             swatch.setToolTipText("Pen colour: " + color);
-            layerList.add(row(order, swatch, box, settings));
+            JPanel entry = new JPanel(new BorderLayout(4, 0));
+            entry.add(row(order, swatch), BorderLayout.WEST);
+            entry.add(box, BorderLayout.CENTER);
+            entry.add(settings, BorderLayout.EAST);
+            entry.setAlignmentX(LEFT_ALIGNMENT);
+            entry.setMaximumSize(new Dimension(Integer.MAX_VALUE, entry.getPreferredSize().height));
+            layerList.add(entry);
         }
         rebuilding=false; layerList.revalidate(); layerList.repaint(); actions.selectionChanged().run();
     }

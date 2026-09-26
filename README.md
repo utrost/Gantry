@@ -111,6 +111,7 @@ Windows (`.cmd`), all run from the repo root:
 | `update.sh` / `update.cmd` | `git pull` the current branch |
 | `build.sh` / `build.cmd` | `mvn clean install` everything (pass `--skip-tests` to skip tests) |
 | `start.sh` / `start.cmd` | Launch the Gantry GUI (`app/target/app-1.0.0.jar`), building it first if missing |
+| `test-gui.sh [GUI-JAR] [RESULTS]` | Exercise the GUI mock workflow and process-restart recovery (Linux/JDK/display) |
 | `capture-screenshots.sh [GUI-JAR]` | Refresh four real application UI captures using a temporary mock profile (Linux/JDK/display) |
 | `start-novice-study.sh` | Launch the GUI from an isolated clean profile for novice-study participants |
 | `release.sh` / `release.cmd` | Build versioned GUI/CLI artifacts under `dist/<version>/`; add `--installer` for the host installer |

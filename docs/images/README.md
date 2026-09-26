@@ -1,6 +1,6 @@
 # Application screenshots
 
-Refreshed 2026-09-26 from the `1.0.0-rc.2` GUI JAR, application revision `391a11a`,
+Refreshed 2026-09-26 from the `1.0.0-rc.2` GUI JAR, including the [GUI usability fixes](../test-results-2026-09-26-gui.md),
 on Ubuntu 24.04 with Java 17, FlatLaf dark theme and UI scale 1.
 
 These are captures of the running application's Swing root panes, rendered by
@@ -12,8 +12,8 @@ importer, and opens the real dialogs. No plotter was connected.
 ## Workspace and layer preview
 
 The [multi-colour sample](../samples/multi-colour-layers.svg), with its three
-layers selected, in a 210 × 148 mm workspace. The controls divider is widened
-for readability; nib widths are 0.6, 0.8 and 0.6 mm.
+layers selected, in a 210 × 148 mm workspace. The control panel uses its default width; long layer names retain their full text
+in tooltips. Nib widths are 0.6, 0.8 and 0.6 mm.
 
 ![Workspace and colour layers](workspace-layer-preview.png)
 

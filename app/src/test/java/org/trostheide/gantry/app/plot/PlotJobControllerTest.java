@@ -142,6 +142,47 @@ class PlotJobControllerTest {
     }
 
     @Test
+    void cancelledLayerGateDoesNotBecomeSuccessfulOrReplottable() throws Exception {
+        PlotJobController controller = new PlotJobController();
+        RecordingBackend backend = new RecordingBackend(true);
+        PlotService service = new PlotService(backend, new PlotSettings());
+        CountDownLatch waiting = new CountDownLatch(1);
+        CountDownLatch release = new CountDownLatch(1);
+        service.setLayerGate(layer -> { waiting.countDown(); release.await(); });
+        AtomicBoolean completed = new AtomicBoolean(true);
+        AtomicReference<Throwable> failure = new AtomicReference<>();
+        ProcessorOutput output = new ProcessorOutput(emptyOutput().metadata(), java.util.List.of(
+                new org.trostheide.gantry.model.Layer("test", "", java.util.List.of())));
+        Thread worker = controller.startPlot(service, output, (ok, error) -> {
+            completed.set(ok); failure.set(error);
+        });
+        assertTrue(waiting.await(2, TimeUnit.SECONDS));
+        controller.cancelPlot();
+        release.countDown();
+        worker.join(2000);
+        assertFalse(worker.isAlive());
+        assertFalse(completed.get());
+        assertNull(failure.get());
+        assertFalse(controller.canReplot());
+        assertTrue(service.isCancelled());
+        assertTrue(backend.penRaised);
+    }
+
+    @Test
+    void cancellationBeforeWorkerStartsIsNotLost() throws Exception {
+        PlotJobController controller = new PlotJobController();
+        PlotService service = new PlotService(new RecordingBackend(true), new PlotSettings());
+        service.cancel();
+        AtomicBoolean completed = new AtomicBoolean(true);
+        Thread worker = controller.startPlot(service, emptyOutput(), (ok, error) -> completed.set(ok));
+        worker.join(2000);
+        assertFalse(worker.isAlive());
+        assertTrue(service.isCancelled());
+        assertFalse(completed.get());
+        assertFalse(controller.canReplot());
+    }
+
+    @Test
     void asynchronousPlotCleansUpAndReportsFailure() throws InterruptedException {
         PlotJobController controller = new PlotJobController();
         CountDownLatch finished = new CountDownLatch(1);
@@ -242,6 +283,7 @@ class PlotJobControllerTest {
         private final boolean connectResult;
         private boolean connectCalled;
         private boolean disconnected;
+        private boolean penRaised;
 
         private RecordingBackend(boolean connectResult) {
             this.connectResult = connectResult;
@@ -259,7 +301,7 @@ class PlotJobControllerTest {
         @Override public void moveto(double x, double y) { }
         @Override public void lineto(double x, double y) { }
         @Override public void move(double dx, double dy) { }
-        @Override public void penup() { }
+        @Override public void penup() { penRaised = true; }
         @Override public void pendown() { }
     }
 }

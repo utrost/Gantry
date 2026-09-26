@@ -54,6 +54,14 @@ history/recovery persistence, mock plot/cancel, and G-code export. It never uses
 physical hardware. See [the release checklist](RELEASE_CHECKLIST.md) for commands
 and the separate human desktop/hardware acceptance requirements.
 
+### GUI integration check
+
+After `mvn package`, run `./scripts/test-gui.sh` on Linux with a JDK and display,
+or `xvfb-run -a ./scripts/test-gui.sh` on a headless host. It drives real Swing
+menus, file dialogs and buttons with an isolated mock profile, including a second
+process for recovery. See [the GUI evaluation](test-results-2026-09-26-gui.md) for
+coverage, findings and limitations. Java 17/21 CI runs this after the reactor build.
+
 ### Test coverage by module
 
 | Module | Test classes | What is covered |

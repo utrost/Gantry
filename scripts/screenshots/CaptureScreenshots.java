@@ -42,7 +42,8 @@ public final class CaptureScreenshots {
             JDialog welcome = dialog("Your first plot");
             SwingUtilities.invokeAndWait(() -> {
                 frame = (JFrame) welcome.getOwner();
-                frame.setBounds(80, 80, 1440, 920);
+                frame.setBounds(80, 80, Integer.getInteger("gantry.capture.width", 1440),
+                        Integer.getInteger("gantry.capture.height", 920));
                 welcome.setLocationRelativeTo(frame);
                 welcome.toFront();
             });
@@ -60,7 +61,7 @@ public final class CaptureScreenshots {
                     List.of(.6, .8, .6));
             PlotterPanel panel = (PlotterPanel) frame.getContentPane();
             SwingUtilities.invokeAndWait(() -> invoke(panel, "openProject", new Class<?>[]{GantryProject.class}, project));
-            SwingUtilities.invokeAndWait(() -> { find(panel, JSplitPane.class).setDividerLocation(960); frame.toFront(); frame.requestFocus(); });
+            SwingUtilities.invokeAndWait(() -> { frame.toFront(); frame.requestFocus(); });
             capture(frame, "workspace-layer-preview.png");
 
             SwingUtilities.invokeLater(() -> invoke(panel, "onEditLayerSettings", new Class<?>[]{int.class}, 0));
