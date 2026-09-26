@@ -3,7 +3,7 @@
 import argparse
 import json
 import os
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 import platform
 import shlex
 import subprocess
@@ -51,7 +51,7 @@ def shortcut_paths():
     # sudo may discard XDG_DATA_DIRS; inspect both its defaults and configured roots.
     roots = ['/usr/local/share', '/usr/share', *os.environ.get('XDG_DATA_DIRS', '').split(':')]
     return list(dict.fromkeys(Path(root) / 'applications/gantry-Gantry.desktop'
-                              for root in roots if root and Path(root).is_absolute()))
+                              for root in roots if root and PurePosixPath(root).is_absolute()))
 
 
 def main():

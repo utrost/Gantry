@@ -103,6 +103,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: validation-${{ matrix.os }}
+          include-hidden-files: true
           path: |
             **/target/surefire-reports/*.xml
             dist/validation/**
