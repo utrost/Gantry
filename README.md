@@ -27,7 +27,9 @@ Java included. Windows targets Windows 10/11; Linux targets Ubuntu 22.04/24.04.
 Other distributions and architectures are not yet validated.
 
 - Windows: download `Gantry-<version>-windows-x64.msi`, install it, then open
-  **Gantry** from the Start menu. Candidate installers are currently unsigned.
+  **Gantry** from the Start menu. Installation is for your Windows account and
+  includes `gantry-cli.exe`, bundled Java, offline help and SVG samples. Candidate
+  installers are currently unsigned.
 - Ubuntu: download `Gantry-<version>-linux-x64.deb`, install it with
   `sudo apt install ./Gantry-<version>-linux-x64.deb`, then open **Gantry** from
   the applications menu.
@@ -35,6 +37,10 @@ Other distributions and architectures are not yet validated.
 The existing alpha and RC1 releases contain JARs only. Until an installer
 candidate is published, download its GUI JAR and run `java -jar Gantry-<version>.jar`
 with Java 17 or newer, or build from source with `./scripts/build.sh`.
+
+Installer downloads contain the platform package, a standalone README, license,
+version information and checksums. Portable GUI/CLI JARs and the complete offline
+documentation ZIP are a separate download. See [installer contents](docs/packaging/README.md).
 
 Start with the [guided mock first plot](docs/FIRST_PLOT.md) before using hardware.
 
@@ -116,7 +122,8 @@ Windows (`.cmd`), all run from the repo root:
 | `start-novice-study.sh` | Launch the GUI from an isolated clean profile for novice-study participants |
 | `release.sh` / `release.cmd` | Build versioned GUI/CLI artifacts under `dist/<version>/`; add `--installer` for the host installer |
 
-Release builds require Python 3.9+ as well as Java/Maven. For example:
+Release builds require Python 3.9+ as well as Java/Maven; native installers
+require JDK 21+ with jpackage. Portable JARs still run on Java 17+. For example:
 `./scripts/release.sh 1.0.0-rc.2 --installer` (Windows: `scripts\release.cmd 1.0.0-rc.2 --installer`).
 
 Tagged releases are staged as drafts by GitHub Actions after both installers pass. See

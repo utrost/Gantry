@@ -17,6 +17,30 @@ public final class GantryApp {
     }
 
     public static void main(String[] args) {
+        if (args.length > 0 && ("--offline-help".equals(args[0]) || "--offline-help-check".equals(args[0]))) {
+            try {
+                java.nio.file.Path guide = org.trostheide.gantry.app.help.OfflineHelp.guide();
+                if ("--offline-help-check".equals(args[0])) {
+                    if (args.length != 2) throw new IllegalArgumentException("--offline-help-check requires a report path");
+                    java.nio.file.Files.writeString(java.nio.file.Path.of(args[1]), guide.toString());
+                } else {
+                    if (!java.awt.Desktop.isDesktopSupported()
+                            || !java.awt.Desktop.getDesktop().isSupported(java.awt.Desktop.Action.BROWSE)) {
+                        throw new java.io.IOException("Open the guide in your browser: " + guide);
+                    }
+                    java.awt.Desktop.getDesktop().browse(guide.toUri());
+                }
+                System.exit(0);
+            } catch (Exception error) {
+                error.printStackTrace();
+                if ("--offline-help".equals(args[0]) && !GraphicsEnvironment.isHeadless()) {
+                    javax.swing.JOptionPane.showMessageDialog(null, error.getMessage(),
+                            "Gantry Help", javax.swing.JOptionPane.INFORMATION_MESSAGE);
+                }
+                System.exit(1);
+            }
+            return;
+        }
         if (args.length > 0 && "--self-test".equals(args[0])) {
             System.exit(org.trostheide.gantry.app.diagnostics.InstallationCheck.execute(
                     java.util.Arrays.copyOfRange(args, 1, args.length)));

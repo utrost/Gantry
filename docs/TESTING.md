@@ -54,6 +54,11 @@ history/recovery persistence, mock plot/cancel, and G-code export. It never uses
 physical hardware. See [the release checklist](RELEASE_CHECKLIST.md) for commands
 and the separate human desktop/hardware acceptance requirements.
 
+Installed payload validation also checks native CLI help/import without system
+Java, offline guide links/images/samples and help launcher resolution. Windows
+checks user-only registration and both GUI/help menu shortcuts. See
+[installer contents](packaging/README.md).
+
 ### GUI integration check
 
 After `mvn package`, run `./scripts/test-gui.sh` on Linux with a JDK and display,

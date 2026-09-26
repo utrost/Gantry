@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build versioned JARs and optional native installers using the host JDK 17."""
+"""Build versioned JARs and optional native installers using the host JDK 21."""
 import argparse
 import hashlib
 import os
@@ -11,6 +11,8 @@ import subprocess
 import tempfile
 import xml.etree.ElementTree as ET
 import zipfile
+
+from release_payload import stage_help, docs_archive, write_download_readme
 
 ROOT = Path(__file__).resolve().parents[1]
 UPGRADE_UUID = "8ac1c562-5cd4-46bb-a64d-7b21af9e350a"
@@ -54,15 +56,30 @@ def installer(version, output):
         source = temp / "input"
         source.mkdir()
         shutil.copy2(output / f"Gantry-{version}.jar", source / "Gantry.jar")
-        shutil.copy2(ROOT / "LICENSE", source)
+        shutil.copy2(output / f"Gantry-CLI-{version}.jar", source / "Gantry-CLI.jar")
+        stage_help(ROOT, source, version)
+        cli_properties = temp / "cli.properties"
+        cli_properties.write_text("main-jar=Gantry-CLI.jar\n"
+                                  "main-class=org.trostheide.gantry.cli.SvgImportCli\n"
+                                  "win-console=true\nwin-menu=false\nwin-shortcut=false\n"
+                                  "linux-shortcut=false\n", encoding="utf-8")
+        help_properties = temp / "help.properties"
+        help_properties.write_text("main-jar=Gantry.jar\n"
+                                   "main-class=org.trostheide.gantry.app.GantryApp\n"
+                                   "arguments=--offline-help\nwin-console=false\n"
+                                   "win-menu=true\nwin-shortcut=false\nlinux-shortcut=false\n",
+                                   encoding="utf-8")
         command = ["jpackage", "--type", kind, "--name", "Gantry", "--app-version", native_version(version),
                    "--vendor", "Gantry", "--description", "SVG preparation and pen plotter studio",
                    "--input", source, "--main-jar", "Gantry.jar",
                    "--main-class", "org.trostheide.gantry.app.GantryApp", "--dest", temp / "out",
-                   "--license-file", ROOT / "LICENSE", "--about-url", "https://github.com/utrost/Gantry"]
+                   "--license-file", ROOT / "LICENSE", "--about-url", "https://github.com/utrost/Gantry",
+                   "--add-launcher", f"gantry-cli={cli_properties}",
+                   "--add-launcher", f"Gantry Help={help_properties}"]
         if system == "Windows":
             command += ["--win-menu", "--win-menu-group", "Gantry", "--win-shortcut",
-                        "--win-dir-chooser", "--win-upgrade-uuid", UPGRADE_UUID]
+                        "--win-dir-chooser", "--win-per-user-install", "--win-shortcut-prompt",
+                        "--win-upgrade-uuid", UPGRADE_UUID]
         else:
             command += ["--linux-shortcut", "--linux-menu-group", "Graphics", "--linux-package-name", "gantry"]
         run(*command)
@@ -78,15 +95,16 @@ def upgrade_fixture(version, baseline, output):
         raise ValueError("Upgrade fixture must be older than the candidate")
     fixture = ROOT / "dist" / "upgrade-fixture" / version / baseline
     fixture.mkdir(parents=True, exist_ok=True)
-    target = fixture / f"Gantry-{baseline}.jar"
-    with zipfile.ZipFile(output / f"Gantry-{version}.jar") as original, zipfile.ZipFile(target, 'w') as rewritten:
-        for info in original.infolist():
-            data = original.read(info.filename)
-            if info.filename == 'META-INF/MANIFEST.MF':
-                data = data.replace(f'Implementation-Version: {version}\r\n'.encode(),
-                                    f'Implementation-Version: {baseline}\r\n'.encode())
-            rewritten.writestr(info, data)
-    verify_jar(target, baseline)
+    for label in ("Gantry", "Gantry-CLI"):
+        target = fixture / f"{label}-{baseline}.jar"
+        with zipfile.ZipFile(output / f"{label}-{version}.jar") as original, zipfile.ZipFile(target, 'w') as rewritten:
+            for info in original.infolist():
+                data = original.read(info.filename)
+                if info.filename == 'META-INF/MANIFEST.MF':
+                    data = data.replace(f'Implementation-Version: {version}\r\n'.encode(),
+                                        f'Implementation-Version: {baseline}\r\n'.encode())
+                rewritten.writestr(info, data)
+        verify_jar(target, baseline)
     return installer(baseline, fixture)
 
 
@@ -104,6 +122,10 @@ def main():
         if older >= current:
             parser.error("--upgrade-from must be older than the candidate")
     native_version(args.version)  # Validate before invoking tools or constructing paths.
+    if args.installer:
+        result = subprocess.run(['jpackage', '--version'], check=True, capture_output=True, text=True)
+        if int(result.stdout.strip().split('.')[0]) < 21:
+            raise RuntimeError("Installer builds require JDK 21+ for per-launcher shortcut controls")
     project_version = ET.parse(ROOT / "pom.xml").getroot().findtext("{http://maven.apache.org/POM/4.0.0}version")
     maven = shutil.which("mvn.cmd" if os.name == "nt" else "mvn")
     if not maven:
@@ -117,9 +139,11 @@ def main():
         shutil.copy2(ROOT / module / "target" / f"{module}-{project_version}.jar", target)
         verify_jar(target, args.version)
         files.append(target)
-    for name in ("LICENSE", "README.md"):
-        shutil.copy2(ROOT / name, output)
-        files.append(output / name)
+    shutil.copy2(ROOT / "LICENSE", output / "LICENSE")
+    write_download_readme(output, args.version)
+    (output / "VERSION.txt").write_text(f"Gantry {args.version}\n", encoding="utf-8")
+    files.extend(output / name for name in ("LICENSE", "README.md", "VERSION.txt"))
+    files.append(docs_archive(ROOT, output, args.version))
     run("java", "-jar", output / f"Gantry-CLI-{args.version}.jar", "--help")
     if args.installer:
         files.append(installer(args.version, output))

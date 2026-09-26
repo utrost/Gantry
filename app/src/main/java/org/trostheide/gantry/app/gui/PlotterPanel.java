@@ -647,6 +647,13 @@ public class PlotterPanel extends JPanel {
 
         JMenu helpMenu = new JMenu("Help");
         helpMenu.setMnemonic(KeyEvent.VK_H);
+        helpMenu.add(actionItem("Getting Started (Offline)...", () -> {
+            try {
+                openResource(org.trostheide.gantry.app.help.OfflineHelp.guide().toUri(), "Getting Started (Offline)");
+            } catch (IOException error) {
+                info(error.getMessage());
+            }
+        }));
         addHelpMenuItems(helpMenu, this::onGuidedFirstPlot, this::onShowHelp,
                 uri -> openResource(uri, uri.getHost()), this::onCopyDiagnostics, this::onShowAbout);
         menuBar.add(helpMenu);

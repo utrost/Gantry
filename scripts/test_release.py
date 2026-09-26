@@ -29,6 +29,8 @@ class UpgradeFixtureTest(unittest.TestCase):
             with zipfile.ZipFile(candidate, 'w') as jar:
                 jar.writestr('META-INF/MANIFEST.MF', 'Manifest-Version: 1.0\r\nImplementation-Version: 1.0.0-rc.2\r\n\r\n')
                 jar.writestr('Example.class', b'unchanged executable bytes')
+            import shutil
+            shutil.copy2(candidate, output / 'Gantry-CLI-1.0.0-rc.2.jar')
             original = candidate.read_bytes()
             with patch.object(release, 'ROOT', root), patch.object(release, 'installer') as package:
                 release.upgrade_fixture('1.0.0-rc.2', '1.0.0-rc.1', output)

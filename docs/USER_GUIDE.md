@@ -5,6 +5,10 @@ It converts SVG files into G-code and streams it to a GRBL-based plotter over se
 
 ---
 
+Windows installers include the CLI and offline getting-started help. Use
+**Help > Getting Started (Offline)…** or **Gantry Help** in the Start menu. See
+[installer contents and paths](packaging/README.md).
+
 ## Quick start
 
 ### Prerequisites

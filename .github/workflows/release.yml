@@ -29,7 +29,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
         with:
-          java-version: '17'
+          java-version: '21'
           distribution: temurin
           cache: maven
       - uses: actions/setup-python@v5
@@ -58,8 +58,8 @@ jobs:
           $wixBin = Join-Path $env:WIX 'bin'
           if (!(Test-Path (Join-Path $wixBin 'candle.exe'))) { throw 'WiX 3 is required' }
           $wixBin | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
-      - name: Test packaging version rules
-        run: python scripts/test_release.py
+      - name: Test packaging and payload rules
+        run: python -m unittest discover -s scripts -p 'test_*.py'
       - name: Build and test release
         shell: bash
         run: python scripts/release.py "$VERSION" --installer --upgrade-from "$UPGRADE_FROM"
@@ -80,23 +80,29 @@ jobs:
             "dist/$env:VERSION/Gantry-$env:VERSION-windows-x64.msi" `
             "$env:UPGRADE_FROM" "$env:VERSION" dist/validation
           if ($LASTEXITCODE -ne 0) { throw 'Installed upgrade/workflow acceptance failed' }
-      - name: Upload Linux release artifacts
+      - name: Stage consistent downloads
+        shell: bash
+        run: python scripts/stage_download.py "$VERSION" "$RUNNER_OS"
+      - name: Upload Linux installer
         if: runner.os == 'Linux'
         uses: actions/upload-artifact@v4
         with:
           name: release-linux
-          path: |
-            dist/${{ env.VERSION }}/*.jar
-            dist/${{ env.VERSION }}/*.deb
-            dist/${{ env.VERSION }}/LICENSE
-            dist/${{ env.VERSION }}/README.md
+          path: dist/downloads/linux/*
+          if-no-files-found: error
+      - name: Upload portable Java downloads
+        if: runner.os == 'Linux'
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-portable
+          path: dist/downloads/portable/*
           if-no-files-found: error
       - name: Upload Windows installer
         if: runner.os == 'Windows'
         uses: actions/upload-artifact@v4
         with:
           name: release-windows
-          path: dist/${{ env.VERSION }}/*.msi
+          path: dist/downloads/windows/*
           if-no-files-found: error
       - name: Upload test and install logs
         if: always()
@@ -128,7 +134,7 @@ jobs:
           test -f "docs/release-notes/$VERSION.md"
           echo "RELEASE_NOTES=docs/release-notes/$VERSION.md" >> "$GITHUB_ENV"
           cd dist/release
-          for file in "Gantry-$VERSION.jar" "Gantry-CLI-$VERSION.jar" "Gantry-$VERSION-linux-x64.deb" "Gantry-$VERSION-windows-x64.msi" LICENSE README.md; do
+          for file in "Gantry-$VERSION.jar" "Gantry-CLI-$VERSION.jar" "Gantry-$VERSION-linux-x64.deb" "Gantry-$VERSION-windows-x64.msi" "Gantry-$VERSION-docs.zip" LICENSE README.md VERSION.txt; do
             test -s "$file"
             sha256sum "$file"
           done > SHA256SUMS

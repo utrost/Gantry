@@ -8,7 +8,7 @@
    `release-results/<version>.md`.
 3. Run `python scripts/test_release.py` and
    `python scripts/release.py <version> --installer` on each target host.
-   Prerequisites: Python 3.9+, Maven, JDK 17 with jpackage; WiX 3 on Windows;
+   Prerequisites: Python 3.9+, Maven, JDK 21+ with jpackage; WiX 3 on Windows;
    fakeroot and DEB build tools on Ubuntu. Output is `dist/<version>/`.
 4. Pull requests run installer builds on Windows Server 2022 and Ubuntu 22.04,
    including native upgrades, profile preservation, installed workflow checks,
@@ -24,9 +24,10 @@ Required draft assets:
 - `Gantry-<version>.jar` and `Gantry-CLI-<version>.jar`;
 - `Gantry-<version>-windows-x64.msi`;
 - `Gantry-<version>-linux-x64.deb`;
-- `SHA256SUMS`, `LICENSE`, and `README.md`.
+- `Gantry-<version>-docs.zip` (complete offline guide, images and samples);
+- `SHA256SUMS`, `LICENSE`, `README.md`, and `VERSION.txt`.
 
-The consolidated checksum file covers all six other assets. The GUI manifest,
+The consolidated checksum file covers all eight other assets. The GUI manifest,
 About dialog and support diagnostics must identify the same release. Windows
 candidates are unsigned until a signing certificate/workflow is configured;
 do not describe them as signed or verified by Microsoft.
@@ -39,6 +40,8 @@ installers require sortable numeric versions. Both platforms use
 99 reserved for stable. Thus RC2 is installer `1.0.2`, stable 1.0.0 is `1.0.99`,
 and 1.0.1 RC1 is `1.0.101`. This avoids equal-version or downgrade problems when
 moving from an RC to stable. Major/minor are limited to 255 and patch to 654.
+Windows installers use per-user scope and include GUI, native CLI, offline help,
+samples and license/version files. See [installer contents](packaging/README.md).
 Keep the Windows upgrade UUID in `scripts/release.py` unchanged.
 
 ## Candidate acceptance
@@ -46,6 +49,8 @@ Keep the Windows upgrade UUID in `scripts/release.py` unchanged.
 Record these on Windows 10/11 and Ubuntu 22.04/24.04 x86-64:
 
 - Install, application-menu launch and uninstall; no system Java required.
+- Windows current-user registration, GUI/help Start menu entries, native CLI
+  conversion, complete offline guide/images/samples, and no CLI shortcut.
 - About and Copy Diagnostics report the candidate version.
 - Guided first plot, SVG/raster import, mock plotting and G-code export.
 - Settings/history persist across launch directories and upgrades; recovery
@@ -80,7 +85,7 @@ that the historical RC1 application was tested with an installer.
 CI installs that fixture, seeds an isolated profile with spaces in its path,
 redirects APPDATA/XDG_CONFIG_HOME into that isolated workspace and verifies the
 normal OS profile resolver, upgrades to the candidate, and verifies the installed product version and menu
-shortcut. The upgraded launcher runs from a different working directory, with
+shortcuts. The upgraded launcher runs from a different working directory, with
 system Java removed from its environment. Four persisted files (configuration,
 history, recovery and editable project) must retain their SHA-256 hashes across
 the upgrade, verification and uninstall. Windows must have exactly one Gantry
