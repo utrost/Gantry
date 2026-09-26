@@ -16,16 +16,22 @@ before paper or ink is committed.
 
 ## Download and first run
 
-For external testing, use the newest pre-release from
-[GitHub Releases](https://github.com/utrost/Gantry/releases). Download the GUI
-JAR and run it with Java 17 or newer:
+Get the newest candidate from [GitHub Releases](https://github.com/utrost/Gantry/releases).
+Installer releases provide **Windows x64 MSI** and **Linux x64 DEB** packages with
+Java included. Windows targets Windows 10/11; Linux targets Ubuntu 22.04/24.04.
+Other distributions and architectures are not yet validated.
 
-```bash
-java -jar Gantry-1.0.0-alpha.1.jar
-```
+- Windows: download `Gantry-<version>-windows-x64.msi`, install it, then open
+  **Gantry** from the Start menu. Candidate installers are currently unsigned.
+- Ubuntu: download `Gantry-<version>-linux-x64.deb`, install it with
+  `sudo apt install ./Gantry-<version>-linux-x64.deb`, then open **Gantry** from
+  the applications menu.
 
-If no release is available yet, build from source with `./scripts/build.sh` and
-start with `./scripts/start.sh`.
+The existing alpha and RC1 releases contain JARs only. Until an installer
+candidate is published, download its GUI JAR and run `java -jar Gantry-<version>.jar`
+with Java 17 or newer, or build from source with `./scripts/build.sh`.
+
+Start with the [guided mock first plot](docs/FIRST_PLOT.md) before using hardware.
 
 ## Start here
 
@@ -101,9 +107,12 @@ Windows (`.cmd`), all run from the repo root:
 | `build.sh` / `build.cmd` | `mvn clean install` everything (pass `--skip-tests` to skip tests) |
 | `start.sh` / `start.cmd` | Launch the Gantry GUI (`app/target/app-1.0.0.jar`), building it first if missing |
 | `start-novice-study.sh` | Launch the GUI from an isolated clean profile for novice-study participants |
-| `release.sh` / `release.cmd` | Build versioned GUI/CLI artifacts and checksums under `dist/` |
+| `release.sh` / `release.cmd` | Build versioned GUI/CLI artifacts under `dist/<version>/`; add `--installer` for the host installer |
 
-Tagged releases are built by GitHub Actions. See
+Release builds require Python 3 as well as Java/Maven. For example:
+`./scripts/release.sh 1.0.0-rc.2 --installer` (Windows: `scripts\release.cmd 1.0.0-rc.2 --installer`).
+
+Tagged releases are staged as drafts by GitHub Actions after both installers pass. See
 [`docs/RELEASE_CHECKLIST.md`](docs/RELEASE_CHECKLIST.md) for the required mock
 and real-hardware acceptance record.
 

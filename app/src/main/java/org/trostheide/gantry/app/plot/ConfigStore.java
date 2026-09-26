@@ -23,7 +23,7 @@ public class ConfigStore {
         String override = System.getProperty("gantry.config.file");
         File target;
         if (override != null && !override.isBlank()) {
-            target = new File(override).getAbsoluteFile();
+            return new File(override).getAbsoluteFile();
         } else {
             String os = System.getProperty("os.name", "").toLowerCase();
             String home = System.getProperty("user.home", ".");

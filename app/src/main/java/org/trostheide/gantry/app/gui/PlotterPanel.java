@@ -110,7 +110,7 @@ public class PlotterPanel extends JPanel {
     private final Semaphore confirmGate = new Semaphore(0);
     private JMenuItem replotMenuItem;
     private JMenu recentJobsMenu;
-    private final PlotJobHistory plotHistory = new PlotJobHistory(new File("plot-history.json"));
+    private final PlotJobHistory plotHistory = new PlotJobHistory(org.trostheide.gantry.app.plot.UserStateFiles.resolve(configFile, "plot-history.json"));
     private PlotJobHistory.Job pendingJob;
     private JCheckBoxMenuItem showTravelItem;
     /** True after a plot has completed at least once for the current drawing; enables Re-plot. */
@@ -120,7 +120,7 @@ public class PlotterPanel extends JPanel {
     private volatile boolean plotting;
     private volatile boolean awaitingLayerConfirmation;
     private java.awt.KeyEventDispatcher jogKeyDispatcher;
-    private final File recoveryFile = new File(".gantry-recovery");
+    private final File recoveryFile = org.trostheide.gantry.app.plot.UserStateFiles.resolve(configFile, ".gantry-recovery");
     private javax.swing.Timer recoveryTimer;
 
     /** Controls that should be disabled while a plot is running (jog, pen, speed, edit actions). */
@@ -754,7 +754,7 @@ public class PlotterPanel extends JPanel {
     }
 
     private void onShowAbout() {
-        String message = "Gantry\nVersion 1.0.0\n\nA pen-plotter control and SVG-to-G-code pipeline.";
+        String message = "Gantry\nVersion " + appVersion() + "\n\nA pen-plotter control and SVG-to-G-code pipeline.";
         JOptionPane.showMessageDialog(this, message, "About Gantry", JOptionPane.INFORMATION_MESSAGE);
     }
 

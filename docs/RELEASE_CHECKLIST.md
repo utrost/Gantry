@@ -1,36 +1,69 @@
 # Gantry release checklist
 
-## Public alpha / pre-release
+## Build and stage a candidate
 
-Use this path for early tester builds that do **not** yet claim broad hardware
-readiness.
+1. Use `MAJOR.MINOR.PATCH-rc.N` (RC 1–98) or `MAJOR.MINOR.PATCH`. Preserve
+   published tags. The next installer candidate is `1.0.0-rc.2`.
+2. Write `docs/release-notes/<version>.md` and a truthful acceptance record in
+   `release-results/<version>.md`.
+3. Run `python scripts/test_release.py` and
+   `python scripts/release.py <version> --installer` on each target host.
+   Prerequisites: Python 3, Maven, JDK 17 with jpackage; WiX 3 on Windows;
+   fakeroot and DEB build tools on Ubuntu. Output is `dist/<version>/`.
+4. Pull requests run installer builds on Windows Server 2022 and Ubuntu 22.04,
+   including install, native GUI launch with bundled Java, and uninstall.
+   Java 17/21 unit tests also run in the separate CI workflow. Manual workflow
+   dispatch builds artifacts without publishing a release.
+5. After checks pass, tag `v<version>` and push. The tag workflow stages a
+   **draft** release only after both platform jobs succeed. Review and publish
+   that draft when the candidate acceptance evidence is satisfactory.
 
-1. Confirm `docs/release-notes/<version>.md` exists for the tag version.
-2. Run or rely on CI for `mvn clean package` and `mvn test` on Java 17 and 21.
-3. Tag `v<version>` and push the tag. Tags containing a hyphen, such as
-   `v1.0.0-alpha.1`, are published as GitHub pre-releases.
-4. Confirm the release contains `Gantry-<version>.jar`,
-   `Gantry-CLI-<version>.jar`, `SHA256SUMS`, `LICENSE`, and `README.md`.
-5. Record artifact and mock-practice checks in `release-results/<version>.md`.
-6. Keep hardware readiness claims out of release notes until a real acceptance
-   run has been recorded.
+Required draft assets:
 
-## Hardware-ready release
+- `Gantry-<version>.jar` and `Gantry-CLI-<version>.jar`;
+- `Gantry-<version>-windows-x64.msi`;
+- `Gantry-<version>-linux-x64.deb`;
+- `SHA256SUMS`, `LICENSE`, and `README.md`.
 
-1. Run `./scripts/release.sh <version>` and confirm the reactor is green.
-2. Copy `TEST_RESULTS_TEMPLATE.md` to `release-results/<version>.md` and record
-   the complete mock acceptance suite.
-3. If the release makes adoption or usability-study claims, attach the relevant
-   participant evidence recorded from `NOVICE_STUDY.md`. Automated or
-   agent-driven UI checks are supporting evidence, not a substitute for those
-   claims.
-4. Run every hardware-marked test on a real plotter: connect/disconnect,
-   home/jog/limits, pen lift, frame, stop/alarm recovery, scale calibration,
-   station dry/wet visit, and a small pen plus watercolor job.
-5. Confirm `SHA256SUMS`, launch the standalone app JAR on Java 17 and Java 21,
-   and smoke-test the CLI JAR.
-6. Commit the recorded result, tag `v<version>`, and push the tag. The release
-   workflow publishes both JARs, checksums, license, and release notes.
+The consolidated checksum file covers all six other assets. The GUI manifest,
+About dialog and support diagnostics must identify the same release. Windows
+candidates are unsigned until a signing certificate/workflow is configured;
+do not describe them as signed or verified by Microsoft.
 
-A release is hardware-ready only when the recorded hardware result contains no
-unexplained failures or blocked safety tests.
+## Installer version and upgrade policy
+
+Product versions remain normal release labels, e.g. `1.0.0-rc.2`. Native
+installers require sortable numeric versions. Both platforms use
+`major.minor.(patch * 100 + sequence)`, with RC number as the sequence and
+99 reserved for stable. Thus RC2 is installer `1.0.2`, stable 1.0.0 is `1.0.99`,
+and 1.0.1 RC1 is `1.0.101`. This avoids equal-version or downgrade problems when
+moving from an RC to stable. Major/minor are limited to 255 and patch to 654.
+Keep the Windows upgrade UUID in `scripts/release.py` unchanged.
+
+## Candidate acceptance
+
+Record these on Windows 10/11 and Ubuntu 22.04/24.04 x86-64:
+
+- Install, application-menu launch and uninstall; no system Java required.
+- About and Copy Diagnostics report the candidate version.
+- Guided first plot, SVG/raster import, mock plotting and G-code export.
+- Settings/history persist across launch directories and upgrades; recovery
+  works after an interrupted session and does not reappear after dismissal.
+- Upgrade an earlier installer candidate while preserving the user profile.
+- Serial ports enumerate; serial access permissions are documented.
+
+CI launch smoke checks verify window creation and embedded identity with an
+isolated mock profile. They do not substitute for the guided interactive journey,
+real hardware, Windows 10/11 testing, or upgrade acceptance.
+
+## Hardware-ready / stable release
+
+Complete the mock acceptance suite from `TESTING.md` and record real-machine
+connect/disconnect, home/jog/limits, pen lift, frame, stop/alarm recovery, scale
+calibration, configured travel speed and a small pen plot. Include station dry/wet
+visits and a watercolor job if watercolor readiness is claimed.
+
+Record the exact installer, OS, controller and results in `release-results/`
+and `KNOWN_GOOD_SETUPS.md`. Promote to stable only when required checks have no
+unexplained failures or blocked safety tests. Novice/adoption claims require
+actual participant evidence from `NOVICE_STUDY.md`.

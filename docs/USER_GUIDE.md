@@ -34,6 +34,13 @@ GUI settings are stored independently of the launch directory. On Windows the
 file is `%APPDATA%\Gantry\config.json`; on macOS it is under
 `~/Library/Application Support/Gantry/`, and on Linux under
 `${XDG_CONFIG_HOME:-~/.config}/gantry/`. On the first launch after upgrading,
+Plot history and crash recovery live beside this configuration file, so menu
+launches and upgrades retain them. Existing working-directory history/recovery
+files migrate on first use without replacing newer user state. A migration
+marker prevents old recovery data from reappearing after dismissal. Uninstalling
+the app preserves the user profile. `-Dgantry.config.file=/path/to/config.json`
+isolates configuration, history and recovery and disables legacy import.
+
 Gantry copies a legacy `config.json` from the current working directory when no
 user-profile configuration exists. Set `-Dgantry.config.file=<path>` only when
 an explicit alternate profile is needed.

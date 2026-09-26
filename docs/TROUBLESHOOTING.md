@@ -13,6 +13,10 @@ Use **Help > Guided First Plot...** to restart the no-hardware route.
 
 ## Java and launch problems
 
+Installer builds include Java. If an installed app fails to start, reinstall the
+matching Windows x64 MSI or Ubuntu x64 DEB and report the OS and release version.
+The instructions below apply to JAR downloads and source builds.
+
 ### `java` is not found
 
 Install Java 17 or newer and ensure it is on `PATH`.
