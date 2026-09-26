@@ -38,7 +38,7 @@ The Maven reactor contains eight modules:
 - `cli` — headless SVG/image batch conversion and optional G-code output.
 - `app` — Swing GUI, orchestration, persistence, recovery, history, visualization, and help surface.
 
-The 2026-09-26 release validation passed 465 Java tests and five Python packaging
+The 2026-09-26 release validation passed 471 Java tests and nine Python packaging
 tests. See the [RC2 acceptance record](../release-results/1.0.0-rc.2.md) for
 platform evidence and remaining checks; counts describe that build.
 

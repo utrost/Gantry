@@ -36,8 +36,8 @@ Expected output: `BUILD SUCCESS` with zero failures across all modules.
 
 ### Installed release acceptance
 
-The [2026-09-26 RC2 record](../release-results/1.0.0-rc.2.md) records 465 passing
-Java tests and five Python packaging tests, plus Windows/Linux native checks.
+The [2026-09-26 RC2 record](../release-results/1.0.0-rc.2.md) records 471 passing
+Java tests and nine Python packaging tests, plus Windows/Linux native checks.
 Run the packaging regression checks with:
 
 ```bash

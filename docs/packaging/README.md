@@ -59,7 +59,8 @@ see the [official packaging guide](https://docs.oracle.com/en/java/javase/21/jpa
 `release_payload.py` stages and validates every relative guide link.
 `verify_payload.py` checks the installed resources, runs native CLI help and SVG
 conversion with system Java removed from PATH, and verifies the help launcher's
-local guide resolution. Native upgrade CI checks Windows user registration,
+local guide resolution. Native upgrade CI queries Windows Installer’s product context to verify per-user
+scope (rather than inferring scope from registry hive views), checks
 both Start menu shortcuts, and cleanup/profile preservation after uninstall.
 
 Physical Windows 10/11 desktop acceptance, browser launch, signing, and plotter
