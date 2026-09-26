@@ -29,28 +29,8 @@ def package_operation(package, install, log):
 
 def installed_version():
     if platform.system() == 'Windows':
-        import winreg
-        versions = {}
-        for hive in (winreg.HKEY_CURRENT_USER, winreg.HKEY_LOCAL_MACHINE):
-            for view in (winreg.KEY_WOW64_64KEY, winreg.KEY_WOW64_32KEY):
-                try:
-                    root = winreg.OpenKey(hive, r'SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall',
-                                          0, winreg.KEY_READ | view)
-                except FileNotFoundError:
-                    continue
-                with root:
-                    for index in range(winreg.QueryInfoKey(root)[0]):
-                        with winreg.OpenKey(root, winreg.EnumKey(root, index)) as product:
-                            try:
-                                if winreg.QueryValueEx(product, 'DisplayName')[0] == 'Gantry':
-                                    if hive != winreg.HKEY_CURRENT_USER:
-                                        raise RuntimeError('Gantry registered machine-wide instead of per user')
-                                    versions[winreg.EnumKey(root, index)] = winreg.QueryValueEx(product, 'DisplayVersion')[0]
-                            except FileNotFoundError:
-                                pass
-        if len(versions) != 1:
-            raise RuntimeError(f'Expected one installed Gantry product, found {versions}')
-        return next(iter(versions.values()))
+        from windows_installation import installed_products, per_user_version
+        return per_user_version(installed_products())
     result = subprocess.run(['dpkg-query', '-W', '-f=${Version}', 'gantry'], check=True, capture_output=True, text=True)
     return result.stdout.split('-')[0]
 
@@ -114,6 +94,8 @@ def main():
             if (shortcuts[0].parent / 'gantry-cli.lnk').exists():
                 raise RuntimeError('CLI should not have a Start menu shortcut')
             result['checks'].append('windows-per-user-scope-and-help-shortcut')
+            from windows_installation import installed_products
+            result['windowsProducts'] = installed_products()
         result['payload'] = verify_payload(launcher, args.candidate_version, workspace / 'payload')
         result['checks'].append('complete-installed-cli-and-offline-help')
         acceptance(launcher, args.candidate_version, workspace, 'verify')

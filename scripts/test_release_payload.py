@@ -76,5 +76,15 @@ class ReleasePayloadTest(unittest.TestCase):
                 target = release.installer('1.0.0-rc.2', output)
             self.assertEqual(target.read_bytes(), b'installer fixture')
 
+class WindowsScopeTest(unittest.TestCase):
+    def test_accepts_user_scopes_and_rejects_machine_or_duplicate_products(self):
+        from windows_installation import per_user_version
+        for context in [1, 2]:
+            self.assertEqual('1.0.2', per_user_version([{'context': context, 'version': '1.0.2'}]))
+        for products in [[], [{'context': 4, 'version': '1.0.2'}],
+                         [{'context': 2, 'version': '1.0.1'}, {'context': 2, 'version': '1.0.2'}]]:
+            with self.assertRaises(RuntimeError):
+                per_user_version(products)
+
 if __name__ == '__main__':
     unittest.main()
