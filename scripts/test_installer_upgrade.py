@@ -1,0 +1,114 @@
+#!/usr/bin/env python3
+"""Install an older fixture, upgrade to the candidate, then uninstall; CI hosts only."""
+import argparse
+import json
+import os
+from pathlib import Path
+import platform
+import subprocess
+
+from accept_installer import acceptance, verify_preserved
+from release import native_version
+
+
+def package_operation(package, install, log):
+    if platform.system() == 'Windows':
+        command = ['msiexec.exe', '/i' if install else '/x', str(package), '/qn', '/norestart', '/L*v', str(log)]
+        result = subprocess.run(command, timeout=180)
+        if result.returncode not in (0, 3010):
+            raise RuntimeError(f'MSI operation failed ({result.returncode}); see {log}')
+    else:
+        command = ['sudo', 'apt-get', 'install', '-y', str(package)] if install else ['sudo', 'apt-get', 'remove', '-y', 'gantry']
+        with log.open('w') as output:
+            subprocess.run(command, check=True, stdout=output, stderr=subprocess.STDOUT, timeout=180)
+
+
+def installed_version():
+    if platform.system() == 'Windows':
+        import winreg
+        versions = []
+        for view in (winreg.KEY_WOW64_64KEY, winreg.KEY_WOW64_32KEY):
+            with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, r'SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall',
+                                0, winreg.KEY_READ | view) as root:
+                for index in range(winreg.QueryInfoKey(root)[0]):
+                    with winreg.OpenKey(root, winreg.EnumKey(root, index)) as product:
+                        try:
+                            if winreg.QueryValueEx(product, 'DisplayName')[0] == 'Gantry':
+                                versions.append(winreg.QueryValueEx(product, 'DisplayVersion')[0])
+                        except FileNotFoundError:
+                            pass
+        if len(versions) != 1:
+            raise RuntimeError(f'Expected one installed Gantry product, found {versions}')
+        return versions[0]
+    result = subprocess.run(['dpkg-query', '-W', '-f=${Version}', 'gantry'], check=True, capture_output=True, text=True)
+    return result.stdout.split('-')[0]
+
+
+def shortcut_path():
+    if platform.system() == 'Windows':
+        return Path(os.environ['ProgramData']) / 'Microsoft/Windows/Start Menu/Programs/Gantry/Gantry.lnk'
+    return Path('/usr/share/applications/gantry-Gantry.desktop')
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('baseline', type=Path)
+    parser.add_argument('candidate', type=Path)
+    parser.add_argument('baseline_version')
+    parser.add_argument('candidate_version')
+    parser.add_argument('workspace', type=Path)
+    args = parser.parse_args()
+    if os.environ.get('CI') != 'true':
+        parser.error('This installation-changing check is restricted to disposable CI hosts (CI=true)')
+    if platform.system() not in ('Linux', 'Windows'):
+        parser.error('Only Linux/Windows installers are supported')
+    workspace = args.workspace.resolve()
+    workspace.mkdir(parents=True, exist_ok=True)
+    launcher = Path('C:/Program Files/Gantry/Gantry.exe' if platform.system() == 'Windows' else '/opt/gantry/bin/Gantry')
+    if launcher.exists():
+        raise RuntimeError('Refusing to replace an existing Gantry installation on this test host')
+    candidate = args.candidate.resolve()
+    baseline = args.baseline.resolve()
+    result = {'baseline': args.baseline_version, 'candidate': args.candidate_version,
+              'syntheticBaseline': True, 'checks': []}
+    installed = None
+    try:
+        package_operation(baseline, True, workspace / 'install-baseline.log')
+        installed = baseline
+        if installed_version() != native_version(args.baseline_version):
+            raise RuntimeError('Baseline installer metadata does not match')
+        acceptance(launcher, args.baseline_version, workspace, 'seed')
+        result['checks'].append('baseline-installed-and-state-seeded')
+        package_operation(candidate, True, workspace / 'upgrade.log')
+        installed = candidate
+        if installed_version() != native_version(args.candidate_version):
+            raise RuntimeError('Upgrade did not replace the installed version')
+        result['checks'].append('native-upgrade-replaced-product')
+        if not shortcut_path().is_file():
+            raise RuntimeError(f'Application-menu shortcut is missing: {shortcut_path()}')
+        result['checks'].append('application-menu-shortcut-present')
+        acceptance(launcher, args.candidate_version, workspace, 'verify')
+        result['checks'].append('profile-preserved-and-installed-workflows-passed')
+        subprocess.run([os.sys.executable, str(Path(__file__).with_name('smoke_installer.py')), str(launcher), args.candidate_version],
+                       check=True, timeout=60)
+        result['checks'].append('upgraded-gui-launch')
+        package_operation(candidate, False, workspace / 'uninstall.log')
+        installed = None
+        if launcher.exists() or shortcut_path().exists():
+            raise RuntimeError('Uninstall left the native launcher or menu shortcut behind')
+        verify_preserved(workspace)
+        result['checks'].append('uninstall-preserved-user-files')
+        result['status'] = 'passed'
+    except Exception as error:
+        result['status'] = 'failed'
+        result['error'] = str(error)
+        raise
+    finally:
+        (workspace / 'upgrade-result.json').write_text(json.dumps(result, indent=2))
+        if installed is not None:
+            package_operation(installed, False, workspace / 'cleanup.log')
+    print(json.dumps(result, indent=2))
+
+
+if __name__ == '__main__':
+    main()

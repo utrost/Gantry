@@ -24,6 +24,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     env:
       REQUESTED_VERSION: ${{ inputs.version }}
+      UPGRADE_FROM: 1.0.0-rc.1
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
@@ -61,27 +62,24 @@ jobs:
         run: python scripts/test_release.py
       - name: Build and test release
         shell: bash
-        run: python scripts/release.py "$VERSION" --installer
-      - name: Install and launch Linux package
+        run: python scripts/release.py "$VERSION" --installer --upgrade-from "$UPGRADE_FROM"
+      - name: Linux installed workflows and upgrade acceptance
         if: runner.os == 'Linux'
         shell: bash
         run: |
-          sudo apt-get install -y "./dist/$VERSION/Gantry-$VERSION-linux-x64.deb"
-          xvfb-run -a python scripts/smoke_installer.py /opt/gantry/bin/Gantry "$VERSION"
-          sudo apt-get remove -y gantry
-          test ! -e /opt/gantry/bin/Gantry
-      - name: Install and launch Windows package
+          xvfb-run -a python scripts/test_installer_upgrade.py \
+            "dist/upgrade-fixture/$VERSION/$UPGRADE_FROM/Gantry-$UPGRADE_FROM-linux-x64.deb" \
+            "dist/$VERSION/Gantry-$VERSION-linux-x64.deb" \
+            "$UPGRADE_FROM" "$VERSION" dist/validation
+      - name: Windows installed workflows and upgrade acceptance
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          $msi = (Resolve-Path "dist/$env:VERSION/Gantry-$env:VERSION-windows-x64.msi").Path
-          $install = Start-Process msiexec.exe -ArgumentList @('/i', "`"$msi`"", '/qn', '/norestart', '/L*v', 'install.log') -Wait -PassThru
-          if ($install.ExitCode -notin @(0, 3010)) { Get-Content install.log; throw "Install failed: $($install.ExitCode)" }
-          python scripts/smoke_installer.py 'C:/Program Files/Gantry/Gantry.exe' "$env:VERSION"
-          if ($LASTEXITCODE -ne 0) { throw 'GUI smoke check failed' }
-          $remove = Start-Process msiexec.exe -ArgumentList @('/x', "`"$msi`"", '/qn', '/norestart') -Wait -PassThru
-          if ($remove.ExitCode -notin @(0, 3010)) { throw "Uninstall failed: $($remove.ExitCode)" }
-          if (Test-Path 'C:/Program Files/Gantry/Gantry.exe') { throw 'Launcher remained after uninstall' }
+          python scripts/test_installer_upgrade.py `
+            "dist/upgrade-fixture/$env:VERSION/$env:UPGRADE_FROM/Gantry-$env:UPGRADE_FROM-windows-x64.msi" `
+            "dist/$env:VERSION/Gantry-$env:VERSION-windows-x64.msi" `
+            "$env:UPGRADE_FROM" "$env:VERSION" dist/validation
+          if ($LASTEXITCODE -ne 0) { throw 'Installed upgrade/workflow acceptance failed' }
       - name: Upload Linux release artifacts
         if: runner.os == 'Linux'
         uses: actions/upload-artifact@v4
@@ -107,7 +105,7 @@ jobs:
           name: validation-${{ matrix.os }}
           path: |
             **/target/surefire-reports/*.xml
-            install.log
+            dist/validation/**
 
   draft:
     if: startsWith(github.ref, 'refs/tags/v')

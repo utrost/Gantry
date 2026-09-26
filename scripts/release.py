@@ -72,11 +72,37 @@ def installer(version, output):
         return target
 
 
+def upgrade_fixture(version, baseline, output):
+    """Package current code with an older identity solely to exercise native upgrades."""
+    if tuple(map(int, native_version(baseline).split('.'))) >= tuple(map(int, native_version(version).split('.'))):
+        raise ValueError("Upgrade fixture must be older than the candidate")
+    fixture = ROOT / "dist" / "upgrade-fixture" / version / baseline
+    fixture.mkdir(parents=True, exist_ok=True)
+    target = fixture / f"Gantry-{baseline}.jar"
+    with zipfile.ZipFile(output / f"Gantry-{version}.jar") as original, zipfile.ZipFile(target, 'w') as rewritten:
+        for info in original.infolist():
+            data = original.read(info.filename)
+            if info.filename == 'META-INF/MANIFEST.MF':
+                data = data.replace(f'Implementation-Version: {version}\r\n'.encode(),
+                                    f'Implementation-Version: {baseline}\r\n'.encode())
+            rewritten.writestr(info, data)
+    verify_jar(target, baseline)
+    return installer(baseline, fixture)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("version")
     parser.add_argument("--installer", action="store_true", help="also build the host platform's installer")
+    parser.add_argument("--upgrade-from", help="build a synthetic older installer for upgrade validation; never publish it")
     args = parser.parse_args()
+    if args.upgrade_from and not args.installer:
+        parser.error("--upgrade-from requires --installer")
+    if args.upgrade_from:
+        older = tuple(map(int, native_version(args.upgrade_from).split('.')))
+        current = tuple(map(int, native_version(args.version).split('.')))
+        if older >= current:
+            parser.error("--upgrade-from must be older than the candidate")
     native_version(args.version)  # Validate before invoking tools or constructing paths.
     project_version = ET.parse(ROOT / "pom.xml").getroot().findtext("{http://maven.apache.org/POM/4.0.0}version")
     maven = shutil.which("mvn.cmd" if os.name == "nt" else "mvn")
@@ -97,6 +123,8 @@ def main():
     run("java", "-jar", output / f"Gantry-CLI-{args.version}.jar", "--help")
     if args.installer:
         files.append(installer(args.version, output))
+    if args.upgrade_from:
+        print(f"Upgrade test fixture (not a release asset): {upgrade_fixture(args.version, args.upgrade_from, output)}")
     checksums(output, files)
     print(f"Release artifacts: {output}")
 

@@ -8,10 +8,11 @@
    `release-results/<version>.md`.
 3. Run `python scripts/test_release.py` and
    `python scripts/release.py <version> --installer` on each target host.
-   Prerequisites: Python 3, Maven, JDK 17 with jpackage; WiX 3 on Windows;
+   Prerequisites: Python 3.9+, Maven, JDK 17 with jpackage; WiX 3 on Windows;
    fakeroot and DEB build tools on Ubuntu. Output is `dist/<version>/`.
 4. Pull requests run installer builds on Windows Server 2022 and Ubuntu 22.04,
-   including install, native GUI launch with bundled Java, and uninstall.
+   including native upgrades, profile preservation, installed workflow checks,
+   native GUI launch with bundled Java, and uninstall.
    Java 17/21 unit tests also run in the separate CI workflow. Manual workflow
    dispatch builds artifacts without publishing a release.
 5. After checks pass, tag `v<version>` and push. The tag workflow stages a
@@ -67,3 +68,48 @@ Record the exact installer, OS, controller and results in `release-results/`
 and `KNOWN_GOOD_SETUPS.md`. Promote to stable only when required checks have no
 unexplained failures or blocked safety tests. Novice/adoption claims require
 actual participant evidence from `NOVICE_STUDY.md`.
+
+## Installed workflow and upgrade evidence
+
+The package job also builds a **synthetic** `1.0.0-rc.1` installer using the
+candidate's code with an older manifest/native identity. It lives under
+`dist/upgrade-fixture/<candidate>/<baseline>/` and is never uploaded as a release
+asset. This verifies installer replacement/version ordering; it is not a claim
+that the historical RC1 application was tested with an installer.
+
+CI installs that fixture, seeds an isolated profile with spaces in its path,
+redirects APPDATA/XDG_CONFIG_HOME into that isolated workspace and verifies the
+normal OS profile resolver, upgrades to the candidate, and verifies the installed product version and menu
+shortcut. The upgraded launcher runs from a different working directory, with
+system Java removed from its environment. Four persisted files (configuration,
+history, recovery and editable project) must retain their SHA-256 hashes across
+the upgrade, verification and uninstall. Windows must have exactly one Gantry
+product registration after upgrade. Uninstall must remove the launcher and menu
+shortcut while retaining the isolated user files.
+
+The built-in `--self-test seed|verify <isolated-profile-directory> <report.json>`
+command exercises the shipped SVG importer, PNG centerline vectorizer, mock
+plot completion/cancellation, G-code exporter and persistence. Seed refuses a
+nonempty profile; verify requires the self-test marker. It constructs only mock
+and file backends. It writes a JSON report and uses a nonzero exit status for a
+failure. It does not click through the GUI or communicate with a controller.
+
+For a local extracted/native launcher, without installing into the system:
+
+```bash
+python scripts/accept_installer.py /path/to/Gantry 1.0.0-rc.2 /tmp/gantry-acceptance seed
+python scripts/accept_installer.py /path/to/Gantry 1.0.0-rc.2 /tmp/gantry-acceptance verify
+```
+
+To build both installers on the host for the CI upgrade check:
+
+```bash
+python scripts/release.py 1.0.0-rc.2 --installer --upgrade-from 1.0.0-rc.1
+```
+
+`test_installer_upgrade.py` changes system installations and is restricted to
+fresh disposable CI hosts. It refuses to replace a preexisting Gantry launcher.
+Reports, native installation logs, exported G-code, vectorized SVG and profile
+hashes are attached to CI as `validation-<runner>` artifacts. Inspect
+`upgrade-result.json`, `seed.json`, and `verify.json`; a green unit test suite
+alone does not establish that an upgrade was attempted or completed.

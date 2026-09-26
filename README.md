@@ -109,7 +109,7 @@ Windows (`.cmd`), all run from the repo root:
 | `start-novice-study.sh` | Launch the GUI from an isolated clean profile for novice-study participants |
 | `release.sh` / `release.cmd` | Build versioned GUI/CLI artifacts under `dist/<version>/`; add `--installer` for the host installer |
 
-Release builds require Python 3 as well as Java/Maven. For example:
+Release builds require Python 3.9+ as well as Java/Maven. For example:
 `./scripts/release.sh 1.0.0-rc.2 --installer` (Windows: `scripts\release.cmd 1.0.0-rc.2 --installer`).
 
 Tagged releases are staged as drafts by GitHub Actions after both installers pass. See

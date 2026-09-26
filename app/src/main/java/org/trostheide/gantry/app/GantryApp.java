@@ -17,6 +17,11 @@ public final class GantryApp {
     }
 
     public static void main(String[] args) {
+        if (args.length > 0 && "--self-test".equals(args[0])) {
+            System.exit(org.trostheide.gantry.app.diagnostics.InstallationCheck.execute(
+                    java.util.Arrays.copyOfRange(args, 1, args.length)));
+            return;
+        }
         java.nio.file.Path smokeReport = null;
         if (args.length > 0 && "--smoke-test".equals(args[0])) {
             if (args.length != 2) throw new IllegalArgumentException("--smoke-test requires a report path");
