@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Getting started with Gantry @VERSION@</title>
+<style>
+body{font:17px/1.6 system-ui,sans-serif;color:#20242a;background:#fafafa;max-width:980px;margin:auto;padding:24px}
+h1,h2{line-height:1.2}a{color:#125db0}img{max-width:100%;height:auto;border:1px solid #ccc;border-radius:6px}
+pre{overflow:auto;background:#e9edf2;padding:16px;border-radius:6px}code{font-family:ui-monospace,monospace}
+nav{display:flex;flex-wrap:wrap;gap:16px}section{margin-top:36px}.note{border-left:4px solid #27749d;padding:8px 16px;background:#eef6fa}
+</style>
+</head>
+<body>
+<h1>Getting started with Gantry</h1>
+<p>Version <strong>@VERSION@</strong>. Prepare drawings, preview their placement, and export or plot them.</p>
+<nav><a href="#launch">Launch</a><a href="#practice">First practice plot</a><a href="#samples">Samples</a><a href="#save">Save and export</a><a href="#cli">Command line</a><a href="#hardware">Your plotter</a><a href="#support">Support</a></nav>
+<p class="note">This guide, its screenshots and the sample drawings are installed locally and work without an internet connection. Links to the full online guides and issue tracker need internet access.</p>
+<section id="launch">
+<h2>Launch and find your files</h2>
+<p><strong>Windows:</strong> the MSI installs Gantry for your Windows account. Open <strong>Gantry</strong> from the Start menu. Java is included. Open <strong>Gantry Help</strong> from the Start menu or choose <strong>Help &gt; Getting Started (Offline)…</strong> in the application.</p>
+<p>The default installation directory is <code>%LOCALAPPDATA%\Gantry</code>. The installer lets you choose another directory. Inside that directory, <code>Gantry.exe</code> is the GUI, <code>gantry-cli.exe</code> is the terminal command, and <code>app\docs\index.html</code> is this guide. Sample SVGs are under <code>app\docs\samples</code>.</p>
+<p><strong>Ubuntu:</strong> install the DEB and open Gantry from the applications menu. Native commands are under <code>/opt/gantry/bin</code>; this guide and samples are under <code>/opt/gantry/lib/app/docs</code>.</p>
+<p><strong>Portable JARs:</strong> install Java 17 or newer and run <code>java -jar Gantry-@VERSION@.jar</code>. The separate CLI JAR is for terminal use. You can download the matching documentation ZIP and extract it beside the GUI JAR.</p>
+<img src="images/workspace-layer-preview.png" alt="Gantry workspace showing three coloured artwork layers and plot controls">
+</section>
+<section id="practice">
+<h2>Complete a first practice plot without hardware</h2>
+<ol>
+<li>On first launch, choose <strong>Start guided practice</strong>. If the welcome is hidden, choose <strong>Help &gt; Guided First Plot…</strong>.</li>
+<li>Follow Machine Setup with the <strong>mock backend</strong>. This simulates a plotter and cannot move physical hardware.</li>
+<li>Check that the practice drawing sits inside the virtual bed.</li>
+<li>Choose <strong>Connect plotter</strong>, then <strong>Check before plotting</strong>. Follow the confirmations and start the mock plot.</li>
+<li>At each layer prompt, choose <strong>Pen ready — continue</strong>. Use <strong>Stop</strong> to cancel a plot.</li>
+</ol>
+<img src="images/first-run-guided-practice.png" alt="Welcome choices: Start guided practice, Machine setup only, and Close">
+<p>Gantry should show <strong>Safe — nothing will move</strong> while disconnected. Loading or saving artwork does not connect a machine.</p>
+</section>
+<section id="samples">
+<h2>Try an included drawing</h2>
+<p>Use <strong>File &gt; Open SVG or Vector Drawing…</strong> and select a sample from the folder listed above. To keep an original sample unchanged, save your editable work as a new <code>.gantry</code> project in your Documents folder.</p>
+<ul>
+<li><a href="samples/simple-line.svg">Simple line</a>: a small first drawing.</li>
+<li><a href="samples/multi-colour-layers.svg">Three colour layers</a>: practice selecting layers and changing pens.</li>
+<li><a href="samples/hatch-fill.svg">Hatch and fill</a>: try processing filled shapes.</li>
+<li><a href="samples/text-outline.svg">Outlined text</a>: text geometry without relying on installed fonts.</li>
+</ul>
+</section>
+<section id="save">
+<h2>Save, reopen and export</h2>
+<p><strong>File &gt; Save Project…</strong> saves editable artwork, placement, layer selection and preparation settings in a <code>.gantry</code> file. Use <strong>Open Gantry Project…</strong> to return to it.</p>
+<p><strong>Export G-code (for plotter)…</strong> writes machine instructions for the selected layers and placement. Exporting does not send the file to a physical controller. Check machine geometry and pen settings before using exported G-code on hardware.</p>
+<p>Unsaved edits create a recovery copy in your user profile. Settings, recent jobs and recovery persist across upgrades. Uninstalling Gantry preserves your profile and projects; your Documents folder is the recommended place for saved work.</p>
+<p>The Windows profile is <code>%APPDATA%\Gantry</code>. On Linux it is <code>$XDG_CONFIG_HOME/gantry</code>, or <code>~/.config/gantry</code> when that variable is unset.</p>
+</section>
+<section id="cli">
+<h2>Use the command line</h2>
+<p>The Windows installer includes <code>gantry-cli.exe</code> and its Java runtime. It has no desktop or Start menu shortcut. Open PowerShell and use:</p>
+<pre><code>&amp; "$env:LOCALAPPDATA\Gantry\gantry-cli.exe" --help
+&amp; "$env:LOCALAPPDATA\Gantry\gantry-cli.exe" -i "$env:LOCALAPPDATA\Gantry\app\docs\samples\simple-line.svg" -o "$env:USERPROFILE\Documents\gantry-commands.json"</code></pre>
+<p>If you chose another installation directory, replace the installation path in these commands. Gantry does not change your PATH automatically. You can add your chosen installation directory to your user PATH manually if you want to run <code>gantry-cli</code> by name.</p>
+<p>On Ubuntu:</p>
+<pre><code>/opt/gantry/bin/gantry-cli --help
+/opt/gantry/bin/gantry-cli -i /opt/gantry/lib/app/docs/samples/simple-line.svg -o "$HOME/gantry-commands.json"</code></pre>
+<p>For a portable download, run <code>java -jar Gantry-CLI-@VERSION@.jar --help</code>. The native CLI requires no separate Java installation. Both forms prepare files; they do not connect a physical plotter.</p>
+</section>
+<section id="hardware">
+<h2>Prepare for your real plotter</h2>
+<p>Before connecting hardware, set the machine's actual travel area, origin, pen-lift mode and feeds in <strong>Settings &gt; Preferences…</strong>. Verify jogging directions with the pen raised. Use homing only with a properly configured controller and limit switches, then frame a small drawing before putting the pen down.</p>
+<img src="images/preferences-geometry.png" alt="Machine geometry preferences with travel dimensions, origin, orientation and soft limits">
+<p>Watercolor stations and refill operations are optional. Layer settings include physical nib width and refill parameters:</p>
+<img src="images/layer-watercolor-settings.png" alt="Per-layer watercolor settings including refill station and pen width">
+<p>Mock success is useful workflow evidence but does not establish physical calibration or hardware readiness. Keep emergency stop or power within reach during a first physical test.</p>
+</section>
+<section id="support">
+<h2>Get help</h2>
+<p>Choose <strong>Help &gt; Copy Diagnostics</strong> when reporting a problem. Include your Windows or Linux version, Gantry version, controller, connection type, and what happened.</p>
+<ul>
+<li><a href="https://github.com/utrost/Gantry/blob/v@VERSION@/docs/USER_GUIDE.md">Full user guide (online)</a></li>
+<li><a href="https://github.com/utrost/Gantry/blob/v@VERSION@/docs/TROUBLESHOOTING.md">Troubleshooting (online)</a></li>
+<li><a href="https://github.com/utrost/Gantry/issues">Report an issue (online)</a></li>
+<li><a href="../LICENSE">GNU Affero General Public License v3</a></li>
+<li><a href="../VERSION.txt">Installed version information</a></li>
+</ul>
+<p>Release candidates may be unsigned. Windows acceptance and known hardware results are recorded with each release; do not treat this guide as a compatibility guarantee.</p>
+</section>
+</body>
+</html>

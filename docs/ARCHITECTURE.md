@@ -383,14 +383,17 @@ instance and observes pen/Z/feed updates without reconnecting.
 Swing + FlatLaf dark theme. `GantryApp#main` sets up `FlatDarkLaf`, builds a
 `PlotterPanel`, attaches its menu bar, and shows the frame.
 
-- **`PlotterPanel`** (~1,390 lines) — the composition root for the main window.
+- **`PlotterPanel`** — the composition root for the main window.
   It lays out the preview, console, extracted control panels, menus, and workflow
   entry points, then wires their callbacks to document and plot controllers.
   Its GUI configuration path comes from `ConfigStore.guiConfigFile`: a stable
   per-user OS location, with one-time migration from the legacy working-directory
   `config.json` and a `gantry.config.file` system-property override.
+  `UserStateFiles` keeps history and recovery beside that configuration, migrates
+  legacy state once, and prevents dismissed recovery from being resurrected.
+  An explicit configuration override isolates the profile and disables legacy import.
   The completed decomposition and its safety invariants are tracked in
-  `docs/REFACTORING.md`. Menu actions include Import SVG (artwork), Re-process Source
+  `docs/REFACTORING.md`. Menu actions include Open SVG or Vector Drawing, Re-process Source
   SVG (`EditProcessDialog`), Optimize Commands,
   Open/Save Project, Open/Export Flattened Commands, Export/Replay G-code, and
   persistent Recent Plot Jobs. Every File/Edit menu item names its format in the
@@ -414,7 +417,7 @@ Swing + FlatLaf dark theme. `GantryApp#main` sets up `FlatDarkLaf`, builds a
 - **`PlotJobController`** — Swing-free owner of the connected `PlotterBackend`,
   active `PlotService`, plot worker, pause/resume/cancel, completion cleanup,
   progress state, and re-plot eligibility.
-- **`VisualizationPanel`** (~950 lines) — the live-canvas scene and transform
+- **`VisualizationPanel`** — the live-canvas scene and transform
   facade. It retains the public canvas API and delegates painting to
   `CanvasRenderer`, mouse gestures to `CanvasInteractionController`, hit testing,
   snapping, viewport inversion, and resize calculations to
@@ -580,7 +583,7 @@ per-colour stroke-width controls.
 `mvn clean install` builds and tests everything (`BUILD SUCCESS`, zero failures
 expected). Coverage is strongest where logic is pure:
 - `model` — JSON round-trip, coordinate transforms.
-- `pipeline-core` — `SvgImportStageTest` (4 nested classes, ~26 tests: parsing,
+- `pipeline-core` — `SvgImportStageTest` (parsing,
   fit-to-page, refill, page-border drop **and** single-shape exemption, transform
   baking, mirroring), plus optimize/multipass.
 - `svgtoolbox-core` — one test class per processor; `HatchProcessorTest` covers

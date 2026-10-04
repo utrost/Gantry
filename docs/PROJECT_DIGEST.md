@@ -38,7 +38,9 @@ The Maven reactor contains eight modules:
 - `cli` — headless SVG/image batch conversion and optional G-code output.
 - `app` — Swing GUI, orchestration, persistence, recovery, history, visualization, and help surface.
 
-Test inventory observed after the sketch-trace image-art update: 79 Java test files across the reactor (`app` 36, `svgtoolbox-core` 17, `vectorize` 9, `plotter` 6, `pipeline-core` 5, `cli` 2, `model` 2, `watercolor` 2). The docs already describe the test suite in detail rather than relying on a raw count.
+The 2026-09-26 release validation passed 471 Java tests and nine Python packaging
+tests. See the [RC2 acceptance record](../release-results/1.0.0-rc.2.md) for
+platform evidence and remaining checks; counts describe that build.
 
 ## Roadmap state
 
@@ -51,7 +53,9 @@ Active product roadmap:
 
 Active adoption roadmap:
 
-- First public alpha exists: `v1.0.0-alpha.1`.
+- Public JAR releases exist: `v1.0.0-alpha.1` and `v1.0.0-rc.1`.
+- `1.0.0-rc.2` Windows MSI and Linux DEB installers are prepared and validated,
+  but have not been tagged or published.
 - Release artifacts/checksums and CLI artifact smoke evidence are recorded.
 - GitHub metadata, issue templates, and labels are seeded.
 - First-plot quickstart, troubleshooting, Help > Copy Diagnostics, release checklist, and compatibility-matrix shell exist.
@@ -71,13 +75,14 @@ Risks:
 - There is a lot of documentation. For a new tester, README → FIRST_PLOT must stay the obvious path; everything else should remain secondary.
 - The adoption roadmap contains issue numbers and release details that can drift unless checked after GitHub changes.
 - `docs/KNOWN_GOOD_SETUPS.md` now has Uwe's Uuna Tek A1 H working report, but it should not be marketed as broad compatibility evidence until the detailed acceptance fields and external entries land.
-- Screenshots and demo media are repeatedly referenced as pending. Once captured, update README, FIRST_PLOT, release notes, and adoption status together.
+- Current UI captures are available in [the screenshot gallery](images/README.md).
+  A demo GIF/video and external novice evidence remain pending.
 - The user guide is comprehensive, but long. If adoption reaches broader public testing, split it into focused pages only after real users show where they get lost.
 - Tracer JSON capture is now documented as a future pressure-bearing import path. Keep it out of current user instructions until implemented and tested.
 
 ## Recommended next work
 
-1. Record real-hardware acceptance for `v1.0.0-alpha.1` or the next alpha.
+1. Record human desktop and real-hardware acceptance for `1.0.0-rc.2`.
    - Fill `release-results/` using the release checklist.
    - Fill in the remaining fields for the Uuna Tek A1 H entry in `docs/KNOWN_GOOD_SETUPS.md`.
    - Keep hardware readiness language conservative until detailed acceptance evidence exists.
@@ -96,7 +101,7 @@ Risks:
    - Done: the first committed SVG sample gallery exists for simple line,
      hatch/fill, multi-colour/layer, and text-outline practice.
    - Next: one-minute demo GIF/video of launch → guided mock plot → export/plot result.
-   - Then: screenshots for README/FIRST_PLOT if they reduce first-run uncertainty.
+   - Done: refreshed welcome, workspace, layer settings, and geometry screenshots.
    - Later: image/vectorize gallery entries only after validation evidence exists.
 
 5. Keep roadmap maintenance strict.
@@ -142,11 +147,10 @@ Defer work that expands capability without adoption evidence:
 
 Exception: Tracer `.tracer.json` is worth keeping as a named candidate because it preserves centerline pressure and timing that SVG throws away. It should still wait for either adoption evidence or a concrete Tracer-to-plotter experiment.
 
-## Open question to resolve later
+## Distribution checks
 
-The docs currently point to a JAR-first alpha path while the source tree also has convenient `scripts/start.*` helpers. That split is correct for tester adoption, but every release should verify both paths:
-
-- downloaded GUI JAR launches on Java 17 and 21;
-- CLI JAR smoke test passes;
-- source checkout still builds and starts with the helper scripts;
-- documentation examples match the published artifact names.
+The next candidate provides bundled-runtime Windows MSI and Ubuntu DEB packages;
+existing published releases remain JAR-only until that candidate is published.
+Every release should verify the native install/upgrade/uninstall checks, GUI and
+CLI JARs, source build helpers, and exact published artifact names. See the
+[release checklist](RELEASE_CHECKLIST.md) and [documentation audit](DOCUMENTATION_STATUS.md).

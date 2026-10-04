@@ -21,9 +21,9 @@ final class StartupWelcomeDialog {
         JCheckBox showAgain = new JCheckBox("Show this welcome when Gantry starts", showOnStartup);
         JPanel message = new JPanel();
         message.setLayout(new BoxLayout(message, BoxLayout.Y_AXIS));
-        message.add(new JLabel("<html>Welcome to Gantry. Adding artwork cannot move a machine.<br><br>"
+        message.add(new JLabel("<html><body style='width: 360px'>Welcome to Gantry. Adding artwork cannot move a machine.<br><br>"
                 + "Guided practice will configure Gantry, load a supplied drawing, and use the "
-                + "no-hardware mock plotter by default.</html>"));
+                + "no-hardware mock plotter by default.</body></html>"));
         message.add(showAgain);
         message.setBorder(BorderFactory.createEmptyBorder(4, 4, 0, 4));
 

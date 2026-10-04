@@ -107,6 +107,9 @@ public class PlotService {
         }
     }
 
+    /** Whether cancellation was requested, including before the worker started. */
+    public boolean isCancelled() { return cancelled; }
+
     /** Pauses plotting before the next command and lifts the pen. Resumable via {@link #resume()}. */
     public void pause() {
         synchronized (pauseLock) {
@@ -151,7 +154,6 @@ public class PlotService {
      * REFILL commands at the configured station.
      */
     public void plot(ProcessorOutput output) {
-        cancelled = false;
         List<Layer> layers = output.layers();
 
         double machineW = settings.resolveMachineWidth();

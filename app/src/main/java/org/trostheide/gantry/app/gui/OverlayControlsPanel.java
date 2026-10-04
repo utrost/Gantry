@@ -38,10 +38,10 @@ final class OverlayControlsPanel extends JPanel {
         visualization.setInteractionModeChangeListener(actions::mode);visualization.setStationEditListener(new VisualizationPanel.StationEditListener(){
             public void onStationMoved(String n,double x,double y){actions.stationMoved(n,x,y);}public void onStationAdded(double x,double y){actions.stationAdded(x,y);}});}
     private static JPanel row(JComponent...items){JPanel p=new JPanel(new FlowLayout(FlowLayout.LEFT,4,2));for(JComponent i:items)p.add(i);return p;}
-    /** Keep both coordinates and the Set button inside the application's 300 px control column. */
+    /** Keep both coordinates and the Set button inside the control column at the current UI scale. */
     private static void compactCoordinateSpinner(JSpinner spinner){
         Dimension preferred=spinner.getPreferredSize();
-        Dimension compact=new Dimension(72,preferred.height);
+        Dimension compact=new Dimension(com.formdev.flatlaf.util.UIScale.scale(72),preferred.height);
         spinner.setPreferredSize(compact);spinner.setMinimumSize(compact);
     }
 }

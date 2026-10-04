@@ -19,3 +19,6 @@ release-results/*
 
 # Debug edge map written by the vectorize engine at runtime
 edges_debug*.png
+
+# Python release tooling
+__pycache__/

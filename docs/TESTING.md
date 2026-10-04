@@ -34,43 +34,77 @@ mvn clean install
 
 Expected output: `BUILD SUCCESS` with zero failures across all modules.
 
+### Installed release acceptance
+
+The [2026-09-26 RC2 record](../release-results/1.0.0-rc.2.md) records 471 passing
+Java tests and nine Python packaging tests, plus Windows/Linux native checks.
+Run the packaging regression checks with:
+
+```bash
+python3 -m unittest discover -s scripts -p 'test_*.py'
+```
+
+`release.yml` builds the bundled runtimes, installs a synthetic older
+candidate, seeds an isolated profile, upgrades, verifies persisted hashes and
+installed workflows, launches the GUI, and uninstalls while preserving state.
+The older fixture uses current code with an older version identity; this does
+not establish compatibility with every historical application schema.
+`InstallationCheck --self-test` exercises SVG/raster import, project/configuration/
+history/recovery persistence, mock plot/cancel, and G-code export. It never uses
+physical hardware. See [the release checklist](RELEASE_CHECKLIST.md) for commands
+and the separate human desktop/hardware acceptance requirements.
+
+Installed payload validation also checks native CLI help/import without system
+Java, offline guide links/images/samples and help launcher resolution. Windows
+checks user-only registration and both GUI/help menu shortcuts. See
+[installer contents](packaging/README.md).
+
+### GUI integration check
+
+After `mvn package`, run `./scripts/test-gui.sh` on Linux with a JDK and display,
+or `xvfb-run -a ./scripts/test-gui.sh` on a headless host. It drives real Swing
+menus, file dialogs and buttons with an isolated mock profile, including a second
+process for recovery. See [the GUI evaluation](test-results-2026-09-26-gui.md) for
+coverage, findings and limitations. Java 17/21 CI runs this after the reactor build.
+
 ### Test coverage by module
 
 | Module | Test classes | What is covered |
 |---|---|---|
 | `model` | `ProcessorOutputJsonTest`, `CoordinateTransformTest` | JSON round-trip of `ProcessorOutput`; coordinate transform (rotate/swap/invert/align) in all axis combinations |
 | `pipeline-core` | `SvgImportStageTest` | SVG parsing and command-model extraction: paths/primitives and text-to-glyph outlines, layered SVG, content-fit and preserved-viewBox A4 scaling, refill insertion, curve flattening, transforms, mirroring, and page-border filtering |
-| `pipeline-core` | `OptimizeStageTest` (8), `MultipassStageTest` | RDP simplify, greedy-NN reorder, cooperative cancellation without input mutation, multipass command expansion; stroke welding (touching segments merge into one polyline, reverse-when-only-end-touches, disjoint stay separate, zero tolerance disables) |
+| `pipeline-core` | `OptimizeStageTest`, `MultipassStageTest` | RDP simplify, greedy-NN reorder, cooperative cancellation without input mutation, multipass command expansion; stroke welding (touching segments merge into one polyline, reverse-when-only-end-touches, disjoint stay separate, zero tolerance disables) |
 | `plotter` | `GcodeBackendTest`, `GcodeOptionsTest` | G-code formatting and GRBL safety: init, pen modes, moves, raw send, realtime state, Alarm recovery, acknowledged pen-up before homing, serial failure propagation, configurable long-move response timeouts, and in-place live option updates |
+| `app` | `InstallationCheckTest`, `UserStateFilesTest` | Installed workflow seed/verify, profile protection and corruption detection; per-user state migration and isolated-profile behavior |
 | `app` | `PlotServiceTest` | Full plot orchestration: layer sequencing, refill at layer boundary, cancel mid-plot, OOB clamping, per-waypoint position callbacks |
-| `app` | `StudioMetricsTest` (4) | Vectorize-studio plottability metrics: stroke/point counts, draw-vs-travel separation, scale-invariant travel ratio, no-double-count on stroke approach |
+| `app` | `StudioMetricsTest` | Vectorize-studio plottability metrics: stroke/point counts, draw-vs-travel separation, scale-invariant travel ratio, no-double-count on stroke approach |
 | `app` | `BusyOverlayTest` | Cancellable background-work overlay exposes animated progress, invokes Cancel, and changes to a disabled Cancelling state |
 | `app` | `StartupWelcomeDialogTest`, `SettingsPanelTest` | First-launch/show-again policy; guided/setup/close action mapping; window-close dismissal; remembered startup checkbox and Settings round-trip |
-| `app` | `SoftLimitsTest` (7) | Orientation-aware jog soft-limit clamp: within-bounds passthrough, clamp at 0/width/height, inverted-X negative bed, top-right origin (negative both axes), swapped-axis bounds, at-wall returns same point (stops continuous jog) |
-| `app` | `TimeEstimatorTest` (7) | Travel/draw distances use their respective feed rates; refill travel + fixed dip overhead; unknown station falls back to default; pen-down settle overhead charged once per `DrawCommand` and driven by the configurable `penDownDelayMillis` (0 removes it); multi-layer totals; `H:MM:SS` formatting |
+| `app` | `SoftLimitsTest` | Orientation-aware jog soft-limit clamp: within-bounds passthrough, clamp at 0/width/height, inverted-X negative bed, top-right origin (negative both axes), swapped-axis bounds, at-wall returns same point (stops continuous jog) |
+| `app` | `TimeEstimatorTest` | Travel/draw distances use their respective feed rates; refill travel + fixed dip overhead; unknown station falls back to default; pen-down settle overhead charged once per `DrawCommand` and driven by the configurable `penDownDelayMillis` (0 removes it); multi-layer totals; `H:MM:SS` formatting |
 | `app` | `HatchOverridesPanelTest`, `ToolboxOptionsPanelTest`, `SvgFillColorsTest` | Per-colour hatch table validation and mapping into `Config.overrides`; discovery of explicit SVG fill colours |
 | `app` | `DocumentSessionTest`, `DocumentCompositionTest`, `GantryProjectIOTest`, `CanvasContextMenuTest` | Multi-level model undo/redo, append-SVG composition with addressable artwork groups, side-by-side placement, unique command IDs, per-artwork move/scale/mirror transforms, canvas artwork action routing, and `.gantry` project round-trip |
 | `app` | `PlotJobHistoryTest`, `VisualizationTravelTest` | Persistent prepared-job history and travel accounting across layer boundaries |
-| `vectorize` | `IntegrationTest`, `BoofcvBatikVectorTest`, `StrategiesTest`, `PaintByNumbersTest` (86) | Raster→SVG engine: contour extraction, all eight strategies, polyline/Bézier geometry, auto-Canny, crop, SVG optimisation, Paint-by-Numbers quantisation/regions/labels |
-| `cli` | `VectorizeCliTest` (2) | `VectorizeCli` wiring: image→SVG, and the `--`-separated image→SVG→command-JSON chain (argument split, SVG-path derivation, `-i` injection) |
-| `cli` | `SvgImportCliTest` (8), `SampleGalleryDocsTest` | SVG→command CLI wiring: help, multipass and per-colour hatch overrides; batch config station mapping and G-code output; sample gallery contract covering committed parseable SVGs, tester safety metadata, and README/FIRST_PLOT links |
+| `vectorize` | `IntegrationTest`, `BoofcvBatikVectorTest`, `StrategiesTest`, `PaintByNumbersTest` | Raster→SVG engine: contour extraction, the vectorization strategies, including centerline and image-art modes, polyline/Bézier geometry, auto-Canny, crop, SVG optimisation, Paint-by-Numbers quantisation/regions/labels |
+| `cli` | `VectorizeCliTest` | `VectorizeCli` wiring: image→SVG, and the `--`-separated image→SVG→command-JSON chain (argument split, SVG-path derivation, `-i` injection) |
+| `cli` | `SvgImportCliTest`, `SampleGalleryDocsTest` | SVG→command CLI wiring: help, multipass and per-colour hatch overrides; batch config station mapping and G-code output; sample gallery contract covering committed parseable SVGs, tester safety metadata, and README/FIRST_PLOT links |
 | `svgtoolbox-core` | `ConfigBuilderTest` | Config builder defaults and overrides |
-| `svgtoolbox-core` | `VisibilityProcessorTest` (4) | Remove hidden layers by colour |
-| `svgtoolbox-core` | `StyleNormalizerProcessorTest` (2) | Move inline `style` attributes to presentation attributes |
-| `svgtoolbox-core` | `RotateProcessorTest` (4) | Canvas rotation 45/90/180° |
-| `svgtoolbox-core` | `StrokeWidthProcessorTest` (1) | Force stroke width on all elements |
-| `svgtoolbox-core` | `PaletteProcessorTest` (5) | CIELAB quantisation: nearest colour, passthrough when no palette |
-| `svgtoolbox-core` | `CropProcessorTest` (5) | Clip outside crop bounds; keep within; null bounds no-op |
-| `svgtoolbox-core` | `LayerProcessorTest` (5) | Inkscape layer groups; resize canvas; multi-colour grouping; pre-existing layers nested under a hatch wrapper `<g>` are preserved, not re-bucketed by colour |
-| `svgtoolbox-core` | `HatchProcessorTest` (5) | Linear/cross/zigzag/wave/dot patterns; area filter; no-hatch list; explicit-vs-auto dot radius |
-| `svgtoolbox-core` | `SimplifyProcessorTest` (2) | RDP on collinear points; tolerance threshold |
-| `svgtoolbox-core` | `LinesimplifyProcessorTest` (6) | RDP on path `d` attribute; tolerance; skip closed paths |
-| `svgtoolbox-core` | `LinemergeProcessorTest` (6) | Merge adjacent open paths within tolerance; reverse direction |
-| `svgtoolbox-core` | `LinesortProcessorTest` (7) | Greedy NN sort; 2-opt; single shape no-op |
-| `svgtoolbox-core` | `ReloopProcessorTest` (5) | Rotate closed-path start point to nearest vertex |
-| `svgtoolbox-core` | `PathOptimizeProcessorTest` (3) | Group-level reorder; single shape no-op; rect elements |
-| `svgtoolbox-core` | `HandDrawnProcessorTest` (9) | Seeded jitter and resampling; pinned endpoints; complete closed edges; faithful Bézier flattening; conversion of line/rect/circle/ellipse/polyline/polygon while preserving identity, styling and transforms |
-| `svgtoolbox-core` | `SvgToolboxPipelineTest` (4) | Pipeline order (14 processors); conditional PathOptimize; integration: red line → Inkscape layer; progress callback count |
+| `svgtoolbox-core` | `VisibilityProcessorTest` | Remove hidden layers by colour |
+| `svgtoolbox-core` | `StyleNormalizerProcessorTest` | Move inline `style` attributes to presentation attributes |
+| `svgtoolbox-core` | `RotateProcessorTest` | Canvas rotation 45/90/180° |
+| `svgtoolbox-core` | `StrokeWidthProcessorTest` | Force stroke width on all elements |
+| `svgtoolbox-core` | `PaletteProcessorTest` | CIELAB quantisation: nearest colour, passthrough when no palette |
+| `svgtoolbox-core` | `CropProcessorTest` | Clip outside crop bounds; keep within; null bounds no-op |
+| `svgtoolbox-core` | `LayerProcessorTest` | Inkscape layer groups; resize canvas; multi-colour grouping; pre-existing layers nested under a hatch wrapper `<g>` are preserved, not re-bucketed by colour |
+| `svgtoolbox-core` | `HatchProcessorTest` | Linear/cross/zigzag/wave/dot patterns; area filter; no-hatch list; explicit-vs-auto dot radius |
+| `svgtoolbox-core` | `SimplifyProcessorTest` | RDP on collinear points; tolerance threshold |
+| `svgtoolbox-core` | `LinesimplifyProcessorTest` | RDP on path `d` attribute; tolerance; skip closed paths |
+| `svgtoolbox-core` | `LinemergeProcessorTest` | Merge adjacent open paths within tolerance; reverse direction |
+| `svgtoolbox-core` | `LinesortProcessorTest` | Greedy NN sort; 2-opt; single shape no-op |
+| `svgtoolbox-core` | `ReloopProcessorTest` | Rotate closed-path start point to nearest vertex |
+| `svgtoolbox-core` | `PathOptimizeProcessorTest` | Group-level reorder; single shape no-op; rect elements |
+| `svgtoolbox-core` | `HandDrawnProcessorTest` | Seeded jitter and resampling; pinned endpoints; complete closed edges; faithful Bézier flattening; conversion of line/rect/circle/ellipse/polyline/polygon while preserving identity, styling and transforms |
+| `svgtoolbox-core` | `SvgToolboxPipelineTest` | Pipeline order (14 processors); conditional PathOptimize; integration: red line → Inkscape layer; progress callback count |
 
 ---
 
@@ -91,8 +125,9 @@ results can be recorded (e.g. in a spreadsheet) and referenced in bug reports.
 - **Order:** scripts are grouped by area. Within a release run, do the groups
   top-to-bottom — later groups assume you know how to import a drawing and connect.
 - **Reset between scripts:** unless a script says otherwise, start each one from a
-  freshly launched app with a known `config.json` (see TS-A1). Deleting
-  `config.json` resets to first-run defaults.
+  freshly launched app with an isolated profile (see TS-A1). Use
+  `scripts/start-novice-study.sh --profile <temporary-directory> --reset`;
+  changing the working directory alone does not reset the OS user profile.
 
 ### Test data to prepare first
 
@@ -170,9 +205,10 @@ a `testdata/` folder.
 ### Group B — First run & Setup Wizard
 
 #### TS-B1 — First-run guided-practice offer *(mock OK)*
-1. Quit the app. Delete (or rename) the user configuration (`%APPDATA%\Gantry\config.json`
-   on Windows). Also move any working-directory `config.json` aside so legacy migration does not restore it.
-2. Launch the app.
+1. Quit the app and prepare a fresh isolated profile with
+   `scripts/start-novice-study.sh --profile .novice-study-profiles/TS-B1 --reset`.
+   For direct JAR launch, set `-Dgantry.config.file=<fresh-directory>/config.json`.
+2. Launch the app using that profile; use the same override for every relaunch.
    - [ ] A closable **Your first plot** dialog offers guided practice, machine setup only, or **Close**, clearly says artwork cannot move a machine, and shows a selected **Show this welcome when Gantry starts** checkbox.
 3. Untick **Show this welcome when Gantry starts**, then click **Close**.
    - [ ] The dialog closes, the main window is usable, no wizard opens, and the user configuration records the preference.
@@ -761,12 +797,11 @@ appear in the other.
 
 ### Group U — Image import (vectorize)
 
-Covers Phase 18: bringing a raster image into Gantry via **File > Import Image
-(vectorize)…**. The traced SVG flows through the same import as a hand-authored
+Covers Phase 18: bringing a raster image into Gantry via **File > Add image or photo…**. The traced SVG flows through the same import as a hand-authored
 SVG, so this group focuses on the vectorize step itself.
 
 #### TS-U1 — Vectorize studio: live preview & tuning *(mock OK)* — Phase 19 Tier 1
-1. **File > Import Image (vectorize)…** (Ctrl+Shift+I) and choose a PNG/JPG (a logo or line drawing works well).
+1. **File > Add image or photo…** (Ctrl+Shift+I) and choose a PNG/JPG (a logo or line drawing works well).
    - [ ] The **Vectorize — live preview** studio opens: source image on the left, an (initially empty) **Vector preview** on the right, controls on the right edge, and a status line bottom-left.
    - [ ] Within ~1 s a trace appears in the preview and the status shows `<strategy> · N layer(s) · M strokes · P pts · X% travel`.
    - [ ] Pick a **Centerline** trace: the hint line reads *"Single-stroke paths — efficient for pen plotting."* Pick a busy `bezier2`/`pbn` trace with lots of scattered fills: when pen-up travel is high the hint suggests Centerline / fewer colours.
@@ -806,7 +841,7 @@ DP, Centerline, ImageTracer, and Paint-by-Numbers all completed live retraces;
 strategy-specific enablement, presets, crop ROI, metrics/hints, cancellation,
 and restoration of non-default Centerline threshold 100 passed. The run left
 `config.json` byte-identical and produced no `edges_debug*.png` files. The
-headless reactor suite separately covers crop, all eight vectorizers, SVG
+headless reactor suite separately covers crop, the vectorizers, SVG
 import, document source provenance, downstream transforms/optimization/export,
 and mock plotting.
 

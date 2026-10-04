@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
 # Launch Gantry from an isolated clean working directory for novice-study runs.
-# Gantry stores config.json, recovery files, and plot-history.json relative to
-# the process working directory, so this script keeps each participant profile
-# separate from the developer checkout and from prior participants.
+# The explicit config override isolates settings, recovery and history from
+# the normal user profile and from prior participants.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -17,8 +16,8 @@ usage() {
 Usage: scripts/start-novice-study.sh [--profile DIR] [--reset] [--dry-run]
 
 Launch Gantry from a clean participant profile for the novice usability study.
-The profile directory becomes Gantry's working directory, isolating config.json,
-plot-history.json, recovery files, projects, and file-chooser history.
+The profile directory becomes Gantry's working directory and explicit config
+profile, isolating settings, plot history, recovery and file-chooser history.
 
 Options:
   --profile DIR  Profile directory to use. Defaults to
@@ -92,7 +91,7 @@ Gantry novice-study profile
 
 This directory is intentionally isolated for one novice-study participant/run.
 Gantry writes config.json, plot-history.json, recovery files, projects, and file
-chooser history relative to this working directory.
+chooser history in this explicit profile.
 
 Protocol: $ROOT/docs/NOVICE_STUDY.md
 Results template: $ROOT/docs/NOVICE_STUDY_RESULTS_TEMPLATE.md
@@ -102,7 +101,7 @@ if [[ "$DRY_RUN" == true ]]; then
     echo "Novice-study profile: $PROFILE_DIR"
     echo "Repository root: $ROOT"
     echo "Application jar: $JAR"
-    echo "Would run from profile directory: java -jar $JAR"
+    echo "Would run from profile directory: java -Dgantry.config.file=$PROFILE_DIR/config.json -jar $JAR"
     exit 0
 fi
 
@@ -127,4 +126,4 @@ Before handing over to the participant:
 EOF
 
 cd "$PROFILE_DIR"
-exec java -jar "$JAR"
+exec java "-Dgantry.config.file=$PROFILE_DIR/config.json" -jar "$JAR"

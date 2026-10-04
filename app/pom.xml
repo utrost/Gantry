@@ -94,6 +94,9 @@
                             <transformers>
                                 <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
                                     <mainClass>org.trostheide.gantry.app.GantryApp</mainClass>
+                                    <manifestEntries>
+                                        <Implementation-Version>${gantry.release.version}</Implementation-Version>
+                                    </manifestEntries>
                                 </transformer>
                             </transformers>
                         </configuration>
