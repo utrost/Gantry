@@ -34,15 +34,18 @@ Other distributions and architectures are not yet validated.
   `sudo apt install ./Gantry-<version>-linux-x64.deb`, then open **Gantry** from
   the applications menu.
 
-The existing alpha and RC1 releases contain JARs only. Until an installer
-candidate is published, download its GUI JAR and run `java -jar Gantry-<version>.jar`
-with Java 17 or newer, or build from source with `./scripts/build.sh`.
+The published [1.0.0-rc.2 release](https://github.com/utrost/Gantry/releases/tag/v1.0.0-rc.2) includes both installers. Portable users can download the GUI JAR and run
+`java -jar Gantry-<version>.jar` with Java 17 or newer, or build from source with
+`./scripts/build.sh`.
 
 Installer downloads contain the platform package, a standalone README, license,
 version information and checksums. Portable GUI/CLI JARs and the complete offline
 documentation ZIP are a separate download. See [installer contents](docs/packaging/README.md).
 
 Start with the [guided mock first plot](docs/FIRST_PLOT.md) before using hardware.
+Watch the [one-minute mock walkthrough](docs/demos/Gantry-first-plot-mock.mp4):
+actual app screens show import, preview, the pre-plot checklist, pen confirmation,
+and completion. This captioned walkthrough simulates plotting; no hardware moves.
 
 ## Start here
 

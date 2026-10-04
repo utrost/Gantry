@@ -7,6 +7,24 @@ include what was tested, the Gantry version or commit, and any caveats.
 A setup is **known good** only for the workflows recorded in its entry. For
 example, a pen-plot acceptance run does not prove watercolor station behavior.
 
+## Windows 11 — iDraw H A1 (RC2)
+
+- Date: 2026-10-04
+- Tester: Uwe (direct user report)
+- Gantry: published `v1.0.0-rc.2`, Windows x64 MSI, bundled Java 21
+- Operating system: Windows 11
+- Plotter: iDraw H A1
+- Reported working: physical plotting, stop/alarm recovery, limits, calibration.
+- Result: passed for those workflows on this configuration, as reported by Uwe.
+- Not individually reported: serial enumeration/connect-disconnect, homing/jog,
+  framing, offline-help/browser shortcuts, standard-user install context, and
+  watercolor station/wet/refill behavior. Controller firmware, baud rate, origin,
+  pen mode and exact travel settings were not supplied.
+- Evidence: maintainer conversation on 2026-10-04; no machine logs were supplied.
+- Scope: RC2 only. Later changes to motion/replay recovery require a new hardware
+  check; this report does not validate those changes retroactively.
+- Tracking: [hardware acceptance #15](https://github.com/utrost/Gantry/issues/15).
+
 ## Entry template
 
 ```markdown

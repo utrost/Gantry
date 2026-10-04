@@ -58,7 +58,7 @@ public final class PlotJobHistory {
             jobs.remove(jobs.size() - 1);
         }
         try {
-            MAPPER.writerWithDefaultPrettyPrinter().writeValue(file, jobs);
+            org.trostheide.gantry.model.io.AtomicFiles.write(file, temp -> MAPPER.writerWithDefaultPrettyPrinter().writeValue(temp, jobs));
         } catch (IOException ignored) {
             // History is a convenience; a completed plot remains successful if persistence fails.
         }

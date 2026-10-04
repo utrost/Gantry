@@ -55,7 +55,22 @@ final class DocumentFileWorkflow {
         this.visualization=visualization;this.actions=actions;
     }
 
+    boolean confirmReplacement() {
+        return DocumentReplacementGuard.allow(session.isDirty(), () -> {
+            Object[] options = {"Save", "Discard", "Cancel"};
+            int selected = JOptionPane.showOptionDialog(parent, "Save changes to the current drawing?",
+                    "Unsaved Gantry project", JOptionPane.DEFAULT_OPTION, JOptionPane.WARNING_MESSAGE,
+                    null, options, options[2]);
+            return switch (selected) {
+                case 0 -> DocumentReplacementGuard.Choice.SAVE;
+                case 1 -> DocumentReplacementGuard.Choice.DISCARD;
+                default -> DocumentReplacementGuard.Choice.CANCEL;
+            };
+        }, this::saveProject);
+    }
+
     void loadCommands() {
+        if (!confirmReplacement()) return;
         JFileChooser chooser=chooser("Gantry commands — JSON (*.json)","json");
         if(chooser.showOpenDialog(parent)!=JFileChooser.APPROVE_OPTION)return;
         File file=chooser.getSelectedFile();remember(file);
@@ -64,6 +79,7 @@ final class DocumentFileWorkflow {
     }
 
     void openProject() {
+        if (!confirmReplacement()) return;
         JFileChooser chooser=chooser("Gantry project (*.gantry)","gantry");
         if(chooser.showOpenDialog(parent)!=JFileChooser.APPROVE_OPTION)return;
         File file=chooser.getSelectedFile();remember(file);
@@ -76,16 +92,17 @@ final class DocumentFileWorkflow {
         }
     }
 
-    void saveProject() {
-        if(session.currentOutput()==null){actions.info().accept("Load or import a drawing first.");return;}
+    boolean saveProject() {
+        if(session.currentOutput()==null){actions.info().accept("Load or import a drawing first.");return false;}
         JFileChooser chooser=chooser("Gantry project (*.gantry)","gantry");
-        if(chooser.showSaveDialog(parent)!=JFileChooser.APPROVE_OPTION)return;
-        File file=withExtension(chooser.getSelectedFile(),"gantry");if(!overwrite(file))return;remember(file);
-        try{GantryProjectIO.save(actions.project().get(),file);session.markSaved();actions.log().accept("Saved project "+file.getName());actions.feedback().accept("Project saved: "+file.getName());}
-        catch(IOException ex){actions.error().accept("Failed to save project "+file.getName()+": "+ex.getMessage());}
+        if(chooser.showSaveDialog(parent)!=JFileChooser.APPROVE_OPTION)return false;
+        File file=withExtension(chooser.getSelectedFile(),"gantry");if(!overwrite(file))return false;remember(file);
+        try{GantryProjectIO.save(actions.project().get(),file);session.markSaved();actions.log().accept("Saved project "+file.getName());actions.feedback().accept("Project saved: "+file.getName());return true;}
+        catch(IOException ex){actions.error().accept("Failed to save project "+file.getName()+": "+ex.getMessage());return false;}
     }
 
     void importSvg() {
+        if (!confirmReplacement()) return;
         JFileChooser chooser=chooser("Vector artwork — SVG (*.svg)","svg");
         if(chooser.showOpenDialog(parent)!=JFileChooser.APPROVE_OPTION)return;
         File file=chooser.getSelectedFile();remember(file);
@@ -116,12 +133,14 @@ final class DocumentFileWorkflow {
     }
 
     void importImage(){
+        if (!confirmReplacement()) return;
         JFileChooser chooser=chooser("Raster image — PNG/JPG (*.png, *.jpg, *.jpeg, *.bmp)","png","jpg","jpeg","bmp");
         if(chooser.showOpenDialog(parent)!=JFileChooser.APPROVE_OPTION)return;
         File file=chooser.getSelectedFile();remember(file);vectorize(file,null);
     }
 
     void revectorize(){
+        if (!confirmReplacement()) return;
         File image=session.sourceImage();
         if(image==null||!image.exists()){message("No vectorized image to re-tune. Use Import Image first.","Re-vectorize");return;}
         vectorize(image,session.vectorizeArgs());

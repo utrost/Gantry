@@ -185,11 +185,13 @@ public class PlotService {
 
         StationConfig rinseStation = findRinseStation();
 
+        boolean completed = false;
+        Throwable failure = null;
         try {
             int layerIndex = 0;
             for (Layer layer : layers) {
                 layerIndex++;
-                if (cancelled) {
+                if (cancelled || Thread.currentThread().isInterrupted()) {
                     return;
                 }
                 try {
@@ -198,7 +200,7 @@ public class PlotService {
                     Thread.currentThread().interrupt();
                     return;
                 }
-                if (cancelled) {
+                if (cancelled || Thread.currentThread().isInterrupted()) {
                     return;
                 }
                 layerStartedCallback.accept(layer);
@@ -210,19 +212,33 @@ public class PlotService {
                 }
                 executeLayer(layer, machineW, machineH, offsetX, offsetY, contentBounds, doneCommands, totalCommands);
 
-                if (!cancelled) {
+                if (!cancelled && !Thread.currentThread().isInterrupted()) {
                     parkAtOrigin();
                 }
             }
+            completed = !cancelled && !Thread.currentThread().isInterrupted();
+        } catch (RuntimeException | Error thrown) {
+            failure = thrown;
+            throw thrown;
         } finally {
-            if (cancelled) {
-                // On Stop, always bring the head to a safe state: lift the pen so it doesn't sit
-                // on the paper bleeding ink while stopped. This runs on the plot thread itself, so
-                // it never races a backend-driven halt. (For GRBL, the GUI also fires a realtime
-                // soft-reset via haltMotion() to abort any buffered motion.)
-                backend.penup();
-                logCallback.accept("--- Plot stopped: pen lifted ---");
+            if (!completed) {
+                // Clear interruption during best-effort recovery, then restore it for the caller.
+                boolean interrupted = Thread.interrupted();
+                try {
+                    recover(backend::haltMotion, "halt motion", failure);
+                    recover(backend::penup, "raise pen", failure);
+                } finally {
+                    if (interrupted) Thread.currentThread().interrupt();
+                }
             }
+        }
+    }
+
+    private void recover(Runnable action, String description, Throwable original) {
+        try { action.run(); }
+        catch (Throwable recoveryFailure) {
+            if (original != null && original != recoveryFailure) original.addSuppressed(recoveryFailure);
+            System.err.println("Plot recovery could not " + description + ": " + recoveryFailure);
         }
     }
 
@@ -372,11 +388,11 @@ public class PlotService {
 
         for (Command cmd : layer.commands()) {
             layerIndex++;
-            if (cancelled) {
+            if (cancelled || Thread.currentThread().isInterrupted()) {
                 return;
             }
             awaitResume();
-            if (cancelled) {
+            if (cancelled || Thread.currentThread().isInterrupted()) {
                 return;
             }
             if (cmd instanceof MoveCommand move) {
@@ -387,11 +403,11 @@ public class PlotService {
                 strokeProgressCallback.accept(new StrokeProgress(
                         layer.id(), draw.id, StrokeProgressPhase.STARTED));
                 for (Point point : draw.points) {
-                    if (cancelled) {
+                    if (cancelled || Thread.currentThread().isInterrupted()) {
                         return;
                     }
                     awaitResume();
-                    if (cancelled) {
+                    if (cancelled || Thread.currentThread().isInterrupted()) {
                         return;
                     }
                     double[] p = transformAndClamp(point.x(), point.y(), machineW, machineH, offsetX, offsetY, contentBounds, oobCount);
@@ -516,15 +532,19 @@ public class PlotService {
 
     /** Dips the brush in a station's pot and, for swirl/rinse stations, circles it to load/clean evenly. */
     private void dip(StationConfig station, String behavior) {
+        checkCancellation();
         backend.moveto(station.x(), station.y());
         boolean swirl = "dip_swirl".equals(behavior) || "rinse".equals(behavior);
         for (int cycle = 0; cycle < 2; cycle++) {
+            checkCancellation();
             backend.pendown();
             backend.dwell(station.dwellMs());
+            checkCancellation();
             if (swirl) {
                 double r = station.swirlRadius();
                 double direction = cycle == 0 ? 1 : -1;
                 for (int i = 0; i <= SWIRL_SEGMENTS; i++) {
+                    checkCancellation();
                     double angle = direction * 2 * Math.PI * i / SWIRL_SEGMENTS;
                     backend.lineto(station.x() + r * Math.cos(angle), station.y() + r * Math.sin(angle));
                 }
@@ -533,6 +553,11 @@ public class PlotService {
             backend.penup();
             backend.dwell(1);
         }
+    }
+
+    private void checkCancellation() {
+        if (cancelled || Thread.currentThread().isInterrupted())
+            throw new java.util.concurrent.CancellationException("Plot stopped");
     }
 
     private static String effectiveBehavior(String layerBehavior, StationConfig station) {

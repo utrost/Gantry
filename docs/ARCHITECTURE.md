@@ -135,7 +135,7 @@ coordinate math. There are distinct spaces:
 ## 4. SVG import (`pipeline-core:svgimport/SvgImportStage.java`)
 
 `SvgImportStage` (a `final` class, all static methods) converts an SVG file into a
-`ProcessorOutput`. It uses **Apache Batik** for SVG parsing and path geometry.
+`ProcessorOutput`. It uses a hardened JDK DOM parser for local SVG XML and **Apache Batik** for path geometry. The shared `SafeSvgXml` reader disables external resources, DTDs and entities and bounds input size and nesting.
 
 Public entry points (`SvgImportStage#importSvg`, overloaded):
 - `importSvg(File, SvgImportOptions)` — plain import.

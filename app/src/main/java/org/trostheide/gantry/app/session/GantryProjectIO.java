@@ -26,6 +26,6 @@ public final class GantryProjectIO {
     }
 
     public static void save(GantryProject project, File file) throws IOException {
-        MAPPER.writeValue(file, project);
+        org.trostheide.gantry.model.io.AtomicFiles.write(file, temp -> MAPPER.writeValue(temp, project));
     }
 }

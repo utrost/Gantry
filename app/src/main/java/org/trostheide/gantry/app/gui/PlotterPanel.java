@@ -167,7 +167,7 @@ public class PlotterPanel extends JPanel {
                 this::captureProject, this::openProject, this::preparePlotOutput));
         gcodeFiles = new GcodeFileWorkflow(this, configFile, () -> config, this::preparePlotOutput,
                 () -> !selectedLayerIndices().isEmpty(), plotJobController,
-                visPanel::getAlignOffsetX, visPanel::getAlignOffsetY, this::log, this::error, this::info);
+                visPanel::getAlignOffsetX, visPanel::getAlignOffsetY, this::log, this::error, this::info, active -> { setPlottingState(active); plotControls.setReplay(active); });
         jogPanel = new JogPanel(() -> config, plotJobController, visPanel, this::runOnBackend, this::log, this);
         connections = new BackendConnectionCoordinator(plotJobController, this, new BackendConnectionCoordinator.Listener() {
             public void connectionState(boolean connecting, boolean connected, boolean failed){showConnectionState(connecting,connected,failed);}
@@ -527,8 +527,7 @@ public class PlotterPanel extends JPanel {
                         + "One-way output — G-code can't be reopened for editing."),
                 KeyEvent.VK_E, shortcut));
         fileMenu.add(tip(menuItem("Replay G-code...", e -> onReplayGcode(), true),
-                "Stream an existing G-code file (.gcode) straight to the plotter, bypassing the "
-                        + "command model."));
+                "Validate an absolute-mm G-code file against machine limits, then replay with Stop available."));
         replotMenuItem = accel(tip(menuItem("Re-plot Last Job", e -> onReplotLastJob(), false),
                 "Start the last successful prepared plot again — same baked drawing, layer selection, passes, and transform settings."),
                 KeyEvent.VK_R, shortcut);
@@ -723,15 +722,7 @@ public class PlotterPanel extends JPanel {
     }
 
     public boolean requestClose() {
-        if (!documentSession.isDirty()) return true;
-        int choice = JOptionPane.showConfirmDialog(this, "Save changes before closing?",
-                "Unsaved Gantry project", JOptionPane.YES_NO_CANCEL_OPTION,
-                JOptionPane.WARNING_MESSAGE);
-        if (choice == JOptionPane.CANCEL_OPTION || choice == JOptionPane.CLOSED_OPTION) return false;
-        if (choice == JOptionPane.YES_OPTION) {
-            onSaveProject();
-            if (documentSession.isDirty()) return false;
-        }
+        if (!fileWorkflow.confirmReplacement()) return false;
         if (recoveryFile.exists()) recoveryFile.delete();
         return true;
     }
@@ -837,10 +828,7 @@ public class PlotterPanel extends JPanel {
             blocked("Disconnect the plotter before starting no-hardware guided practice.");
             return;
         }
-        if (documentSession.isDirty() && JOptionPane.showConfirmDialog(this,
-                "Replace the unsaved drawing with the practice drawing?",
-                "Start guided practice", JOptionPane.YES_NO_OPTION,
-                JOptionPane.WARNING_MESSAGE) != JOptionPane.YES_OPTION) return;
+        if (!fileWorkflow.confirmReplacement()) return;
         boolean previousMock = config.mock;
         config.mock = true;
         boolean completed = new SetupWorkflow(config, this::saveSetupConfig, this::onCalibrateAxesWizard)
@@ -1523,10 +1511,7 @@ public class PlotterPanel extends JPanel {
         awaitingLayerConfirmation = false;
         plotJobController.cancelPlot();
         confirmGate.release();
-        // Cancelling only stops further commands from being sent; the backend may already have
-        // queued motion in flight (e.g. GRBL's planner buffer), so halt it immediately too.
-        runOnBackend(PlotterBackend::haltMotion);
-        showFeedback("Plot stopped. The pen was raised and no more commands will be sent.");
+        showFeedback("Stopping the job; motion halt and pen lift are being attempted.");
         resetGuidance();
     }
 

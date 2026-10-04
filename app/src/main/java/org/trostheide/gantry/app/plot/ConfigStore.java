@@ -74,6 +74,6 @@ public class ConfigStore {
     public static void save(GantryConfig config, File file) throws IOException {
         File parent = file == null ? null : file.getAbsoluteFile().getParentFile();
         if (parent != null) Files.createDirectories(parent.toPath());
-        MAPPER.writerWithDefaultPrettyPrinter().writeValue(file, config);
+        org.trostheide.gantry.model.io.AtomicFiles.write(file, temp -> MAPPER.writerWithDefaultPrettyPrinter().writeValue(temp, config));
     }
 }

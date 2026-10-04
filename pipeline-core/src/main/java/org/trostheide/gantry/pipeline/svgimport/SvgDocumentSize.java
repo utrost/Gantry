@@ -2,7 +2,6 @@ package org.trostheide.gantry.pipeline.svgimport;
 
 import org.w3c.dom.Element;
 
-import javax.xml.parsers.DocumentBuilderFactory;
 import java.io.File;
 import java.util.Locale;
 import java.util.Optional;
@@ -27,10 +26,7 @@ public final class SvgDocumentSize {
             return Optional.empty();
         }
         try {
-            DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
-            factory.setNamespaceAware(true);
-            factory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
-            Element root = factory.newDocumentBuilder().parse(svg).getDocumentElement();
+            Element root = org.trostheide.gantry.model.io.SafeSvgXml.read(svg).getDocumentElement();
             Double width = toMillimetres(root.getAttribute("width"));
             Double height = toMillimetres(root.getAttribute("height"));
             if (width == null || height == null || width <= 0 || height <= 0) {
