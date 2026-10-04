@@ -30,7 +30,7 @@ public class GcodeFileBackend implements PlotterBackend {
     public boolean connect() {
         try {
             writer = new BufferedWriter(new FileWriter(file));
-            for (String cmd : GcodeFormatter.setupSequence()) {
+            for (String cmd : List.of("G21", "G90", "G94")) {
                 writeLine(cmd);
             }
             return true;

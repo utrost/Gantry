@@ -202,9 +202,9 @@ public final class SvgImportCli {
             output = MultipassStage.apply(output, passes);
             ProcessorOutputIO.save(output, outputFile);
             if (cmd.hasOption("metrics")) {
-                new ObjectMapper().writerWithDefaultPrettyPrinter()
-                        .writeValue(new File(cmd.getOptionValue("metrics")),
-                                CliPlotMetrics.of(output, outputFile, batch == null ? null : batch.gcode));
+                var metrics = CliPlotMetrics.of(output, outputFile, batch == null ? null : batch.gcode);
+                org.trostheide.gantry.model.io.AtomicFiles.write(new File(cmd.getOptionValue("metrics")),
+                        temp -> new ObjectMapper().writerWithDefaultPrettyPrinter().writeValue(temp, metrics));
             }
             if (cmd.hasOption("gcode")) {
                 if (batch == null) {

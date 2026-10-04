@@ -1,11 +1,9 @@
 package org.trostheide.gantry.pipeline.svgimport;
 
-import org.apache.batik.anim.dom.SAXSVGDocumentFactory;
 import org.apache.batik.parser.AWTPathProducer;
 import org.apache.batik.parser.AWTTransformProducer;
 import org.apache.batik.parser.PathParser;
 import org.apache.batik.parser.TransformListParser;
-import org.apache.batik.util.XMLResourceDescriptor;
 import org.trostheide.gantry.model.Bounds;
 import org.trostheide.gantry.model.Layer;
 import org.trostheide.gantry.model.Metadata;
@@ -179,19 +177,7 @@ public final class SvgImportStage {
     }
 
     static Document loadDocument(File inputFile) throws IOException {
-        try {
-            String parser = XMLResourceDescriptor.getXMLParserClassName();
-            SAXSVGDocumentFactory f = new SAXSVGDocumentFactory(parser);
-            return f.createDocument(inputFile.toURI().toString());
-        } catch (org.w3c.dom.DOMException e) {
-            try {
-                javax.xml.parsers.DocumentBuilderFactory dbf = javax.xml.parsers.DocumentBuilderFactory.newInstance();
-                dbf.setNamespaceAware(true);
-                return dbf.newDocumentBuilder().parse(inputFile);
-            } catch (Exception inner) {
-                throw new IOException("Failed to parse SVG: " + inner.getMessage(), inner);
-            }
-        }
+        return org.trostheide.gantry.model.io.SafeSvgXml.read(inputFile);
     }
 
     // --- Layer identification ---

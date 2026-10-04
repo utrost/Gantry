@@ -47,7 +47,7 @@ final class SupportDiagnostics {
         report.append("Preflight before start: ").append(config.preflightBeforeStart ? "enabled" : "disabled").append('\n');
         report.append("Stations configured: ").append(config.stations == null ? 0 : config.stations.size()).append('\n');
         report.append('\n');
-        report.append("Last error: ").append(value(snapshot.lastError(), "none recorded")).append('\n');
+        report.append("Last error: ").append(redact(value(snapshot.lastError(), "none recorded"))).append('\n');
         report.append('\n');
         report.append("Recent console log (last ").append(CONSOLE_TAIL_LINES).append(" lines):\n");
         String tail = tail(snapshot.consoleText());
@@ -78,7 +78,17 @@ final class SupportDiagnostics {
         }
         String[] lines = text.stripTrailing().split("\\R");
         int start = Math.max(0, lines.length - CONSOLE_TAIL_LINES);
-        return Arrays.stream(lines, start, lines.length).collect(Collectors.joining("\n", "", "\n"));
+        return Arrays.stream(lines, start, lines.length).map(SupportDiagnostics::redact).collect(Collectors.joining("\n", "", "\n"));
+    }
+
+    private static String redact(String line) {
+        // Console text is unstructured and may contain arbitrary filenames or credentials.
+        // Omit suspect lines rather than guessing where a path with spaces or a secret ends.
+        String lower = line.toLowerCase(java.util.Locale.ROOT);
+        if (line.contains("/") || line.indexOf('\\') >= 0
+                || lower.matches(".*(password|passwd|secret|token|api.?key|authorization|bearer|credential).*"))
+            return "[omitted: path or credential-like log content]";
+        return line;
     }
 
     private static String value(String text, String fallback) {

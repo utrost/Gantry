@@ -1049,3 +1049,34 @@ command — it doesn't enable or configure homing on the controller itself.
 | A1 | 594 × 841 |
 | XL | 430 × 600 |
 | Custom | any WxH |
+
+## Post-RC2 hardening behavior
+
+Opening a project or command file, importing replacement artwork, re-vectorizing,
+starting guided practice, and closing now share a Save / Discard / Cancel prompt
+when the drawing is dirty. Append SVG keeps its existing additive behavior.
+Project, recovery, command, config, history and CLI metrics files are staged in
+the destination directory before replacement. Atomic rename is used when
+available; other filesystems use a same-filesystem replacement without the same
+crash-atomicity guarantee.
+
+SVG import rejects DOCTYPE declarations and external entities, limits input to
+32 MiB and nesting to 256 levels, and never fetches external SVG/CSS resources.
+Save artwork as a self-contained SVG without a DTD if import rejects it.
+
+G-code replay now previews a validated absolute-mm job before starting. Only
+G21/G90/G94, explicit absolute XY G0/G1 moves, G4 dwell up to 60 seconds, and the
+configured pen-up/down commands are accepted. G1 needs an explicit feed rate;
+XY coordinates and speeds must fit the current machine settings. Relative moves,
+homing, firmware writes, work offsets, and unrecognized commands are rejected.
+Files exported by older versions may contain `$X` and `G92`; re-export them with
+this version. Watercolor files with station-specific Z depths may also require
+the normal Gantry plot workflow instead of replay.
+
+Confirm the machine's current work origin before replay. Stop remains available;
+controller errors, missing acknowledgements, and cancellation abort replay and
+attempt motion halt and pen lift. Recovery cannot guarantee pen movement when a
+controller or serial connection is unavailable. Failed recovery is logged.
+
+Help > Copy Diagnostics omits console/error lines that look like paths or
+credentials. Review the copied report before posting it in an issue.

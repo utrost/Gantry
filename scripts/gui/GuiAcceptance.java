@@ -9,7 +9,7 @@ import java.nio.file.*;
 import java.util.concurrent.Callable;
 
 /** Real Swing actions and file dialogs, using only an isolated mock profile. */
-public final class GuiAcceptance {
+public class GuiAcceptance {
     static JFrame frame;
     static PlotterPanel panel;
     static Path profile;
@@ -45,8 +45,18 @@ public final class GuiAcceptance {
             click(dialog("Add SVG or vector drawing"),"Import");
             await(()->project().output()!=null && project().output().layers().size()==3);
             System.out.println("PASS real SVG chooser/import dialog");
-            // Exercise cancellation in the import dialog without replacing the document.
-            menu("Open SVG or Vector Drawing..."); choose(root.resolve("docs/samples/multi-colour-layers.svg"));
+            // Every replacement entry point must preserve the dirty session on Cancel.
+            GantryProject beforeReplacement = edt(()->project());
+            for (String entry : new String[]{"Open Gantry Project...", "Open Commands (JSON)...",
+                    "Open SVG or Vector Drawing...", "Add image or photo...", "Guided First Plot..."}) {
+                menu(entry); click(dialog("Unsaved Gantry project"), "Cancel");
+                check(edt(()->project().output().equals(beforeReplacement.output())), "cancel preserves output: "+entry);
+                check(edt(()->frame.getTitle().contains("Unsaved")), "cancel preserves dirty state: "+entry);
+            }
+            System.out.println("PASS replacement guards for project, commands, SVG, image and practice");
+            // Discard authorizes replacement but cancelling the import still preserves the drawing.
+            menu("Open SVG or Vector Drawing..."); click(dialog("Unsaved Gantry project"), "Discard");
+            choose(root.resolve("docs/samples/multi-colour-layers.svg"));
             click(dialog("Add SVG or vector drawing"),"Cancel");
             check(edt(()->project().output().layers().size())==3,"cancelled import preserves drawing");
             click(panel,"None"); check(edt(()->project().selectedLayers().isEmpty()),"none selects no layers");

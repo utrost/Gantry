@@ -17,9 +17,10 @@ final class GcodeFileWorkflow {
     private final Supplier<ProcessorOutput> prepared; private final Supplier<Boolean> hasSelection;
     private final PlotJobController jobs; private final DoubleSupplier alignX,alignY;
     private final Consumer<String> log,error,info;
+    private final Consumer<Boolean> plotting;
     GcodeFileWorkflow(Component parent,File configFile,Supplier<GantryConfig> config,Supplier<ProcessorOutput> prepared,
             Supplier<Boolean> hasSelection,PlotJobController jobs,DoubleSupplier alignX,DoubleSupplier alignY,
-            Consumer<String> log,Consumer<String> error,Consumer<String> info){this.parent=parent;this.configFile=configFile;this.config=config;
+            Consumer<String> log,Consumer<String> error,Consumer<String> info,Consumer<Boolean> plotting){this.plotting=plotting;this.parent=parent;this.configFile=configFile;this.config=config;
         this.prepared=prepared;this.hasSelection=hasSelection;this.jobs=jobs;this.alignX=alignX;this.alignY=alignY;this.log=log;this.error=error;this.info=info;}
     void export(){
         ProcessorOutput output=prepared.get();if(output==null){info.accept("Open a Commands (JSON) file or Import SVG first.");return;}
@@ -31,11 +32,35 @@ final class GcodeFileWorkflow {
     void replay(){
         if(!(jobs.backend() instanceof GcodeBackend real)){log.accept("ERROR: Connect to a real G-code backend first (not available in mock mode).");return;}
         JFileChooser chooser=chooser();if(chooser.showOpenDialog(parent)!=JFileChooser.APPROVE_OPTION)return;File file=chooser.getSelectedFile();remember(file);
-        if(!jobs.tryBeginExclusiveOperation("G-code replay")){info.accept("The plotter is busy. Wait for the current operation to finish.");return;}
-        new Thread(()->{try{log.accept("Replaying "+file.getName()+"...");GcodeFileReplay.replay(file,real,log);log.accept("--- Replay finished ---");}
-            catch(IOException|RuntimeException ex){log.accept("ERROR: Failed to replay "+file.getName()+": "+ex.getMessage());}
-            finally{jobs.finishExclusiveOperation();}},"gcode-replay").start();
+        GcodeOptions options = new GcodeOptions(); options.copyFrom(config.get().gcode);
+        new SwingWorker<GcodeFileReplay.Plan, Void>() {
+            protected GcodeFileReplay.Plan doInBackground() throws Exception { return GcodeFileReplay.preflight(file, options); }
+            protected void done() {
+                try {
+                    GcodeFileReplay.Plan plan = get();
+                    if (JOptionPane.showConfirmDialog(parent, plan.summary(), "Replay preflight",
+                            JOptionPane.OK_CANCEL_OPTION, JOptionPane.WARNING_MESSAGE) != JOptionPane.OK_OPTION) return;
+                    if (jobs.backend() != real) { info.accept("The plotter connection changed. Run replay again."); return; }
+                    if (jobs.isMachineBusy()) { info.accept("The plotter is busy. Wait for the current job to finish."); return; }
+                    if (!plan.matches(config.get().gcode)) { info.accept("Machine settings changed. Run replay preflight again."); return; }
+                    try {
+                        jobs.startReplay(plan, log, (completed, failure) -> SwingUtilities.invokeLater(() -> {
+                            plotting.accept(false);
+                            if (completed) info.accept("Replay finished.");
+                            else if (failure instanceof java.util.concurrent.CancellationException || failure instanceof InterruptedIOException)
+                                info.accept("Replay stopped; safety recovery attempted.");
+                            else if (failure != null) error.accept("Replay failed: " + failure.getMessage());
+                        }));
+                        plotting.accept(true);
+                    } catch (RuntimeException failure) { throw failure; }
+                } catch (Exception failure) {
+                    Throwable reason = failure.getCause() == null ? failure : failure.getCause();
+                    error.accept("Cannot replay: " + reason.getMessage());
+                }
+            }
+        }.execute();
     }
+
     private void exportAtomically(ProcessorOutput output,PlotSettings settings,File destination){
         File parentDir=destination.getAbsoluteFile().getParentFile();
         File temporary=null;

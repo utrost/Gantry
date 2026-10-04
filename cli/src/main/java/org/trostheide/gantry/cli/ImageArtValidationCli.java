@@ -47,7 +47,7 @@ public final class ImageArtValidationCli {
 
         ObjectMapper mapper = new ObjectMapper();
         ObjectNode report = buildReport(mapper, metricsFiles);
-        mapper.writerWithDefaultPrettyPrinter().writeValue(output.toFile(), report);
+        org.trostheide.gantry.model.io.AtomicFiles.write(output.toFile(), temp -> mapper.writerWithDefaultPrettyPrinter().writeValue(temp, report));
         System.out.printf("Wrote image-art validation report for %d artifact(s) to %s%n",
                 metricsFiles.size(), output);
     }

@@ -23,6 +23,6 @@ public final class ProcessorOutputIO {
     }
 
     public static void save(ProcessorOutput output, File file) throws IOException {
-        MAPPER.writeValue(file, output);
+        org.trostheide.gantry.model.io.AtomicFiles.write(file, temp -> MAPPER.writeValue(temp, output));
     }
 }

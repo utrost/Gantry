@@ -124,6 +124,10 @@ final class PlotControlsPanel extends JPanel {
         for(JButton settings:layerSettings)settings.setEnabled(!plotting);
         if(plotting){progress.setValue(0);progress.setString("0%");} else pause.setText("Pause");
     }
+    void setReplay(boolean replay) {
+        progress.setIndeterminate(replay);
+        if (replay) { pause.setEnabled(false); confirm.setEnabled(false); progress.setString("Replaying G-code..."); }
+    }
     boolean isPlotting(){return Boolean.TRUE.equals(getClientProperty("plotting"));}
     void setPaused(boolean paused){pause.setText(paused?"Resume":"Pause");}
     void setProgress(int percent){progress.setValue(percent);progress.setString(percent+"%");}

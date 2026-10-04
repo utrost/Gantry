@@ -66,4 +66,4 @@ body:
     id: logs
     attributes:
       label: Logs, screenshots, or files
-      description: Attach screenshots, SVG/project files, or relevant log text if possible.
+      description: Use Help > Copy Diagnostics and paste the result here. Review it before posting; attach screenshots or relevant SVG/project files if useful.

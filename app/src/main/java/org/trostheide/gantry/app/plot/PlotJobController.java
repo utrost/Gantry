@@ -24,6 +24,7 @@ public final class PlotJobController {
     private PlotService activeService;
     private Thread activeWorker;
     private boolean paused;
+    private boolean stopping;
     private boolean canReplot;
     private String exclusiveOperation;
 
@@ -90,6 +91,7 @@ public final class PlotJobController {
             throw new IllegalStateException("Machine is busy with " + exclusiveOperation);
         }
         activeService = service;
+        stopping = false;
         paused = false;
         canReplot = false;
     }
@@ -114,8 +116,37 @@ public final class PlotJobController {
         synchronized (this) {
             beginPlot(service);
             activeWorker = worker;
+            worker.start();
         }
-        worker.start();
+        return worker;
+    }
+
+    /** Replay owns the normal active worker so Stop interrupts response waits and cleanup stays serialized. */
+    public Thread startReplay(org.trostheide.gantry.plotter.GcodeFileReplay.Plan plan,
+                              Consumer<String> log, CompletionListener listener) {
+        final PlotterBackend current;
+        final Thread worker;
+        synchronized (this) {
+            if (backend == null || isMachineBusy()) throw new IllegalStateException("Connect an idle plotter first");
+            current = backend;
+            exclusiveOperation = "G-code replay";
+            stopping = false;
+            canReplot = false;
+            worker = new Thread(() -> {
+                boolean completed = false;
+                Throwable failure = null;
+                try {
+                    org.trostheide.gantry.plotter.GcodeFileReplay.replay(plan, current, log);
+                    completed = !Thread.currentThread().isInterrupted();
+                } catch (Throwable thrown) { failure = thrown; }
+                finally {
+                    synchronized (this) { activeWorker = null; exclusiveOperation = null; }
+                    listener.onComplete(completed, failure);
+                }
+            }, "gcode-replay");
+            activeWorker = worker;
+            worker.start();
+        }
         return worker;
     }
 
@@ -126,7 +157,7 @@ public final class PlotJobController {
         canReplot = successful;
     }
 
-    public synchronized boolean isPlotting() { return activeService != null; }
+    public synchronized boolean isPlotting() { return activeService != null || activeWorker != null; }
     public synchronized boolean isPaused() { return paused; }
     public synchronized boolean canReplot() { return canReplot; }
     public synchronized void resetReplot() { canReplot = false; }
@@ -146,10 +177,11 @@ public final class PlotJobController {
         return activeService != null || exclusiveOperation != null;
     }
 
-    public void cancelPlot() {
-        PlotService service;
-        synchronized (this) { service = activeService; }
-        if (service != null) service.cancel();
+    public synchronized void cancelPlot() {
+        if (stopping) return; // Do not interrupt safety cleanup on repeated Stop clicks.
+        stopping = true;
+        if (activeService != null) activeService.cancel();
+        if (activeWorker != null) activeWorker.interrupt();
     }
 
     /**
@@ -160,19 +192,14 @@ public final class PlotJobController {
      *         backend deliberately remains connected so cleanup can still finish safely
      */
     public boolean cancelAndDisconnect(long timeoutMillis) {
-        PlotService service;
         Thread worker;
-        PlotterBackend current;
         synchronized (this) {
-            service = activeService;
             worker = activeWorker;
-            current = backend;
+            cancelPlot();
         }
-        if (service != null) service.cancel();
-        if (current != null && service != null) current.haltMotion();
         if (worker != null && worker != Thread.currentThread()) {
             try {
-                worker.join(Math.max(0, timeoutMillis));
+                worker.join(Math.max(1, timeoutMillis));
             } catch (InterruptedException interrupted) {
                 Thread.currentThread().interrupt();
                 return false;

@@ -11,6 +11,17 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class SupportDiagnosticsTest {
 
     @Test
+    void omitsPathsAndCredentialLikeConsoleLines() {
+        String report = SupportDiagnostics.build(new SupportDiagnostics.Snapshot("rc", new GantryConfig(), false,
+                "Cannot read /home/person/private artwork.svg", "Opened C:\\Users\\Person\\private.svg\nAPI_TOKEN=hidden-value\nConnected.\n"));
+        assertFalse(report.contains("private"));
+        assertFalse(report.contains("hidden-value"));
+        assertFalse(report.contains("Person"));
+        assertTrue(report.contains("Connected."));
+        assertTrue(report.contains("omitted:"));
+    }
+
+    @Test
     void reportIncludesEnvironmentBackendAndSafeConfigSummary() {
         GantryConfig config = new GantryConfig();
         config.mock = false;

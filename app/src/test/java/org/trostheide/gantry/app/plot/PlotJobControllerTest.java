@@ -18,6 +18,52 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class PlotJobControllerTest {
 
+    private static void awaitCleanup(CountDownLatch latch) {
+        boolean interrupted = false;
+        while (latch.getCount() != 0) {
+            try { latch.await(); } catch (InterruptedException e) { interrupted = true; }
+        }
+        if (interrupted) Thread.currentThread().interrupt();
+    }
+
+    @Test
+    void replayStopInterruptsResponseWaitAndWaitsForSafetyCleanup() throws Exception {
+        var directory = java.nio.file.Files.createTempDirectory("gantry-replay-test");
+        var file = directory.resolve("job.gcode");
+        try {
+            java.nio.file.Files.writeString(file, "G21\nG90\nG1 X1 Y1 F100\nG1 X2 Y2 F100");
+            var plan = org.trostheide.gantry.plotter.GcodeFileReplay.preflight(file.toFile(), new org.trostheide.gantry.plotter.GcodeOptions());
+            CountDownLatch waiting = new CountDownLatch(1);
+            java.util.List<String> events = new java.util.concurrent.CopyOnWriteArrayList<>();
+            var backend = new FakePlotterBackend() {
+                public java.util.List<String> sendRaw(String cmd) {
+                    events.add(cmd);
+                    if (cmd.startsWith("G1")) {
+                        waiting.countDown();
+                        try { new CountDownLatch(1).await(); } catch (InterruptedException e) { Thread.currentThread().interrupt(); }
+                    }
+                    return java.util.List.of("ok");
+                }
+                public void haltMotion() { events.add("halt"); }
+                public void penup() { events.add("up"); }
+                public void disconnect() { events.add("disconnect"); }
+            };
+            var controller = new PlotJobController(); controller.connect(backend);
+            AtomicBoolean completed = new AtomicBoolean(true);
+            Thread worker = controller.startReplay(plan, line -> {}, (ok, failure) -> completed.set(ok));
+            assertTrue(waiting.await(2, TimeUnit.SECONDS));
+            assertTrue(controller.isPlotting());
+            assertFalse(controller.tryBeginExclusiveOperation("other"));
+            assertTrue(controller.cancelAndDisconnect(2000));
+            worker.join(2000);
+            assertFalse(completed.get());
+            assertFalse(events.contains("G1 X2 Y2 F100"));
+            org.junit.jupiter.api.Assertions.assertEquals(java.util.List.of("halt", "up", "disconnect"), events.subList(events.size()-3,events.size()));
+            assertFalse(controller.isMachineBusy());
+            assertFalse(controller.canReplot());
+        } finally { java.nio.file.Files.deleteIfExists(file); java.nio.file.Files.deleteIfExists(directory); }
+    }
+
     @Test
     void successfulConnectionIsOwnedUntilDisconnect() {
         RecordingBackend backend = new RecordingBackend(true);
@@ -213,11 +259,7 @@ class PlotJobControllerTest {
         PlotService service = new PlotService(backend, new PlotSettings()) {
             @Override public void plot(ProcessorOutput output) {
                 plotting.countDown();
-                try {
-                    releaseCleanup.await();
-                } catch (InterruptedException interrupted) {
-                    Thread.currentThread().interrupt();
-                }
+                awaitCleanup(releaseCleanup);
             }
         };
         controller.startPlot(service, emptyOutput(), (ok, error) -> { });
@@ -250,11 +292,7 @@ class PlotJobControllerTest {
         PlotService service = new PlotService(backend, new PlotSettings()) {
             @Override public void plot(ProcessorOutput output) {
                 plotting.countDown();
-                try {
-                    release.await();
-                } catch (InterruptedException interrupted) {
-                    Thread.currentThread().interrupt();
-                }
+                awaitCleanup(release);
             }
         };
         Thread worker = controller.startPlot(service, emptyOutput(), (ok, error) -> { });

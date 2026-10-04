@@ -4,7 +4,6 @@ import org.w3c.dom.Element;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 
-import javax.xml.parsers.DocumentBuilderFactory;
 import java.io.File;
 import java.util.LinkedHashSet;
 import java.util.Locale;
@@ -28,11 +27,7 @@ final class SvgFillColors {
         Set<String> colors = new LinkedHashSet<>();
         if (svg == null || !svg.isFile()) return colors;
         try {
-            DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
-            factory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
-            factory.setFeature("http://xml.org/sax/features/external-general-entities", false);
-            factory.setFeature("http://xml.org/sax/features/external-parameter-entities", false);
-            NodeList elements = factory.newDocumentBuilder().parse(svg).getElementsByTagName("*");
+            NodeList elements = org.trostheide.gantry.model.io.SafeSvgXml.read(svg).getElementsByTagName("*");
             for (int i = 0; i < elements.getLength(); i++) {
                 String color = resolveFill((Element) elements.item(i));
                 if (color != null) colors.add(color);

@@ -413,3 +413,17 @@ For every adoption round:
 The working motto for this phase is:
 
 > Validate, package, recruit, observe, fix, repeat.
+
+## Reproducible mock first-plot walkthrough
+
+Run `scripts/record-demo.sh` after `mvn package` (requires a display or Xvfb and
+ffmpeg). It creates `dist/demo/Gantry-first-plot-mock.mp4`, a 60-second captioned
+walkthrough made from six actual Swing UI captures in an isolated mock profile.
+Only the application window is rendered; no desktop or personal profile is
+captured. The script verifies the mock backend and successful job history.
+
+Storyboard: open Gantry; import the supplied multicolour SVG; review layers;
+connect the mock backend and review the pre-plot checklist; confirm each pen
+with Stop available; show completion.
+The clip explicitly labels simulation and is a still-frame walkthrough, not a
+recording of physical plotting. A real-machine video can complement it later.
