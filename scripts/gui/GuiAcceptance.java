@@ -41,6 +41,20 @@ public class GuiAcceptance {
                 System.exit(0);
             }
             edt(()->{frame.setSize(1024,800);return null;});
+            Path machineFile=profile.resolve("machine-settings.json");
+            menu("Export Machine Settings...");choose(machineFile);await(()->Files.isRegularFile(machineFile));
+            com.fasterxml.jackson.databind.ObjectMapper machineJson=new com.fasterxml.jackson.databind.ObjectMapper();
+            var machineTree=machineJson.readTree(machineFile.toFile());
+            ((com.fasterxml.jackson.databind.node.ObjectNode)machineTree.path("settings").path("gcode")).put("machineWidth",220);
+            machineJson.writeValue(machineFile.toFile(),machineTree);
+            menu("Import Machine Settings...");choose(machineFile);click(dialog("Import machine settings"),"Cancel");
+            check(edt(()->((GantryConfig)field(panel,"config")).gcode.machineWidth)==210,"cancel machine import preserves geometry");
+            menu("Import Machine Settings...");choose(machineFile);click(dialog("Import machine settings"),"Apply settings");
+            await(()->((GantryConfig)field(panel,"config")).gcode.machineWidth==220);
+            check(edt(()->((GantryConfig)field(panel,"config")).mock),"import preserves mock mode");
+            check(!edt(()->jobs().isConnected()),"import does not connect");
+            check(ConfigStore.load(profile.resolve("config.json").toFile()).gcode.machineWidth==220,"import persisted");
+            System.out.println("PASS machine settings export, cancel and apply through GUI");
             menu("Open SVG or Vector Drawing..."); choose(root.resolve("docs/samples/multi-colour-layers.svg"));
             click(dialog("Add SVG or vector drawing"),"Import");
             await(()->project().output()!=null && project().output().layers().size()==3);
@@ -76,6 +90,8 @@ public class GuiAcceptance {
             click(panel,"All"); check(edt(()->project().selectedLayers().size())==3,"all selects layers");
             click(panel,"Connect"); await(()->jobs().isConnected());
             check(edt(()->jobs().backend().getClass().getSimpleName().toLowerCase().contains("mock")),"only mock backend connected");
+            menu("Import Machine Settings...");click(dialog("Import machine settings"),"OK");
+            check(edt(()->jobs().isConnected()),"connected import is blocked without disconnecting");
             click(panel,"Start plotting");
             for(int layer=0;layer<3;layer++) {
                 await(()->(boolean)field(panel,"awaitingLayerConfirmation"));
