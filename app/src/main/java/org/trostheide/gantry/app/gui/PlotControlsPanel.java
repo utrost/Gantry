@@ -26,6 +26,7 @@ final class PlotControlsPanel extends JPanel {
     private final JButton all = new JButton("All");
     private final JButton none = new JButton("None");
     private final JSpinner passes = new JSpinner(new SpinnerNumberModel(1, 1, 10, 1));
+    private final JLabel liveTime = new JLabel("No active job");
     private final JLabel time = new JLabel("Est: --:--");
     private final JProgressBar progress = new JProgressBar(0, 100);
     private final JPanel layerList = new JPanel() {
@@ -43,7 +44,7 @@ final class PlotControlsPanel extends JPanel {
     PlotControlsPanel(Actions actions) {
         this.actions = actions;
         setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
-        setBorder(new TitledBorder("Plot"));
+        setBorder(BorderFactory.createEmptyBorder(8,0,8,0));
         start.addActionListener(e -> actions.start().run());
         preflight.addActionListener(e -> actions.preflight().run());
         confirm.addActionListener(e -> actions.confirm().run());
@@ -69,25 +70,26 @@ final class PlotControlsPanel extends JPanel {
         colors.addActionListener(e -> actions.colorByLayer().accept(colors.isSelected()));
         JPanel footer = row(time, colors);
         for (JComponent component : List.of(
-                passesRow, preflightRow, startRow, runningRow, stopRow, progress, header, scroll, footer)) {
+                passesRow, header, scroll, footer)) {
             component.setAlignmentX(LEFT_ALIGNMENT); add(component);
         }
     }
 
+    JPanel jobDetails() { return WorkspaceStyle.stack(WorkspaceStyle.heading("Job progress"),progress,liveTime,WorkspaceStyle.note("Progress measures command submission. Check controller state before removing paper.")); }
     void rebuild(ProcessorOutput output, VisualizationPanel visualization, boolean plotting) {
         rebuilding = true; layers.clear(); layerSettings.clear(); layerList.removeAll();
         if (output != null) for (int i=0;i<output.layers().size();i++) {
             Layer layer=output.layers().get(i);
             String color=layer.color()==null||layer.color().isEmpty()?"no colour":layer.color();
             JCheckBox box=new JCheckBox(layer.id()+" — "+color,true);
-            box.setForeground(visualization.colorForLayer(i)); box.setEnabled(!plotting);
+            box.setEnabled(!plotting);
             box.setToolTipText(layer.id() + " — " + color + ": visible in the preview and included in the plot");
             box.setMinimumSize(new Dimension(0, box.getPreferredSize().height));
             int layerIndex = i;
             box.addActionListener(e -> changed()); layers.add(box);
             JLabel order = new JLabel((i + 1) + ".");
             JButton settings = new JButton("Edit…");
-            settings.setToolTipText("Set this layer's refill station and maximum drawing distance");
+            settings.setToolTipText("Set pen width and optional watercolor refills");
             settings.setEnabled(!plotting);
             settings.addActionListener(e -> actions.layerSettings().edit(layerIndex));
             layerSettings.add(settings);
@@ -131,8 +133,8 @@ final class PlotControlsPanel extends JPanel {
     boolean isPlotting(){return Boolean.TRUE.equals(getClientProperty("plotting"));}
     void setPaused(boolean paused){pause.setText(paused?"Resume":"Pause");}
     void setProgress(int percent){progress.setValue(percent);progress.setString(percent+"%");}
-    void setTime(String text){time.setText(text);}
-    void setTime(String text,String tooltip){time.setText(text);time.setToolTipText(tooltip);}
+    void setTime(String text){time.setText(text);liveTime.setText(text);}
+    void setTime(String text,String tooltip){setTime(text);time.setToolTipText(tooltip);liveTime.setToolTipText(tooltip);}
 
     private void selectAll(boolean selected){rebuilding=true;for(JCheckBox b:layers)b.setSelected(selected);rebuilding=false;changed();}
     private void changed(){if(!rebuilding){actions.selectionChanged().run();actions.projectChanged().run();}}

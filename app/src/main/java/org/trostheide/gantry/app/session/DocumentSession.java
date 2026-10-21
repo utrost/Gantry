@@ -37,6 +37,7 @@ public final class DocumentSession {
     private final ArrayDeque<HistoryState> undoHistory = new ArrayDeque<>();
     private final ArrayDeque<HistoryState> redoHistory = new ArrayDeque<>();
     private boolean dirty;
+    private GantryProject.Placement placement = GantryProject.Placement.identity();
     private File sourceSvg;
     private SvgImportOptions sourceSvgOptions;
     private ProcessingRecipe processingRecipe;
@@ -55,6 +56,7 @@ public final class DocumentSession {
     /** Replaces the document, selects every layer, and starts a new undo history. */
     public void replace(ProcessorOutput output) {
         currentOutput = output;
+        placement = GantryProject.Placement.identity();
         undoHistory.clear();
         redoHistory.clear();
         selectedLayerIndices = allLayerIndices(output);
@@ -253,9 +255,16 @@ public final class DocumentSession {
         return MultipassStage.apply(Objects.requireNonNull(baked, "overlayBaker result"), passes);
     }
 
+    public GantryProject.Placement placement() { return placement; }
+    public void setPlacement(GantryProject.Placement value) { placement=Objects.requireNonNull(value); }
+    public void changePlacement(GantryProject.Placement value) {
+        if(placement.equals(value))return;
+        snapshotForUndo(); placement=value;markDirty();
+    }
+
     public void snapshotForUndo() {
         if (currentOutput == null) return;
-        undoHistory.addLast(new HistoryState(currentOutput, selectedLayerIndices, processingRecipe, artworks));
+        undoHistory.addLast(new HistoryState(currentOutput, selectedLayerIndices, processingRecipe, artworks, placement));
         while (undoHistory.size() > HISTORY_LIMIT) undoHistory.removeFirst();
         redoHistory.clear();
     }
@@ -271,13 +280,13 @@ public final class DocumentSession {
         if (undoHistory.isEmpty()) {
             return null;
         }
-        redoHistory.addLast(new HistoryState(currentOutput, selectedLayerIndices, processingRecipe, artworks));
+        redoHistory.addLast(new HistoryState(currentOutput, selectedLayerIndices, processingRecipe, artworks, placement));
         return restore(undoHistory.removeLast());
     }
 
     public ProcessorOutput redo() {
         if (redoHistory.isEmpty()) return null;
-        undoHistory.addLast(new HistoryState(currentOutput, selectedLayerIndices, processingRecipe, artworks));
+        undoHistory.addLast(new HistoryState(currentOutput, selectedLayerIndices, processingRecipe, artworks, placement));
         return restore(redoHistory.removeLast());
     }
 
@@ -306,12 +315,13 @@ public final class DocumentSession {
         selectedLayerIndices = state.selection();
         processingRecipe = state.processingRecipe();
         artworks = state.artworks();
+        placement = state.placement();
         dirty = true;
         return currentOutput;
     }
 
     private record HistoryState(ProcessorOutput output, List<Integer> selection, ProcessingRecipe processingRecipe,
-                                List<CompositionArtwork> artworks) {
+                                List<CompositionArtwork> artworks, GantryProject.Placement placement) {
         HistoryState {
             selection = List.copyOf(selection);
             artworks = artworks == null ? List.of() : List.copyOf(artworks);

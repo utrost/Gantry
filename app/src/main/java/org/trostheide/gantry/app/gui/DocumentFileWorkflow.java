@@ -48,6 +48,8 @@ final class DocumentFileWorkflow {
     private final DocumentEditor editor;
     private final VisualizationPanel visualization;
     private final Actions actions;
+    private String projectName="Untitled project";
+    String projectName(){return projectName;}
 
     DocumentFileWorkflow(Component parent, File configFile, DocumentSession session,
             DocumentEditor editor, VisualizationPanel visualization, Actions actions) {
@@ -83,7 +85,7 @@ final class DocumentFileWorkflow {
         JFileChooser chooser=chooser("Gantry project (*.gantry)","gantry");
         if(chooser.showOpenDialog(parent)!=JFileChooser.APPROVE_OPTION)return;
         File file=chooser.getSelectedFile();remember(file);
-        try{actions.openProject().accept(GantryProjectIO.load(file));actions.log().accept("Opened project "+file.getName());actions.feedback().accept("Project opened: "+file.getName());}
+        try{actions.openProject().accept(GantryProjectIO.load(file));projectName=file.getName();actions.log().accept("Opened project "+file.getName());actions.feedback().accept("Project opened: "+file.getName());}
         catch(IOException ex){
             String message=file.getName().toLowerCase().endsWith(".json")
                     ? "'"+file.getName()+"' is a command JSON file, not a Gantry project. Use Open Commands (JSON) instead."
@@ -97,7 +99,7 @@ final class DocumentFileWorkflow {
         JFileChooser chooser=chooser("Gantry project (*.gantry)","gantry");
         if(chooser.showSaveDialog(parent)!=JFileChooser.APPROVE_OPTION)return false;
         File file=withExtension(chooser.getSelectedFile(),"gantry");if(!overwrite(file))return false;remember(file);
-        try{GantryProjectIO.save(actions.project().get(),file);session.markSaved();actions.log().accept("Saved project "+file.getName());actions.feedback().accept("Project saved: "+file.getName());return true;}
+        try{GantryProjectIO.save(actions.project().get(),file);session.markSaved();projectName=file.getName();actions.log().accept("Saved project "+file.getName());actions.feedback().accept("Project saved: "+file.getName());return true;}
         catch(IOException ex){actions.error().accept("Failed to save project "+file.getName()+": "+ex.getMessage());return false;}
     }
 
@@ -148,22 +150,26 @@ final class DocumentFileWorkflow {
 
     private void vectorize(File image,List<String> initialArgs){
         VectorizeStudioDialog.Result vector;
-        try{vector=new VectorizeStudioDialog(owner(),image,initialArgs).showDialog();}
+        SvgImportDialog.Result options;
+        try{GantryConfig c=actions.config().get();
+            VectorizeStudioDialog dialog=new VectorizeStudioDialog(owner(),image,initialArgs,c.gcode.machineWidth,c.gcode.machineHeight);
+            vector=dialog.showDialog();options=dialog.importOptions();}
         catch(IOException ex){actions.error().accept("Vectorize failed: "+ex.getMessage());return;}
         if(vector==null)return;
-        SvgImportDialog.Result options=importDialog(null).showDialog();if(options==null)return;
+        if(options==null)return;
         final File svg;
         try{svg=File.createTempFile("gantry-vectorize-",".svg");svg.deleteOnExit();}
         catch(IOException ex){actions.error().accept("Vectorize failed: could not create temporary SVG");return;}
-        actions.busy().run("Vectorize",()->{
+        actions.cancellableBusy().run("Vectorize",cancel->{
             List<String> args=new ArrayList<>(List.of("-i",image.getAbsolutePath(),"-o",svg.getAbsolutePath()));
             args.addAll(vector.vectorizeArgs());org.trostheide.gantry.vectorize.Main.runSingleFile(args.toArray(String[]::new));
+            if(cancel.getAsBoolean())throw new CancellationException();
             return map(options.toolboxConfig()!=null?SvgImportStage.importSvg(svg,options.toolboxConfig(),options.importOptions())
                     :SvgImportStage.importSvg(svg,options.importOptions()));
         },out->{editor.replace(out);session.recordSvgSource(svg,options.importOptions(),recipe(options.toolboxConfig()));
             session.recordImageSource(image,vector.vectorizeArgs());actions.revectorizeEnabled().accept(true);
             loaded(options.importOptions().preserveSvgViewport());
-            String result=summary("Vectorized "+image.getName()+" ("+vector.strategyLabel()+")",out);actions.log().accept(result);actions.feedback().accept(result);});
+            String result=summary("Vectorized "+image.getName()+" ("+vector.strategyLabel()+")",out);actions.log().accept(result);actions.feedback().accept(result);},()->{svg.delete();actions.feedback().accept("Import cancelled. Artwork was not changed.");});
     }
 
     void reprocessSvg(){
@@ -216,7 +222,7 @@ final class DocumentFileWorkflow {
 
     private void loaded(boolean preservePagePlacement){actions.resetReplot().run();visualization.loadFromOutput(session.currentOutput());
         if(preservePagePlacement)visualization.setSuppressAlignment(true);else visualization.setContentMotorMin(0,0);
-        actions.refresh().run();}
+        session.setPlacement(visualization.placement());actions.refresh().run();}
     private ProcessorOutput map(ProcessorOutput output){List<PaintStation>s=stations();return s.isEmpty()?output:StationMapper.assignByColor(output,s);}
     private List<PaintStation> stations(){List<PaintStation> result=new ArrayList<>();for(Map.Entry<String,StationConfig> e:actions.config().get().stations.entrySet())
         if(e.getValue().color()!=null&&!e.getValue().color().isBlank())result.add(new PaintStation(e.getKey(),e.getValue().color()));return result;}

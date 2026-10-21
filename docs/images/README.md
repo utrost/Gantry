@@ -1,7 +1,7 @@
 # Application screenshots
 
-Refreshed 2026-09-26 from the `1.0.0-rc.2` GUI JAR, including the [GUI usability fixes](../test-results-2026-09-26-gui.md),
-on Ubuntu 24.04 with Java 17, FlatLaf dark theme and UI scale 1.
+Refreshed 2026-10-21 from the RC3 workspace build, on Linux with Java 17.
+System appearance falls back to Light; canvas appearance is independently Dark.
 
 These are captures of the running application's Swing root panes, rendered by
 Swing itself because desktop screen capture returned black pixels. Native window
@@ -35,10 +35,25 @@ From the repository root on Linux with a JDK and an available graphical display
 (or Xvfb), build the release JAR and run:
 
 ```bash
-./scripts/capture-screenshots.sh dist/1.0.0-rc.2/Gantry-1.0.0-rc.2.jar
+./scripts/capture-screenshots.sh dist/1.0.0-rc.3/Gantry-1.0.0-rc.3.jar
 ```
 
 The script compiles the developer-only capture harness, creates a temporary
 profile and replaces these four PNGs. It cleans up the temporary profile on exit.
 Inspect the images before committing them. Private UI entry points are used to
 prepare repeatable views; this is a documentation tool, not a GUI acceptance test.
+
+## Workspace reference states
+
+The executable `scripts/test-workspace-layouts.sh` generates both themes at four
+scale factors. Selected logical-pixel captures are committed here:
+
+- [Empty](workspace/empty.png)
+- [Prepared](workspace/prepared.png) and [Dark prepared](workspace/dark-prepared.png)
+- [Check](workspace/check.png)
+- [Running](workspace/running.png)
+- [Pen change](workspace/pen-change.png)
+- [Failure presentation](workspace/failure.png), injected by the capture harness
+
+The job and pen-change captures use only the mock backend. The failure image
+verifies presentation, not physical alarm handling.

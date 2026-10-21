@@ -123,7 +123,7 @@ public final class VectorizeStudioDialog extends JDialog {
     private final JLabel readout = new JLabel(" ");
     private final JLabel hint = new JLabel(" ");
     private final JProgressBar progress = new JProgressBar();
-    private final JButton vectorizeBtn = new JButton("Vectorize");
+    private final JButton vectorizeBtn = new JButton("Import");
     private final Timer debounce;
 
     private TitledBorder previewBorder;
@@ -135,6 +135,9 @@ public final class VectorizeStudioDialog extends JDialog {
     private SwingWorker<TraceResult, Void> worker;
     private boolean applyingPreset;
     private Result result;
+    private SvgImportOptionsPanel importOptions;
+    private SvgImportDialog.Result placement;
+    SvgImportDialog.Result importOptions(){return placement;}
 
     public VectorizeStudioDialog(Window owner, File imageFile) throws IOException {
         this(owner, imageFile, null);
@@ -146,7 +149,10 @@ public final class VectorizeStudioDialog extends JDialog {
      *                    defaults. Used by "Re-vectorize Image…".
      */
     public VectorizeStudioDialog(Window owner, File imageFile, List<String> initialArgs) throws IOException {
-        super(owner, "Vectorize — live preview", ModalityType.APPLICATION_MODAL);
+        this(owner,imageFile,initialArgs,300,200);
+    }
+    public VectorizeStudioDialog(Window owner,File imageFile,List<String> initialArgs,double width,double height) throws IOException {
+        super(owner, "Add image — preview and placement", ModalityType.APPLICATION_MODAL);
         this.imageFile = imageFile;
         this.sourceImage = ImageIO.read(imageFile);
         if (sourceImage == null) {
@@ -161,8 +167,11 @@ public final class VectorizeStudioDialog extends JDialog {
 
         buildPresets();
         setLayout(new BorderLayout());
-        add(buildPreviewSplit(), BorderLayout.CENTER);
-        add(buildControls(), BorderLayout.EAST);
+        JPanel trace=new JPanel(new BorderLayout());
+        trace.add(buildPreviewSplit(),BorderLayout.CENTER);trace.add(buildControls(),BorderLayout.EAST);
+        importOptions=new SvgImportOptionsPanel(owner,null,width,height);
+        JTabbedPane stages=new JTabbedPane();stages.addTab("Trace preview",trace);
+        stages.addTab("Size & processing",importOptions);add(stages,BorderLayout.CENTER);
         add(buildSouth(), BorderLayout.SOUTH);
         getRootPane().setDefaultButton(vectorizeBtn);
 
@@ -172,14 +181,11 @@ public final class VectorizeStudioDialog extends JDialog {
         }
         updateEnabledState();
 
-        setSize(1240, 800);
-        setMinimumSize(new Dimension(1000, 640));
-        setLocationRelativeTo(owner);
+        WorkspaceStyle.fitDialog(this,1240,800);
 
         // Fit the source once the panel is realised, then kick off the first trace.
         SwingUtilities.invokeLater(() -> {
-            sourcePanel.fitToWindow();
-            retrace();
+            if(isDisplayable()){sourcePanel.fitToWindow();retrace();}
         });
     }
 
@@ -281,8 +287,8 @@ public final class VectorizeStudioDialog extends JDialog {
         cancelBtn.addActionListener(e -> dispose());
 
         JPanel buttons = new JPanel(new FlowLayout(FlowLayout.RIGHT));
-        buttons.add(vectorizeBtn);
         buttons.add(cancelBtn);
+        buttons.add(vectorizeBtn);
 
         hint.setForeground(new Color(120, 120, 120));
         hint.setFont(hint.getFont().deriveFont(Font.ITALIC, hint.getFont().getSize() - 1f));
@@ -802,7 +808,13 @@ public final class VectorizeStudioDialog extends JDialog {
         return " ";
     }
 
+    @Override public void dispose(){
+        if(debounce!=null)debounce.stop();if(worker!=null)worker.cancel(true);
+        previewCanvas.stopProcessing();super.dispose();
+    }
     private void onVectorize() {
+        var options=importOptions.collectResult();if(options==null)return;
+        placement=new SvgImportDialog.Result(options.importOptions(),options.toolboxConfig());
         result = new Result(buildParams(), currentStrategy().label);
         if (worker != null && !worker.isDone()) {
             worker.cancel(true);

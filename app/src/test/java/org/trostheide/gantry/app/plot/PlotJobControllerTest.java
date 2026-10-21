@@ -18,6 +18,20 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class PlotJobControllerTest {
 
+    @Test void slowPauseDoesNotBlockStopOrStateQueries() throws Exception {
+        CountDownLatch entered=new CountDownLatch(1),release=new CountDownLatch(1);
+        var backend=new FakePlotterBackend(){@Override public void penup(){entered.countDown();awaitCleanup(release);}};
+        var controller=new PlotJobController();controller.connect(backend);
+        var service=new PlotService(backend,new PlotSettings());controller.beginPlot(service);
+        Thread pause=new Thread(controller::togglePause);pause.start();
+        try {
+            assertTrue(entered.await(2,TimeUnit.SECONDS));
+            org.junit.jupiter.api.Assertions.assertTimeoutPreemptively(java.time.Duration.ofSeconds(1),()->{
+                assertTrue(controller.isPaused());controller.cancelPlot();assertTrue(service.isCancelled());
+            });
+        }finally{release.countDown();pause.join(2000);controller.finishPlot(false);controller.disconnect();}
+    }
+
     private static void awaitCleanup(CountDownLatch latch) {
         boolean interrupted = false;
         while (latch.getCount() != 0) {

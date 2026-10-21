@@ -18,7 +18,7 @@ public final class FirstPlotDemo extends GuiAcceptance {
             if (Files.exists(profile.resolve("config.json"))) throw new IllegalStateException("Use an empty demo profile");
             System.setProperty("gantry.config.file", profile.resolve("config.json").toString());
             GantryConfig config = new GantryConfig();
-            config.mock = true; config.showWelcomeOnStartup = false; config.preflightBeforeStart = false;
+            config.mock = true; config.showWelcomeOnStartup = false; config.preflightBeforeStart = true;
             config.gcode.machineWidth = 210; config.gcode.machineHeight = 148;
             config.gcode.feedRateDraw = 30000; config.gcode.feedRateTravel = 30000;
             ConfigStore.save(config, profile.resolve("config.json").toFile());
@@ -33,14 +33,10 @@ public final class FirstPlotDemo extends GuiAcceptance {
             capture(3, "3. Review the colour layers and plotting order before starting.");
             click(panel,"Connect"); await(()->jobs().isConnected());
             check(jobs().backend().getClass().getSimpleName().toLowerCase().contains("mock"),"mock only");
-            click(panel,"Check before plotting...");
-            JDialog wizard = dialog("Pre-Plot Checklist");
-            click(wizard,"Next >"); edt(()->null);
-            click(wizard,"Next >"); edt(()->null);
-            click(wizard,"Next >"); edt(()->null);
-            capture(4, "4. Review the pre-plot checklist. These physical checks are simulated here.");
-            edt(()->{confirmMockChecks(wizard);return null;});
-            click(wizard,"Next >"); edt(()->null); click(wizard,"Finish");
+            click(panel,"Check before plotting");
+            capture(4, "4. Review automatic checks and confirm the physical setup (simulated here).");
+            edt(()->{confirmMockChecks((Container)field(panel,"workspaceChecks"));return null;});
+            click(panel,"Start plotting");
             await(()->(boolean)field(panel,"awaitingLayerConfirmation"));
             capture(5, "5. Confirm each pen when prompted. Stop remains available during the job.");
             for (int layer=0;layer<3;layer++) {

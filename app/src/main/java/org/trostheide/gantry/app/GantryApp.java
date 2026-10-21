@@ -65,7 +65,7 @@ public final class GantryApp {
             });
         }
         final java.nio.file.Path report = smokeReport;
-        FlatDarkLaf.setup();
+        org.trostheide.gantry.app.gui.WorkspaceStyle.install(org.trostheide.gantry.app.plot.ConfigStore.load(org.trostheide.gantry.app.plot.ConfigStore.guiConfigFile(new java.io.File("config.json"))));
         SwingUtilities.invokeLater(() -> {
             JFrame frame = new JFrame("Gantry");
             frame.setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);

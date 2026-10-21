@@ -31,7 +31,7 @@ Setup Wizard with the no-hardware mock backend selected, loads a supplied
 check. Click **Close** to dismiss the welcome for the current launch. Untick
 **Show this welcome when Gantry starts** first if you do not want it on later
 launches; that preference is remembered and can be changed under
-**Settings > General**. You can always restart the guided route with
+**Settings > Application**. You can always restart the guided route with
 **Help > Guided First Plot...**.
 
 GUI settings are stored independently of the launch directory. On Windows the
@@ -52,17 +52,29 @@ an explicit alternate profile is needed.
 
 ![First-run guided-practice choice](images/first-run-guided-practice.png)
 
-The default control column keeps artwork position, layers, duration, and plotting
-actions visible. Expand **Advanced controls** when you need manual movement, raw
-G-code, or the diagnostic Console; the disclosure only changes presentation and
-uses the same live document and plotter connection.
+Gantry uses one workspace for preparation and machine operation. The canvas stays
+central; the right inspector has **Prepare**, **Check**, **Plot**, and **Machine**
+views. Switching views never sends machine commands. The bottom job bar always
+provides the next action, with Pause/Resume and Stop available during a job.
 
-The outlined safety status always states whether Gantry is **Safe — nothing will
-move**, **Connected — manual movement enabled**, **Plotter moving**, waiting for a
-pen, or paused. The banner beside it presents the next normal action.
-After a successful plot, the banner continues to say that the plot finished and
-offers **Plot another copy**; that action runs the safety check again rather than
-starting movement immediately.
+**Prepare** contains artwork placement, physical width/height, an aspect-ratio
+lock, layers and pens, and processing. Placement edits and completed drags can be
+undone. Layer checkboxes select what will plot; colour swatches identify pens.
+**Check** separates automatic conditions from your physical confirmations. Home,
+frame and pen-lift actions use the normal machine controls. Changing the drawing,
+placement, layers, passes, setup, origin, or connection invalidates confirmations.
+**Plot** shows command submission progress, elapsed/remaining estimates, and pen
+changes. Submission completion does not by itself prove physical motion has ended.
+**Machine** contains focused manual jogging, feed override, and setup/calibration.
+
+The top bar identifies connection and controller state, including unknown state
+and simulation. The **Diagnostics** drawer contains the Console and raw G-code.
+**Appearance…** and **Settings > Application** offer System/Light/Dark themes,
+comfortable/compact density, canvas appearance and optional guidance. Preferences
+are remembered; connections and readiness are never restored.
+
+![Redesigned workspace](images/workspace-layer-preview.png)
+
 
 ---
 
@@ -78,7 +90,7 @@ loads supplied practice artwork, then continues through **Connect plotter** and
 **Check before plotting**. Cancelling a step starts nothing; run the visible
 primary action again when ready. The startup welcome is optional: **Close**
 dismisses it now, while **Show this welcome when Gantry starts** controls later
-launches. Use **Settings > General** if you want to change that preference.
+launches. Use **Settings > Application** if you want to change that preference.
 
 Use **Machine > Setup Wizard...** when you only want machine configuration. It
 walks through Connection, Machine geometry/origin/orientation, and Pen/speed
@@ -87,7 +99,7 @@ step by step, using the same fields described below, then saves on **Finish**.
 Important results now appear directly below the workflow guidance: imports show
 their physical size, connection and plot outcomes are visible without opening
 the Console, and command-model edits offer a contextual **Undo** action. The
-Console remains available under **Advanced controls** for diagnostics.
+Console remains available under **Diagnostics** for diagnostics.
 
 If you need ready-made things to draw, verify, or turn into plotter input, use
 **Help > Plotter Resources**. It opens related web tools: VHS for handwriting
@@ -150,7 +162,7 @@ rate (`G0` would use the controller's maximum seek rate instead).
 
 ### 6. Verify jogging before your first real plot
 
-With the plotter connected (or Mock backend), expand **Advanced controls** and use
+With the plotter connected (or Mock backend), open the **Machine** view and use
 the **Move pen manually** ▲▼◄► buttons.
 Each one should move the pen toward that side of the *bed as you're looking
 at it*. If any direction is wrong, **don't** ignore it — fix it now via the
@@ -183,7 +195,7 @@ compensate.
 |---|---|
 | **Connect** / **Disconnect** | Opens or closes the serial connection to the plotter (same as the **Connect** button). |
 | **Find Starting Corner (Home)** | Runs the homing cycle against the limit switches (`$H`) — the same action as **Find starting corner (Home)** under **Move pen manually**. |
-| **Check Before Plotting...** | Opens the guided Pre-Plot Checklist: connect → home → frame the job → confirm the pen, paper, layers, and clear bed. It is the same action as **Check before plotting...** beside **Start plotting**, and runs automatically before plotting when the Settings toggle below is on. |
+| **Check Before Plotting...** | Opens Check in the inspector. Review connection and size, use home/frame/pen lift as needed, then confirm the physical setup. Required confirmations are enforced when the preflight policy is on. |
 | **Setup Wizard...** | The guided first-time setup described in [First start](#first-start) — Connection, Machine geometry/origin/orientation, Pen/speed, in order, re-using the exact same fields as **Settings**. Its final step offers **"Continue to axis calibration now"** (ticked by default), so a first run flows straight from settings into calibration. Safe to re-run any time to revisit those settings step by step. |
 | **Calibrate Axes...** | A guided pass over machine motion. It **connects first** (a Connect step using your saved settings or mock — no need to connect manually beforehand), then: **Direction:** centre the head, jog each motor axis, and click the arrow for the way the pen *actually* moved — the wizard derives the correct swap/invert in one shot (it catches *swapped* axes, not just reversed ones, and applies the result to the live preview). **Scale:** for X and Y, jog a commanded distance, measure what actually moved with a ruler, and the wizard computes a corrected `$100`/`$101` and writes it on request. **Limit switches:** record whether the machine has them, enable the homing cycle (`$22`), and press each switch by hand to watch it register live (a real wiring test, nothing moves). **Pen lift:** pick the lift type (servo / Z-axis / M3-M5), set the up/down values, and **Test** them — edits apply on the next test with no reconnect. The scale, limit and pen steps are each optional (use **Skip**). |
 | **Test Color Stations...** | A guided test run over every configured refill station (watercolor). For each station you can **Move here** (pen-up dry visit so you can eyeball whether the brush lines up with the physical pot), run a **Wet test** (the station's real two-cycle dip/swirl using normal pen heights, so you can verify pot and swirl clearance), and **nudge** the position with the **−X/+X/−Y/+Y** buttons if it's off — a nudge moves the head *and* the stored coordinate, and corrected positions are saved when you click **Finish**. Each station step is optional (use **Skip**). Requires a real or mock connection and at least one configured station. See also [placing stations on the canvas](#placing-refill-stations) below. |
@@ -225,7 +237,7 @@ File/Edit menu item shows a tooltip reminding you which format it touches.
 ## Settings
 
 Open via **Settings ▸ Preferences…**. The dialog is organised into tabs —
-**Connection**, **General**, **Geometry**, **Pen / Speed**, **Stations** — so it stays a
+**Connection**, **Machine Geometry**, **Pen & Speeds**, **Watercolor Stations**, **Application** — so it stays a
 sensible size; pick a tab to edit that group. Changes take effect after clicking
 **OK**.
 
@@ -236,9 +248,9 @@ sensible size; pick a tab to edit that group. Changes take effect after clicking
 | Serial port | A dropdown of detected ports (click **Refresh** to rescan), or type one manually. On Windows this is `COM3`, `COM4`, etc. (check Device Manager → Ports (COM & LPT) if unsure); on Linux/macOS it's a device path such as `/dev/ttyUSB0` or `/dev/ttyACM0`. The field is editable so a port not yet plugged in can still be typed in. |
 | Baud rate | Default 115200 |
 | Mock backend | Simulates the plotter without a serial connection — useful for testing |
-| Run Pre-Plot Checklist before Start | When on (default), clicking **Start Plot** opens the **Pre-Plot Checklist** wizard (see [Machine menu](#machine-menu)) instead of plotting immediately. Turn off to skip straight to plotting. |
+| Run Pre-Plot Checklist before Start | When on (default), the Check view requires current physical confirmations before Start. Turning this off removes mandatory operator confirmations; connection, controller state and active-job gates still apply. |
 
-### General
+### Application
 
 **Show welcome choices when Gantry starts** controls whether the guided-practice
 welcome appears on subsequent launches.
@@ -291,7 +303,7 @@ Used for watercolor painting. Each station has:
 ## Opening or composing SVG/vector artwork
 
 When the Live View is empty, use its large **Add artwork** card, the guidance
-banner's **Add artwork** action, or **File > Open SVG or Vector Drawing...**.
+job bar's **Add artwork** action, or **File > Open SVG or Vector Drawing...**.
 Choose an SVG file. The **Add artwork** tab is immediately ready with a safe
 default: the configured machine-bed dimensions, preserved aspect ratio, and a
 10 mm margin. The summary states the physical target before you import.
@@ -457,7 +469,7 @@ To bring a **raster image** (PNG/JPG) into Gantry, click **Add image or photo…
 paths, then hands the result to the same SVG import you'd use for hand-authored
 artwork — so a photo, scan, sketch or logo can become a plot.
 
-The flow is two dialogs:
+The flow uses one dialog with two task tabs and a single **Import** confirmation:
 
 1. **Vectorize studio** — a live-preview workspace: the source image on the
    left, the traced **vector preview** on the right, and controls on the right
@@ -470,7 +482,7 @@ The flow is two dialogs:
    The status line shows plotter-aware numbers — layers, strokes, points and the
    **pen-up travel %** (lower plots faster) — plus a hint when a trace would plot
    inefficiently (e.g. suggesting *Centerline* for single-stroke work). Click
-   **Vectorize** when the preview looks right.
+   **Size & processing** to check physical placement, then **Import** when ready.
 
    After importing, **Edit ▸ Re-vectorize Image…** reopens the studio on the same
    image with your parameters restored, so you can re-tune without re-importing.
@@ -489,7 +501,7 @@ The flow is two dialogs:
    Stroke colour/width and Smooth curves apply to the polyline/centerline/bézier
    outputs (the colour-fill tracers carry their own colours).
 
-2. **Import SVG dialog** — the *same* dialog as [Opening SVG artwork](#opening-or-composing-svgvector-artwork):
+2. **Size & processing** — the shared options from [Opening SVG artwork](#opening-or-composing-svgvector-artwork):
    set Fit-to size, refill, curve step, and optional SVGToolBox processing. The
    traced SVG flows through unchanged, so everything downstream (positioning,
    layers, hatching, plotting) behaves exactly as for any imported SVG.
@@ -733,7 +745,7 @@ Station **Z Down** is reserved for future/custom patterns.
 1. Connect to the plotter with **Connect**.
 2. Adjust speed if needed with **Speed +** / **Speed −** / **Reset** under **Move pen manually**.
 3. Click **Start plotting** (or **Check before plotting...** to run the checklist on demand without
-   starting). By default **Start plotting** opens the **Pre-Plot Checklist** wizard first — see
+   starting). By default **Check before plotting** opens the Check inspector first — see
    [Machine menu](#machine-menu); disable that in Settings to skip straight to plotting.
 4. For each layer, the plotter pauses for **Pen ready — continue** (allowing brush/pen changes). When a layer finishes, the head automatically raises the pen and returns to the origin (0, 0), so it's parked clear for a pen swap while you confirm the next layer.
 5. Click **Pause** at any time to halt motion and raise the pen; click **Resume** (same button) to continue from where it left off.
@@ -814,7 +826,7 @@ paused, so a long pause will make elapsed time exceed the estimate until resumed
 
 ### Live plot log
 
-While plotting, expand **Advanced controls** to view the **Console**, which streams
+While plotting, expand **Diagnostics** to view the **Console**, which streams
 what is actually happening:
 
 - A `=== Layer 'L1' (1/3): 42 commands ===` line each time a new layer starts.
@@ -829,7 +841,7 @@ what is actually happening:
 |---|---|
 | ▲ ▼ ◄ ► (tap) | Jog by the **Step (mm)** amount — one move per tap (large, touch-friendly buttons) |
 | ▲ ▼ ◄ ► (press and hold) | Jog **continuously** in that direction until you release the button |
-| Arrow keys / numpad arrows (8/2/4/6) | Same as a tap of the ▲▼◄► buttons, usable from anywhere in the window except while a text field is focused |
+| Arrow keys / numpad arrows (8/2/4/6) | Same as a tap of the ▲▼◄► buttons, available only while a direction button in Machine has explicit keyboard focus |
 | Shift + ▲ / Shift + ▼ | Pen Up / Pen Down |
 | Step (mm) spinner | Distance per jog tap (0.1–1000 mm) |
 | Pen Up / Pen Down | Raise / lower pen manually |

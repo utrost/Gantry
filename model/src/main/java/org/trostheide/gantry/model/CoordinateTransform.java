@@ -59,6 +59,10 @@ public class CoordinateTransform {
             double offsetX, double offsetY,
             int rotation, boolean mirror) {
 
+        return applyOverlayRaw(x,y,cx,cy,scale,1,1,offsetX,offsetY,rotation,mirror);
+    }
+    public static double[] applyOverlayRaw(double x,double y,double cx,double cy,double scale,
+            double stretchX,double stretchY,double offsetX,double offsetY,int rotation,boolean mirror){
         double dx = x - cx;
         double dy = y - cy;
 
@@ -70,8 +74,8 @@ public class CoordinateTransform {
             case 270: { double t = dx; dx = dy; dy = -t; break; }
         }
 
-        dx *= scale;
-        dy *= scale;
+        dx *= scale*stretchX;
+        dy *= scale*stretchY;
 
         return new double[] { dx + cx + offsetX, dy + cy + offsetY };
     }

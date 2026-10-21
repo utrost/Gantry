@@ -24,6 +24,10 @@ public class SettingsPanel extends JPanel {
     private static final String[] BEHAVIORS = {"simple_dip", "dip_swirl"};
     private static final Integer[] ROTATIONS = {0, 90, 180, 270};
 
+    private final JComboBox<String> theme=new JComboBox<>(new String[]{"System","Light","Dark"});
+    private final JComboBox<String> density=new JComboBox<>(new String[]{"Comfortable","Compact"});
+    private final JComboBox<String> canvasTheme=new JComboBox<>(new String[]{"Dark","Light"});
+    private final JCheckBox guidance=new JCheckBox("Show contextual guidance",true);
     private final JComboBox<String> serialPortCombo = new JComboBox<>();
     private final JButton refreshPortsButton = new JButton("Refresh");
     private final JSpinner baudRateSpinner = new JSpinner(new SpinnerNumberModel(115200, 9600, 250000, 100));
@@ -76,10 +80,10 @@ public class SettingsPanel extends JPanel {
         // re-parents, so its step cards are unaffected.
         JTabbedPane tabs = new JTabbedPane();
         tabs.addTab("Connection", scrollable(connectionPanel));
-        tabs.addTab("General", scrollable(generalPanel));
-        tabs.addTab("Geometry", scrollable(geometryPanel));
-        tabs.addTab("Pen / Speed", scrollable(penPanel));
-        tabs.addTab("Stations", stationsPanel);
+        tabs.addTab("Application", scrollable(generalPanel));
+        tabs.addTab("Machine Geometry", scrollable(geometryPanel));
+        tabs.addTab("Pen & Speeds", scrollable(penPanel));
+        tabs.addTab("Watercolor Stations", stationsPanel);
         add(tabs, BorderLayout.CENTER);
 
         serialPortCombo.setEditable(true);
@@ -168,7 +172,8 @@ public class SettingsPanel extends JPanel {
         JPanel panel = new JPanel(new GridBagLayout());
         panel.setBorder(section("General"));
         GridBagConstraints gbc = gbc();
-        gbc.gridwidth = 2;
+        addRow(panel,gbc,"Theme",theme);addRow(panel,gbc,"Density",density);addRow(panel,gbc,"Canvas",canvasTheme);
+        gbc.gridwidth = 2;panel.add(guidance,gbc);gbc.gridy++;
         panel.add(showWelcomeCheckBox, gbc);
         return panel;
     }
@@ -261,6 +266,7 @@ public class SettingsPanel extends JPanel {
         mockCheckBox.setSelected(config.mock);
         preflightCheckBox.setSelected(config.preflightBeforeStart);
         showWelcomeCheckBox.setSelected(config.showWelcomeOnStartup);
+        theme.setSelectedItem(config.uiTheme);density.setSelectedItem(config.uiDensity);canvasTheme.setSelectedItem(config.canvasTheme);guidance.setSelected(config.showGuidance);
 
         machineWidthSpinner.setValue(config.gcode.machineWidth);
         machineHeightSpinner.setValue(config.gcode.machineHeight);
@@ -298,6 +304,7 @@ public class SettingsPanel extends JPanel {
         config.mock = mockCheckBox.isSelected();
         config.preflightBeforeStart = preflightCheckBox.isSelected();
         config.showWelcomeOnStartup = showWelcomeCheckBox.isSelected();
+        config.uiTheme=(String)theme.getSelectedItem();config.uiDensity=(String)density.getSelectedItem();config.canvasTheme=(String)canvasTheme.getSelectedItem();config.showGuidance=guidance.isSelected();
 
         config.gcode.machineWidth = (Double) machineWidthSpinner.getValue();
         config.gcode.machineHeight = (Double) machineHeightSpinner.getValue();

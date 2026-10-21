@@ -40,7 +40,7 @@ public class GuiAcceptance {
                 System.out.println("PASS recovery after process restart");
                 System.exit(0);
             }
-            edt(()->{frame.setSize(1024,768);return null;});
+            edt(()->{frame.setSize(1024,800);return null;});
             menu("Open SVG or Vector Drawing..."); choose(root.resolve("docs/samples/multi-colour-layers.svg"));
             click(dialog("Add SVG or vector drawing"),"Import");
             await(()->project().output()!=null && project().output().layers().size()==3);
@@ -59,6 +59,19 @@ public class GuiAcceptance {
             choose(root.resolve("docs/samples/multi-colour-layers.svg"));
             click(dialog("Add SVG or vector drawing"),"Cancel");
             check(edt(()->project().output().layers().size())==3,"cancelled import preserves drawing");
+            var originalPlacement=edt(()->project().placement());
+            click(panel,"Rotate 90°");await(()->!project().placement().equals(originalPlacement));
+            click(panel,"Undo");await(()->project().placement().equals(originalPlacement));
+            click(panel,"Redo");await(()->!project().placement().equals(originalPlacement));
+            click(panel,"Undo");await(()->project().placement().equals(originalPlacement));
+            System.out.println("PASS placement undo and redo through toolbar");
+            java.awt.image.BufferedImage raster=new java.awt.image.BufferedImage(32,32,java.awt.image.BufferedImage.TYPE_INT_RGB);
+            Path rasterFile=profile.resolve("cancel-import.png");javax.imageio.ImageIO.write(raster,"png",rasterFile.toFile());
+            var beforeRaster=edt(()->project().output());
+            menu("Add image or photo...");click(dialog("Unsaved Gantry project"),"Discard");choose(rasterFile);
+            click(dialog("Add image — preview and placement"),"Cancel");
+            check(edt(()->project().output().equals(beforeRaster)),"cancel raster preserves drawing");
+            System.out.println("PASS unified raster import cancellation");
             click(panel,"None"); check(edt(()->project().selectedLayers().isEmpty()),"none selects no layers");
             click(panel,"All"); check(edt(()->project().selectedLayers().size())==3,"all selects layers");
             click(panel,"Connect"); await(()->jobs().isConnected());
@@ -72,6 +85,7 @@ public class GuiAcceptance {
             await(()->!jobs().isPlotting());
             await(()->((PlotJobHistory)field(panel,"plotHistory")).jobs().size()==1);
             System.out.println("PASS mock plot through GUI with three pen confirmations");
+            click(panel,"Plot another copy"); await(()->findButton(panel,"Start plotting")!=null);
             click(panel,"Start plotting"); await(()->(boolean)field(panel,"awaitingLayerConfirmation"));
             click(panel,"Stop"); await(()->!jobs().isPlotting());
             check(edt(()->((PlotJobHistory)field(panel,"plotHistory")).jobs().size())==1,"cancelled plot not added to history");

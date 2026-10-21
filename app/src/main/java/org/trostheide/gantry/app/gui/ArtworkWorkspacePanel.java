@@ -43,7 +43,7 @@ final class ArtworkWorkspacePanel extends JLayeredPane {
         card.add(Box.createVerticalStrut(5));
         card.add(explanation);
         card.add(Box.createVerticalStrut(14));
-        for (JButton button : new JButton[] {svg, image, commands, project}) {
+        for (JButton button : new JButton[] {svg, image, project}) {
             button.setAlignmentX(Component.CENTER_ALIGNMENT);
             button.setMaximumSize(new Dimension(280, button.getPreferredSize().height));
             card.add(button);

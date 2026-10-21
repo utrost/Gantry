@@ -11,16 +11,17 @@ final class CanvasInteractionController {
     private CanvasInteractionController() {}
 
     static void install(VisualizationPanel panel) {
-        panel.setBackground(new Color(35, 35, 40));
+        panel.setBackground(CanvasPalette.BACKGROUND);
         TitledBorder border = BorderFactory.createTitledBorder("Live View");
         border.setTitleFont(border.getTitleFont().deriveFont(Font.BOLD, 12f));
-        panel.setBorder(border);
+        panel.setBorder(BorderFactory.createEmptyBorder(4,4,4,4));
 
         JPopupMenu contextMenu = CanvasContextMenu.build(panel);
 
         MouseAdapter mouseHandler = new MouseAdapter() {
             @Override
             public void mousePressed(MouseEvent e) {
+                if(!panel.editingEnabled)return;
                 if (maybeShowPopup(e)) return;
                 // Stations are grabbable even on an empty bed, and take precedence over the
                 // drawing handles (they're small, on top, and a deliberate target).
@@ -110,6 +111,7 @@ final class CanvasInteractionController {
 
             @Override
             public void mouseDragged(MouseEvent e) {
+                if(!panel.editingEnabled)return;
                 if (panel.artworkDragStart != null) {
                     panel.artworkDragCurrent = panel.interaction.screenToModel(e.getX(), e.getY());
                     return;

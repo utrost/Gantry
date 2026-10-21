@@ -211,10 +211,17 @@ public final class PlotJobController {
     }
 
     /** Toggles pause and returns the new paused state; false when no plot is active. */
-    public synchronized boolean togglePause() {
-        if (activeService == null) return false;
-        if (paused) activeService.resume(); else activeService.pause();
-        paused = !paused;
-        return paused;
+    public boolean togglePause() {
+        PlotService service;
+        boolean next;
+        synchronized(this){
+            if(activeService==null || stopping)return false;
+            service=activeService;next=!paused;paused=next;
+        }
+        // Pen lift may wait on serial I/O. Never hold the controller monitor here:
+        // the event thread must still be able to query state and request Stop.
+        try {if(next)service.pause();else service.resume();}
+        catch(RuntimeException failure){synchronized(this){if(activeService==service)paused=!next;}throw failure;}
+        synchronized(this){return activeService==service && paused;}
     }
 }
