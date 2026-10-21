@@ -29,10 +29,14 @@ jobs:
       - name: GUI mock workflow and recovery
         run: xvfb-run -a ./scripts/test-gui.sh
 
+      - name: Workspace theme and scale layouts
+        if: matrix.java == 21
+        run: xvfb-run -a ./scripts/test-workspace-layouts.sh
+
       - name: Upload GUI acceptance evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: gui-acceptance-jdk-${{ matrix.java }}
-          path: dist/validation/gui/
+          path: dist/validation/
           include-hidden-files: true

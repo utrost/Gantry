@@ -71,6 +71,7 @@ final class LocalFeedbackPanel extends JPanel {
     }
 
     private static Color color(Tone tone) {
+        if(com.formdev.flatlaf.FlatLaf.isLafDark())return switch(tone){case INFO->new Color(130,185,255);case SUCCESS->new Color(130,215,150);case ERROR->new Color(255,150,145);};
         return switch (tone) { case INFO -> INFO; case SUCCESS -> SUCCESS; case ERROR -> ERROR; };
     }
 }

@@ -15,6 +15,13 @@ public class GantryConfig {
     public GcodeOptions gcode = new GcodeOptions();
 
     public boolean mock;
+    public String uiTheme = "System";
+    public String uiDensity = "Comfortable";
+    public String canvasTheme = "Dark";
+    public boolean showGuidance = true;
+    public int inspectorWidth = 360;
+    public boolean diagnosticsOpen;
+
 
     /** "Top-Left", "Top-Right", "Bottom-Left" or "Bottom-Right": the machine's physical origin corner. */
     public String machineOrigin = "Top-Right";

@@ -45,7 +45,7 @@ final class CanvasRenderer {
         g2.scale(scale, scale);
 
         // --- Draw Machine Bed ---
-        g2.setColor(new Color(50, 52, 58));
+        g2.setColor(CanvasPalette.light?Color.WHITE:new Color(50,52,58));
         g2.fill(new java.awt.geom.Rectangle2D.Double(0, 0, dw, dh));
         g2.setColor(new Color(80, 82, 90));
         g2.setStroke(new BasicStroke((float) (1.5 / scale)));
@@ -57,7 +57,7 @@ final class CanvasRenderer {
         double markerR = 5 / scale;
         g2.fill(new java.awt.geom.Ellipse2D.Double(originScreen[0] - markerR, originScreen[1] - markerR,
                 markerR * 2, markerR * 2));
-        g2.setColor(new Color(200, 200, 200));
+        g2.setColor(CanvasPalette.text());
         g2.setFont(g2.getFont().deriveFont((float) (12 / scale)));
         g2.drawString("0,0 (Origin)", (float) (originScreen[0] - 50 / scale), (float) (originScreen[1] + 15 / scale));
 
@@ -71,7 +71,7 @@ final class CanvasRenderer {
         g2.drawString("+X", (float) (xAxisEnd[0] - 10 / scale), (float) (xAxisEnd[1] + 15 / scale));
 
         double[] yAxisEnd = panel.physicalToScreen(0, axisLen);
-        g2.setColor(Color.GREEN);
+        g2.setColor(CanvasPalette.light?new Color(0,115,40):Color.GREEN);
         g2.draw(new java.awt.geom.Line2D.Double(originScreen[0], originScreen[1], yAxisEnd[0], yAxisEnd[1]));
         g2.drawString("+Y", (float) (yAxisEnd[0] + 5 / scale), (float) (yAxisEnd[1] + 5 / scale));
 
@@ -84,7 +84,7 @@ final class CanvasRenderer {
             g2.fill(new java.awt.geom.Ellipse2D.Double(sScreen[0] - stationR, sScreen[1] - stationR,
                     stationR * 2, stationR * 2));
             // Draw station label
-            g2.setColor(new Color(190, 190, 190));
+            g2.setColor(CanvasPalette.text());
             g2.setFont(g2.getFont().deriveFont((float) (9 / scale)));
             g2.drawString(station.name(), (float) (sScreen[0] + stationR + 2 / scale),
                     (float) (sScreen[1] + 4 / scale));
@@ -174,7 +174,7 @@ final class CanvasRenderer {
                 hi.closePath();
                 g2.setColor(new Color(255, 210, 80, 70));
                 g2.fill(hi);
-                g2.setColor(new Color(255, 200, 50));
+                g2.setColor(CanvasPalette.selection());
                 g2.setStroke(new BasicStroke((float) (1.5 / scale)));
                 g2.draw(hi);
             }
@@ -183,7 +183,7 @@ final class CanvasRenderer {
             Path2D hi = panel.interaction.modelPathToContent(panel.hoverEnclosedModel);
             g2.setColor(new Color(255, 210, 80, 70));
             g2.fill(hi);
-            g2.setColor(new Color(255, 200, 50));
+            g2.setColor(CanvasPalette.selection());
             g2.setStroke(new BasicStroke((float) (1.5 / scale)));
             g2.draw(hi);
         }
@@ -253,7 +253,7 @@ final class CanvasRenderer {
                 {sMinX, midY}, {sMaxX, midY},
                 {sMinX, sMaxY}, {midX, sMaxY}, {sMaxX, sMaxY}
             };
-            g2.setColor(new Color(255, 200, 50));
+            g2.setColor(CanvasPalette.selection());
             g2.setStroke(new BasicStroke((float)(1.0 / scale)));
             for (double[] hp : handlePos) {
                 g2.fill(new Rectangle2D.Double(hp[0] - hs/2, hp[1] - hs/2, hs, hs));
@@ -278,7 +278,7 @@ final class CanvasRenderer {
         g2.setTransform(old);
 
         // --- HUD ---
-        g2.setColor(new Color(180, 180, 180));
+        g2.setColor(CanvasPalette.text());
         g2.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 11));
         String travelHud = (panel.travelTotalMm > 0)
                 ? String.format(" | Pen-down efficiency: %.0f%%", 100.0 * panel.travelPenDownMm / panel.travelTotalMm)

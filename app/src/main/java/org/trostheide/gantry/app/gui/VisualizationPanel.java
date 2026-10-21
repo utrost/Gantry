@@ -33,6 +33,8 @@ import java.util.Map;
  * {@link org.trostheide.gantry.app.plot.PlotService}).
  */
 public class VisualizationPanel extends JPanel {
+    boolean editingEnabled=true;
+
 
     List<List<Point2D>> allPaths = new ArrayList<>();
 
@@ -135,6 +137,7 @@ public class VisualizationPanel extends JPanel {
 
     // Overlay transform for interactive drag/resize (in raw content space)
     double overlayOffsetX = 0, overlayOffsetY = 0;
+    double overlayStretchX=1,overlayStretchY=1;
     double overlayScale = 1.0;
     int overlayRotation = 0;       // quarter turns: 0, 90, 180, 270
     boolean overlayMirror = false; // horizontal flip
@@ -374,7 +377,7 @@ public class VisualizationPanel extends JPanel {
         travelTotalMm = 0;
         overlayOffsetX = 0;
         overlayOffsetY = 0;
-        overlayScale = 1.0;
+        overlayScale = 1.0;overlayStretchX=overlayStretchY=1;
         overlayRotation = 0;
         overlayMirror = false;
         suppressAlignment = false;
@@ -386,7 +389,23 @@ public class VisualizationPanel extends JPanel {
         fireOverlayChange();
     }
 
+    private GantryProject.Placement lastCommittedPlacement = GantryProject.Placement.identity();
+    private java.util.function.BiConsumer<GantryProject.Placement,GantryProject.Placement> placementEditListener;
+    public void setPlacementEditListener(java.util.function.BiConsumer<GantryProject.Placement,GantryProject.Placement> listener){placementEditListener=listener;lastCommittedPlacement=placement();}
+    public void resizeArtwork(double width,double height,boolean fromWidth){resizeArtwork(width,height,fromWidth,true);}
+    public void resizeArtwork(double width,double height,boolean fromWidth,boolean locked){
+        double[] current=getContentMotorSize();double basis=fromWidth?current[0]:current[1];
+        double requested=fromWidth?width:height;
+        if(basis<=0||!Double.isFinite(requested)||requested<=0)return;
+        if(locked)overlayScale*=requested/basis;
+        else {boolean swap=effectiveSwap() ^ (Math.floorMod(dataRotation,180)==90);
+            if(fromWidth ^ swap)overlayStretchX*=requested/basis;else overlayStretchY*=requested/basis;}
+        clampOverlayToBed();repaint();fireOverlayChange();
+    }
     void fireOverlayChange() {
+        GantryProject.Placement after=placement();
+        if(placementEditListener!=null && !lastCommittedPlacement.equals(after))placementEditListener.accept(lastCommittedPlacement,after);
+        lastCommittedPlacement=after;
         if (overlayChangeListener != null) overlayChangeListener.run();
     }
 
@@ -438,22 +457,23 @@ public class VisualizationPanel extends JPanel {
     public boolean isOverlayMirror() { return overlayMirror; }
     public boolean hasOverlayTransform() {
         return overlayOffsetX != 0 || overlayOffsetY != 0 || overlayScale != 1.0
-                || overlayRotation != 0 || overlayMirror;
+                || overlayRotation != 0 || overlayMirror || overlayStretchX!=1 || overlayStretchY!=1;
     }
 
     public GantryProject.Placement placement() {
         return new GantryProject.Placement(overlayOffsetX, overlayOffsetY, overlayScale,
-                overlayRotation, overlayMirror, suppressAlignment);
+                overlayRotation, overlayMirror, suppressAlignment,overlayStretchX,overlayStretchY);
     }
 
     public void applyPlacement(GantryProject.Placement placement) {
         overlayOffsetX = placement.offsetX();
         overlayOffsetY = placement.offsetY();
-        overlayScale = placement.scale();
+        overlayScale = placement.scale();overlayStretchX=placement.stretchX();overlayStretchY=placement.stretchY();
         overlayRotation = placement.rotation();
         overlayMirror = placement.mirror();
         suppressAlignment = placement.suppressAlignment();
         clampOverlayToBed();
+        lastCommittedPlacement=placement();
         repaint();
         fireOverlayChange();
     }
@@ -486,6 +506,7 @@ public class VisualizationPanel extends JPanel {
 
     public void setSuppressAlignment(boolean suppress) {
         this.suppressAlignment = suppress;
+        lastCommittedPlacement=placement();
         recalculateTransform();
         repaint();
     }
@@ -493,7 +514,7 @@ public class VisualizationPanel extends JPanel {
     public void resetOverlay() {
         overlayOffsetX = 0;
         overlayOffsetY = 0;
-        overlayScale = 1.0;
+        overlayScale = 1.0;overlayStretchX=overlayStretchY=1;
         overlayRotation = 0;
         overlayMirror = false;
         suppressAlignment = false;
@@ -620,7 +641,7 @@ public class VisualizationPanel extends JPanel {
     public void loadFromOutput(ProcessorOutput output) {
         overlayOffsetX = 0;
         overlayOffsetY = 0;
-        overlayScale = 1.0;
+        overlayScale = 1.0;overlayStretchX=overlayStretchY=1;
         overlayRotation = 0;
         overlayMirror = false;
         suppressAlignment = false;
@@ -632,6 +653,7 @@ public class VisualizationPanel extends JPanel {
         // Pen assignments belong to the drawing; a newly opened document starts from the
         // physical default while in-place reloads below deliberately preserve user choices.
         layerPenWidthsMm.clear();
+        lastCommittedPlacement=placement();
         loadPathsPreservingOverlay(output);
     }
 
@@ -975,7 +997,7 @@ public class VisualizationPanel extends JPanel {
         double cx = (rawMinX + rawMaxX) / 2.0;
         double cy = (rawMinY + rawMaxY) / 2.0;
         double[] o = CoordinateTransform.applyOverlayRaw(rawPoint.x(), rawPoint.y(),
-                cx, cy, overlayScale, overlayOffsetX, overlayOffsetY,
+                cx, cy, overlayScale, overlayStretchX,overlayStretchY, overlayOffsetX, overlayOffsetY,
                 overlayRotation, overlayMirror);
         double x = o[0];
         double y = o[1];

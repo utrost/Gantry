@@ -65,7 +65,7 @@ public final class CaptureScreenshots {
             capture(frame, "workspace-layer-preview.png");
 
             SwingUtilities.invokeLater(() -> invoke(panel, "onEditLayerSettings", new Class<?>[]{int.class}, 0));
-            JDialog layer = dialog("Watercolor settings");
+            JDialog layer = dialog("Pen settings");
             capture(layer, "layer-watercolor-settings.png");
             click(layer, "Cancel");
 
@@ -73,7 +73,7 @@ public final class CaptureScreenshots {
             JDialog settings = dialog("Settings");
             SwingUtilities.invokeAndWait(() -> {
                 JTabbedPane tabs = find(settings, JTabbedPane.class);
-                tabs.setSelectedIndex(tabs.indexOfTab("Geometry"));
+                tabs.setSelectedIndex(tabs.indexOfTab("Machine Geometry"));
                 settings.pack();
                 settings.setLocationRelativeTo(frame);
             });

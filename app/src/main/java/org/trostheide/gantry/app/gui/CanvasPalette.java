@@ -4,7 +4,7 @@ import java.awt.Color;
 
 /** Deterministic colour policy for the dark plot-preview canvas. */
 final class CanvasPalette {
-    static final Color BACKGROUND = new Color(35, 35, 40);
+    static Color BACKGROUND = new Color(35, 35, 40);
     static final Color DEFAULT_PATH = new Color(130, 160, 255);
     static final Color ACTIVE_PATH = new Color(255, 190, 55);
     static final Color COMPLETED_PATH = new Color(85, 145, 120);
@@ -16,10 +16,15 @@ final class CanvasPalette {
 
     private CanvasPalette() { }
 
+    static boolean light;
+    static Color text(){return light?new Color(55,60,70):new Color(200,200,200);}
+    static Color selection(){return light?new Color(140,85,0):new Color(255,200,50);}
+    static void setLight(boolean value) { light=value; BACKGROUND=value?new Color(249,250,252):new Color(35,35,40); }
     static Color displayColor(String hex, int index) {
         Color parsed = parseHex(hex);
         if (parsed == null) return fallback(index);
         double brightness = 0.299 * parsed.getRed() + 0.587 * parsed.getGreen() + 0.114 * parsed.getBlue();
+        if (light) return brightness > 220 ? parsed.darker().darker() : parsed;
         if (brightness >= 70) return parsed;
         int max = Math.max(parsed.getRed(), Math.max(parsed.getGreen(), parsed.getBlue()));
         int min = Math.min(parsed.getRed(), Math.min(parsed.getGreen(), parsed.getBlue()));

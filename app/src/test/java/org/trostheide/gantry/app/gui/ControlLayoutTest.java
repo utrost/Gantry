@@ -20,7 +20,7 @@ class ControlLayoutTest {
                 scaleFonts(panel, scale);
                 panel.setSize(Math.max(300, panel.getMinimumSize().width), panel.getPreferredSize().height);
                 layout(panel);
-                for (String label : List.of("Edit…", "Start plotting", "Check before plotting...", "Stop")) {
+                for (String label : List.of("Edit…")) {
                     JButton button = findButton(panel, label);
                     assertNotNull(button, label);
                     Rectangle bounds = SwingUtilities.convertRectangle(button.getParent(), button.getBounds(), panel);

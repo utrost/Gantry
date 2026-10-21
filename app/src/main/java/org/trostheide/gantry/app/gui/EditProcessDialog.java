@@ -41,8 +41,8 @@ public final class EditProcessDialog extends JDialog {
 
         JPanel buttons = new JPanel(new FlowLayout(FlowLayout.RIGHT));
         buttons.add(resetBtn);
-        buttons.add(okBtn);
         buttons.add(cancelBtn);
+        buttons.add(okBtn);
 
         JPanel padded = new JPanel(new BorderLayout(8, 0));
         padded.setBorder(BorderFactory.createEmptyBorder(8, 8, 8, 8));

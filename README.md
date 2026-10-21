@@ -11,7 +11,7 @@ Java 17 / Maven multi-module project. Pen-plotting is the first-class, default
 path; watercolor (paint stations + refill) is an optional stage layered on top.
 
 The machine-aware Live View previews the configured workspace, final artwork
-placement, per-layer pen colour, visibility, plot order, and physical nib width
+placement, per-layer pen colour, plot inclusion, plot order, and physical nib width
 before paper or ink is committed.
 
 ![Gantry workspace with three colour layers](docs/images/workspace-layer-preview.png)
@@ -34,7 +34,7 @@ Other distributions and architectures are not yet validated.
   `sudo apt install ./Gantry-<version>-linux-x64.deb`, then open **Gantry** from
   the applications menu.
 
-The published [1.0.0-rc.2 release](https://github.com/utrost/Gantry/releases/tag/v1.0.0-rc.2) includes both installers. Portable users can download the GUI JAR and run
+The [1.0.0-rc.3 candidate](https://github.com/utrost/Gantry/releases/tag/v1.0.0-rc.3) introduces the Prepare/Check/Plot/Machine workspace. RC2 remains available unchanged. Portable users can download the GUI JAR and run
 `java -jar Gantry-<version>.jar` with Java 17 or newer, or build from source with
 `./scripts/build.sh`.
 
@@ -127,7 +127,7 @@ Windows (`.cmd`), all run from the repo root:
 
 Release builds require Python 3.9+ as well as Java/Maven; native installers
 require JDK 21+ with jpackage. Portable JARs still run on Java 17+. For example:
-`./scripts/release.sh 1.0.0-rc.2 --installer` (Windows: `scripts\release.cmd 1.0.0-rc.2 --installer`).
+`./scripts/release.sh 1.0.0-rc.3 --installer` (Windows: `scripts\release.cmd 1.0.0-rc.3 --installer`).
 
 Tagged releases are staged as drafts by GitHub Actions after both installers pass. See
 [`docs/RELEASE_CHECKLIST.md`](docs/RELEASE_CHECKLIST.md) for the required mock

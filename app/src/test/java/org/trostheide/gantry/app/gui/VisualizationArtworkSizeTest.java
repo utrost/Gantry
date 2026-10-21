@@ -41,6 +41,26 @@ class VisualizationArtworkSizeTest {
         assertArrayEquals(new double[] {15, 32}, panel.getContentMotorMin(), 1e-9);
     }
 
+    @Test void unlockedSizingChangesOnePhysicalDimensionAndRestoresPlacement() {
+        VisualizationPanel panel=new VisualizationPanel();panel.setMachineSize(600,800);panel.loadFromOutput(rectangle(80,50));
+        var initial=panel.placement();
+        panel.resizeArtwork(120,50,true,false);
+        assertArrayEquals(new double[]{120,50},panel.getContentMotorSize(),1e-8);
+        panel.resizeArtwork(120,90,false,false);
+        assertArrayEquals(new double[]{120,90},panel.getContentMotorSize(),1e-8);
+        var stretched=panel.placement();panel.applyPlacement(initial);
+        assertArrayEquals(new double[]{80,50},panel.getContentMotorSize(),1e-8);
+        panel.applyPlacement(stretched);assertArrayEquals(new double[]{120,90},panel.getContentMotorSize(),1e-8);
+    }
+
+    @Test void importedPagePlacementIsTheFirstUndoBaseline(){
+        VisualizationPanel panel=new VisualizationPanel();panel.loadFromOutput(rectangle(80,50));
+        java.util.concurrent.atomic.AtomicReference<org.trostheide.gantry.app.session.GantryProject.Placement> before=new java.util.concurrent.atomic.AtomicReference<>();
+        panel.setPlacementEditListener((oldValue,newValue)->before.set(oldValue));
+        panel.setSuppressAlignment(true);var imported=panel.placement();panel.rotateOverlay();
+        org.junit.jupiter.api.Assertions.assertEquals(imported,before.get());
+    }
+
     private static ProcessorOutput rectangle(double width, double height) {
         return rectangleAt(0, 0, width, height);
     }
