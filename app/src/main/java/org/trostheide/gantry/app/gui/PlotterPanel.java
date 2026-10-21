@@ -671,6 +671,9 @@ public class PlotterPanel extends JPanel {
         JMenu settingsMenu = new JMenu("Settings");
         settingsMenu.setMnemonic(KeyEvent.VK_S);
         settingsMenu.add(menuItem("Preferences...", e -> onOpenSettings(), true));
+        settingsMenu.addSeparator();
+        settingsMenu.add(menuItem("Import Machine Settings...", e -> onImportMachineSettings(), true));
+        settingsMenu.add(menuItem("Export Machine Settings...", e -> MachineSettingsTransfer.exportSettings(this,config,this::showFeedback), true));
         menuBar.add(settingsMenu);
 
         JMenu helpMenu = new JMenu("Help");
@@ -1314,6 +1317,17 @@ public class PlotterPanel extends JPanel {
                 before.pointCount(), after.pointCount(),
                 before.strokeCount(), after.strokeCount()));
         showUndoFeedback("Artwork optimized.");
+    }
+
+    private void onImportMachineSettings() {
+        MachineSettingsTransfer.importSettings(this,()->config,
+                ()->!connecting&&!plotJobController.isConnected()&&!plotJobController.isMachineBusy()&&manualActions==0,
+                imported->{
+                    try { ConfigStore.save(imported,configFile); }
+                    catch(IOException ex){throw new java.io.UncheckedIOException("Could not save imported settings: "+ex.getMessage(),ex);}
+                    config=imported;resetReplot();applyConfigToVis();refreshGuidance();
+                    showFeedback("Machine settings imported. Review the serial port before connecting.");
+                });
     }
 
     private void onOpenSettings() { dialogs.settings(); }

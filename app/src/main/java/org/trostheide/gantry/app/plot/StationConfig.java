@@ -1,6 +1,7 @@
 package org.trostheide.gantry.app.plot;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 /**
@@ -18,8 +19,10 @@ import com.fasterxml.jackson.annotation.JsonProperty;
  * @param dwellMs how long to hold the brush down in the pot, in milliseconds.
  * @param swirlRadius radius of the circular swirl, in mm, for "dip_swirl"/"rinse" behaviours.
  */
-public record StationConfig(double x, double y, int zDown, String behavior,
-        String color, int dwellMs, double swirlRadius) {
+public record StationConfig(double x, double y,
+        @JsonProperty("z_down") @JsonAlias("zDown") int zDown, String behavior,
+        String color, @JsonProperty("dwell_ms") @JsonAlias("dwellMs") int dwellMs,
+        @JsonProperty("swirl_radius") @JsonAlias("swirlRadius") double swirlRadius) {
 
     /** Default dwell when none is configured (matches the legacy hard-coded value). */
     public static final int DEFAULT_DWELL_MS = 500;
@@ -30,11 +33,11 @@ public record StationConfig(double x, double y, int zDown, String behavior,
     public StationConfig(
             @JsonProperty("x") double x,
             @JsonProperty("y") double y,
-            @JsonProperty("z_down") int zDown,
+            @JsonProperty("z_down") @JsonAlias("zDown") int zDown,
             @JsonProperty("behavior") String behavior,
             @JsonProperty("color") String color,
-            @JsonProperty("dwell_ms") int dwellMs,
-            @JsonProperty("swirl_radius") double swirlRadius) {
+            @JsonProperty("dwell_ms") @JsonAlias("dwellMs") int dwellMs,
+            @JsonProperty("swirl_radius") @JsonAlias("swirlRadius") double swirlRadius) {
         this.x = x;
         this.y = y;
         this.zDown = zDown;

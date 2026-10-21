@@ -9,6 +9,21 @@ Windows installers include the CLI and offline getting-started help. Use
 **Help > Getting Started (Offline)…** or **Gantry Help** in the Start menu. See
 [installer contents and paths](packaging/README.md).
 
+## Back up or transfer machine settings
+
+Use **Settings > Export Machine Settings...** to save a portable JSON profile.
+Use **Settings > Import Machine Settings...** to restore it on this computer or
+another Gantry installation. Existing Gantry `config.json` files are also accepted.
+
+The profile includes the serial port and baud rate, bed geometry and axis mapping,
+pen lift and speeds, soft limits, and watercolor stations. Import validates the
+file and presents a review before applying; Cancel leaves settings unchanged.
+Disconnect the plotter before importing, then check the serial port in Preferences
+before connecting on the new computer. Application appearance, simulation mode,
+preflight policy, and file history remain local. No movement or controller commands
+are sent by import. GRBL firmware settings, including `$100`/`$101` calibration,
+are not part of this profile.
+
 ## Quick start
 
 ### Prerequisites
