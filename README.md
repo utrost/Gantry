@@ -34,7 +34,7 @@ Other distributions and architectures are not yet validated.
   `sudo apt install ./Gantry-<version>-linux-x64.deb`, then open **Gantry** from
   the applications menu.
 
-The [1.0.0-rc.3 candidate](https://github.com/utrost/Gantry/releases/tag/v1.0.0-rc.3) introduces the Prepare/Check/Plot/Machine workspace. RC2 remains available unchanged. Portable users can download the GUI JAR and run
+The [1.0.0-rc.4 candidate](https://github.com/utrost/Gantry/releases/tag/v1.0.0-rc.4) adds machine-settings import/export to the redesigned workspace. RC3 remains available unchanged. Portable users can download the GUI JAR and run
 `java -jar Gantry-<version>.jar` with Java 17 or newer, or build from source with
 `./scripts/build.sh`.
 
@@ -127,7 +127,7 @@ Windows (`.cmd`), all run from the repo root:
 
 Release builds require Python 3.9+ as well as Java/Maven; native installers
 require JDK 21+ with jpackage. Portable JARs still run on Java 17+. For example:
-`./scripts/release.sh 1.0.0-rc.3 --installer` (Windows: `scripts\release.cmd 1.0.0-rc.3 --installer`).
+`./scripts/release.sh 1.0.0-rc.4 --installer` (Windows: `scripts\release.cmd 1.0.0-rc.4 --installer`).
 
 Tagged releases are staged as drafts by GitHub Actions after both installers pass. See
 [`docs/RELEASE_CHECKLIST.md`](docs/RELEASE_CHECKLIST.md) for the required mock
