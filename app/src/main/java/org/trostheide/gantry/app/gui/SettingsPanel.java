@@ -185,12 +185,23 @@ public class SettingsPanel extends JPanel {
 
         addRow(panel, gbc, "Pen Mode", penModeCombo);
         addRow(panel, gbc, "Servo Pin", servoPinSpinner);
-        addRow(panel, gbc, "Pen Up (servo angle / Z mm)", penUpSpinner);
-        addRow(panel, gbc, "Pen Down (servo angle / Z mm)", penDownSpinner);
+        addRow(panel, gbc, "Pen up angle (°)", penUpSpinner);
+        addRow(panel, gbc, "Pen down angle (°)", penDownSpinner);
         addRow(panel, gbc, "Z Up (mm)", zUpSpinner);
         addRow(panel, gbc, "Z Down (mm)", zDownSpinner);
-        addRow(panel, gbc, "Draw Feed Rate", drawSpeedSpinner);
-        addRow(panel, gbc, "Travel Feed Rate", travelSpeedSpinner);
+        Runnable modeVisibility=()->{
+            boolean servo="servo".equals(penModeCombo.getSelectedItem()),zaxis="zaxis".equals(penModeCombo.getSelectedItem());
+            for(Component component:panel.getComponents()) {
+                int row=((GridBagLayout)panel.getLayout()).getConstraints(component).gridy;
+                if(row>=1 && row<=3)component.setVisible(servo);
+                if(row==4 || row==5)component.setVisible(zaxis);
+            }
+            panel.revalidate();panel.repaint();
+        };
+        penModeCombo.addActionListener(e->modeVisibility.run());
+        modeVisibility.run();
+        addRow(panel, gbc, "Drawing speed (mm/min)", drawSpeedSpinner);
+        addRow(panel, gbc, "Travel speed (mm/min)", travelSpeedSpinner);
         responseTimeoutSpinner.setToolTipText("Maximum seconds to wait for a controller acknowledgement. "
                 + "Slow firmware may acknowledge only after a long move completes.");
         addRow(panel, gbc, "G-code Timeout (seconds)", responseTimeoutSpinner);

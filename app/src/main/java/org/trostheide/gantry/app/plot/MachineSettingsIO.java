@@ -15,6 +15,33 @@ public final class MachineSettingsIO {
             "paddingX", "paddingY", "stations", "softLimits", "hasLimitSwitches");
     private MachineSettingsIO() { }
 
+    public record Change(String group,String property,String before,String after) {
+        public boolean changed(){return !before.equals(after);}
+    }
+
+    /** Compare only transferable fields; application preferences never appear as changes. */
+    public static java.util.List<Change> comparison(GantryConfig current,GantryConfig incoming) {
+        java.util.Map<String,String> before=new java.util.TreeMap<>(),after=new java.util.TreeMap<>();
+        flatten("",machineFields(JSON.valueToTree(current)),before);
+        flatten("",machineFields(JSON.valueToTree(incoming)),after);
+        java.util.Set<String> paths=new java.util.TreeSet<>(before.keySet());paths.addAll(after.keySet());
+        java.util.List<Change> result=new java.util.ArrayList<>();
+        for(String path:paths){
+            String group=path.startsWith("stations.")?"Watercolor stations":path.contains("Limit")||path.contains("limit")?"Limits":
+                    "Machine geometry";
+            if(path.matches(".*(serialPort|baudRate|responseTimeoutSeconds|bootDelayMillis|positionPollIntervalSeconds)$"))group="Connection";
+            if(path.matches(".*(pen.*|servo.*|zUp|zDown|feedRate.*)$"))group="Pen & speeds";
+            String name=path.replaceFirst("^gcode\\.","").replaceAll("([a-z])([A-Z])","$1 $2");
+            result.add(new Change(group,name,before.getOrDefault(path,"Not configured"),after.getOrDefault(path,"Not configured")));
+        }
+        return java.util.List.copyOf(result);
+    }
+
+    private static void flatten(String prefix,JsonNode node,java.util.Map<String,String> values){
+        if(node.isObject())node.fields().forEachRemaining(e->flatten(prefix.isEmpty()?e.getKey():prefix+"."+e.getKey(),e.getValue(),values));
+        else values.put(prefix,node.isTextual()?node.asText():node.toString());
+    }
+
     public static void exportSettings(GantryConfig config, File file) throws IOException {
         validate(config);
         ObjectNode root = JSON.createObjectNode();

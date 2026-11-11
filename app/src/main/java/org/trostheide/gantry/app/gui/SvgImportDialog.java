@@ -9,23 +9,31 @@ import org.trostheide.gantry.svgtoolbox.Config;
 public final class SvgImportDialog extends JDialog {
     public record Result(SvgImportOptions importOptions, Config toolboxConfig) { }
     private Result result;
+    private final SvgImportOptionsPanel options;
     public SvgImportDialog(Window owner) { this(owner,null,300,200); }
     public SvgImportDialog(Window owner,java.io.File source) { this(owner,source,300,200); }
     public SvgImportDialog(Window owner,java.io.File source,double width,double height) {
         super(owner,"Add SVG or vector drawing",ModalityType.APPLICATION_MODAL);
-        SvgImportOptionsPanel options=new SvgImportOptionsPanel(owner,source,width,height);
+        options=new SvgImportOptionsPanel(owner,source,width,height);
         setLayout(new BorderLayout()); add(options,BorderLayout.CENTER);
         JPanel footer=new JPanel(new FlowLayout(FlowLayout.RIGHT));
         footer.add(WorkspaceStyle.button("Cancel",this::dispose));
         JButton apply=WorkspaceStyle.button("Import",()->{
+            if(!options.previewReady())return;
             var chosen=options.collectResult();
             if(chosen!=null){result=new Result(chosen.importOptions(),chosen.toolboxConfig());dispose();}
         });
+        apply.setEnabled(false);WorkspaceStyle.primary(apply);
+        options.onPreviewChange(()->apply.setEnabled(options.previewReady()));
         footer.add(apply);add(footer,BorderLayout.SOUTH);getRootPane().setDefaultButton(apply);
-        WorkspaceStyle.fitDialog(this,980,720);
+        WorkspaceStyle.fitDialog(this,940,640);
+        setDefaultCloseOperation(DISPOSE_ON_CLOSE);
+        getRootPane().registerKeyboardAction(e->dispose(),KeyStroke.getKeyStroke("ESCAPE"),JComponent.WHEN_IN_FOCUSED_WINDOW);
     }
+    @Override public void dispose(){options.closePreview();super.dispose();}
     static PaperFormat resolvePaperPreset(String value){return SvgImportOptionsPanel.resolvePaperPreset(value);}
     static String[] paperSizeOptions(){return SvgImportOptionsPanel.paperSizeOptions();}
     static String initialFitSelection(PaperFormat value){return SvgImportOptionsPanel.initialFitSelection(value);}
+    void configurePreview(org.trostheide.gantry.app.plot.PlotSettings settings){options.configurePreview(settings);}
     public Result showDialog(){setVisible(true);return result;}
 }

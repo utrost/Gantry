@@ -46,19 +46,20 @@ final class ProcessingPreviewPanel extends JPanel {
         else schedule();
     }
 
-    void schedule(){if(source==null)return;debounce.restart();status.setText("Updating preview…");progress.setVisible(true);}
+    void schedule(){if(source==null)return;generation++;if(worker!=null)worker.cancel(true);debounce.restart();status.setText("Updating preview…");progress.setVisible(true);}
 
     private void refreshNow() {
         if(worker!=null)worker.cancel(true);
         final Config config;
         try{config=options.buildConfig();}catch(IllegalArgumentException ex){status.setText(ex.getMessage());progress.setVisible(false);return;}
         int requested=++generation;
+        boolean processing=options.hasProcessingEnabled();
         worker=new SwingWorker<>(){
             @Override protected Result doInBackground() throws Exception{
                 ProcessorOutput base=original;
                 if(base==null)base=SvgImportStage.importSvg(source,SvgImportOptions.defaults());
                 if(isCancelled())throw new CancellationException();
-                ProcessorOutput processed=options.hasProcessingEnabled()
+                ProcessorOutput processed=processing
                         ?SvgImportStage.importSvg(source,config,SvgImportOptions.defaults()):base;
                 return new Result(requested,base,processed);
             }
@@ -69,6 +70,8 @@ final class ProcessingPreviewPanel extends JPanel {
                     status.setText("Preview unavailable: "+cause.getMessage());progress.setVisible(false);}}
             }};worker.execute();
     }
+
+    @Override public void removeNotify(){generation++;debounce.stop();if(worker!=null)worker.cancel(true);super.removeNotify();}
 
     private static String impact(ProcessorOutput a,ProcessorOutput b){
         StudioMetrics before=StudioMetrics.of(a),after=StudioMetrics.of(b);

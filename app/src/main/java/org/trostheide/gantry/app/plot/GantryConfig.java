@@ -15,7 +15,7 @@ public class GantryConfig {
     public GcodeOptions gcode = new GcodeOptions();
 
     public boolean mock;
-    public String uiTheme = "System";
+    public String uiTheme = "Dark";
     public String uiDensity = "Comfortable";
     public String canvasTheme = "Dark";
     public boolean showGuidance = true;

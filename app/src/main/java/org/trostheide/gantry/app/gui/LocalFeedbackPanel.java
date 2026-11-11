@@ -15,6 +15,7 @@ final class LocalFeedbackPanel extends JPanel {
     private final JLabel message = new JLabel();
     private final JButton action = new JButton();
     private final Timer dismissTimer;
+    private boolean unresolvedError;
 
     LocalFeedbackPanel() { this(15_000); }
 
@@ -47,7 +48,10 @@ final class LocalFeedbackPanel extends JPanel {
             SwingUtilities.invokeLater(() -> showAction(text, tone, actionLabel, callback));
             return;
         }
+        if(unresolvedError && tone!=Tone.ERROR)return;
+        unresolvedError=tone==Tone.ERROR;
         message.setText(text);
+        message.setToolTipText(text);
         message.getAccessibleContext().setAccessibleDescription(text);
         message.setForeground(color(tone));
         for (ActionListener listener : action.getActionListeners()) action.removeActionListener(listener);
@@ -59,13 +63,15 @@ final class LocalFeedbackPanel extends JPanel {
             action.addActionListener(e -> { dismiss(); callback.run(); });
         }
         setVisible(true);
-        dismissTimer.restart();
+        dismissTimer.stop();
+        if(!unresolvedError)dismissTimer.restart();
     }
 
     String messageText() { return message.getText(); }
     JButton actionButton() { return action; }
 
     void dismiss() {
+        unresolvedError=false;
         dismissTimer.stop();
         setVisible(false);
     }

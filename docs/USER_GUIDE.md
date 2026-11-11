@@ -40,8 +40,7 @@ are not part of this profile.
 ```
 
 The GUI opens. On a brand-new install (no saved user configuration yet), choose **Start
-guided practice** for the shortest route to a first plot. Gantry opens the real
-Setup Wizard with the no-hardware mock backend selected, loads a supplied
+guided practice** for the shortest route to a first plot. Gantry selects the no-hardware mock backend and loads a supplied
 80×60 mm practice drawing, then leads into the normal connection and safety
 check. Click **Close** to dismiss the welcome for the current launch. Untick
 **Show this welcome when Gantry starts** first if you do not want it on later
@@ -75,11 +74,11 @@ The right inspector follows the artwork selection. **Whole drawing** exposes
 physical X/Y, width/height, aspect lock, rotation and mirroring. Numeric values
 apply on Enter or leaving the field; placement edits and completed drags can be
 undone. Select an artwork group on the canvas or in the inspector to adjust its
-group offsets and scale. **Processing** offers only operations supported by that
-source. Group offsets are drawing coordinates, separate from machine-head position.
+physical position and size. **Processing** offers only operations supported by that
+source. Advanced relative transforms remain available separately. Machine-head coordinates appear only in Machine.
 
 In **Layers & pens**, check **Plot** to include a layer. Selecting its name does
-not change inclusion; it reveals the shared **Pen properties…** action. Pen
+not change inclusion; it reveals shared pen-width properties with one Apply action. Watercolor settings remain available separately. Pen
 colours have separate swatches and long names have tooltips.
 
 **Check before plotting** opens the checks in the inspector. **‹ Artwork**
@@ -95,11 +94,12 @@ The top-bar **Machine** toggle opens compact manual controls above the artwork
 properties. **Pin** keeps them open across jobs and restarts. Close or Escape
 while focused hides them and clears the pin; unpinned controls close at job start.
 Jog arrows respond only while a direction button has keyboard focus. Setup,
-calibration and watercolor station checks are in **Setup & calibration**.
+calibration and watercolor station checks are in **Machine > More**.
 
 The top bar identifies connection and controller state, including unknown state
 and simulation. **Diagnostics** contains Console, raw G-code and Copy Diagnostics.
-**Settings > Preferences > Application** offers System/Light/Dark themes,
+**Settings > Preferences > Application** offers System/Light/Dark themes. Dark is
+the default for new profiles; existing saved theme choices are retained. It also offers
 comfortable/compact density, canvas appearance and optional guidance. Preferences
 are remembered; connections and readiness are never restored.
 
@@ -115,8 +115,7 @@ arrange artwork while disconnected; Gantry clearly indicates that nothing will
 move in that state.
 
 The easiest no-hardware route is **Help > Guided First Plot...** (also offered
-automatically on first launch). It walks through the real machine setup fields,
-loads supplied practice artwork, then continues through **Connect plotter** and
+automatically on first launch). It selects simulation and loads supplied practice artwork, then continues through **Connect plotter** and
 **Check before plotting**. Cancelling a step starts nothing; run the visible
 primary action again when ready. The startup welcome is optional: **Close**
 dismisses it now, while **Show this welcome when Gantry starts** controls later
@@ -903,12 +902,12 @@ Type any G-code command in the text field and press Enter to send it directly.
 
 ## Projects, recovery, and job history
 
-- **Open Project / Save Project** — use `.gantry` for an editable session. Placement, layer selection, pass count, and available source provenance are retained.
+- **Open Project / Save Project** — use `.gantry` for an editable session. Save (Ctrl+S) reuses the current project path; Save Project As (Ctrl+Shift+S) chooses another file. Placement, pen widths, layer selection, pass count, and available source provenance are retained.
 - **Open Commands (JSON)** — imports an existing command model as a new project.
 - **Export Flattened Commands (JSON)** — writes the currently prepared commands with placement, selected layers, and passes baked in.
 - **Undo / Redo** — model-changing edits use multi-level history. Unsaved changes are marked in the window title and protected by the close prompt.
-- **Recovery autosave** — while a project is dirty, Gantry writes a recovery snapshot and offers it after an interrupted session.
-- **Recent Plot Jobs** — the ten most recent successful prepared jobs remain available from the File menu. Re-plot uses the immutable prepared snapshot, not whatever is currently on the canvas.
+- **Recovery autosave** — while a project is dirty, Gantry writes a recovery snapshot and offers it after an interrupted session. Recover restores it as an unsaved project; Later or closing the prompt preserves it. Only Discard recovery deletes a deferred copy.
+- **Recent Plot Jobs** — the ten most recent successful prepared jobs remain available from the File menu. Selecting a historical job opens its read-only stored preview and review before movement. The editable project stays intact; Return to artwork restores it. Changed machine geometry blocks replay. Re-plot uses the immutable prepared snapshot.
 
 File choosers remember the last folder used and reopen there next time, even
 across restarts.

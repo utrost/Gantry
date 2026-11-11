@@ -27,6 +27,18 @@ class PlotServiceTest {
         return new ProcessorOutput(meta, List.of(layers));
     }
 
+    @Test void reviewShowsOutOfBedGeometryWhileFrameStaysClamped() {
+        PlotSettings settings = new PlotSettings();
+        settings.machineWidth=100.0; settings.machineHeight=100.0;
+        settings.alignmentOffsetOverride=new double[]{0,0};
+        PlotService service = new PlotService(new FakePlotterBackend(),settings);
+        ProcessorOutput artwork=output(new Layer("oversize","default",List.of(
+                new DrawCommand(1,List.of(new Point(-10,10),new Point(150,90))))));
+        double[] review=service.computeArtworkBounds(artwork), frame=service.computeFrameBounds(artwork);
+        assertTrue(review[0]<0 || review[1]>100);
+        assertTrue(frame[0]>=0 && frame[1]<=100 && frame[2]>=0 && frame[3]<=100);
+    }
+
     @Test
     void reportsStrokeStartedAndAcceptedAroundBackendSubmission() {
         FakePlotterBackend backend = new FakePlotterBackend();

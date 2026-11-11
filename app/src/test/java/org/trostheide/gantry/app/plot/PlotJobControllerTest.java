@@ -18,6 +18,31 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class PlotJobControllerTest {
 
+    @Test void manualStopGuardsFollowingCommandsAndOwnsCleanupUntilItFinishes() throws Exception {
+        CountDownLatch moving=new CountDownLatch(1),cleanup=new CountDownLatch(1),release=new CountDownLatch(1);
+        var events=new java.util.concurrent.CopyOnWriteArrayList<String>();
+        var backend=new FakePlotterBackend(){
+            public void move(double x,double y){
+                moving.countDown();
+                try {new CountDownLatch(1).await();}catch(InterruptedException ignored){ /* driver swallowed interrupt */ }
+            }
+            public void pendown(){events.add("down");}
+            public void haltMotion(){events.add("halt");cleanup.countDown();awaitCleanup(release);}
+            public void penup(){events.add("up");}
+        };
+        var controller=new PlotJobController();controller.connect(backend);
+        AtomicBoolean completed=new AtomicBoolean(true);
+        Thread worker=controller.startOperation("Frame",b->{b.move(1,1);b.pendown();},(ok,error)->completed.set(ok));
+        try {
+            assertTrue(moving.await(2,TimeUnit.SECONDS));controller.cancelPlot();
+            assertTrue(cleanup.await(2,TimeUnit.SECONDS));
+            controller.cancelPlot();assertTrue(controller.isMachineBusy());
+            assertThrows(IllegalStateException.class,()->controller.startOperation("Other",b->{},(ok,error)->{}));
+        } finally {release.countDown();worker.join(2000);}
+        assertFalse(worker.isAlive());assertFalse(completed.get());assertFalse(controller.isMachineBusy());
+        org.junit.jupiter.api.Assertions.assertEquals(List.of("halt","up"),events);
+    }
+
     @Test void slowPauseDoesNotBlockStopOrStateQueries() throws Exception {
         CountDownLatch entered=new CountDownLatch(1),release=new CountDownLatch(1);
         var backend=new FakePlotterBackend(){@Override public void penup(){entered.countDown();awaitCleanup(release);}};

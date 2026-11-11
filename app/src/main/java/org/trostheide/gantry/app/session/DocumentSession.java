@@ -37,6 +37,8 @@ public final class DocumentSession {
     private final ArrayDeque<HistoryState> undoHistory = new ArrayDeque<>();
     private final ArrayDeque<HistoryState> redoHistory = new ArrayDeque<>();
     private boolean dirty;
+    private List<Double> penWidthsMm = List.of();
+    private boolean ambiguousLayerMapping;
     private GantryProject.Placement placement = GantryProject.Placement.identity();
     private File sourceSvg;
     private SvgImportOptions sourceSvgOptions;
@@ -56,6 +58,8 @@ public final class DocumentSession {
     /** Replaces the document, selects every layer, and starts a new undo history. */
     public void replace(ProcessorOutput output) {
         currentOutput = output;
+        penWidthsMm = defaultWidths(output);
+        ambiguousLayerMapping = false;
         placement = GantryProject.Placement.identity();
         undoHistory.clear();
         redoHistory.clear();
@@ -97,7 +101,12 @@ public final class DocumentSession {
         int firstNewLayer = currentOutput.layers().size();
         currentOutput = compose(currentOutput, addition, label == null || label.isBlank()
                 ? addition.metadata().source() : label);
-        selectedLayerIndices = allLayerIndices(currentOutput);
+        List<Integer> included = new ArrayList<>(selectedLayerIndices);
+        included.addAll(indices(firstNewLayer, currentOutput.layers().size()));
+        selectedLayerIndices = List.copyOf(included);
+        List<Double> widths = new ArrayList<>(penWidthsMm);
+        widths.addAll(defaultWidths(addition));
+        penWidthsMm = List.copyOf(widths);
         List<CompositionArtwork> nextArtworks = new ArrayList<>(artworks.isEmpty()
                 ? List.of(artwork("artwork-1", labelFor(currentOutput), null,
                         indices(0, firstNewLayer), currentOutput.metadata().bounds(),
@@ -154,6 +163,9 @@ public final class DocumentSession {
         int insertAt = oldIndices.get(0);
         snapshotForUndo();
 
+        List<Layer> oldLayers = currentOutput.layers();
+        List<Integer> oldSelection = selectedLayerIndices;
+        List<Double> oldWidths = penWidthsMm;
         Set<Integer> replacing = Set.copyOf(oldIndices);
         List<Layer> layers = new ArrayList<>();
         for (int i = 0; i < currentOutput.layers().size(); i++) {
@@ -185,7 +197,37 @@ public final class DocumentSession {
                 metadata.stationId(), metadata.units(), layers.stream().mapToInt(layer -> layer.commands().size()).sum(),
                 boundsForLayers(layers)), List.copyOf(layers));
         artworks = List.copyOf(nextArtworks);
-        selectedLayerIndices = allLayerIndices(currentOutput);
+        List<Integer> included = new ArrayList<>();
+        List<Double> widths = new ArrayList<>();
+        ambiguousLayerMapping = false;
+        List<Integer> retained = indices(0, oldLayers.size()).stream().filter(i -> !replacing.contains(i)).toList();
+        for (int i = 0; i < layers.size(); i++) {
+            int oldIndex;
+            if (i >= insertAt && i < insertAt + replacementLayers.size()) {
+                Layer incoming = replacement.layers().get(i - insertAt);
+                List<Integer> matches = oldIndices.stream().filter(j -> sameLayerIdentity(oldLayers.get(j), incoming)).toList();
+                oldIndex = matches.size() == 1 ? matches.get(0) : -1;
+                if (oldIndex < 0) ambiguousLayerMapping = true;
+                else {
+                    Layer previous = oldLayers.get(oldIndex);
+                    Layer configured = org.trostheide.gantry.watercolor.LayerRefillPlanner.configure(
+                            layers.get(i), previous.stationId(), previous.maxDrawDistance(), previous.dipBehavior());
+                    int commandId = maxCommandId(layers) + 1;
+                    List<Command> commands = new ArrayList<>();
+                    for (Command command : configured.commands()) commands.add(renumber(command, commandId++));
+                    layers.set(i, configured.withCommands(commands));
+                }
+            } else {
+                oldIndex = retained.get(i < insertAt ? i : i - replacementLayers.size());
+            }
+            if (oldIndex >= 0 && oldSelection.contains(oldIndex)) included.add(i);
+            widths.add(oldIndex >= 0 && oldIndex < oldWidths.size() ? oldWidths.get(oldIndex) : .3);
+        }
+        currentOutput = new ProcessorOutput(new Metadata(metadata.source(), metadata.generatedAt(),
+                metadata.stationId(), metadata.units(), layers.stream().mapToInt(layer -> layer.commands().size()).sum(),
+                boundsForLayers(layers)), List.copyOf(layers));
+        selectedLayerIndices = List.copyOf(included);
+        penWidthsMm = List.copyOf(widths);
         dirty = true;
         clearSource();
     }
@@ -207,6 +249,7 @@ public final class DocumentSession {
 
     public void clear() {
         currentOutput = null;
+        penWidthsMm = List.of();
         selectedLayerIndices = List.of();
         undoHistory.clear();
         redoHistory.clear();
@@ -255,6 +298,24 @@ public final class DocumentSession {
         return MultipassStage.apply(Objects.requireNonNull(baked, "overlayBaker result"), passes);
     }
 
+    public List<Double> penWidthsMm() { return penWidthsMm; }
+    public void setPenWidthsMm(List<Double> widths) {
+        List<Double> normalized = new ArrayList<>();
+        for (int i = 0; currentOutput != null && i < currentOutput.layers().size(); i++) {
+            Double width = widths != null && i < widths.size() ? widths.get(i) : .3;
+            normalized.add(width != null && Double.isFinite(width) && width > 0 ? width : .3);
+        }
+        penWidthsMm = List.copyOf(normalized);
+    }
+    public boolean hasAmbiguousLayerMapping() { return ambiguousLayerMapping; }
+    private static List<Double> defaultWidths(ProcessorOutput output) {
+        return output == null ? List.of() : output.layers().stream().map(layer -> .3).toList();
+    }
+    private static boolean sameLayerIdentity(Layer old, Layer incoming) {
+        return (Objects.equals(old.id(), incoming.id()) || old.id().endsWith(" / " + incoming.id()))
+                && Objects.equals(old.color(), incoming.color());
+    }
+
     public GantryProject.Placement placement() { return placement; }
     public void setPlacement(GantryProject.Placement value) { placement=Objects.requireNonNull(value); }
     public void changePlacement(GantryProject.Placement value) {
@@ -264,7 +325,7 @@ public final class DocumentSession {
 
     public void snapshotForUndo() {
         if (currentOutput == null) return;
-        undoHistory.addLast(new HistoryState(currentOutput, selectedLayerIndices, processingRecipe, artworks, placement));
+        undoHistory.addLast(new HistoryState(currentOutput, selectedLayerIndices, processingRecipe, artworks, placement, penWidthsMm, sourceSvg, sourceSvgOptions, sourceImage, vectorizeArgs));
         while (undoHistory.size() > HISTORY_LIMIT) undoHistory.removeFirst();
         redoHistory.clear();
     }
@@ -280,13 +341,13 @@ public final class DocumentSession {
         if (undoHistory.isEmpty()) {
             return null;
         }
-        redoHistory.addLast(new HistoryState(currentOutput, selectedLayerIndices, processingRecipe, artworks, placement));
+        redoHistory.addLast(new HistoryState(currentOutput, selectedLayerIndices, processingRecipe, artworks, placement, penWidthsMm, sourceSvg, sourceSvgOptions, sourceImage, vectorizeArgs));
         return restore(undoHistory.removeLast());
     }
 
     public ProcessorOutput redo() {
         if (redoHistory.isEmpty()) return null;
-        undoHistory.addLast(new HistoryState(currentOutput, selectedLayerIndices, processingRecipe, artworks, placement));
+        undoHistory.addLast(new HistoryState(currentOutput, selectedLayerIndices, processingRecipe, artworks, placement, penWidthsMm, sourceSvg, sourceSvgOptions, sourceImage, vectorizeArgs));
         return restore(redoHistory.removeLast());
     }
 
@@ -316,14 +377,20 @@ public final class DocumentSession {
         processingRecipe = state.processingRecipe();
         artworks = state.artworks();
         placement = state.placement();
+        penWidthsMm = state.penWidthsMm();
+        sourceSvg = state.sourceSvg(); sourceSvgOptions = state.sourceSvgOptions();
+        sourceImage = state.sourceImage(); vectorizeArgs = state.vectorizeArgs();
         dirty = true;
         return currentOutput;
     }
 
     private record HistoryState(ProcessorOutput output, List<Integer> selection, ProcessingRecipe processingRecipe,
-                                List<CompositionArtwork> artworks, GantryProject.Placement placement) {
+                                List<CompositionArtwork> artworks, GantryProject.Placement placement, List<Double> penWidthsMm, File sourceSvg,
+                                SvgImportOptions sourceSvgOptions, File sourceImage, List<String> vectorizeArgs) {
         HistoryState {
             selection = List.copyOf(selection);
+            penWidthsMm = List.copyOf(penWidthsMm);
+            vectorizeArgs = List.copyOf(vectorizeArgs);
             artworks = artworks == null ? List.of() : List.copyOf(artworks);
         }
     }

@@ -1,7 +1,8 @@
 # Application screenshots
 
-Refreshed 2026-10-21 from the RC3 workspace build, on Linux with Java 17.
-System appearance falls back to Light; canvas appearance is independently Dark.
+Workspace and import captures refreshed 2026-11-11 from the current implementation, on Linux with Java 17.
+Dark is the default application theme; canvas appearance remains independent.
+The welcome, watercolor-settings and geometry images below are earlier RC3 reference captures.
 
 These are captures of the running application's Swing root panes, rendered by
 Swing itself because desktop screen capture returned black pixels. Native window
@@ -13,7 +14,7 @@ importer, and opens the real dialogs. No plotter was connected.
 
 The [multi-colour sample](../samples/multi-colour-layers.svg), with its three
 layers selected, in a 210 × 148 mm workspace. The control panel uses its default width; long layer names retain their full text
-in tooltips. Nib widths are 0.6, 0.8 and 0.6 mm.
+in tooltips. The current workspace capture uses the default 0.3 mm preview nib width.
 
 ![Workspace and colour layers](workspace-layer-preview.png)
 
@@ -49,7 +50,7 @@ The executable `scripts/test-workspace-layouts.sh` generates both themes at four
 scale factors. Selected logical-pixel captures are committed here:
 
 - [Empty](workspace/empty.png)
-- [Prepared](workspace/prepared.png) and [Dark prepared](workspace/dark-prepared.png)
+- [Prepared (Dark)](workspace/prepared.png) and [Light prepared](workspace/light-prepared.png)
 - [Check](workspace/check.png)
 - [Running](workspace/running.png)
 - [Pen change](workspace/pen-change.png)

@@ -535,6 +535,19 @@ public class VisualizationPanel extends JPanel {
         repaint();
     }
 
+    void fitArtworkView(){
+        if(allPaths.isEmpty()){resetView();return;}
+        double minX=Double.POSITIVE_INFINITY,minY=Double.POSITIVE_INFINITY,maxX=Double.NEGATIVE_INFINITY,maxY=Double.NEGATIVE_INFINITY;
+        for(var path:allPaths)for(var point:path){double[] p=transformPoint(point);minX=Math.min(minX,p[0]);minY=Math.min(minY,p[1]);maxX=Math.max(maxX,p[0]);maxY=Math.max(maxY,p[1]);}
+        double fitScale=Math.min((getWidth()-40)/displayWidth(),(getHeight()-40)/displayHeight());
+        if(fitScale<=0)return;
+        double target=Math.min((getWidth()-60)/Math.max(1,maxX-minX),(getHeight()-60)/Math.max(1,maxY-minY));
+        viewZoom=Math.max(VIEW_ZOOM_MIN,Math.min(VIEW_ZOOM_MAX,target/fitScale));
+        double tx=20+(getWidth()-40-displayWidth()*fitScale)/2,ty=20+(getHeight()-40-displayHeight()*fitScale)/2;
+        viewPanX=getWidth()/2.0-viewZoom*(tx+(minX+maxX)/2*fitScale);
+        viewPanY=getHeight()/2.0-viewZoom*(ty+(minY+maxY)/2*fitScale);repaint();
+    }
+
     /**
      * Multiplies the viewport zoom by {@code factor} while keeping the content under screen pixel
      * {@code (mx, my)} fixed (zoom-to-cursor). The pan is re-solved via {@link #zoomToCursorPan}
@@ -670,13 +683,7 @@ public class VisualizationPanel extends JPanel {
         pathCommandId.clear();
         pathLayerId.clear();
         resetPlotProgress();
-        currentX = 0;
-        currentY = 0;
-        targetX = 0;
-        targetY = 0;
-        if (cursorAnimTimer != null) {
-            cursorAnimTimer.stop();
-        }
+        // Document geometry changes do not change the controller-reported head position.
 
         layerColors.clear();
         List<Double> previousWidths = List.copyOf(layerPenWidthsMm);
@@ -766,7 +773,10 @@ public class VisualizationPanel extends JPanel {
      * target on a ~60 FPS timer so motion stays smooth between the discrete
      * position updates.
      */
+    boolean headPositionKnown;
+    public void clearHeadPosition(){headPositionKnown=false;if(cursorAnimTimer!=null)cursorAnimTimer.stop();repaint();}
     public void updatePosition(double x, double y) {
+        headPositionKnown=true;
         this.targetX = x;
         this.targetY = y;
         if (cursorAnimTimer == null) {

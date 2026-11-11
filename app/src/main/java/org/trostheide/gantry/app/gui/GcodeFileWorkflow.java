@@ -73,6 +73,7 @@ final class GcodeFileWorkflow {
             try{Files.move(temporary.toPath(),destination.toPath(),StandardCopyOption.ATOMIC_MOVE,StandardCopyOption.REPLACE_EXISTING);}
             catch(AtomicMoveNotSupportedException ignored){Files.move(temporary.toPath(),destination.toPath(),StandardCopyOption.REPLACE_EXISTING);}
             log.accept("Exported G-code to "+destination.getName());
+            SwingUtilities.invokeLater(()->info.accept("G-code exported: "+destination.getAbsolutePath()));
         }catch(IOException|RuntimeException failure){error.accept("Failed to export "+destination.getName()+": "+failure.getMessage());}
         finally{if(temporary!=null)try{Files.deleteIfExists(temporary.toPath());}catch(IOException ignored){}}
     }

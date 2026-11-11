@@ -30,6 +30,9 @@ final class PlotControlsPanel extends JPanel {
     private final JCheckBox colors = new JCheckBox("Colour layers", true);
     private final JButton properties = WorkspaceStyle.button("Pen properties…", () -> editSelectedLayer());
     private boolean rebuilding;
+    private java.util.function.IntFunction<JComponent> propertiesFactory;
+    private final JPanel sharedProperties=new JPanel(new BorderLayout());
+    void setPropertiesFactory(java.util.function.IntFunction<JComponent> factory){propertiesFactory=factory;}
 
     PlotControlsPanel(Actions actions) {
         this.actions = actions;
@@ -37,8 +40,9 @@ final class PlotControlsPanel extends JPanel {
         setBorder(BorderFactory.createEmptyBorder(0,0,0,0));
         passes.addChangeListener(e->actions.projectChanged().run());
         progress.setStringPainted(true); progress.setVisible(false);
+        layerTable.setIntercellSpacing(new Dimension(0,0));
         layerTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
-        layerTable.setRowHeight(30); layerTable.setShowGrid(false);
+        layerTable.setRowHeight(24); layerTable.setShowGrid(false);
         layerTable.getAccessibleContext().setAccessibleName("Layers and plot inclusion");
         layerTable.getColumnModel().getColumn(0).setMaxWidth(42);
         layerTable.getColumnModel().getColumn(1).setMaxWidth(30);
@@ -58,7 +62,11 @@ final class PlotControlsPanel extends JPanel {
         });
         layerTable.getSelectionModel().addListSelectionListener(e -> {
             int selected=layerTable.getSelectedRow();
-            properties.setToolTipText(selected<0?null:"Pen properties for "+layerModel.getValueAt(selected,3));properties.setEnabled(selected>=0&&!isPlotting());properties.setVisible(selected>=0);
+            if(e.getValueIsAdjusting())return;
+            properties.setToolTipText(selected<0?null:"Pen properties for "+layerModel.getValueAt(selected,3));properties.setEnabled(selected>=0&&!isPlotting());properties.setVisible(selected>=0 && propertiesFactory==null);
+            sharedProperties.removeAll();
+            if(selected>=0 && propertiesFactory!=null && !isPlotting())sharedProperties.add(propertiesFactory.apply(selected),BorderLayout.CENTER);
+            sharedProperties.setVisible(selected>=0 && propertiesFactory!=null);revalidate();
         });
         layerModel.addTableModelListener(e -> {if(e.getColumn()==0)changed();});
         properties.setEnabled(false);properties.setVisible(false);WorkspaceStyle.quiet(all);WorkspaceStyle.quiet(none);
@@ -66,15 +74,17 @@ final class PlotControlsPanel extends JPanel {
         all.addActionListener(e -> selectAll(true)); none.addActionListener(e -> selectAll(false));
         JPanel header = row(new JLabel("Passes"), passes, all, none);
         JScrollPane scroll = new JScrollPane(layerTable);
-        int layerHeight = 3 * (all.getPreferredSize().height + 4) + 4;
+        int layerHeight = 3 * layerTable.getRowHeight() + 34;
         scroll.setPreferredSize(new Dimension(180, layerHeight));
-        scroll.setMaximumSize(new Dimension(Integer.MAX_VALUE, layerHeight));
+        scroll.setMinimumSize(new Dimension(100,layerHeight));
+        scroll.setMaximumSize(new Dimension(Integer.MAX_VALUE,Integer.MAX_VALUE));
+        scroll.setBorder(BorderFactory.createEmptyBorder());
         scroll.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
         colors.addActionListener(e -> actions.colorByLayer().accept(colors.isSelected()));
         JPanel footer = row(time, colors);
         for (JComponent component : List.of(
-                header, scroll, properties, footer)) {
-            component.setAlignmentX(LEFT_ALIGNMENT); add(component);
+                header, scroll, properties, sharedProperties, footer)) {
+            component.setAlignmentX(LEFT_ALIGNMENT);if(component!=scroll && component!=sharedProperties)component.setMaximumSize(new Dimension(Integer.MAX_VALUE,component.getPreferredSize().height));add(component);
         }
     }
 
@@ -100,6 +110,7 @@ final class PlotControlsPanel extends JPanel {
     void setPlotting(boolean plotting){
         putClientProperty("plotting",plotting);
         all.setEnabled(!plotting); none.setEnabled(!plotting); colors.setEnabled(!plotting); passes.setEnabled(!plotting);
+        sharedProperties.setVisible(!plotting && layerTable.getSelectedRow()>=0 && propertiesFactory!=null);
         layerTable.setEnabled(!plotting); properties.setEnabled(!plotting&&layerTable.getSelectedRow()>=0);
         progress.setVisible(plotting);
 

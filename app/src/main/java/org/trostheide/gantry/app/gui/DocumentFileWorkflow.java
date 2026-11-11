@@ -49,6 +49,8 @@ final class DocumentFileWorkflow {
     private final VisualizationPanel visualization;
     private final Actions actions;
     private String projectName="Untitled project";
+    private File projectFile;
+    void clearProjectPath(){projectFile=null;projectName="Untitled project";}
     String projectName(){return projectName;}
 
     DocumentFileWorkflow(Component parent, File configFile, DocumentSession session,
@@ -85,7 +87,7 @@ final class DocumentFileWorkflow {
         JFileChooser chooser=chooser("Gantry project (*.gantry)","gantry");
         if(chooser.showOpenDialog(parent)!=JFileChooser.APPROVE_OPTION)return;
         File file=chooser.getSelectedFile();remember(file);
-        try{actions.openProject().accept(GantryProjectIO.load(file));projectName=file.getName();actions.log().accept("Opened project "+file.getName());actions.feedback().accept("Project opened: "+file.getName());}
+        try{actions.openProject().accept(GantryProjectIO.load(file));projectFile=file;projectName=file.getName();actions.log().accept("Opened project "+file.getName());actions.feedback().accept("Project opened: "+file.getName());}
         catch(IOException ex){
             String message=file.getName().toLowerCase().endsWith(".json")
                     ? "'"+file.getName()+"' is a command JSON file, not a Gantry project. Use Open Commands (JSON) instead."
@@ -95,11 +97,20 @@ final class DocumentFileWorkflow {
     }
 
     boolean saveProject() {
+        return projectFile == null ? saveProjectAs() : writeProject(projectFile);
+    }
+
+    boolean saveProjectAs() {
         if(session.currentOutput()==null){actions.info().accept("Load or import a drawing first.");return false;}
         JFileChooser chooser=chooser("Gantry project (*.gantry)","gantry");
         if(chooser.showSaveDialog(parent)!=JFileChooser.APPROVE_OPTION)return false;
         File file=withExtension(chooser.getSelectedFile(),"gantry");if(!overwrite(file))return false;remember(file);
-        try{GantryProjectIO.save(actions.project().get(),file);session.markSaved();projectName=file.getName();actions.log().accept("Saved project "+file.getName());actions.feedback().accept("Project saved: "+file.getName());return true;}
+        return writeProject(file);
+    }
+
+    private boolean writeProject(File file) {
+        if(session.currentOutput()==null)return false;
+        try{GantryProjectIO.save(actions.project().get(),file);session.markSaved();projectFile=file;projectName=file.getName();actions.log().accept("Saved project "+file.getName());actions.feedback().accept("Project saved: "+file.getName());return true;}
         catch(IOException ex){actions.error().accept("Failed to save project "+file.getName()+": "+ex.getMessage());return false;}
     }
 
@@ -152,17 +163,13 @@ final class DocumentFileWorkflow {
         VectorizeStudioDialog.Result vector;
         SvgImportDialog.Result options;
         try{GantryConfig c=actions.config().get();
-            VectorizeStudioDialog dialog=new VectorizeStudioDialog(owner(),image,initialArgs,c.gcode.machineWidth,c.gcode.machineHeight);
+            VectorizeStudioDialog dialog=new VectorizeStudioDialog(owner(),image,initialArgs,c.gcode.machineWidth,c.gcode.machineHeight);dialog.configurePreview(c.toPlotSettings());
             vector=dialog.showDialog();options=dialog.importOptions();}
         catch(IOException ex){actions.error().accept("Vectorize failed: "+ex.getMessage());return;}
         if(vector==null)return;
         if(options==null)return;
-        final File svg;
-        try{svg=File.createTempFile("gantry-vectorize-",".svg");svg.deleteOnExit();}
-        catch(IOException ex){actions.error().accept("Vectorize failed: could not create temporary SVG");return;}
-        actions.cancellableBusy().run("Vectorize",cancel->{
-            List<String> args=new ArrayList<>(List.of("-i",image.getAbsolutePath(),"-o",svg.getAbsolutePath()));
-            args.addAll(vector.vectorizeArgs());org.trostheide.gantry.vectorize.Main.runSingleFile(args.toArray(String[]::new));
+        final File svg=vector.tracedSvg();
+        actions.cancellableBusy().run("Import traced artwork",cancel->{
             if(cancel.getAsBoolean())throw new CancellationException();
             return map(options.toolboxConfig()!=null?SvgImportStage.importSvg(svg,options.toolboxConfig(),options.importOptions())
                     :SvgImportStage.importSvg(svg,options.importOptions()));
@@ -174,6 +181,7 @@ final class DocumentFileWorkflow {
 
     void reprocessSvg(){
         if(session.sourceSvg()==null||session.sourceSvgOptions()==null){actions.info().accept("Import an SVG file first.");return;}
+        if(!session.sourceSvg().isFile()){actions.error().accept("The source SVG is no longer available. Import the original SVG again to reprocess it.");return;}
         org.trostheide.gantry.svgtoolbox.Config initial=session.processingRecipe()==null?null:session.processingRecipe().toConfig();
         EditProcessDialog dialog=new EditProcessDialog(owner(),session.sourceSvg(),initial);
         org.trostheide.gantry.svgtoolbox.Config toolbox=dialog.showDialog();if(toolbox==null)return;
@@ -184,8 +192,13 @@ final class DocumentFileWorkflow {
                 ?SvgImportStage.importSvg(source,toolbox,session.sourceSvgOptions())
                 :SvgImportStage.importSvg(source,session.sourceSvgOptions());
             if(cancel.getAsBoolean())throw new CancellationException();return processed;},out->{
-            editor.snapshot();editor.update(out);session.recordSvgSource(source,session.sourceSvgOptions(),process?ProcessingRecipe.fromConfig(toolbox):null);
-            visualization.loadPathsPreservingOverlay(out);actions.refresh().run();actions.log().accept("Reprocessed "+source.getName());},
+            var savedOptions=session.sourceSvgOptions();
+            if(session.artworks().size()==1)session.replaceArtwork(session.artworks().get(0).id(),out,source.getAbsolutePath(),savedOptions,process?ProcessingRecipe.fromConfig(toolbox):null);
+            else {editor.snapshot();editor.update(out);}
+            session.recordSvgSource(source,savedOptions,process?ProcessingRecipe.fromConfig(toolbox):null);
+            if(session.hasAmbiguousLayerMapping())actions.error().accept("Some processed layers could not be matched and are excluded. Review Layers & pens.");
+            editor.historyAvailability();
+            visualization.loadPathsPreservingOverlay(session.currentOutput());actions.refresh().run();actions.log().accept("Reprocessed "+source.getName());},
             ()->actions.feedback().accept("Processing cancelled. Artwork was not changed."));
     }
 
@@ -207,7 +220,8 @@ final class DocumentFileWorkflow {
             session.replaceArtwork(artwork.id(),out,source.getAbsolutePath(),artwork.importOptions(),process?ProcessingRecipe.fromConfig(toolbox):null);
             visualization.loadPathsPreservingOverlay(session.currentOutput());actions.refresh().run();
             actions.log().accept("Reprocessed artwork "+artwork.label()+" from "+source.getName());
-            actions.feedback().accept("Artwork reprocessed: "+artwork.label());},
+            actions.feedback().accept("Artwork reprocessed: "+artwork.label());
+            if(session.hasAmbiguousLayerMapping()) actions.error().accept("Some processed layers could not be matched. They are excluded from plotting; review Layers & pens.");},
             ()->actions.feedback().accept("Processing cancelled. Artwork was not changed."));
     }
 
@@ -216,11 +230,11 @@ final class DocumentFileWorkflow {
         JFileChooser chooser=chooser("Gantry commands — JSON (*.json)","json");
         if(chooser.showSaveDialog(parent)!=JFileChooser.APPROVE_OPTION)return;
         File file=chooser.getSelectedFile();if(!overwrite(file))return;remember(file);
-        try{ProcessorOutputIO.save(actions.flattenedOutput().get(),file);actions.log().accept("Exported flattened commands "+file.getName());}
+        try{ProcessorOutputIO.save(actions.flattenedOutput().get(),file);actions.log().accept("Exported flattened commands "+file.getName());actions.feedback().accept("Commands exported: "+file.getAbsolutePath());}
         catch(IOException ex){actions.error().accept("Failed to save "+file.getName()+": "+ex.getMessage());}
     }
 
-    private void loaded(boolean preservePagePlacement){actions.resetReplot().run();visualization.loadFromOutput(session.currentOutput());
+    private void loaded(boolean preservePagePlacement){clearProjectPath();actions.resetReplot().run();visualization.loadFromOutput(session.currentOutput());
         if(preservePagePlacement)visualization.setSuppressAlignment(true);else visualization.setContentMotorMin(0,0);
         session.setPlacement(visualization.placement());actions.refresh().run();}
     private ProcessorOutput map(ProcessorOutput output){List<PaintStation>s=stations();return s.isEmpty()?output:StationMapper.assignByColor(output,s);}
@@ -234,7 +248,7 @@ final class DocumentFileWorkflow {
     private static File withExtension(File file,String extension){return file.getName().toLowerCase().endsWith("."+extension)?file:new File(file.getParentFile(),file.getName()+"."+extension);}
     private Window owner(){return SwingUtilities.getWindowAncestor(parent);}
     private SvgImportDialog importDialog(File sourceSvg){GantryConfig c=actions.config().get();
-        return new SvgImportDialog(owner(),sourceSvg,c.gcode.machineWidth,c.gcode.machineHeight);}
+        SvgImportDialog dialog=new SvgImportDialog(owner(),sourceSvg,c.gcode.machineWidth,c.gcode.machineHeight);dialog.configurePreview(c.toPlotSettings());return dialog;}
     private void message(String text,String title){JOptionPane.showMessageDialog(parent,text,title,JOptionPane.INFORMATION_MESSAGE);}
     private boolean confirmSvgFonts(File source) {
         final SvgFontPreflight.Result preflight;

@@ -24,6 +24,39 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class DocumentSessionTest {
 
+    @Test void appendAndReprocessPreserveExcludedLayersAndPenWidths() {
+        DocumentSession session=new DocumentSession();
+        session.replace(output("one","two","three"));
+        session.selectLayers(List.of(0,2));
+        session.setPenWidthsMm(List.of(.2,.5,.8));
+        String original=session.artworks().get(0).id();
+        session.appendArtwork(output("added"),"addition");
+        assertEquals(List.of(0,2,3),session.selectedLayerIndices());
+        assertEquals(List.of(.2,.5,.8,.3),session.penWidthsMm());
+        session.replaceArtwork(original,output("three","two","one"),null,null,null);
+        assertEquals(List.of(0,2,3),session.selectedLayerIndices());
+        assertEquals(List.of(.8,.5,.2,.3),session.penWidthsMm());
+        session.undo();
+        assertEquals(List.of(.2,.5,.8,.3),session.penWidthsMm());
+        session.undo();
+        assertEquals(List.of(0,2),session.selectedLayerIndices());
+        assertEquals(List.of(.2,.5,.8),session.penWidthsMm());
+    }
+
+    @Test void unmatchedReprocessedLayersRequireExplicitInclusion() {
+        DocumentSession session=new DocumentSession();session.replace(output("original"));
+        session.replaceArtwork(session.artworks().get(0).id(),output("unknown"),null,null,null);
+        assertTrue(session.hasAmbiguousLayerMapping());
+        assertTrue(session.selectedLayerIndices().isEmpty());
+    }
+
+    @Test void penPropertiesUndoAndRedoTogetherWithTheDocument() {
+        DocumentSession session=new DocumentSession();session.replace(output("pen"));
+        session.snapshotForUndo();session.setPenWidthsMm(List.of(.8));
+        session.undo();assertEquals(List.of(.3),session.penWidthsMm());
+        session.redo();assertEquals(List.of(.8),session.penWidthsMm());
+    }
+
     @Test
     void replacementSelectsEveryLayerAndClearsUndo() {
         DocumentSession session = new DocumentSession();
@@ -140,6 +173,18 @@ class DocumentSessionTest {
         session.snapshotForUndo();session.update(output("processed"));session.recordSvgSource(new File("drawing.svg"),SvgImportOptions.defaults(),editedRecipe);
         session.undo();assertEquals(originalRecipe,session.processingRecipe());
         session.redo();assertEquals(editedRecipe,session.processingRecipe());
+    }
+
+    @Test void appendUndoRestoresSourceForReprocessing() {
+        DocumentSession session = new DocumentSession();
+        session.replace(output("original"));
+        File source = new File("source.svg");
+        session.recordSvgSource(source, SvgImportOptions.defaults());
+        session.appendArtwork(output("addition"), "additional.svg");
+        session.undo();
+        assertEquals(source, session.sourceSvg());
+        session.redo();
+        assertNull(session.sourceSvg());
     }
 
     private static ProcessorOutput output(String... layerIds) {

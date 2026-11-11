@@ -14,7 +14,7 @@ public class WorkspaceLayouts extends GuiAcceptance {
   try {
    Path root=Path.of(args[0]);Path out=Path.of(args[1]);Files.createDirectories(out);
    profile=Files.createTempDirectory("gantry-layout-");System.setProperty("gantry.config.file",profile.resolve("config.json").toString());
-   GantryConfig c=new GantryConfig();c.mock=true;c.showWelcomeOnStartup=false;c.preflightBeforeStart=true;c.uiTheme=args[2];
+   GantryConfig c=new GantryConfig();c.mock=true;c.showWelcomeOnStartup=false;c.preflightBeforeStart=true;c.uiTheme=args[2];if(args.length>3)c.uiDensity=args[3];
    c.gcode.machineWidth=210;c.gcode.machineHeight=148;ConfigStore.save(c,profile.resolve("config.json").toFile());
    GantryApp.main(new String[0]);await(()->{for(Window w:Window.getWindows())if(w instanceof JFrame f&&f.isShowing()){frame=f;panel=(PlotterPanel)f.getContentPane();return true;}return false;});
    edt(()->{frame.setSize(1024,800);return null;});capture(out,"empty");
@@ -23,7 +23,8 @@ public class WorkspaceLayouts extends GuiAcceptance {
    capture(out,"prepared");
    var beforeNavigation=edt(()->project().output());
    edt(()->{Object vis=field(panel,"visPanel");Object session=field(panel,"documentSession");java.util.List<?> artworks=(java.util.List<?>)session.getClass().getMethod("artworks").invoke(session);if(!artworks.isEmpty()){Object artwork=artworks.get(0);String id=(String)artwork.getClass().getMethod("id").invoke(artwork);Method select=vis.getClass().getDeclaredMethod("selectArtwork",String.class);select.setAccessible(true);select.invoke(vis,id);}return null;});capture(out,"selected-artwork");
-   edt(()->{Object shell=field(panel,"workspace");((JToggleButton)field(shell,"machineToggle")).doClick();return null;});capture(out,"machine");
+   edt(()->{Object shell=field(panel,"workspace");((JToggleButton)field(shell,"machineToggle")).doClick();return null;});capture(out,"machine");assertLayerRows();
+   edt(()->{Object vis=field(panel,"visPanel");Method select=vis.getClass().getDeclaredMethod("selectArtwork",String.class);select.setAccessible(true);select.invoke(vis,new Object[]{null});return null;});capture(out,"machine-whole-drawing");assertLayerRows();
    check(edt(()->project().output().equals(beforeNavigation)),"selection and machine navigation preserve prepared output");
    edt(()->{Object shell=field(panel,"workspace");((JToggleButton)field(shell,"machineToggle")).doClick();frame.setSize(1440,1000);return null;});capture(out,"large-workspace");edt(()->{frame.setSize(1024,800);return null;});
    click(panel,"Connect");await(()->jobs().isConnected());click(panel,"Check before plotting");
@@ -33,8 +34,14 @@ public class WorkspaceLayouts extends GuiAcceptance {
    assertStop();click(panel,"Pen ready — continue");capture(out,"running");
    click(panel,"Stop");await(()->!jobs().isPlotting());capture(out,"stopped");
    edt(()->{Field outcome=PlotterPanel.class.getDeclaredField("outcome");outcome.setAccessible(true);outcome.set(panel,Enum.valueOf((Class)outcome.getType(),"FAILED"));Method refresh=PlotterPanel.class.getDeclaredMethod("refreshGuidance");refresh.setAccessible(true);refresh.invoke(panel);return null;});capture(out,"failure");
-   System.out.println("PASS workspace reference layouts "+args[2]+" / scale "+System.getProperty("sun.java2d.uiScale"));System.exit(0);
+   System.out.println("PASS workspace reference layouts "+args[2]+" / scale "+System.getProperty("sun.java2d.uiScale")+" / density "+c.uiDensity+" / device transform "+frame.getGraphicsConfiguration().getDefaultTransform());System.exit(0);
   }catch(Throwable e){e.printStackTrace();System.exit(1);}
+ }
+ static void assertLayerRows() throws Exception {
+  edt(()->{
+   if(frame.getHeight()<800){System.out.println("UNAVAILABLE minimum-workspace layer check: desktop limited frame to "+frame.getWidth()+"×"+frame.getHeight()+" logical pixels");return null;}
+   JTable table=findLayers(panel);Rectangle visible=table.getVisibleRect();
+   check(visible.contains(table.getCellRect(2,0,true)),"three layer rows visible with Machine open: "+visible);return null;});
  }
  static void assertStop() throws Exception {
   edt(()->{JButton stop=findButton(panel,"Stop");check(stop!=null&&stop.isShowing()&&stop.isEnabled(),"Stop reachable");Rectangle bounds=SwingUtilities.convertRectangle(stop.getParent(),stop.getBounds(),panel);check(new Rectangle(panel.getSize()).contains(bounds),"Stop within workspace: "+bounds);return null;});

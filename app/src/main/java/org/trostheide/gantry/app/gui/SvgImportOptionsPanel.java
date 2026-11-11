@@ -46,11 +46,12 @@ final class SvgImportOptionsPanel extends JPanel {
     private final JSpinner paddingSpinner = new JSpinner(new SpinnerNumberModel(
             ArtworkImportPolicy.DEFAULT_PADDING_MM, 0.0, 500.0, 1.0));
     private final JCheckBox keepAspectRatioCheck = new JCheckBox("Keep aspect ratio", true);
-    private final JCheckBox preservePageCheck = new JCheckBox("Preserve SVG page and empty margins");
+    private final JCheckBox preservePageCheck = new JCheckBox("Preserve page margins");
     private final JCheckBox mirrorCheck = new JCheckBox("Mirror");
     private final PaperFormat machineFormat;
-    private final PaperFormat svgDocumentFormat;
-    private final JLabel safeFitSummary = new JLabel();
+    private PaperFormat svgDocumentFormat;
+    private ImportPreviewPanel preview;
+    private final JTextArea safeFitSummary = WorkspaceStyle.note("");
     private boolean advancedImportVisible;
 
     // SVGToolBox pre-processing options
@@ -89,7 +90,13 @@ final class SvgImportOptionsPanel extends JPanel {
                 ? advancedImportVisible ? ADVANCED_IMPORT_DIALOG_SIZE : BASIC_DIALOG_SIZE
                 : SVG_PROCESSING_DIALOG_SIZE));
 
-        add(tabs, BorderLayout.CENTER);
+        preview=new ImportPreviewPanel(machineWidth,machineHeight,()->collectResult(false));
+        tabs.setMinimumSize(new Dimension(260,180));
+        JSplitPane split=new JSplitPane(JSplitPane.HORIZONTAL_SPLIT,tabs,preview);
+        split.setResizeWeight(.4);split.setDividerLocation(360);split.setBorder(null);
+        add(split,BorderLayout.CENTER);
+        watch(tabs);
+        preview.setSource(sourceSvg);
 
         fitToCombo.addActionListener(e -> {
             updateSizeControls();
@@ -137,11 +144,17 @@ final class SvgImportOptionsPanel extends JPanel {
 
         JPanel basic = new JPanel();
         basic.setLayout(new BoxLayout(basic, BoxLayout.Y_AXIS));
-        JLabel heading = new JLabel("Fit artwork safely to your plotter");
+        JLabel heading = new JLabel("Artwork size");
         heading.setFont(heading.getFont().deriveFont(Font.BOLD, 16f));
         safeFitSummary.setBorder(BorderFactory.createEmptyBorder(5, 0, 5, 0));
         basic.add(heading);
+        safeFitSummary.setMaximumSize(new Dimension(Integer.MAX_VALUE,70));
         basic.add(safeFitSummary);
+        JPanel sizing=new JPanel(new GridLayout(0,2,6,6));
+        sizing.add(new JLabel("Size policy"));sizing.add(fitToCombo);
+        sizing.add(new JLabel("Custom size (mm)"));sizing.add(customSizeField);
+        sizing.add(new JLabel("Margin (mm)"));sizing.add(paddingSpinner);
+        basic.add(sizing);basic.add(keepAspectRatioCheck);basic.add(preservePageCheck);
 
         JCheckBox advancedToggle = new JCheckBox("Advanced options");
         advancedToggle.setToolTipText("Show paper formats, refill settings, curve detail, and mirroring");
@@ -153,8 +166,11 @@ final class SvgImportOptionsPanel extends JPanel {
             resizeDialog(advancedImportVisible ? ADVANCED_IMPORT_DIALOG_SIZE : BASIC_DIALOG_SIZE);
         });
         basic.add(advancedToggle);
+        for(Component child:basic.getComponents())if(child instanceof JComponent component)component.setAlignmentX(LEFT_ALIGNMENT);
         root.add(basic, BorderLayout.NORTH);
-        root.add(advanced, BorderLayout.CENTER);
+        JPanel details=new JPanel(new BorderLayout());details.add(advanced,BorderLayout.NORTH);
+        JScrollPane scroll=new JScrollPane(details);scroll.setBorder(null);scroll.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
+        root.add(scroll,BorderLayout.CENTER);
         return root;
     }
 
@@ -172,17 +188,17 @@ final class SvgImportOptionsPanel extends JPanel {
         addRow(form, gbc, "Max draw distance (mm, 0 = no refill)", maxDrawDistanceSpinner);
         addRow(form, gbc, "Default station ID", stationField);
         addRow(form, gbc, "Curve step (mm)", curveStepSpinner);
-        addRow(form, gbc, "Fit to", fitToCombo);
-        addRow(form, gbc, "Custom size (WxH mm)", customSizeField);
-        addRow(form, gbc, "Padding (mm)", paddingSpinner);
+
+
+
 
         gbc.gridx = 0;
         gbc.gridwidth = 2;
-        form.add(keepAspectRatioCheck, gbc);
+
         gbc.gridy++;
         preservePageCheck.setToolTipText(
                 "Map the complete SVG viewBox to the selected size instead of enlarging only visible artwork");
-        form.add(preservePageCheck, gbc);
+
         gbc.gridy++;
         form.add(mirrorCheck, gbc);
 
@@ -248,13 +264,13 @@ final class SvgImportOptionsPanel extends JPanel {
         form.setBorder(BorderFactory.createEmptyBorder(8, 8, 8, 8));
 
         JLabel intro = new JLabel("Choose a goal, then check the preview. Keep artwork unchanged is always available.");
-        form.add(intro, BorderLayout.NORTH);
+        form.add(WorkspaceStyle.note("Choose a processing goal. The preview shows its physical result."), BorderLayout.NORTH);
         JScrollPane controls = new JScrollPane(optionsPanel);
         controls.setBorder(null);
         controls.getVerticalScrollBar().setUnitIncrement(12);
-        controls.setPreferredSize(new Dimension(430, 560));
-        form.add(controls, BorderLayout.WEST);
-        form.add(new ProcessingPreviewPanel(sourceSvg, optionsPanel), BorderLayout.CENTER);
+        controls.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
+        controls.setPreferredSize(new Dimension(330, 420));
+        form.add(controls, BorderLayout.CENTER);
 
         // These features only run as part of the SVGToolBox pipeline; reflect that
         // in the UI so the master toggle matches what will actually happen.
@@ -279,7 +295,33 @@ final class SvgImportOptionsPanel extends JPanel {
         gbc.gridy++;
     }
 
-    Result collectResult() {
+    void setSource(java.io.File file) {
+        PaperFormat next=SvgDocumentSize.read(file).orElse(null);
+        svgDocumentFormat=next;
+        if(next!=null && ((DefaultComboBoxModel<String>)fitToCombo.getModel()).getIndexOf(USE_SVG_SIZE)<0)fitToCombo.insertItemAt(USE_SVG_SIZE,1);
+        if(next==null && USE_SVG_SIZE.equals(fitToCombo.getSelectedItem()))fitToCombo.setSelectedItem(FIT_TO_MACHINE);
+        preview.setSource(file);updateSafeFitSummary();
+    }
+    void configurePreview(org.trostheide.gantry.app.plot.PlotSettings settings){preview.configure(settings);}
+    boolean previewReady(){return preview.ready();}
+    void onPreviewChange(Runnable callback){preview.onChange(callback);}
+    void closePreview(){preview.close();}
+    private void watch(Container parent){
+        for(Component c:parent.getComponents()){
+            if(c instanceof JSpinner spinner)spinner.addChangeListener(e->preview.schedule());
+            else if(c instanceof JComboBox<?> combo)combo.addActionListener(e->preview.schedule());
+            else if(c instanceof AbstractButton button)button.addActionListener(e->preview.schedule());
+            else if(c instanceof JTextField field)field.getDocument().addDocumentListener(new javax.swing.event.DocumentListener(){
+                public void insertUpdate(javax.swing.event.DocumentEvent e){preview.schedule();}
+                public void removeUpdate(javax.swing.event.DocumentEvent e){preview.schedule();}
+                public void changedUpdate(javax.swing.event.DocumentEvent e){preview.schedule();}
+            });
+            if(c instanceof Container child)watch(child);
+        }
+    }
+
+    Result collectResult() { return collectResult(true); }
+    private Result collectResult(boolean report) {
         double maxDrawDistance = ((Number) maxDrawDistanceSpinner.getValue()).doubleValue();
         String station = stationField.getText().trim();
         if (station.isEmpty()) {
@@ -304,7 +346,7 @@ final class SvgImportOptionsPanel extends JPanel {
                     : resolvePaperPreset(fitToSelection);
 
         if (format == null) {
-            JOptionPane.showMessageDialog(this, "Custom size must be 'WxH' in mm, e.g. 210x297.",
+            if(report)JOptionPane.showMessageDialog(this, "Custom size must be 'WxH' in mm, e.g. 210x297.",
                     "Invalid size", JOptionPane.ERROR_MESSAGE);
             return null;
         }
@@ -320,7 +362,7 @@ final class SvgImportOptionsPanel extends JPanel {
             try {
                 toolboxConfig = optionsPanel.buildConfig();
             } catch (IllegalArgumentException ex) {
-                JOptionPane.showMessageDialog(this, ex.getMessage(), "Invalid SVGToolBox option",
+                if(report)JOptionPane.showMessageDialog(this, ex.getMessage(), "Invalid SVGToolBox option",
                         JOptionPane.ERROR_MESSAGE);
                 return null;
             }

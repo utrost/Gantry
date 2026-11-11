@@ -18,8 +18,8 @@ final class CanvasPalette {
 
     static boolean light;
     static Color text(){return light?new Color(55,60,70):new Color(200,200,200);}
-    static Color selection(){return light?new Color(140,85,0):new Color(255,200,50);}
-    static void setLight(boolean value) { light=value; BACKGROUND=value?new Color(249,250,252):new Color(35,35,40); }
+    static Color selection(){return light?new Color(140,85,0):new Color(130,178,255);}
+    static void setLight(boolean value) { light=value; BACKGROUND=value?new Color(230,234,241):new Color(19,23,31); }
     static Color displayColor(String hex, int index) {
         Color parsed = parseHex(hex);
         if (parsed == null) return fallback(index);
