@@ -44,18 +44,16 @@ Choose **Start guided practice**.
 
 This route:
 
-1. opens the real setup workflow;
-2. selects the mock backend;
-3. loads a supplied practice drawing;
-4. shows the drawing on the virtual bed;
-5. leads into the normal connection and safety check;
-6. completes a simulated plot without moving hardware.
+1. selects simulation without requiring machine configuration;
+2. loads a supplied practice drawing on the virtual bed;
+3. leads into the normal connection and safety check;
+4. completes a simulated plot without moving hardware.
 
 If the welcome was dismissed, reopen it with **Help > Guided First Plot...**.
 
 ## 3. Confirm the safe state
 
-Before connecting anything, Gantry should say **Safe — nothing will move**. You
+During practice the top bar says **Simulation • no physical hardware**. You
 can load, process, position, and save artwork while disconnected. That preview is
 not a hardware connection.
 

@@ -30,9 +30,21 @@ public class GuiAcceptance {
             Thread.setDefaultUncaughtExceptionHandler((t,e)->{ e.printStackTrace(); System.exit(1); });
             GantryApp.main(new String[0]);
             await(() -> { for (Window w : Window.getWindows()) if (w instanceof JFrame f && f.isShowing()) { frame=f; panel=(PlotterPanel)f.getContentPane(); return true; } return false; });
+            if (args[2].equals("defer")) {
+                Path recoveryFile = profile.resolve(".gantry-recovery");
+                byte[] original = Files.readAllBytes(recoveryFile);
+                JDialog recovery = dialog("Recovery available");
+                edt(()->{ recovery.dispatchEvent(new java.awt.event.WindowEvent(recovery, java.awt.event.WindowEvent.WINDOW_CLOSING)); return null; });
+                await(()->!recovery.isShowing());
+                check(java.util.Arrays.equals(original,Files.readAllBytes(recoveryFile)),"Close preserves recovery bytes");
+                check(edt(()->panel.requestClose()),"empty workspace can close");
+                check(java.util.Arrays.equals(original,Files.readAllBytes(recoveryFile)),"clean close preserves deferred recovery");
+                System.out.println("PASS recovery Close and clean shutdown preserve the recovery copy");
+                System.exit(0);
+            }
             if (args[2].equals("recover")) {
                 JDialog recovery = dialog("Recovery available");
-                click(recovery,"Yes");
+                click(recovery,"Recover");
                 await(() -> project().output()!=null && frame.getTitle().contains("Unsaved"));
                 check(edt(()->project().selectedLayers().size())==2,"recovery restores unsaved layer selection");
                 check(!edt(()->jobs().isConnected()),"recovery starts disconnected");
@@ -118,6 +130,7 @@ public class GuiAcceptance {
             click(panel,"Stop"); await(()->!jobs().isPlotting());
             check(edt(()->((PlotJobHistory)field(panel,"plotHistory")).jobs().size())==1,"cancelled plot not added to history");
             System.out.println("PASS Stop while awaiting pen confirmation");
+            click(panel,"Return to artwork");
             menu("Export G-code (for plotter)..."); choose(profile.resolve("gui-export.gcode"));
             await(()->Files.exists(profile.resolve("gui-export.gcode")));
             check(Files.readString(profile.resolve("gui-export.gcode")).contains("G1"),"export contains movement");
@@ -125,6 +138,11 @@ public class GuiAcceptance {
             edt(()->{findLayers(panel).setValueAt(true,0,0);return null;});
             menu("Save Project..."); choose(profile.resolve("gui-project.gantry"));
             await(()->Files.exists(profile.resolve("gui-project.gantry")));
+            click(panel,"All");
+            menu("Save Project..."); await(()->!frame.getTitle().contains("Unsaved"));
+            check(org.trostheide.gantry.app.session.GantryProjectIO.load(profile.resolve("gui-project.gantry").toFile()).selectedLayers().size()==3,"Save reuses project path");
+            click(panel,"None"); edt(()->{findLayers(panel).setValueAt(true,0,0);return null;});
+            menu("Save Project..."); await(()->!frame.getTitle().contains("Unsaved"));
             menu("Open Gantry Project..."); choose(profile.resolve("gui-project.gantry"));
             await(()->!frame.getTitle().contains("Unsaved"));
             check(edt(()->project().selectedLayers().size())==1,"reopen restores selected layers");

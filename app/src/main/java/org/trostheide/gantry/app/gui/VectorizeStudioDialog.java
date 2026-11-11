@@ -36,7 +36,7 @@ import java.util.List;
 public final class VectorizeStudioDialog extends JDialog {
 
     /** The dialog's result: the vectorizer argument list (no {@code -i}/{@code -o}). */
-    public record Result(List<String> vectorizeArgs, String strategyLabel) {
+    public record Result(List<String> vectorizeArgs, String strategyLabel, File tracedSvg) {
     }
 
     /** A selectable strategy: a human label, the CLI code, and which controls apply. */
@@ -134,6 +134,10 @@ public final class VectorizeStudioDialog extends JDialog {
     private final BufferedImage sourceImage;
     private SwingWorker<TraceResult, Void> worker;
     private boolean applyingPreset;
+    private long traceRevision;
+    private TraceResult validTrace;
+    private List<String> validParams=List.of();
+    private final java.util.Map<JComponent,JLabel> controlLabels=new java.util.LinkedHashMap<>();
     private Result result;
     private SvgImportOptionsPanel importOptions;
     private SvgImportDialog.Result placement;
@@ -170,6 +174,8 @@ public final class VectorizeStudioDialog extends JDialog {
         JPanel trace=new JPanel(new BorderLayout());
         trace.add(buildPreviewSplit(),BorderLayout.CENTER);trace.add(buildControls(),BorderLayout.EAST);
         importOptions=new SvgImportOptionsPanel(owner,null,width,height);
+        vectorizeBtn.setEnabled(false);
+        importOptions.onPreviewChange(()->vectorizeBtn.setEnabled(validTrace!=null && importOptions.previewReady()));
         JTabbedPane stages=new JTabbedPane();stages.addTab("Trace preview",trace);
         stages.addTab("Size & processing",importOptions);add(stages,BorderLayout.CENTER);
         add(buildSouth(), BorderLayout.SOUTH);
@@ -181,7 +187,9 @@ public final class VectorizeStudioDialog extends JDialog {
         }
         updateEnabledState();
 
-        WorkspaceStyle.fitDialog(this,1240,800);
+        WorkspaceStyle.fitDialog(this,1100,740);
+        setDefaultCloseOperation(DISPOSE_ON_CLOSE);
+        getRootPane().registerKeyboardAction(e->dispose(),KeyStroke.getKeyStroke("ESCAPE"),JComponent.WHEN_IN_FOCUSED_WINDOW);
 
         // Fit the source once the panel is realised, then kick off the first trace.
         SwingUtilities.invokeLater(() -> {
@@ -200,7 +208,7 @@ public final class VectorizeStudioDialog extends JDialog {
         previewPanel = right;
         JSplitPane split = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, left, right);
         split.setResizeWeight(0.5);
-        split.setDividerLocation(540);
+        SwingUtilities.invokeLater(()->split.setDividerLocation(.5));
         return split;
     }
 
@@ -467,6 +475,9 @@ public final class VectorizeStudioDialog extends JDialog {
         if (applyingPreset) {
             return;
         }
+        traceRevision++;validTrace=null;vectorizeBtn.setEnabled(false);
+        importOptions.setSource(null);
+        if(worker!=null)worker.cancel(true);
         updateEnabledState();
         debounce.restart();
     }
@@ -522,6 +533,12 @@ public final class VectorizeStudioDialog extends JDialog {
         strokeColorField.setEnabled(stroked);
         strokeWidthSpinner.setEnabled(stroked);
         smoothCurvesCheck.setEnabled(canny);
+        for(var entry:controlLabels.entrySet()){
+            JComponent field=entry.getKey();boolean visible=field.isEnabled() || (canny && (field==cannyLowSpinner || field==cannyHighSpinner));
+            field.setVisible(visible);entry.getValue().setVisible(visible);
+        }
+        for(JCheckBox box:new JCheckBox[]{cannyAutoCheck,colorEdgesCheck,b2OutlineCheck,sketchSkeletonCheck,smoothCurvesCheck})box.setVisible(box.isEnabled());
+        revalidate();repaint();
     }
 
     // ----- argument building (shared by preview traces and the committed result) -----
@@ -743,6 +760,7 @@ public final class VectorizeStudioDialog extends JDialog {
         setTracing(true);
         hint.setText(" ");
         vectorizeBtn.setEnabled(false);
+        long requested=++traceRevision;validTrace=null;
         List<String> params = buildParams();
 
         worker = new SwingWorker<>() {
@@ -755,30 +773,25 @@ public final class VectorizeStudioDialog extends JDialog {
                         "-i", imageFile.getAbsolutePath(), "-o", svg.getAbsolutePath()));
                 args.addAll(params);
                 org.trostheide.gantry.vectorize.Main.runSingleFile(args.toArray(new String[0]));
-                String content = Files.readString(svg.toPath());
-                int paths = count(content, "<path") + count(content, "<polyline") + count(content, "<line");
-                // Import the traced SVG to the command model for plotter-aware metrics (Tier 2);
-                // best-effort — fall back to the raw path count if import fails.
-                StudioMetrics metrics = null;
-                try {
-                    ProcessorOutput out = SvgImportStage.importSvg(svg, SvgImportOptions.defaults());
-                    metrics = StudioMetrics.of(out);
-                } catch (Exception ignored) {
-                    // keep metrics null
-                }
-                return new TraceResult(svg, paths, metrics);
+                // Count drawable commands through the real SVG importer. Serialized SVG may
+                // use namespace prefixes or shape elements instead of literal <path> tags.
+                ProcessorOutput output = SvgImportStage.importSvg(svg, SvgImportOptions.defaults());
+                StudioMetrics metrics = StudioMetrics.of(output);
+                return new TraceResult(svg, metrics.strokes(), metrics);
             }
 
             @Override
             protected void done() {
-                if (isCancelled()) {
+                if (isCancelled() || requested!=traceRevision || !isDisplayable()) {
                     // A newer trace is already running (it re-armed the tracing state); leave it.
                     return;
                 }
                 setTracing(false);
-                vectorizeBtn.setEnabled(true);
+                vectorizeBtn.setEnabled(false);
                 try {
                     TraceResult tr = get();
+                    if(tr.paths<=0)throw new IllegalArgumentException("No paths found. Try another preset or threshold.");
+                    validTrace=tr;validParams=List.copyOf(params);importOptions.setSource(tr.svg);
                     previewCanvas.setURI(tr.svg.toURI().toString());
                     if (tr.metrics != null) {
                         readout.setText(currentStrategy().label + " · " + tr.metrics.summary());
@@ -809,13 +822,16 @@ public final class VectorizeStudioDialog extends JDialog {
     }
 
     @Override public void dispose(){
+        traceRevision++;
         if(debounce!=null)debounce.stop();if(worker!=null)worker.cancel(true);
+        if(importOptions!=null)importOptions.closePreview();
         previewCanvas.stopProcessing();super.dispose();
     }
     private void onVectorize() {
+        if(validTrace==null || !importOptions.previewReady())return;
         var options=importOptions.collectResult();if(options==null)return;
         placement=new SvgImportDialog.Result(options.importOptions(),options.toolboxConfig());
-        result = new Result(buildParams(), currentStrategy().label);
+        result = new Result(validParams, currentStrategy().label, validTrace.svg);
         if (worker != null && !worker.isDone()) {
             worker.cancel(true);
         }
@@ -823,20 +839,13 @@ public final class VectorizeStudioDialog extends JDialog {
     }
 
     /** Shows the studio and returns the chosen options, or {@code null} if cancelled. */
+    void configurePreview(org.trostheide.gantry.app.plot.PlotSettings settings){importOptions.configurePreview(settings);}
     public Result showDialog() {
         setVisible(true);
         return result;
     }
 
     // ----- helpers -----
-
-    private static int count(String haystack, String needle) {
-        int n = 0;
-        for (int i = haystack.indexOf(needle); i >= 0; i = haystack.indexOf(needle, i + 1)) {
-            n++;
-        }
-        return n;
-    }
 
     private static String rootMessage(Throwable t) {
         Throwable c = t;
@@ -850,7 +859,7 @@ public final class VectorizeStudioDialog extends JDialog {
         gbc.gridx = 0;
         gbc.gridwidth = 1;
         gbc.weightx = 0;
-        form.add(new JLabel(label), gbc);
+        JLabel name=new JLabel(label);name.setLabelFor(field);controlLabels.put(field,name);form.add(name,gbc);
         gbc.gridx = 1;
         gbc.weightx = 1;
         form.add(field, gbc);

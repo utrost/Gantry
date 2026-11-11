@@ -7,8 +7,10 @@ LAYOUT_CLASSES="$(mktemp -d -t gantry-layout-classes-XXXXXX)"
 trap 'rm -rf "$LAYOUT_CLASSES"' EXIT
 javac -cp "$JAR" -d "$LAYOUT_CLASSES" scripts/gui/GuiAcceptance.java scripts/gui/WorkspaceLayouts.java
 for theme in Light Dark; do
+    for density in Comfortable Compact; do
     for scale in 1 1.25 1.5 2; do
         timeout 90s java -Dsun.java2d.uiScale="$scale" -cp "$LAYOUT_CLASSES:$JAR" WorkspaceLayouts \
-            "$PWD" "$RESULTS/$theme-$scale" "$theme"
+            "$PWD" "$RESULTS/$theme-$density-$scale" "$theme" "$density"
+    done
     done
 done

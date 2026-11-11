@@ -8,6 +8,20 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import static org.junit.jupiter.api.Assertions.*;
 
 class LocalFeedbackPanelTest {
+    @Test void unresolvedErrorSurvivesSuccessAndTimeout() throws Exception {
+        LocalFeedbackPanel[] panel=new LocalFeedbackPanel[1];
+        SwingUtilities.invokeAndWait(()->{
+            panel[0]=new LocalFeedbackPanel(10);
+            panel[0].showMessage("Machine failed",LocalFeedbackPanel.Tone.ERROR);
+            panel[0].showMessage("Saved",LocalFeedbackPanel.Tone.SUCCESS);
+        });
+        Thread.sleep(60);
+        SwingUtilities.invokeAndWait(()->{
+            assertTrue(panel[0].isVisible());assertEquals("Machine failed",panel[0].messageText());
+            panel[0].dismiss();panel[0].showMessage("Saved",LocalFeedbackPanel.Tone.SUCCESS);
+            assertEquals("Saved",panel[0].messageText());panel[0].dismiss();
+        });
+    }
     @Test
     void actionFeedbackIsVisibleAccessibleAndInvokesTheExistingAction() throws Exception {
         AtomicBoolean invoked = new AtomicBoolean();

@@ -11,6 +11,7 @@ final class ArtworkWorkspacePanel extends JLayeredPane {
     private final JComponent canvas;
     private final JPanel emptyState = new JPanel(new BorderLayout(0, 12));
     private boolean dismissed;
+    private final JPanel viewportActions=new JPanel(new FlowLayout(FlowLayout.LEFT,6,2));
 
     ArtworkWorkspacePanel(JComponent canvas, Consumer<Component> browse) {
         this.canvas = canvas;
@@ -29,13 +30,24 @@ final class ArtworkWorkspacePanel extends JLayeredPane {
         emptyState.getActionMap().put("dismiss", new AbstractAction() {
             @Override public void actionPerformed(ActionEvent event) { dismiss(); }
         });
-        add(canvas, DEFAULT_LAYER); add(emptyState, PALETTE_LAYER);
+        if(canvas instanceof VisualizationPanel visualization){
+            for(JButton button:new JButton[]{WorkspaceStyle.button("Fit bed",visualization::resetView),WorkspaceStyle.button("Fit artwork",visualization::fitArtworkView),
+                    WorkspaceStyle.button("−",()->visualization.zoomAtCursor(.8,visualization.getWidth()/2,visualization.getHeight()/2)),
+                    WorkspaceStyle.button("+",()->visualization.zoomAtCursor(1.25,visualization.getWidth()/2,visualization.getHeight()/2))}){
+                WorkspaceStyle.quiet(button);viewportActions.add(button);
+            }
+            ((JButton)viewportActions.getComponent(2)).getAccessibleContext().setAccessibleName("Zoom out");
+            ((JButton)viewportActions.getComponent(3)).getAccessibleContext().setAccessibleName("Zoom in");
+        }
+        add(canvas, DEFAULT_LAYER); add(emptyState, PALETTE_LAYER);add(viewportActions,MODAL_LAYER);
     }
     void dismiss() { dismissed = true; emptyState.setVisible(false); canvas.requestFocusInWindow(); repaint(); }
     void setHasArtwork(boolean hasArtwork) { emptyState.setVisible(!hasArtwork && !dismissed); repaint(); }
     boolean isShowingEmptyState() { return emptyState.isVisible(); }
     @Override public void doLayout() {
-        canvas.setBounds(0, 0, getWidth(), getHeight());
+        int toolbarHeight=viewportActions.getPreferredSize().height;
+        viewportActions.setBounds(0,0,getWidth(),toolbarHeight);
+        canvas.setBounds(0,toolbarHeight,getWidth(),Math.max(0,getHeight()-toolbarHeight));
         Dimension size = emptyState.getPreferredSize();
         int width = Math.min(size.width, Math.max(0, getWidth() - 24));
         emptyState.setBounds((getWidth() - width) / 2, Math.max(12, (getHeight() - size.height) / 2), width, size.height);

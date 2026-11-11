@@ -26,18 +26,21 @@ final class OverlayControlsPanel extends JPanel {
         setLayout(new BoxLayout(this,BoxLayout.Y_AXIS));setBorder(BorderFactory.createEmptyBorder(2,0,2,0));
         JButton reset=WorkspaceStyle.button("Reset",visualization::resetOverlay),rotate=WorkspaceStyle.button("Rotate 90°",visualization::rotateOverlay),mirror=WorkspaceStyle.button("Mirror",visualization::toggleMirror);
         reset.setToolTipText("Reset artwork placement");
-        add(WorkspaceStyle.heading("Artwork placement"));
+        add(WorkspaceStyle.heading("Position on bed · mm from origin"));
         JPanel grid=new JPanel(new GridBagLayout());GridBagConstraints g=new GridBagConstraints();g.insets=new Insets(3,2,3,2);g.fill=GridBagConstraints.HORIZONTAL;
         String[] names={"X","Y","Width","Height"};JSpinner[] fields={x,y,width,height};
         for(int i=0;i<fields.length;i++){compactCoordinateSpinner(fields[i]);fields[i].getAccessibleContext().setAccessibleName("Artwork "+names[i]+" in millimetres");
             g.gridy=i/2;g.gridx=(i%2)*3;g.weightx=0;JLabel label=new JLabel(names[i]);label.setLabelFor(fields[i]);grid.add(label,g);
             g.gridx++;g.weightx=1;grid.add(fields[i],g);g.gridx++;g.weightx=0;grid.add(new JLabel("mm"),g);}
         grid.setAlignmentX(LEFT_ALIGNMENT);grid.setMaximumSize(new Dimension(Integer.MAX_VALUE,grid.getPreferredSize().height));add(grid);
-        add(row(reset,rotate,mirror));
+        for(JButton button:List.of(reset,rotate,mirror))WorkspaceStyle.quiet(button);
+
         x.addChangeListener(e->{if(!refreshing)apply();});y.addChangeListener(e->{if(!refreshing)apply();});
-        JCheckBox lock=new JCheckBox("Lock aspect ratio",true);lock.setToolTipText("Width and height remain proportional to preserve the drawing");lock.setAlignmentX(LEFT_ALIGNMENT);add(lock);
+        JCheckBox lock=new JCheckBox("Ratio",true);lock.getAccessibleContext().setAccessibleName("Lock aspect ratio");lock.setToolTipText("Width and height remain proportional to preserve the drawing");lock.setAlignmentX(LEFT_ALIGNMENT);add(row(reset,rotate,mirror,lock));
         width.addChangeListener(e->{if(!refreshing)visualization.resizeArtwork(((Number)width.getValue()).doubleValue(),((Number)height.getValue()).doubleValue(),true,lock.isSelected());});
         height.addChangeListener(e->{if(!refreshing)visualization.resizeArtwork(((Number)width.getValue()).doubleValue(),((Number)height.getValue()).doubleValue(),false,lock.isSelected());});
+        JTextArea validation=WorkspaceStyle.note("");validation.setRows(2);validation.setVisible(false);add(validation);
+        for(JSpinner spinner:fields)NumericEditSupport.install(spinner,message->{validation.setText(message);validation.setVisible(!message.isBlank());revalidate();});
         controls=List.of(reset,rotate,mirror,x,y,width,height,lock);wirePreview();
     }
     void setPlotting(boolean plotting){for(JComponent c:controls)c.setEnabled(!plotting);}

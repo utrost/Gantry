@@ -7,13 +7,14 @@ import java.util.List;
 /** Transient operator confirmations. Never saved or restored across connection/session changes. */
 final class WorkspaceChecks extends JPanel {
     private final JLabel automatic = new JLabel();
+    private final JTextArea bounds=WorkspaceStyle.note("");
     private final List<JCheckBox> checks = List.of(new JCheckBox("Pen installed and lift checked"),
             new JCheckBox("Paper secured; bed and frame clear"), new JCheckBox("Correct origin, size and pen layers"));
     private final Runnable changed;
     private boolean automaticPass;
     WorkspaceChecks(Runnable home,Runnable frame,Runnable penUp,Runnable changed) {
         super();setBorder(BorderFactory.createEmptyBorder(10,12,10,12));this.changed=changed;setLayout(new BoxLayout(this,BoxLayout.Y_AXIS));
-        add(WorkspaceStyle.heading("Before the machine moves"));add(automatic);
+        add(WorkspaceStyle.heading("Review this plot"));add(automatic);add(bounds);
         add(WorkspaceStyle.note("Machine checks"));
         add(WorkspaceStyle.button("Home machine…",home));
         add(WorkspaceStyle.button("Frame artwork — pen up",frame));
@@ -28,6 +29,7 @@ final class WorkspaceChecks extends JPanel {
                 (automaticPass?"✓ Drawing, layers and idle connection available":"Review drawing, selected layers and idle connection")+"</html>");
         for(JCheckBox c:checks)c.setEnabled(automaticPass);
     }
+    void setBoundsMessage(String text){bounds.setText(text);bounds.setVisible(!text.isBlank());}
     boolean ready(){return automaticPass&&checks.stream().allMatch(AbstractButton::isSelected);}
     void clearConfirmations(){checks.forEach(c->c.setSelected(false));}
 }

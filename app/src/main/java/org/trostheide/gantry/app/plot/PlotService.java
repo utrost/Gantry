@@ -289,7 +289,12 @@ public class PlotService {
      *
      * @return {minX, maxX, minY, maxY} in machine coordinates, or null if the output has no points.
      */
-    public double[] computeFrameBounds(ProcessorOutput output) {
+    public double[] computeFrameBounds(ProcessorOutput output) { return computeBounds(output,true); }
+
+    /** Unclamped dimensions for reviewing loss of artwork before sending any movement. */
+    public double[] computeArtworkBounds(ProcessorOutput output) { return computeBounds(output,false); }
+
+    private double[] computeBounds(ProcessorOutput output,boolean clamp) {
         double machineW = settings.resolveMachineWidth();
         double machineH = settings.resolveMachineHeight();
         double[] contentBounds = computeContentBounds(output.layers());
@@ -311,7 +316,7 @@ public class PlotService {
             offsetX = offset[0];
             offsetY = offset[1];
         }
-        return plotBounds(contentBounds, machineW, machineH, offsetX, offsetY, true);
+        return plotBounds(contentBounds, machineW, machineH, offsetX, offsetY, clamp);
     }
 
     /**

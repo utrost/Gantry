@@ -18,11 +18,13 @@ final class CalibrationWorkflow {
     private final Consumer<String> logger;
     private final Runnable apply;
     private final Runnable save;
+    private final BooleanSupplier busy;
+    private final Runnable stop;
 
     CalibrationWorkflow(Window owner, GantryConfig config, BooleanSupplier connected, Runnable connect,
             Consumer<Consumer<PlotterBackend>> backendAction, Consumer<String> logger,
-            Runnable apply, Runnable save) {
-        this.owner=owner; this.config=config; this.connected=connected; this.connect=connect;
+            Runnable apply, Runnable save, BooleanSupplier busy, Runnable stop) {
+        this.busy=busy;this.stop=stop;this.owner=owner; this.config=config; this.connected=connected; this.connect=connect;
         this.backendAction=backendAction; this.logger=logger; this.apply=apply; this.save=save;
     }
 
@@ -55,12 +57,13 @@ final class CalibrationWorkflow {
                         + "<i>Machine &gt; Calibrate Axes…</i>.</html>")));
 
         WizardDialog wizard = new WizardDialog(owner, "Calibrate Axes", steps);
+        wizard.operationControls(busy,stop);
         connectStep.attachOwner(wizard);
         wizard.setVisible(true);
         if (wizard.finishedSuccessfully()) {
             save.run();
             applyConfigToVis();
-            log("Axis calibration finished.");
+            log("Axis calibration finished. Skipped steps were not verified.");
         }
     }
 
@@ -90,7 +93,14 @@ final class CalibrationWorkflow {
             panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
             panel.setBorder(BorderFactory.createEmptyBorder(12, 12, 12, 12));
             panel.add(new JLabel("<html><b>1.</b> Jog the head to roughly the <b>middle of the bed</b> "
-                    + "(use the main Jog pad) so it has room to move in every direction.</html>"));
+                    + "using the small raw-motor moves below. Observe the actual direction; leave room on all sides.</html>"));
+            JPanel positioning=new JPanel(new FlowLayout(FlowLayout.LEFT));
+            for (int[] direction : new int[][]{{-1,0},{1,0},{0,-1},{0,1}}) {
+                double dx=direction[0],dy=direction[1];
+                JButton move=new JButton((dx==0?"Y ":"X ")+(dx+dy>0?"+":"−")+"1 mm");
+                move.addActionListener(e->runOnBackend(b->{b.penup();b.move(dx,dy);})); positioning.add(move);
+            }
+            panel.add(positioning);
             panel.add(Box.createVerticalStrut(10));
             panel.add(new JLabel("<html><b>2.</b> Move each motor axis and click the arrow for the way "
                     + "the pen <b>actually</b> moved. Right/Up are the on-screen +X/+Y senses.</html>"));

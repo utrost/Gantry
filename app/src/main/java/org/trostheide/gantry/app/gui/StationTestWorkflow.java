@@ -20,10 +20,12 @@ final class StationTestWorkflow {
     private final Consumer<Consumer<PlotterBackend>> backendAction;
     private final Runnable persist;
     private final Consumer<String> log;
+    private final BooleanSupplier busy;
+    private final Runnable stop;
 
     StationTestWorkflow(GantryConfig config, BooleanSupplier connected,
-            Consumer<Consumer<PlotterBackend>> backendAction, Runnable persist, Consumer<String> log) {
-        this.config = config; this.connected = connected; this.backendAction = backendAction;
+            Consumer<Consumer<PlotterBackend>> backendAction, Runnable persist, Consumer<String> log, BooleanSupplier busy, Runnable stop) {
+        this.busy=busy;this.stop=stop;this.config = config; this.connected = connected; this.backendAction = backendAction;
         this.persist = persist; this.log = log;
     }
 
@@ -40,6 +42,7 @@ final class StationTestWorkflow {
         }
         steps.add(new PanelStep("Done", label("<h3>Test run complete</h3>Finish to save nudged positions.")));
         WizardDialog wizard = new WizardDialog(owner, "Test Color Stations", steps);
+        wizard.operationControls(busy,stop);
         wizard.setVisible(true);
         if (!wizard.finishedSuccessfully()) return;
         for (StationStep step : stationSteps) config.stations.put(step.name, step.current());
@@ -65,7 +68,10 @@ final class StationTestWorkflow {
             panel.add(row(new JLabel("Step:"),amount,xm,xp,ym,yp));
         }
         double step(){return ((Number)amount.getValue()).doubleValue();}
-        void nudge(double dx,double dy){x+=dx;y+=dy;updateLabel();backendAction.accept(b->{b.penup();b.move(dx,dy);});}
+        void nudge(double dx,double dy){
+            if(busy.getAsBoolean() || !connected.getAsBoolean())return;
+            backendAction.accept(b->{b.penup();b.move(dx,dy);SwingUtilities.invokeLater(()->{x+=dx;y+=dy;updateLabel();});});
+        }
         void service(Consumer<PlotService> action){backendAction.accept(b->{PlotService s=new PlotService(b,config.toPlotSettings());s.setLogCallback(log);action.accept(s);});}
         StationConfig current(){return new StationConfig(round(x),round(y),base.zDown(),base.behavior(),base.color(),base.dwellMs(),base.swirlRadius());}
         void updateLabel(){coordinates.setText(String.format("Position: (%.1f, %.1f) mm",round(x),round(y)));}

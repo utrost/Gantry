@@ -114,6 +114,9 @@ public class PlotterPanel extends JPanel {
     private JMenu recentJobsMenu;
     private final PlotJobHistory plotHistory = new PlotJobHistory(org.trostheide.gantry.app.plot.UserStateFiles.resolve(configFile, "plot-history.json"));
     private PlotJobHistory.Job pendingJob;
+    private PlotJobHistory.Job displayedHistoricalJob;
+    private JobContextPanel jobContext;
+    private String boundsWarning="";
     private JCheckBoxMenuItem showTravelItem;
     /** True after a plot has completed at least once for the current drawing; enables Re-plot. */
     private final PlotProgressState plotProgress = new PlotProgressState();
@@ -122,6 +125,8 @@ public class PlotterPanel extends JPanel {
     private volatile boolean plotting;
     private volatile boolean awaitingLayerConfirmation;
     private java.awt.KeyEventDispatcher jogKeyDispatcher;
+    private boolean recoveryDeferred;
+    private boolean closeRequested;
     private final File recoveryFile = org.trostheide.gantry.app.plot.UserStateFiles.resolve(configFile, ".gantry-recovery");
     private javax.swing.Timer recoveryTimer;
 
@@ -150,7 +155,8 @@ public class PlotterPanel extends JPanel {
         north.setLayout(new BoxLayout(north, BoxLayout.Y_AXIS));
         north.add(toolbar());
         guidanceDismissed = !config.showGuidance;
-        north.add(localFeedback);
+        JPanel feedbackSlot=new JPanel(new BorderLayout());feedbackSlot.add(localFeedback);
+        feedbackSlot.setPreferredSize(new Dimension(0,30));feedbackSlot.setMaximumSize(new Dimension(Integer.MAX_VALUE,30));north.add(feedbackSlot);
         add(north, BorderLayout.NORTH);
 
         console.setEditable(false);
@@ -162,6 +168,7 @@ public class PlotterPanel extends JPanel {
         plotControls = new PlotControlsPanel(new PlotControlsPanel.Actions(
                 this::onLayerSelectionChanged, this::onProjectSettingsChanged,
                 visPanel::setColorByLayer, this::onEditLayerSettings));
+        plotControls.setPropertiesFactory(this::buildLayerSettingsPanel);
         documentEditor = new DocumentEditor(documentSession, this, this::onDocumentEdited,
                 this::setUndoAvailable, this::setRedoAvailable, this::log,
                 new DocumentEditor.Feedback() {
@@ -178,11 +185,18 @@ public class PlotterPanel extends JPanel {
                 this::captureProject, this::openProject, this::preparePlotOutput));
         gcodeFiles = new GcodeFileWorkflow(this, configFile, () -> config, this::preparePlotOutput,
                 () -> !selectedLayerIndices().isEmpty(), plotJobController,
-                visPanel::getAlignOffsetX, visPanel::getAlignOffsetY, this::log, this::error, this::info, active -> { replaying=active; if(!active){outcome=stopping?WorkspacePresentation.Phase.STOPPED:null;stopping=false;invalidateReadiness();} setPlottingState(active); plotControls.setReplay(active); });
-        jogPanel = new JogPanel(() -> config, plotJobController, visPanel, this::runOnBackend, this::log, this, ()->{invalidateReadiness();refreshGuidance();});
+                visPanel::getAlignOffsetX, visPanel::getAlignOffsetY, this::log, this::error, this::showFeedback, active -> { replaying=active; if(!active){outcome=stopping?WorkspacePresentation.Phase.STOPPED:null;stopping=false;invalidateReadiness();} setPlottingState(active); plotControls.setReplay(active); });
+        jogPanel = new JogPanel(() -> config, plotJobController, visPanel, this::runOnBackend, this::log, this, ()->{
+            if(!plotJobController.isMachineBusy() && !plotting){
+                if(stopping)outcome=WorkspacePresentation.Phase.STOPPED;
+                stopping=false;
+            }
+            invalidateReadiness();refreshGuidance();
+        });
+        jogPanel.onFailure(message->{stopping=false;outcome=WorkspacePresentation.Phase.FAILED;blocked(message);refreshGuidance();});
         connections = new BackendConnectionCoordinator(plotJobController, this, new BackendConnectionCoordinator.Listener() {
             public void connectionState(boolean connecting, boolean connected, boolean failed){showConnectionState(connecting,connected,failed);}
-            public void position(double x,double y){onJogPositionReport(x,y);SwingUtilities.invokeLater(()->visPanel.updatePosition(x,y));}
+            public void position(double x,double y){SwingUtilities.invokeLater(()->{if(plotJobController.isConnected()){onJogPositionReport(x,y);visPanel.updatePosition(x,y);}});}
             public void speed(int percent){SwingUtilities.invokeLater(()->onSpeedChanged(percent));}
             public void sent(String line){log("> "+line);} public void log(String line){PlotterPanel.this.log(line);}
             public void machineState(GcodeBackend.MachineState state){onGrblMachineState(state);}
@@ -231,26 +245,33 @@ public class PlotterPanel extends JPanel {
                 () -> runOnBackend(PlotterBackend::penup), this::refreshGuidance);
         artworkInspector = new ArtworkInspector(overlayControls,plotControls,
                 id -> {visPanel.selectArtwork(id);refreshArtworkInspector();},this::onArtworkGroups,
-                this::onEditProcessSvg,this::onReprocessSelectedArtwork,this::onReVectorizeImage,
-                (artwork,transform)->{documentSession.transformArtwork(artwork.id(),transform);visPanel.loadPathsPreservingOverlay(documentSession.currentOutput());refreshDocumentUi();documentEditor.historyAvailability();showUndoFeedback("Artwork transformed.");});
+                this::onEditProcessSvg,()->fileWorkflow.reprocessArtwork(visPanel.selectedArtwork()),this::onReVectorizeImage,
+                (artwork,transform)->{documentSession.transformArtwork(artwork.id(),transform);visPanel.loadPathsPreservingOverlay(documentSession.currentOutput());refreshDocumentUi();documentEditor.historyAvailability();showUndoFeedback("Artwork transformed.");},visPanel,(artwork,edit)->{
+                    try{boolean constrained=PhysicalArtworkPlacement.apply(documentSession,visPanel,artwork,edit);
+                        resetReplot();refreshDocumentUi();documentEditor.historyAvailability();
+                        if(constrained)localFeedback.showMessage("Position constrained to the machine bed. Check the applied coordinates.",LocalFeedbackPanel.Tone.INFO);
+                        else showUndoFeedback("Artwork placement changed.");
+                    }catch(IllegalArgumentException failure){blocked(failure.getMessage());}
+                });
         JPanel prepare=artworkInspector;
-        JButton machineMore=WorkspaceStyle.button("Setup & calibration ▾",()->{});
+        JButton machineMore=WorkspaceStyle.button("More ▾",()->{});machineMore.getAccessibleContext().setAccessibleName("Setup & calibration");
         machineMore.addActionListener(e->{JPopupMenu menu=new JPopupMenu();
             menu.add(menuItem("Machine setup…",event->onSetupWizard(),false));
             menu.add(menuItem("Calibrate axes…",event->onCalibrateAxesWizard(),false));
             menu.add(menuItem("Watercolor station checks…",event->onTestStationsWizard(),false));
             menu.show(machineMore,0,machineMore.getHeight());});
-        JPanel machine = WorkspaceStyle.stack(
-                WorkspaceStyle.note("Moves the physical pen when connected. Arrow keys work only on focused jog buttons."),
-                jogPanel, WorkspaceStyle.button("Frame artwork — pen up", this::frameJob),machineMore);
+        JPanel machineActions=new JPanel(new FlowLayout(FlowLayout.LEFT,6,0));
+        JButton frameButton=WorkspaceStyle.button("Frame…",this::frameJob);frameButton.getAccessibleContext().setAccessibleName("Frame artwork — pen up");frameButton.setToolTipText("Move around the prepared drawing with the pen raised");machineActions.add(frameButton);machineActions.add(jogPanel.homeButton());machineActions.add(machineMore);
+        JPanel machine = WorkspaceStyle.stack(jogPanel,machineActions);machine.setBorder(BorderFactory.createEmptyBorder(4,10,4,10));
+        machine.setToolTipText("Manual controls can move the connected plotter. Arrow keys work only on focused jog buttons.");
         // Only navigation remains available during a job; editing/motion actions retain existing gates.
         registerInspectorActions(machine); registerInspectorActions(workspaceChecks);
-        JPanel plot = WorkspaceStyle.stack(WorkspaceStyle.heading("Current job"),
-                WorkspaceStyle.button("Recent plot jobs…", () -> { if(recentJobsMenu!=null)recentJobsMenu.getPopupMenu().show(workspace.inspector,0,40); }),
-                WorkspaceStyle.button("Return to preparation", () -> {pendingJob=null;invalidateReadiness();workspace.showView("Prepare");refreshGuidance();}));
+        jobContext=new JobContextPanel(this::returnToArtwork);
+        JPanel plot=jobContext;
         workspace = new WorkspaceShell(artworkWorkspace,prepare,workspaceChecks,plot,machine,consoleScroll,rawCommands,
                 guidanceActionBtn,this::onStopPlot,this::onCopyDiagnostics,()->config,this::saveUiPreferences,jogPanel::stopContinuous);
-        plot.add(WorkspaceStyle.note("Progress, pen changes and job controls remain available below the canvas."));
+        workspace.setMachineStatus(jogPanel.positionIndicator());
+        workspace.setReturnAction(this::returnToArtwork);
         workspace.setProgressComponent(plotControls.progressStrip());
         machineToolbarSlot.add(workspace.machineToggle);
         refreshArtworkInspector();
@@ -369,19 +390,29 @@ public class PlotterPanel extends JPanel {
         if (workspace == null) return;
         boolean connected=plotJobController.isConnected();
         boolean idle=config.mock || controllerState==GcodeBackend.MachineState.IDLE;
+        updateBoundsReview();
         String summary=workspaceSummary();
-        workspaceChecks.update(pendingJob!=null||documentSession.currentOutput()!=null,pendingJob!=null||!selectedLayerIndices().isEmpty(),connected,idle,plotJobController.isMachineBusy()||manualActions>0,summary);
+        workspaceChecks.update(pendingJob!=null||documentSession.currentOutput()!=null,pendingJob!=null||!selectedLayerIndices().isEmpty(),connected,idle,plotJobController.isMachineBusy()||manualActions>0 || !historicalCompatible(),summary);
         WorkspacePresentation.View view=WorkspacePresentation.of(new WorkspacePresentation.Snapshot(
                 pendingJob!=null||documentSession.currentOutput()!=null,connected,connecting,config.mock,plotting,awaitingLayerConfirmation,
                 plotJobController.isPaused(),pausing,stopping,workspaceChecks.ready(),config.preflightBeforeStart,
                 pendingJob!=null||!selectedLayerIndices().isEmpty(),outcome,controllerState.name()));
+        if (plotJobController.isManualOperation()) {
+            boolean halting=plotJobController.isStopping();
+            view=new WorkspacePresentation.View(halting?WorkspacePresentation.Phase.STOPPING:WorkspacePresentation.Phase.MANUAL,
+                    halting?"Stopping machine operation":plotJobController.operationName(),
+                    "Manual operation; Stop attempts motion halt and pen lift.", "Operation in progress", WorkspacePresentation.Action.NONE, false, true);
+        }
         workspace.render(view,config.showGuidance);
-        workspace.jobSummary.setText(summary);
+        jobContext.render(view);
+        workspace.jobSummary.setText(summary+(boundsWarning.isBlank()?"":" · "+boundsWarning));
+        workspace.jobSummary.setToolTipText(summary+(boundsWarning.isBlank()?"":" · "+boundsWarning));
         if(artworkInspector!=null)artworkInspector.updateSummary(summary);
         safetyStatusLabel.setText(config.mock ? "Simulation • no physical hardware" : connected ? "Controller: "+controllerState : "Not connected • physical state unknown");
         for(ActionListener listener:guidanceActionBtn.getActionListeners())guidanceActionBtn.removeActionListener(listener);
-        guidanceActionBtn.setText(view.button());guidanceActionBtn.setEnabled(view.enabled()&&!replaying&&manualActions==0&&(plotting||!plotJobController.isMachineBusy()));
-        guidanceActionBtn.addActionListener(e->{switch(view.action()){
+        guidanceActionBtn.setText(view.button());guidanceActionBtn.setEnabled(view.enabled()&&historicalCompatible()&&!replaying&&manualActions==0&&(plotting||!plotJobController.isMachineBusy()));
+        WorkspacePresentation.Action nextAction=view.action();
+        guidanceActionBtn.addActionListener(e->{switch(nextAction){
             case ADD -> showAddArtworkMenu(guidanceActionBtn);
             case CONNECT -> onConnectToggle();
             case CHECK -> onPreflightWizard();
@@ -394,8 +425,9 @@ public class PlotterPanel extends JPanel {
     }
 
     private String workspaceSummary(){
-        if(pendingJob!=null){double[] bounds=new PlotService(plotJobController.backend(),pendingJob.settings()).computeFrameBounds(pendingJob.output());
-            return "Historical job · "+pendingJob.output().layers().size()+" layer(s)"+(bounds==null?"":String.format(java.util.Locale.ROOT," · %.1f × %.1f mm",bounds[1]-bounds[0],bounds[3]-bounds[2]))+" · current canvas unchanged";}
+        PlotJobHistory.Job reviewed = pendingJob != null ? pendingJob : displayedHistoricalJob;
+        if(reviewed!=null){double[] bounds=new PlotService(plotJobController.backend(),reviewed.settings()).computeFrameBounds(reviewed.output());
+            return "Stored job · "+reviewed.output().layers().size()+" pen layers"+(bounds==null?"":String.format(java.util.Locale.ROOT," · %.1f × %.1f mm",bounds[1]-bounds[0],bounds[3]-bounds[2]));}
 
         ProcessorOutput output=documentSession.currentOutput();if(output==null)return "No artwork loaded";
         double[] size=visPanel.getContentMotorSize();
@@ -405,6 +437,33 @@ public class PlotterPanel extends JPanel {
         ProcessorOutput output=documentSession.currentOutput();if(output==null)return;
         visPanel.layerColors.clear();for(int i=0;i<output.layers().size();i++)visPanel.layerColors.add(CanvasPalette.displayColor(output.layers().get(i).color(),i));visPanel.repaint();
     }
+    private boolean historicalCompatible(){return pendingJob==null || HistoricalJobPreview.compatible(pendingJob.settings(),config.toPlotSettings());}
+    private void updateBoundsReview(){
+        boundsWarning="";
+        if(!historicalCompatible()){boundsWarning="Stored machine geometry differs — return to artwork";workspaceChecks.setBoundsMessage(boundsWarning);return;}
+        ProcessorOutput output=pendingJob==null?preparePlotOutput():pendingJob.output();
+        if(output==null || output.layers().isEmpty()){workspaceChecks.setBoundsMessage("");return;}
+        PlotSettings settings=pendingJob==null?config.toPlotSettings():pendingJob.settings();
+        if(pendingJob==null)settings.alignmentOffsetOverride=new double[]{visPanel.getAlignOffsetX(),visPanel.getAlignOffsetY()};
+        double[] bounds=new PlotService(plotJobController.backend(),settings).computeArtworkBounds(output);
+        if(bounds==null){workspaceChecks.setBoundsMessage("No drawable paths in the selected layers.");return;}
+        boolean clipped=bounds[0]<-.001 || bounds[2]<-.001 || bounds[1]>settings.resolveMachineWidth()+.001 || bounds[3]>settings.resolveMachineHeight()+.001;
+        if(clipped)boundsWarning="Artwork exceeds bed — output will be clipped";
+        workspaceChecks.setBoundsMessage(String.format(java.util.Locale.ROOT,"Prepared bounds: X %.1f–%.1f, Y %.1f–%.1f mm. %s",bounds[0],bounds[1],bounds[2],bounds[3],clipped?"Some paths will be clipped to the bed. Return to artwork to resize or reposition.":"Fits the configured machine bed."));
+    }
+
+    private void returnToArtwork(){
+        if(plotting || plotJobController.isMachineBusy())return;
+        pendingJob=null;displayedHistoricalJob=null;outcome=null;invalidateReadiness();
+        workspace.split.setLeftComponent(artworkWorkspace);workspace.showView("Prepare");refreshGuidance();
+    }
+    private void reviewHistoricalJob(PlotJobHistory.Job job){
+        if(plotJobController.isMachineBusy())return;
+        pendingJob=job;displayedHistoricalJob=job;invalidateReadiness();outcome=null;
+        workspace.split.setLeftComponent(new HistoricalJobPreview(job,this::returnToArtwork));
+        onPreflightWizard();
+    }
+
     private void invalidateReadiness(){if(workspaceChecks!=null)workspaceChecks.clearConfirmations();}
     private void saveUiPreferences(){try{ConfigStore.save(config,configFile);}catch(IOException ex){log("WARNING: Could not save workspace preferences: "+ex.getMessage());}}
     private void registerInspectorActions(Container parent){
@@ -497,7 +556,7 @@ public class PlotterPanel extends JPanel {
     private JPanel toolbar() {
         JPanel bar = new JPanel(new BorderLayout(8,4));
         JPanel tools=new JPanel(new FlowLayout(FlowLayout.LEFT,6,2));
-        projectLabel.setFont(projectLabel.getFont().deriveFont(Font.BOLD));projectLabel.setPreferredSize(new Dimension(180,projectLabel.getPreferredSize().height));tools.add(projectLabel);
+        projectLabel.setFont(projectLabel.getFont().deriveFont(Font.BOLD));projectLabel.setPreferredSize(new Dimension(150,projectLabel.getPreferredSize().height));tools.add(projectLabel);
         JButton open=WorkspaceStyle.button("Open / Add ▾",()->{});open.addActionListener(e->showAddArtworkMenu(open));tools.add(disableDuringPlot(open));
         JButton save=WorkspaceStyle.button("Save",this::onSaveProject);WorkspaceIcon.install(save,WorkspaceIcon.Kind.SAVE,"Save project");tools.add(disableDuringPlot(save));
         toolbarUndo.addActionListener(e->onUndo());toolbarRedo.addActionListener(e->onRedo());
@@ -507,7 +566,8 @@ public class PlotterPanel extends JPanel {
         connectBtn.addActionListener(e->onConnectToggle());machine.add(connectBtn);
         WorkspaceStyle.quiet(connectBtn);machine.add(machineToolbarSlot);
         bar.add(tools,BorderLayout.CENTER);bar.add(machine,BorderLayout.EAST);
-        JPanel status=new JPanel(new BorderLayout());status.add(statusLabel,BorderLayout.WEST);status.add(safetyStatusLabel,BorderLayout.EAST);bar.add(status,BorderLayout.SOUTH);
+        safetyStatusLabel.setFont(safetyStatusLabel.getFont().deriveFont(11f));
+        machine.add(safetyStatusLabel,0);
         return bar;
     }
 
@@ -538,9 +598,10 @@ public class PlotterPanel extends JPanel {
         fileMenu.add(accel(tip(menuItem("Save Project...", e -> onSaveProject(), true),
                 "Save the complete editable session as a .gantry project."),
                 KeyEvent.VK_S, shortcut));
-        fileMenu.add(accel(tip(menuItem("Export Flattened Commands (JSON)...", e -> onExportCommands(), true),
-                "Export selected layers with placement and passes baked in. JSON is an interchange artifact, not a project."),
+        fileMenu.add(accel(menuItem("Save Project As...", e -> { fileWorkflow.saveProjectAs(); updateDirtyIndicator(); }, true),
                 KeyEvent.VK_S, shortcut | java.awt.event.InputEvent.SHIFT_DOWN_MASK));
+        fileMenu.add(tip(menuItem("Export Flattened Commands (JSON)...", e -> onExportCommands(), true),
+                "Export selected layers with placement and passes baked in. JSON is an interchange artifact, not a project."));
         fileMenu.addSeparator();
         fileMenu.add(accel(tip(menuItem("Export G-code (for plotter)...", e -> onExportGcode(), true),
                 "Write machine instructions (.gcode) for the plotter from the current drawing. "
@@ -573,7 +634,7 @@ public class PlotterPanel extends JPanel {
         editMenu.add(accel(tip(menuItem("Re-process Source SVG...", e -> onEditProcessSvg(), true),
                 "Re-run the SVGToolBox processors against the SVG you imported, replacing the current "
                         + "drawing. Only available after Import SVG (a loaded .json command file has no source SVG)."),
-                KeyEvent.VK_R, shortcut));
+                KeyEvent.VK_R, shortcut | java.awt.event.InputEvent.SHIFT_DOWN_MASK));
         editMenu.add(tip(menuItem("Re-process Selected Artwork...", e -> onReprocessSelectedArtwork(), true),
                 "For composed projects, re-run SVG processors for one artwork group while preserving its transform."));
         reVectorizeMenuItem = tip(menuItem("Re-vectorize Image...", e -> onReVectorizeImage(), true),
@@ -745,8 +806,22 @@ public class PlotterPanel extends JPanel {
     }
 
     public boolean requestClose() {
+        if(plotJobController.isMachineBusy() || plotting || manualActions>0){
+            if(!closeRequested){
+                closeRequested=true;onStopPlot();
+                javax.swing.Timer wait=new javax.swing.Timer(100,null);
+                wait.addActionListener(e->{
+                    if(plotJobController.isMachineBusy() || plotting || manualActions>0)return;
+                    wait.stop();closeRequested=false;
+                    if(outcome==WorkspacePresentation.Phase.FAILED){blocked("Machine cleanup failed. Review the machine state before closing.");return;}
+                    Window window=SwingUtilities.getWindowAncestor(this);
+                    if(window!=null)window.dispatchEvent(new java.awt.event.WindowEvent(window,java.awt.event.WindowEvent.WINDOW_CLOSING));
+                });wait.start();
+            }
+            return false;
+        }
         if (!fileWorkflow.confirmReplacement()) return false;
-        if (recoveryFile.exists()) recoveryFile.delete();
+        if (!recoveryDeferred && recoveryFile.exists()) recoveryFile.delete();
         return true;
     }
 
@@ -790,12 +865,14 @@ public class PlotterPanel extends JPanel {
      * second code path.
      */
     private void onPreflightWizard() {
+        if(outcome==WorkspacePresentation.Phase.COMPLETE && displayedHistoricalJob!=null)pendingJob=displayedHistoricalJob;
         outcome=null;checking=true;
         workspace.showView("Check");refreshGuidance();
     }
 
     /** Sends a pen-up rectangle around the job's current bounds, reusing the existing baked overlay. */
     private void frameJob() {
+        if(!historicalCompatible()){blocked("Stored job geometry differs from this machine. Return to artwork before framing.");return;}
         if (documentSession.currentOutput() == null && pendingJob==null) {
             log("ERROR: No drawing loaded.");
             return;
@@ -812,7 +889,7 @@ public class PlotterPanel extends JPanel {
             return;
         }
         double minX = bounds[0], maxX = bounds[1], minY = bounds[2], maxY = bounds[3];
-        runOnBackend(b -> {
+        runOnBackend("Frame artwork", b -> {
             b.penup();
             b.moveto(minX, minY);
             b.moveto(maxX, minY);
@@ -844,15 +921,9 @@ public class PlotterPanel extends JPanel {
             return;
         }
         if (!fileWorkflow.confirmReplacement()) return;
-        boolean previousMock = config.mock;
         config.mock = true;
-        boolean completed = new SetupWorkflow(config, this::saveSetupConfig, this::onCalibrateAxesWizard)
-                .show(SwingUtilities.getWindowAncestor(this), false);
-        if (!completed) {
-            config.mock = previousMock;
-            showFeedback("Guided practice cancelled. Nothing moved; you can restart it from Help.");
-            return;
-        }
+        fileWorkflow.clearProjectPath();
+        applyConfigToVis();
         ProcessorOutput sample = PracticeArtwork.create();
         documentEditor.replace(sample);
         documentSession.clearSource();
@@ -860,7 +931,7 @@ public class PlotterPanel extends JPanel {
         visPanel.loadFromOutput(sample);
         visPanel.setContentMotorMin(0, 0);
         refreshDocumentUi();
-        showFeedback("Practice drawing ready — 80.0 × 60.0 mm. Nothing will move until you connect.");
+        showFeedback("Simulation practice ready — connect the simulator to try plotting. No physical hardware will move.");
     }
 
     private void saveSetupConfig(GantryConfig updated) {
@@ -887,7 +958,7 @@ public class PlotterPanel extends JPanel {
     private void onCalibrateAxesWizard() {
         new CalibrationWorkflow(SwingUtilities.getWindowAncestor(this), config,
                 plotJobController::isConnected, this::onConnectToggle, this::runOnBackend,
-                this::log, this::applyConfigToVis, this::saveCalibrationConfig).show();
+                this::log, this::applyConfigToVis, this::saveCalibrationConfig, plotJobController::isMachineBusy, this::onStopPlot).show();
     }
 
     private void saveCalibrationConfig() {
@@ -907,7 +978,7 @@ public class PlotterPanel extends JPanel {
      */
     private void onTestStationsWizard() {
         new StationTestWorkflow(config, plotJobController::isConnected, this::runOnBackend,
-                this::persistStationsAndRefresh, this::log)
+                this::persistStationsAndRefresh, this::log, plotJobController::isMachineBusy, this::onStopPlot)
                 .show(SwingUtilities.getWindowAncestor(this), this);
     }
 
@@ -1095,8 +1166,11 @@ public class PlotterPanel extends JPanel {
         if (choice == JOptionPane.OK_OPTION) fileWorkflow.reprocessArtwork(candidates.get(chooser.getSelectedIndex()));
     }
     private void onEditLayerSettings(int layerIndex) {
+        JOptionPane.showMessageDialog(this,buildLayerSettingsPanel(layerIndex),"Pen settings",JOptionPane.PLAIN_MESSAGE);
+    }
+    private JComponent buildLayerSettingsPanel(int layerIndex) {
         ProcessorOutput output = documentSession.currentOutput();
-        if (output == null || layerIndex < 0 || layerIndex >= output.layers().size()) return;
+        if (output == null || layerIndex < 0 || layerIndex >= output.layers().size()) return new JPanel();
         Layer layer = output.layers().get(layerIndex);
         List<String> stationIds = new ArrayList<>(config.stations.keySet());
         if (layer.stationId() != null && !layer.stationId().isBlank() && !stationIds.contains(layer.stationId())) {
@@ -1130,9 +1204,11 @@ public class PlotterPanel extends JPanel {
         watercolor.setVisible(showWatercolor.isSelected());
         JPanel content=new JPanel(new BorderLayout(8,8));content.add(form,BorderLayout.NORTH);
         JPanel options=new JPanel(new BorderLayout());options.add(showWatercolor,BorderLayout.NORTH);options.add(watercolor,BorderLayout.CENTER);content.add(options,BorderLayout.CENTER);
-        showWatercolor.addActionListener(e->{watercolor.setVisible(showWatercolor.isSelected());Window w=SwingUtilities.getWindowAncestor(content);if(w!=null)w.pack();});
-        if (JOptionPane.showConfirmDialog(this, content, "Pen settings — " + layer.id(),
-                JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE) != JOptionPane.OK_OPTION) return;
+        showWatercolor.addActionListener(e->{watercolor.setVisible(showWatercolor.isSelected());content.revalidate();});
+        JButton apply=WorkspaceStyle.button("Apply pen settings",()->{});
+        apply.addActionListener(event->{
+        if(plotting || documentSession.currentOutput()!=output){blocked("Select the layer again before editing its pen settings.");return;}
+        try {penWidth.commitEdit();distance.commitEdit();}catch(java.text.ParseException invalid){blocked("Enter valid pen values before applying.");return;}
         String stationId = String.valueOf(station.getEditor().getItem()).trim();
         if (stationId.isEmpty()) {
             info("Choose or enter a refill station ID.");
@@ -1151,18 +1227,25 @@ public class PlotterPanel extends JPanel {
                 metadata.stationId(), metadata.units(), commandCount, metadata.bounds()), layers);
         documentEditor.snapshot();
         documentEditor.update(updated);
+        List<Double> widths = new ArrayList<>(documentSession.penWidthsMm());
+        widths.set(layerIndex, widthMm);
+        documentSession.setPenWidthsMm(widths);
         onDocumentEdited();
         visPanel.setPenWidthForLayer(layerIndex, widthMm);
         visPanel.repaint();
         documentEditor.historyAvailability();
         log(String.format("Layer '%s': station '%s', pattern '%s', refill every %.1f mm, pen width %.2f mm.",
                 layer.id(), stationId, behavior, maxDistance, widthMm));
-        showUndoFeedback("Watercolor settings updated for " + layer.id() + ".");
+        showUndoFeedback("Pen settings updated for " + layer.id() + ".");
+        });
+        content.add(apply,BorderLayout.SOUTH);
+        penWidth.getAccessibleContext().setAccessibleName("Pen width in millimetres");
+        return content;
     }
     private void onOpenProject() { fileWorkflow.openProject();updateDirtyIndicator(); }
     private void onSaveProject() {
         fileWorkflow.saveProject();
-        if (!documentSession.isDirty() && recoveryFile.exists()) recoveryFile.delete();
+        if (!recoveryDeferred && !documentSession.isDirty() && recoveryFile.exists()) recoveryFile.delete();
         updateDirtyIndicator();
     }
     private void onExportCommands() { fileWorkflow.exportCommands(); }
@@ -1345,20 +1428,20 @@ public class PlotterPanel extends JPanel {
         this.connecting=connecting;invalidateReadiness();
         if(!connected)controllerState=GcodeBackend.MachineState.UNKNOWN;
         if(failed)outcome=WorkspacePresentation.Phase.FAILED;
-        if(!connected)jogPanel.stopContinuous();
+        if(!connected){jogPanel.stopContinuous();visPanel.clearHeadPosition();}
         connectBtn.setEnabled(!connecting);
-        connectBtn.setText(connected ? "Disconnect" : "Connect");
+        connectBtn.setText(connected ? "Disconnect" : "Connect");connectBtn.setPreferredSize(new Dimension(110,connectBtn.getPreferredSize().height));
         if (connectMenuItem != null) {
             connectMenuItem.setText(connected ? "Disconnect" : "Connect");
             connectMenuItem.setEnabled(!connecting);
         }
         setConnectButtonColor(!connected);
         setConnectionRequiredControlsEnabled(connected);
-        statusLabel.setText(connecting ? "Connecting..." : failed ? "Connection failed" : connected ? "Connected" : "Disconnected");
+        statusLabel.setText(connecting ? "Connecting..." : failed ? "Connection failed" : connected ? (config.mock?"Simulator connected":"Plotter connected") : (config.mock?"Simulation · disconnected":"Plotter disconnected"));
         if (connecting) localFeedback.showMessage("Connecting to the plotter…", LocalFeedbackPanel.Tone.INFO);
         else if (failed) localFeedback.showAction("Connection failed. Check the port or choose the mock plotter in Settings.",
                 LocalFeedbackPanel.Tone.ERROR, "Open settings", this::onOpenSettings);
-        else if (connected) localFeedback.showMessage("Plotter connected. Manual movement is now enabled.", LocalFeedbackPanel.Tone.SUCCESS);
+        else if (connected) localFeedback.showMessage(config.mock?"Simulator connected. No physical hardware is connected.":"Plotter connected. Manual movement is now enabled.", LocalFeedbackPanel.Tone.SUCCESS);
         else localFeedback.showMessage("Disconnected. Gantry cannot confirm the physical machine state.", LocalFeedbackPanel.Tone.INFO);
         refreshGuidance();
     }
@@ -1421,8 +1504,7 @@ public class PlotterPanel extends JPanel {
             info("No successful plot job is available yet.");
             return;
         }
-        pendingJob = job;invalidateReadiness();refreshGuidance();
-        onStartPlot();
+        reviewHistoricalJob(job);
     }
 
     private void rebuildRecentJobsMenu() {
@@ -1435,8 +1517,7 @@ public class PlotterPanel extends JPanel {
             JMenuItem item = new JMenuItem(format.format(job.timestamp()) + " — "
                     + layers + " layer(s)");
             item.addActionListener(e -> {
-                pendingJob = job;invalidateReadiness();refreshGuidance();
-                onStartPlot();
+                reviewHistoricalJob(job);
             });
             recentJobsMenu.add(item);
         }
@@ -1451,12 +1532,14 @@ public class PlotterPanel extends JPanel {
 
     /** Invalidates the same-artwork completion/re-plot offer after drawing or job settings change. */
     private void resetReplot() {
-        invalidateReadiness();outcome=null;pendingJob=null;
+        invalidateReadiness();outcome=null;pendingJob=null;displayedHistoricalJob=null;
+        if(workspace!=null)workspace.split.setLeftComponent(artworkWorkspace);
         plotJobController.resetReplot();
         updateReplotMenuItem();
     }
 
     private void onStartPlot() {
+        if(!historicalCompatible()){blocked("Stored job geometry no longer matches this machine. Return to artwork and prepare it for the current machine.");return;}
         if(manualActions>0 || plotJobController.isMachineBusy() || (!config.mock && controllerState!=GcodeBackend.MachineState.IDLE)){blocked("Wait for the controller to report idle before starting.");return;}
         if(config.preflightBeforeStart && !workspaceChecks.ready()){onPreflightWizard();return;}
         stopping=false;outcome=null;jogPanel.stopContinuous();
@@ -1499,8 +1582,12 @@ public class PlotterPanel extends JPanel {
             onJogPositionReport(x, y);
             SwingUtilities.invokeLater(() -> visPanel.updatePosition(x, y));
         });
+        int[] penNumber={0};
+        jobContext.start(toPlot,requested==null?fileWorkflow.projectName():"Stored job · "+requested.timestamp());
         service.setLayerGate(layer -> {
+            int requestedPen=++penNumber[0];
             awaitingLayerConfirmation = true;
+            SwingUtilities.invokeLater(()->jobContext.requestPen(requestedPen,layer));
             SwingUtilities.invokeLater(()->workspace.jobDetail.setText("Fit pen: "+layer.id()));
             log("Layer '" + layer.id() + "' ready. Click Pen ready — continue to start.");
             SwingUtilities.invokeLater(() -> {
@@ -1594,7 +1681,7 @@ public class PlotterPanel extends JPanel {
         this.plotting = plotting;
         visPanel.editingEnabled=!plotting;
         if(artworkInspector!=null)artworkInspector.setPlotting(plotting);
-        if(plotting){jogPanel.stopContinuous();if(workspace!=null)workspace.showView("Prepare");}
+        if(plotting){jogPanel.stopContinuous();if(workspace!=null)workspace.showView("Plot");}
         if (!plotting) awaitingLayerConfirmation = false;
         plotControls.setPlotting(plotting);
         jogPanel.setPlotting(plotting);
@@ -1623,24 +1710,30 @@ public class PlotterPanel extends JPanel {
     private void jog(int dx, int dy) { jogPanel.jog(dx, dy); }
 
     private void runOnBackend(java.util.function.Consumer<PlotterBackend> action) {
-        if (!plotJobController.isConnected()) {
-            log("ERROR: Not connected.");
-            return;
+        runOnBackend("Manual machine action", action);
+    }
+
+    private void runOnBackend(String name, java.util.function.Consumer<PlotterBackend> action) {
+        if (!plotJobController.isConnected() || plotJobController.isMachineBusy()) {
+            blocked("Connect an idle plotter before starting another operation."); return;
         }
-        if(!plotJobController.tryBeginExclusiveOperation("manual machine action")){blocked("Wait for the current machine operation to finish.");return;}
-        invalidateReadiness();manualActions++;refreshGuidance();
-        new Thread(() -> {
-            try {
-                plotJobController.withBackend(action);
-            } catch (RuntimeException failure) {
-                String message = failure.getMessage() == null
-                        ? failure.getClass().getSimpleName() : failure.getMessage();
-                SwingUtilities.invokeLater(() -> {
-                    log("ERROR: " + message);
-                    showFeedback("Machine action failed: " + message);
-                });
-            } finally {plotJobController.finishExclusiveOperation();SwingUtilities.invokeLater(()->{manualActions--;invalidateReadiness();refreshGuidance();});}
-        }, "backend-action").start();
+        invalidateReadiness(); manualActions++; outcome=null;
+        try {
+            plotJobController.startOperation(name, action, (completed, failure) -> SwingUtilities.invokeLater(() -> {
+                manualActions--; stopping=false; invalidateReadiness();
+                if (failure != null) {
+                    outcome=WorkspacePresentation.Phase.FAILED;
+                    blocked(name + " failed: " + failure.getMessage());
+                } else if (!completed) {
+                    outcome=WorkspacePresentation.Phase.STOPPED;
+                    localFeedback.showMessage(name + " stopped; halt and pen lift attempted. Check the machine.", LocalFeedbackPanel.Tone.INFO);
+                }
+                refreshGuidance();
+            }));
+        } catch (RuntimeException failure) {
+            manualActions--; blocked(failure.getMessage());
+        }
+        refreshGuidance();
     }
 
     /**
@@ -1734,9 +1827,8 @@ public class PlotterPanel extends JPanel {
     /** Logs a failure to the console and also surfaces it as an error dialog so it can't be missed. */
     private void error(String message) {
         log("ERROR: " + message);
-        localFeedback.showMessage(message, LocalFeedbackPanel.Tone.ERROR);
-        SwingUtilities.invokeLater(() ->
-                JOptionPane.showMessageDialog(this, message, "Error", JOptionPane.ERROR_MESSAGE));
+        localFeedback.showAction(message, LocalFeedbackPanel.Tone.ERROR, "Details", () ->
+                JOptionPane.showMessageDialog(this, message, "Error details", JOptionPane.ERROR_MESSAGE));
     }
 
     /** Logs an informational note and shows it as a dialog (for workflow guidance the user must act on). */
@@ -1759,7 +1851,7 @@ public class PlotterPanel extends JPanel {
      */
     private void onRemoveDrawing() {
         if (documentSession.currentOutput() == null) return;
-        documentEditor.clear();
+        documentEditor.clear();fileWorkflow.clearProjectPath();
         resetReplot();
         refreshDocumentUi();
         log("Removed the loaded drawing.");
@@ -1807,6 +1899,7 @@ public class PlotterPanel extends JPanel {
     private void refreshDocumentUi() {
         artworkWorkspace.setHasArtwork(documentSession.currentOutput() != null);
         visPanel.setArtworks(documentSession.artworks());
+        visPanel.setPenWidthsMm(documentSession.penWidthsMm());
         refreshArtworkInspector();
         refreshLayerSelector();
         overlayControls.refreshPosition();
@@ -1842,7 +1935,7 @@ public class PlotterPanel extends JPanel {
                         documentSession.sourceSvgOptions(),
                         image == null ? null : image.getAbsolutePath(),
                         documentSession.vectorizeArgs(), documentSession.processingRecipe()),
-                documentSession.artworks(), visPanel.penWidthsMm());
+                documentSession.artworks(), documentSession.penWidthsMm());
     }
 
     private void openProject(GantryProject project) {
@@ -1852,7 +1945,8 @@ public class PlotterPanel extends JPanel {
                 source.importOptions(), source.imagePath() == null ? null : new File(source.imagePath()),
                 source.vectorizeArgs(), source.processingRecipe());
         visPanel.loadFromOutput(project.output());
-        visPanel.setPenWidthsMm(project.penWidthsMm());
+        documentSession.setPenWidthsMm(project.penWidthsMm());
+        visPanel.setPenWidthsMm(documentSession.penWidthsMm());
         visPanel.applyPlacement(project.placement());
         documentSession.setPlacement(project.placement());
         plotControls.setPasses(project.passes());
@@ -1865,7 +1959,7 @@ public class PlotterPanel extends JPanel {
         plotControls.setSelectedLayers(project.selectedLayers());
         documentEditor.historyAvailability();
         documentSession.markSaved();
-        if (recoveryFile.exists()) recoveryFile.delete();
+        if (!recoveryDeferred && recoveryFile.exists()) recoveryFile.delete();
         updateDirtyIndicator();
     }
 
@@ -1878,7 +1972,7 @@ public class PlotterPanel extends JPanel {
 
     private void writeRecovery() {
         try {
-            if (documentSession.isDirty() && documentSession.currentOutput() != null) {
+            if (!recoveryDeferred && documentSession.isDirty() && documentSession.currentOutput() != null) {
                 GantryProjectIO.save(captureProject(), recoveryFile);
             }
         } catch (IOException ex) {
@@ -1890,20 +1984,26 @@ public class PlotterPanel extends JPanel {
 
     private void offerRecovery() {
         if (!recoveryFile.isFile()) return;
-        int choice = JOptionPane.showConfirmDialog(this,
-                "Recover the unsaved Gantry project from the previous session?",
-                "Recovery available", JOptionPane.YES_NO_OPTION);
-        if (choice == JOptionPane.YES_OPTION) {
+        recoveryDeferred = true;
+        Object[] choices = {"Recover", "Discard recovery", "Later"};
+        int choice = JOptionPane.showOptionDialog(this,
+                "Recover the unsaved Gantry project from the previous session? Closing keeps the recovery copy.",
+                "Recovery available", JOptionPane.DEFAULT_OPTION, JOptionPane.QUESTION_MESSAGE,
+                null, choices, choices[2]);
+        if (choice == 0) {
             try {
                 openProject(GantryProjectIO.load(recoveryFile));
+                recoveryDeferred = false;
+                fileWorkflow.clearProjectPath();
                 documentSession.markDirty();
                 scheduleRecovery();
                 updateDirtyIndicator();
             } catch (IOException ex) {
                 error("Recovery failed: " + ex.getMessage());
             }
-        } else {
-            recoveryFile.delete();
+        } else if (choice == 1) {
+            if (!recoveryFile.delete()) blocked("Could not discard the recovery copy.");
+            else recoveryDeferred = false;
         }
     }
 
@@ -1912,7 +2012,7 @@ public class PlotterPanel extends JPanel {
         projectLabel.setToolTipText(projectLabel.getText());
         Window window = SwingUtilities.getWindowAncestor(this);
         if (window instanceof JFrame frame) {
-            frame.setTitle(documentSession.isDirty() ? "Gantry — Unsaved changes" : "Gantry");
+            frame.setTitle("Gantry — "+(fileWorkflow==null?projectName:fileWorkflow.projectName())+(documentSession.isDirty()?" — Unsaved changes":""));
         }
     }
 

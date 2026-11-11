@@ -27,15 +27,30 @@ final class MachineSettingsTransfer {
         if (chooser.showOpenDialog(parent) != JFileChooser.APPROVE_OPTION) return;
         try {
             GantryConfig incoming = MachineSettingsIO.importSettings(chooser.getSelectedFile(), current.get());
-            var g = incoming.gcode;
-            String summary = String.format(java.util.Locale.ROOT,
-                    "Machine bed: %.1f × %.1f mm\nOrigin: %s · %s\nConnection: %s at %d baud\nPen mode: %s\nDraw / travel: %d / %d mm/min\nWatercolor stations: %d\n\nThis replaces Gantry's machine settings. Check the local serial port before connecting.\nApplication preferences, simulation mode and preflight policy stay unchanged.\nController firmware settings (such as GRBL $100/$101) are not included or written.",
-                    g.machineWidth,g.machineHeight,incoming.machineOrigin,incoming.orientation,g.serialPort,g.baudRate,g.penMode,g.feedRateDraw,g.feedRateTravel,incoming.stations.size());
-            if (JOptionPane.showOptionDialog(parent, summary, "Import machine settings",
+            if (JOptionPane.showOptionDialog(parent, review(current.get(),incoming), "Import machine settings",
                     JOptionPane.OK_CANCEL_OPTION,JOptionPane.PLAIN_MESSAGE,null,new String[]{"Apply settings","Cancel"},"Cancel") != 0) return;
             if (!available.getAsBoolean()) { disconnected(parent);return; }
             apply.accept(incoming);
         } catch (IOException | RuntimeException ex) { error(parent, ex); }
+    }
+    static JComponent review(GantryConfig current,GantryConfig incoming){
+        var comparison=MachineSettingsIO.comparison(current,incoming);
+        JPanel panel=new JPanel(new BorderLayout(8,8));
+        long count=comparison.stream().filter(MachineSettingsIO.Change::changed).count();
+        panel.add(WorkspaceStyle.note(count+" machine values will change. Check the local serial port before connecting. Simulation, preflight policy and appearance stay local. No firmware settings are written."),BorderLayout.NORTH);
+        JTabbedPane groups=new JTabbedPane();
+        for(String group:new String[]{"Connection","Machine geometry","Pen & speeds","Limits","Watercolor stations"}){
+            var rows=comparison.stream().filter(c->c.group().equals(group)).toList();
+            long changed=rows.stream().filter(MachineSettingsIO.Change::changed).count();
+            var model=new javax.swing.table.DefaultTableModel(new Object[]{"Setting","Current","Imported","Change"},0){
+                @Override public boolean isCellEditable(int row,int column){return false;}
+            };
+            for(var row:rows)model.addRow(new Object[]{row.property(),row.before(),row.after(),row.changed()?"Changed":"Unchanged"});
+            JTable table=new JTable(model);table.setRowHeight(26);table.getAccessibleContext().setAccessibleName(group+" settings comparison");
+            table.setAutoCreateRowSorter(true);JScrollPane scroll=new JScrollPane(table);scroll.setPreferredSize(new Dimension(620,240));
+            groups.addTab(group+" ("+changed+")",scroll);
+        }
+        panel.add(groups,BorderLayout.CENTER);return panel;
     }
     private static JFileChooser chooser() { JFileChooser chooser = new JFileChooser();chooser.setFileFilter(new FileNameExtensionFilter("Gantry machine settings (*.json)", "json"));return chooser; }
     private static void disconnected(Component parent) { JOptionPane.showMessageDialog(parent,"Disconnect the plotter and finish any machine operation before importing settings.","Import machine settings",JOptionPane.INFORMATION_MESSAGE); }

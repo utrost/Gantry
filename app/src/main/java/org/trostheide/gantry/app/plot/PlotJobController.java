@@ -27,6 +27,50 @@ public final class PlotJobController {
     private boolean stopping;
     private boolean canReplot;
     private String exclusiveOperation;
+    private boolean manualOperation;
+
+    public synchronized String operationName() { return exclusiveOperation; }
+    public synchronized boolean isManualOperation() { return manualOperation; }
+    public synchronized boolean isStopping() { return stopping; }
+
+    /** Owns a manual sequence through cancellation and halt/lift cleanup, just like a plot. */
+    public synchronized Thread startOperation(String name, Consumer<PlotterBackend> action,
+                                               CompletionListener listener) {
+        if (backend == null || isMachineBusy()) throw new IllegalStateException("Connect an idle plotter first");
+        PlotterBackend current = backend;
+        exclusiveOperation = Objects.requireNonNull(name);
+        manualOperation = true;
+        stopping = false;
+        canReplot = false;
+        Thread worker = new Thread(() -> {
+            boolean completed = false;
+            Throwable failure = null;
+            try {
+                action.accept(new InterruptibleBackend(current, this::isStopping));
+                completed = !isStopping() && !Thread.currentThread().isInterrupted();
+            } catch (java.util.concurrent.CancellationException cancelled) {
+                // Cancellation is an interrupted outcome, not a failed cleanup.
+            } catch (Throwable thrown) { failure = thrown; }
+            finally {
+                // Ignore the original cancellation during cleanup. Repeated Stop is idempotent.
+                Thread.interrupted();
+                synchronized (this) { if(stopping)completed=false; stopping = true; }
+                if (!completed) {
+                    try { current.haltMotion(); }
+                    catch (Throwable cleanup) { if (failure == null) failure = cleanup; else failure.addSuppressed(cleanup); }
+                    try { current.penup(); }
+                    catch (Throwable cleanup) { if (failure == null) failure = cleanup; else failure.addSuppressed(cleanup); }
+                }
+                synchronized (this) {
+                    activeWorker = null; exclusiveOperation = null; manualOperation = false; stopping = false;
+                }
+                listener.onComplete(completed, failure);
+            }
+        }, "manual-machine-operation");
+        activeWorker = worker;
+        worker.start();
+        return worker;
+    }
 
     /** Connects and adopts {@code candidate} only when its connection succeeds. */
     public boolean connect(PlotterBackend candidate) {
@@ -166,6 +210,7 @@ public final class PlotJobController {
     public synchronized boolean tryBeginExclusiveOperation(String description) {
         if (activeService != null || exclusiveOperation != null) return false;
         exclusiveOperation = Objects.requireNonNull(description, "description");
+        stopping = false;
         return true;
     }
 

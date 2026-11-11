@@ -117,7 +117,7 @@ final class CanvasRenderer {
                 // transformPoint scales the line geometry into bed coordinates. BasicStroke is
                 // already in those physical coordinates, so the nib stays (for example) 0.3 mm
                 // even when the artwork itself is resized.
-                g2.setStroke(new BasicStroke((float) panel.penWidthForLayer(li),
+                g2.setStroke(new BasicStroke((float) Math.max(panel.penWidthForLayer(li),1.0/scale),
                         BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
                 Path2D p2d = new Path2D.Double();
                 double[] p0 = panel.transformPoint(path.get(0));
@@ -262,6 +262,7 @@ final class CanvasRenderer {
 
         // --- Draw Cursor (Head Position) ---
         // panel.currentX, panel.currentY are Physical coordinates from the backend
+        if(panel.headPositionKnown){
         double[] headScreen = panel.physicalToScreen(panel.currentX, panel.currentY);
         g2.setColor(Color.RED);
         double r = 4.0 / scale;
@@ -275,38 +276,11 @@ final class CanvasRenderer {
         g2.draw(new java.awt.geom.Line2D.Double(headScreen[0], headScreen[1] - crossSize,
                 headScreen[0], headScreen[1] + crossSize));
 
+        }
         g2.setTransform(old);
 
-        // --- HUD ---
-        g2.setColor(CanvasPalette.text());
-        g2.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 11));
-        String travelHud = (panel.travelTotalMm > 0)
-                ? String.format(" | Pen-down efficiency: %.0f%%", 100.0 * panel.travelPenDownMm / panel.travelTotalMm)
-                : "";
-        String cursorHud = panel.mousePointerMm == null
-                ? " | Cursor: --"
-                : String.format(Locale.ROOT, " | Cursor: %.1f, %.1f mm",
-                        panel.mousePointerMm[0], panel.mousePointerMm[1]);
-        double[] artworkSize = panel.getContentMotorSize();
-        g2.drawString(String.format(
-                "Pos: %.1f, %.1f%s | Speed: %d%% | View: %.0f%% | Align: %s | Rot: %d | Origin: %s | %s%s",
-                panel.currentX, panel.currentY, cursorHud, panel.speedPercent, panel.viewZoom * 100, panel.canvasAlignment, panel.dataRotation,
-                panel.machineOrigin, panel.orientation, travelHud), 10, h - 10);
-        if (panel.hasOverlayTransform()) {
-            g2.drawString(String.format(
-                    "Artwork: %.1f x %.1f mm | Drag: dX=%.1f dY=%.1f Scale=%.0f%% | Bed: %.0fx%.0f mm",
-                    artworkSize[0], artworkSize[1],
-                    panel.overlayOffsetX, panel.overlayOffsetY, panel.overlayScale * 100,
-                    panel.machineWidth, panel.machineHeight), 10, h - 24);
-        } else {
-            g2.drawString(String.format(
-                    "Artwork: %.1f x %.1f mm | Bed: %.0fx%.0f mm | Offset: %.1f, %.1f | Swap: %s InvX: %s InvY: %s",
-                    artworkSize[0], artworkSize[1], panel.machineWidth, panel.machineHeight,
-                    panel.alignOffsetX, panel.alignOffsetY,
-                    panel.effectiveSwap() ? "Y" : "N",
-                    panel.effectiveInvertX() ? "Y" : "N",
-                    panel.effectiveInvertY() ? "Y" : "N"), 10, h - 24);
-        }
-
+        // View orientation only; technical transforms are available in diagnostics.
+        g2.setColor(CanvasPalette.text());g2.setFont(javax.swing.UIManager.getFont("Label.font"));
+        g2.drawString(String.format(Locale.ROOT,"Machine bed · %.0f × %.0f mm  ·  View %.0f%%",panel.machineWidth,panel.machineHeight,panel.viewZoom*100),12,h-12);
     }
 }
