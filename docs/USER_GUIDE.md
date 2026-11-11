@@ -98,7 +98,8 @@ calibration and watercolor station checks are in **Machine > More**.
 
 The top bar identifies connection and controller state, including unknown state
 and simulation. **Diagnostics** contains Console, raw G-code and Copy Diagnostics.
-**Settings > Preferences > Application** offers System/Light/Dark themes,
+**Settings > Preferences > Application** offers System/Light/Dark themes. Dark is
+the default for new profiles; existing saved theme choices are retained. It also offers
 comfortable/compact density, canvas appearance and optional guidance. Preferences
 are remembered; connections and readiness are never restored.
 
