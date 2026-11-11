@@ -23,18 +23,22 @@ final class OverlayControlsPanel extends JPanel {
     private boolean refreshing;
     private final List<JComponent> controls;
     OverlayControlsPanel(VisualizationPanel visualization,Actions actions){this.visualization=visualization;this.actions=actions;
-        setLayout(new BoxLayout(this,BoxLayout.Y_AXIS));setBorder(BorderFactory.createEmptyBorder(8,0,8,0));
-        JButton reset=new JButton("Reset Position"),rotate=new JButton("Rotate 90°"),mirror=new JButton("Mirror"),set=new JButton("Set");
-        compactCoordinateSpinner(x);compactCoordinateSpinner(y);
-        reset.addActionListener(e->visualization.resetOverlay());rotate.addActionListener(e->visualization.rotateOverlay());mirror.addActionListener(e->visualization.toggleMirror());set.addActionListener(e->apply());
-        JPanel buttons=row(reset,rotate,mirror);add(WorkspaceStyle.heading("Artwork placement"));add(buttons);add(row(new JLabel("Artwork X"),x,new JLabel("mm")));add(row(new JLabel("Artwork Y"),y,new JLabel("mm"),set));
-        add(WorkspaceStyle.heading("Artwork size"));
-        compactCoordinateSpinner(width);compactCoordinateSpinner(height);
-        add(row(new JLabel("Width"),width,new JLabel("mm")));add(row(new JLabel("Height"),height,new JLabel("mm")));
+        setLayout(new BoxLayout(this,BoxLayout.Y_AXIS));setBorder(BorderFactory.createEmptyBorder(2,0,2,0));
+        JButton reset=WorkspaceStyle.button("Reset",visualization::resetOverlay),rotate=WorkspaceStyle.button("Rotate 90°",visualization::rotateOverlay),mirror=WorkspaceStyle.button("Mirror",visualization::toggleMirror);
+        reset.setToolTipText("Reset artwork placement");
+        add(WorkspaceStyle.heading("Artwork placement"));
+        JPanel grid=new JPanel(new GridBagLayout());GridBagConstraints g=new GridBagConstraints();g.insets=new Insets(3,2,3,2);g.fill=GridBagConstraints.HORIZONTAL;
+        String[] names={"X","Y","Width","Height"};JSpinner[] fields={x,y,width,height};
+        for(int i=0;i<fields.length;i++){compactCoordinateSpinner(fields[i]);fields[i].getAccessibleContext().setAccessibleName("Artwork "+names[i]+" in millimetres");
+            g.gridy=i/2;g.gridx=(i%2)*3;g.weightx=0;JLabel label=new JLabel(names[i]);label.setLabelFor(fields[i]);grid.add(label,g);
+            g.gridx++;g.weightx=1;grid.add(fields[i],g);g.gridx++;g.weightx=0;grid.add(new JLabel("mm"),g);}
+        grid.setAlignmentX(LEFT_ALIGNMENT);grid.setMaximumSize(new Dimension(Integer.MAX_VALUE,grid.getPreferredSize().height));add(grid);
+        add(row(reset,rotate,mirror));
+        x.addChangeListener(e->{if(!refreshing)apply();});y.addChangeListener(e->{if(!refreshing)apply();});
         JCheckBox lock=new JCheckBox("Lock aspect ratio",true);lock.setToolTipText("Width and height remain proportional to preserve the drawing");lock.setAlignmentX(LEFT_ALIGNMENT);add(lock);
         width.addChangeListener(e->{if(!refreshing)visualization.resizeArtwork(((Number)width.getValue()).doubleValue(),((Number)height.getValue()).doubleValue(),true,lock.isSelected());});
         height.addChangeListener(e->{if(!refreshing)visualization.resizeArtwork(((Number)width.getValue()).doubleValue(),((Number)height.getValue()).doubleValue(),false,lock.isSelected());});
-        controls=List.of(reset,rotate,mirror,x,y,set,width,height,lock);wirePreview();
+        controls=List.of(reset,rotate,mirror,x,y,width,height,lock);wirePreview();
     }
     void setPlotting(boolean plotting){for(JComponent c:controls)c.setEnabled(!plotting);}
     void refreshPosition(){refreshing=true;try{double[]p=visualization.getContentMotorMin();x.setValue(Math.round(p[0]*10)/10.0);y.setValue(Math.round(p[1]*10)/10.0);
@@ -51,7 +55,7 @@ final class OverlayControlsPanel extends JPanel {
     /** Keep both coordinates and the Set button inside the control column at the current UI scale. */
     private static void compactCoordinateSpinner(JSpinner spinner){
         Dimension preferred=spinner.getPreferredSize();
-        Dimension compact=new Dimension(com.formdev.flatlaf.util.UIScale.scale(72),preferred.height);
+        Dimension compact=new Dimension(com.formdev.flatlaf.util.UIScale.scale(64),preferred.height);
         spinner.setPreferredSize(compact);spinner.setMinimumSize(compact);
     }
 }

@@ -81,11 +81,11 @@ final class CanvasInteractionController {
                     }
                 }
                 if (SwingUtilities.isLeftMouseButton(e) && panel.interactionMode == VisualizationPanel.InteractionMode.NONE
-                        && panel.artworks.size() > 1) {
+                        && !panel.artworks.isEmpty()) {
                     org.trostheide.gantry.app.session.CompositionArtwork artwork = panel.artworkAt(e.getX(), e.getY());
-                    panel.selectedArtworkId = artwork == null ? null : artwork.id();
+                    panel.selectArtwork(artwork == null ? null : artwork.id());
                     panel.repaint();
-                    if (artwork != null) {
+                    if (artwork != null && panel.artworks.size() > 1) {
                         panel.artworkDragStart = panel.interaction.screenToModel(e.getX(), e.getY());
                         panel.artworkDragCurrent = panel.artworkDragStart;
                         panel.setCursor(Cursor.getPredefinedCursor(Cursor.MOVE_CURSOR));
@@ -216,7 +216,7 @@ final class CanvasInteractionController {
                 panel.lastPopupY = e.getY();
                 panel.lastPopupMm = panel.interaction.screenToPhysical(e.getX(), e.getY());
                 org.trostheide.gantry.app.session.CompositionArtwork artwork = panel.artworkAt(e.getX(), e.getY());
-                if (artwork != null) panel.selectedArtworkId = artwork.id();
+                panel.selectArtwork(artwork == null ? null : artwork.id());
                 boolean hasDrawing = !panel.allPaths.isEmpty();
                 for (Component item : panel.drawingMenuItems) {
                     item.setEnabled(hasDrawing);

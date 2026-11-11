@@ -94,6 +94,8 @@ public class PlotterPanel extends JPanel {
     private JogPanel jogPanel;
     private BackendConnectionCoordinator connections;
     private OverlayControlsPanel overlayControls;
+    private ArtworkInspector artworkInspector;
+    private final JPanel machineToolbarSlot = new JPanel(new BorderLayout());
     private ApplicationDialogs dialogs;
     private RawCommandPanel rawCommands;
 
@@ -158,9 +160,7 @@ public class PlotterPanel extends JPanel {
         consoleScroll.setPreferredSize(new Dimension(260, 160));
 
         plotControls = new PlotControlsPanel(new PlotControlsPanel.Actions(
-                () -> { if (config.preflightBeforeStart) onPreflightWizard(); else onStartPlot(); },
-                this::onPreflightWizard, this::onConfirmLayer, this::onPauseToggle,
-                this::onStopPlot, this::onLayerSelectionChanged, this::onProjectSettingsChanged,
+                this::onLayerSelectionChanged, this::onProjectSettingsChanged,
                 visPanel::setColorByLayer, this::onEditLayerSettings));
         documentEditor = new DocumentEditor(documentSession, this, this::onDocumentEdited,
                 this::setUndoAvailable, this::setRedoAvailable, this::log,
@@ -201,6 +201,7 @@ public class PlotterPanel extends JPanel {
         });
         visPanel.setAddArtworkAction(() -> showAddArtworkMenu(visPanel));
         visPanel.setArtworkInteractionListener(new VisualizationPanel.ArtworkInteractionListener() {
+            public void onSelectionChanged(){refreshArtworkInspector();}
             public void onArtworkMoved(String artworkId, double dx, double dy) {
                 CompositionArtwork artwork = artworkById(artworkId);
                 if (artwork == null) return;
@@ -224,34 +225,35 @@ public class PlotterPanel extends JPanel {
         recoveryTimer.setRepeats(false);
         SwingUtilities.invokeLater(this::offerRecovery);
 
-        artworkWorkspace = new ArtworkWorkspacePanel(visPanel,
-                new ArtworkWorkspacePanel.Actions(this::onImportSvg, this::onImportImage,
-                        this::onLoadCommands, this::onOpenProject));
+        artworkWorkspace = new ArtworkWorkspacePanel(visPanel, this::showAddArtworkMenu);
 
         workspaceChecks = new WorkspaceChecks(this::onHome, this::frameJob,
                 () -> runOnBackend(PlotterBackend::penup), this::refreshGuidance);
-        JPanel prepare = WorkspaceStyle.stack(WorkspaceStyle.heading("Prepare your artwork"),
-                WorkspaceStyle.button("Add artwork…", () -> showAddArtworkMenu(artworkWorkspace)),
-                WorkspaceStyle.button("Artwork groups…", this::onArtworkGroups),
-                overlayControls, WorkspaceStyle.heading("Layers & pens"), plotControls,
-                WorkspaceStyle.heading("Processing"), WorkspaceStyle.button("Adjust source processing…", this::onEditProcessSvg),
-                WorkspaceStyle.button("Re-process selected artwork…", this::onReprocessSelectedArtwork),
-                WorkspaceStyle.button("Re-vectorize image…", this::onReVectorizeImage));
-        JPanel machine = WorkspaceStyle.stack(WorkspaceStyle.heading("Machine tools"),
-                WorkspaceStyle.note("These controls move the physical pen when connected. Focus a direction button to use arrow keys."),
-                jogPanel, WorkspaceStyle.button("Frame artwork — pen up", this::frameJob),
-                WorkspaceStyle.button("Machine setup…", this::onSetupWizard),
-                WorkspaceStyle.button("Calibrate axes…", this::onCalibrateAxesWizard),
-                WorkspaceStyle.button("Watercolor station checks…", this::onTestStationsWizard));
+        artworkInspector = new ArtworkInspector(overlayControls,plotControls,
+                id -> {visPanel.selectArtwork(id);refreshArtworkInspector();},this::onArtworkGroups,
+                this::onEditProcessSvg,this::onReprocessSelectedArtwork,this::onReVectorizeImage,
+                (artwork,transform)->{documentSession.transformArtwork(artwork.id(),transform);visPanel.loadPathsPreservingOverlay(documentSession.currentOutput());refreshDocumentUi();documentEditor.historyAvailability();showUndoFeedback("Artwork transformed.");});
+        JPanel prepare=artworkInspector;
+        JButton machineMore=WorkspaceStyle.button("Setup & calibration ▾",()->{});
+        machineMore.addActionListener(e->{JPopupMenu menu=new JPopupMenu();
+            menu.add(menuItem("Machine setup…",event->onSetupWizard(),false));
+            menu.add(menuItem("Calibrate axes…",event->onCalibrateAxesWizard(),false));
+            menu.add(menuItem("Watercolor station checks…",event->onTestStationsWizard(),false));
+            menu.show(machineMore,0,machineMore.getHeight());});
+        JPanel machine = WorkspaceStyle.stack(
+                WorkspaceStyle.note("Moves the physical pen when connected. Arrow keys work only on focused jog buttons."),
+                jogPanel, WorkspaceStyle.button("Frame artwork — pen up", this::frameJob),machineMore);
         // Only navigation remains available during a job; editing/motion actions retain existing gates.
-        registerInspectorActions(prepare); registerInspectorActions(machine); registerInspectorActions(workspaceChecks);
-        JPanel plot = WorkspaceStyle.stack(WorkspaceStyle.heading("Current job"),plotControls.jobDetails(),
+        registerInspectorActions(machine); registerInspectorActions(workspaceChecks);
+        JPanel plot = WorkspaceStyle.stack(WorkspaceStyle.heading("Current job"),
                 WorkspaceStyle.button("Recent plot jobs…", () -> { if(recentJobsMenu!=null)recentJobsMenu.getPopupMenu().show(workspace.inspector,0,40); }),
                 WorkspaceStyle.button("Return to preparation", () -> {pendingJob=null;invalidateReadiness();workspace.showView("Prepare");refreshGuidance();}));
         workspace = new WorkspaceShell(artworkWorkspace,prepare,workspaceChecks,plot,machine,consoleScroll,rawCommands,
-                guidanceActionBtn,this::onStopPlot,this::onCopyDiagnostics,()->config,this::saveUiPreferences);
-        plot.add(workspace.jobDetail);
-        workspace.inspector.addChangeListener(e -> jogPanel.stopContinuous());
+                guidanceActionBtn,this::onStopPlot,this::onCopyDiagnostics,()->config,this::saveUiPreferences,jogPanel::stopContinuous);
+        plot.add(WorkspaceStyle.note("Progress, pen changes and job controls remain available below the canvas."));
+        workspace.setProgressComponent(plotControls.progressStrip());
+        machineToolbarSlot.add(workspace.machineToggle);
+        refreshArtworkInspector();
         controlSplit = workspace.split;
         add(workspace,BorderLayout.CENTER);
         visPanel.setPlacementEditListener((before,after) -> {
@@ -375,6 +377,7 @@ public class PlotterPanel extends JPanel {
                 pendingJob!=null||!selectedLayerIndices().isEmpty(),outcome,controllerState.name()));
         workspace.render(view,config.showGuidance);
         workspace.jobSummary.setText(summary);
+        if(artworkInspector!=null)artworkInspector.updateSummary(summary);
         safetyStatusLabel.setText(config.mock ? "Simulation • no physical hardware" : connected ? "Controller: "+controllerState : "Not connected • physical state unknown");
         for(ActionListener listener:guidanceActionBtn.getActionListeners())guidanceActionBtn.removeActionListener(listener);
         guidanceActionBtn.setText(view.button());guidanceActionBtn.setEnabled(view.enabled()&&!replaying&&manualActions==0&&(plotting||!plotJobController.isMachineBusy()));
@@ -494,30 +497,18 @@ public class PlotterPanel extends JPanel {
     private JPanel toolbar() {
         JPanel bar = new JPanel(new BorderLayout(8,4));
         JPanel tools=new JPanel(new FlowLayout(FlowLayout.LEFT,6,2));
-        projectLabel.setFont(projectLabel.getFont().deriveFont(Font.BOLD));tools.add(projectLabel);
-        tools.add(disableDuringPlot(WorkspaceStyle.button("Open…",this::onOpenProject)));
-        tools.add(disableDuringPlot(WorkspaceStyle.button("Save",this::onSaveProject)));
+        projectLabel.setFont(projectLabel.getFont().deriveFont(Font.BOLD));projectLabel.setPreferredSize(new Dimension(180,projectLabel.getPreferredSize().height));tools.add(projectLabel);
+        JButton open=WorkspaceStyle.button("Open / Add ▾",()->{});open.addActionListener(e->showAddArtworkMenu(open));tools.add(disableDuringPlot(open));
+        JButton save=WorkspaceStyle.button("Save",this::onSaveProject);WorkspaceIcon.install(save,WorkspaceIcon.Kind.SAVE,"Save project");tools.add(disableDuringPlot(save));
         toolbarUndo.addActionListener(e->onUndo());toolbarRedo.addActionListener(e->onRedo());
+        WorkspaceIcon.install(toolbarUndo,WorkspaceIcon.Kind.UNDO,"Undo");WorkspaceIcon.install(toolbarRedo,WorkspaceIcon.Kind.REDO,"Redo");
         toolbarUndo.setEnabled(false);toolbarRedo.setEnabled(false);tools.add(toolbarUndo);tools.add(toolbarRedo);
         JPanel machine=new JPanel(new FlowLayout(FlowLayout.RIGHT,6,2));
         connectBtn.addActionListener(e->onConnectToggle());machine.add(connectBtn);
-        machine.add(WorkspaceStyle.button("Appearance…",this::appearanceSettings));
+        WorkspaceStyle.quiet(connectBtn);machine.add(machineToolbarSlot);
         bar.add(tools,BorderLayout.CENTER);bar.add(machine,BorderLayout.EAST);
         JPanel status=new JPanel(new BorderLayout());status.add(statusLabel,BorderLayout.WEST);status.add(safetyStatusLabel,BorderLayout.EAST);bar.add(status,BorderLayout.SOUTH);
         return bar;
-    }
-
-    private void appearanceSettings(){
-        JComboBox<String> theme=new JComboBox<>(new String[]{"System","Light","Dark"});theme.setSelectedItem(config.uiTheme);
-        JComboBox<String> density=new JComboBox<>(new String[]{"Comfortable","Compact"});density.setSelectedItem(config.uiDensity);
-        JComboBox<String> canvas=new JComboBox<>(new String[]{"Dark","Light"});canvas.setSelectedItem(config.canvasTheme);
-        JCheckBox guidance=new JCheckBox("Show contextual guidance",config.showGuidance);
-        JPanel form=new JPanel(new GridLayout(0,2,8,8));form.add(new JLabel("Application theme"));form.add(theme);form.add(new JLabel("Density"));form.add(density);
-        form.add(new JLabel("Canvas"));form.add(canvas);form.add(guidance);
-        if(JOptionPane.showConfirmDialog(this,form,"Workspace appearance",JOptionPane.OK_CANCEL_OPTION,JOptionPane.PLAIN_MESSAGE)!=JOptionPane.OK_OPTION)return;
-        config.uiTheme=(String)theme.getSelectedItem();config.uiDensity=(String)density.getSelectedItem();config.canvasTheme=(String)canvas.getSelectedItem();config.showGuidance=guidance.isSelected();
-        saveUiPreferences();WorkspaceStyle.install(config);for(Window window:Window.getWindows())SwingUtilities.updateComponentTreeUI(window);
-        visPanel.setBackground(CanvasPalette.BACKGROUND);refreshCanvasPalette();refreshGuidance();revalidate();repaint();
     }
 
     /** Builds the classical File/Settings/Help menu bar, hosted by the top-level frame. */
@@ -873,7 +864,7 @@ public class PlotterPanel extends JPanel {
     }
 
     private void saveSetupConfig(GantryConfig updated) {
-        updated.inspectorWidth=config.inspectorWidth;updated.diagnosticsOpen=config.diagnosticsOpen;
+        updated.inspectorWidth=config.inspectorWidth;updated.diagnosticsOpen=config.diagnosticsOpen;updated.machinePanelPinned=config.machinePanelPinned;
         config = updated;
         WorkspaceStyle.install(config);for(Window window:Window.getWindows())SwingUtilities.updateComponentTreeUI(window);visPanel.setBackground(CanvasPalette.BACKGROUND);refreshCanvasPalette();
         try {
@@ -1082,6 +1073,9 @@ public class PlotterPanel extends JPanel {
     private void onReVectorizeImage() { fileWorkflow.revectorize(); }
     private void onEditProcessSvg() { fileWorkflow.reprocessSvg(); }
     private void onReprocessSelectedArtwork() {
+        CompositionArtwork selected=visPanel.selectedArtwork();
+        if(selected!=null&&selected.sourcePath()!=null&&selected.importOptions()!=null){fileWorkflow.reprocessArtwork(selected);return;}
+
         if (documentSession.currentOutput() == null || documentSession.artworks().isEmpty()) {
             info("Import or append artwork first.");
             return;
@@ -1337,7 +1331,7 @@ public class PlotterPanel extends JPanel {
         // Update that instance instead of replacing it so pen/Z and speed changes apply now.
         config.gcode.copyFrom(updated.gcode);
         updated.gcode = config.gcode;
-        updated.inspectorWidth=config.inspectorWidth;updated.diagnosticsOpen=config.diagnosticsOpen;
+        updated.inspectorWidth=config.inspectorWidth;updated.diagnosticsOpen=config.diagnosticsOpen;updated.machinePanelPinned=config.machinePanelPinned;
         config = updated;
         WorkspaceStyle.install(config);for(Window window:Window.getWindows())SwingUtilities.updateComponentTreeUI(window);visPanel.setBackground(CanvasPalette.BACKGROUND);refreshCanvasPalette();
         try { ConfigStore.save(config, configFile); }
@@ -1393,22 +1387,18 @@ public class PlotterPanel extends JPanel {
         });
     }
 
-    /**
-     * Tints the Connect button to guide the user through the workflow: green ("Connect") when
-     * idle/disconnected so it stands out as the first required step, red ("Disconnect") once
-     * connected so the next reversible action (disconnecting) stays clearly visible too.
-     */
+    /** Connection state is explicit text; reserve strong red emphasis for Stop. */
     private void setConnectButtonColor(boolean disconnected) {
-        connectBtn.setBackground(disconnected ? ACTION_GREEN : ACTION_RED);
-        connectBtn.setForeground(Color.WHITE);
-        connectBtn.setOpaque(true);
+        connectBtn.setBackground(UIManager.getColor("Button.background"));
+        connectBtn.setForeground(UIManager.getColor("Button.foreground"));
+        connectBtn.setOpaque(false);
+        connectBtn.setToolTipText(disconnected?"Connect the configured plotter":"Disconnect the current plotter");
     }
 
     private void setConnectionRequiredControlsEnabled(boolean enabled) {
         for (JComponent c : connectionRequiredControls) {
             c.setEnabled(enabled);
         }
-        plotControls.setConnected(enabled);
         jogPanel.setConnected(enabled);
         rawCommands.setConnected(enabled);
         updateReplotMenuItem();
@@ -1596,16 +1586,16 @@ public class PlotterPanel extends JPanel {
         new Thread(()->{
             try { plotJobController.togglePause(); }
             catch(RuntimeException ex){SwingUtilities.invokeLater(()->error("Pause/resume failed: "+ex.getMessage()));}
-            finally {SwingUtilities.invokeLater(()->{pausing=false;plotControls.setPaused(plotJobController.isPaused());refreshGuidance();});}
+            finally {SwingUtilities.invokeLater(()->{pausing=false;refreshGuidance();});}
         },"plot-pause").start();
     }
 
     private void setPlottingState(boolean plotting) {
         this.plotting = plotting;
         visPanel.editingEnabled=!plotting;
-        if(plotting){jogPanel.stopContinuous();if(workspace!=null)workspace.showView("Plot");}
+        if(artworkInspector!=null)artworkInspector.setPlotting(plotting);
+        if(plotting){jogPanel.stopContinuous();if(workspace!=null)workspace.showView("Prepare");}
         if (!plotting) awaitingLayerConfirmation = false;
-        plotControls.setConnected(plotJobController.isConnected());
         plotControls.setPlotting(plotting);
         jogPanel.setPlotting(plotting);
         overlayControls.setPlotting(plotting);
@@ -1617,7 +1607,6 @@ public class PlotterPanel extends JPanel {
         // The per-layer checkboxes are rebuilt on every load, so they aren't in the list above;
         // toggle them here so the layer selection can't change mid-plot.
         if (!plotting) {
-            plotControls.setPaused(false);
             if (plotClockTimer != null) {
                 plotClockTimer.stop();
                 plotClockTimer = null;
@@ -1818,12 +1807,21 @@ public class PlotterPanel extends JPanel {
     private void refreshDocumentUi() {
         artworkWorkspace.setHasArtwork(documentSession.currentOutput() != null);
         visPanel.setArtworks(documentSession.artworks());
+        refreshArtworkInspector();
         refreshLayerSelector();
         overlayControls.refreshPosition();
         refreshTimeEstimate();
         refreshGuidance();
         updateDirtyIndicator();
         scheduleRecovery();
+    }
+
+    private void refreshArtworkInspector(){
+        if(artworkInspector==null)return;
+        artworkInspector.refresh(documentSession.artworks(),visPanel.selectedArtwork(),documentSession.currentOutput()!=null,
+                documentSession.sourceSvg()!=null,documentSession.sourceImage()!=null,workspaceSummary());
+        artworkInspector.setPlotting(plotting);
+        if(workspace!=null)workspace.refreshInspectorSize();
     }
 
     private void setUndoAvailable(boolean available) {

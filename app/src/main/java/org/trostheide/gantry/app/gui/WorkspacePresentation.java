@@ -20,7 +20,7 @@ final class WorkspacePresentation {
         if (s.outcome == Phase.FAILED) return v(Phase.FAILED,"Job failed","Review the error and machine state before checking again.","Review checks",Action.CHECK,true,false);
         if (s.outcome == Phase.STOPPED) return v(Phase.STOPPED,"Job stopped","Review placement and machine state before restarting.","Review checks",Action.CHECK,true,false);
         if (s.outcome == Phase.COMPLETE) return v(Phase.COMPLETE,"Job submitted successfully","Check the controller and output before removing the paper.","Plot another copy",Action.CHECK,true,false);
-        if (!s.hasSelection) return v(Phase.PREPARE,"Choose a pen layer","Select at least one layer in Prepare.","Start plotting",Action.START,false,false);
+        if (!s.hasSelection) return v(Phase.PREPARE,"Choose a pen layer","Include at least one layer in the artwork inspector.","Start plotting",Action.START,false,false);
         boolean machineReady = s.simulation || "IDLE".equals(s.controller);
         if (!machineReady) return v(Phase.CHECKING,"Check machine state","Wait for an idle controller. Unknown, alarm and moving states cannot start a job.","Check before plotting",Action.CHECK,true,false);
         if (s.checksRequired && !s.ready) return v(Phase.CHECKING,"Check before plotting","Review automatic checks and confirm the physical setup.","Check before plotting",Action.CHECK,true,false);

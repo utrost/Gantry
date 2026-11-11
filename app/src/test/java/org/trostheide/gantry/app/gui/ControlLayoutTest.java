@@ -9,18 +9,19 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.*;
 
 class ControlLayoutTest {
-    @Test void longLayerNamesDoNotHideEditButtonsOrPlotActions() throws Exception {
+    @Test void longLayerNamesDoNotHideSharedPenProperties() throws Exception {
         SwingUtilities.invokeAndWait(() -> {
             for (float scale : new float[]{1f, 1.5f, 2f}) {
                 PlotControlsPanel panel = new PlotControlsPanel(new PlotControlsPanel.Actions(
-                        ()->{}, ()->{}, ()->{}, ()->{}, ()->{}, ()->{}, ()->{}, value->{}, index->{}));
+                        ()->{}, ()->{}, value->{}, index->{}));
                 panel.rebuild(new ProcessorOutput(null, List.of(new Layer(
                         "A very long imported SVG layer name ".repeat(5), "", "#ff0000", List.of()))),
                         new VisualizationPanel(), false);
+                selectFirstLayer(panel);
                 scaleFonts(panel, scale);
                 panel.setSize(Math.max(300, panel.getMinimumSize().width), panel.getPreferredSize().height);
                 layout(panel);
-                for (String label : List.of("Edit…")) {
+                for (String label : List.of("Pen properties…")) {
                     JButton button = findButton(panel, label);
                     assertNotNull(button, label);
                     Rectangle bounds = SwingUtilities.convertRectangle(button.getParent(), button.getBounds(), panel);
@@ -48,6 +49,8 @@ class ControlLayoutTest {
             assertTrue(sidebar.getScrollableTracksViewportHeight());
         });
     }
+
+    private static void selectFirstLayer(Container root){for(Component child:root.getComponents()){if(child instanceof JTable table)table.setRowSelectionInterval(0,0);else if(child instanceof Container c)selectFirstLayer(c);}}
 
     private static void scaleFonts(Component component, float scale) {
         if (component.getFont() != null) component.setFont(component.getFont().deriveFont(component.getFont().getSize2D() * scale));
