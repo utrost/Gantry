@@ -18,6 +18,18 @@ class JogPanelStateTest {
             panel.setPlotting(false);assertTrue(step.isEnabled());jobs.disconnect();panel.setConnected(false);assertFalse(step.isEnabled());assertFalse(presets.isEnabled());
         });
     }
+    @Test void busyControlsStayVisibleAndRecoverOnlyWhenConnected() throws Exception {
+        SwingUtilities.invokeAndWait(()->{
+            PlotJobController jobs=new PlotJobController();jobs.connect(new MockPlotterBackend(null,null));
+            java.util.concurrent.atomic.AtomicInteger moves=new java.util.concurrent.atomic.AtomicInteger();
+            JogPanel panel=new JogPanel(GantryConfig::new,jobs,new VisualizationPanel(),operation->moves.incrementAndGet(),line->{},new JPanel(),()->{});
+            panel.setConnected(true);JButton direction=direction(panel);assertTrue(direction.isEnabled());
+            panel.setUnavailable("Machine moving");assertFalse(direction.isEnabled());assertTrue(direction.isVisible());
+            assertEquals("Machine moving",direction.getToolTipText());panel.jog(1,0);assertEquals(0,moves.get());
+            panel.setConnected(false);panel.setUnavailable(null);assertFalse(direction.isEnabled());
+            panel.setConnected(true);assertTrue(direction.isEnabled());jobs.disconnect();
+        });
+    }
     @Test void onlyDirectionButtonsAcceptArrowKeyJogging() throws Exception {
         SwingUtilities.invokeAndWait(()->{
             JogPanel panel=new JogPanel(GantryConfig::new,new PlotJobController(),new VisualizationPanel(),operation->{},line->{},new JPanel(),()->{});

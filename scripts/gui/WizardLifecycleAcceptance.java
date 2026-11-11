@@ -20,7 +20,7 @@ public final class WizardLifecycleAcceptance {
                 public void onLeave() { leaves.incrementAndGet(); poll.stop(); }
             };
             dialog[0] = new WizardDialog(null, "Lifecycle check", List.of(step));
-            dialog[0].operationControls(busy::get, stops::incrementAndGet);
+            dialog[0].operationControls(busy::get, stops::incrementAndGet, ()->true);
             dialog[0].addNotify();
             dialog[0].dispose();
             if (!dialog[0].isDisplayable()) throw new AssertionError("closed before operation cleanup");

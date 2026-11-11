@@ -392,9 +392,14 @@ public class PlotterPanel extends JPanel {
         if (workspace == null) return;
         boolean connected=plotJobController.isConnected();
         boolean idle=config.mock || controllerState==GcodeBackend.MachineState.IDLE;
-        for(JButton control:manualMotionControls) {
-            control.setEnabled(connected && !plotting && !plotJobController.isMachineBusy() && manualActions==0);
-        }
+        String unavailable=!connected?"Connect a plotter first.":
+                plotting || plotJobController.isMachineBusy() || manualActions>0?"Wait for the current operation to finish, or use Stop.":
+                !idle?"Wait for the controller to report Idle (currently "+controllerState+").":null;
+        jogPanel.setUnavailable(unavailable);
+        // Keep technical recovery commands available in Alarm/Unknown; block conflicting motion.
+        boolean recoveryState=controllerState==GcodeBackend.MachineState.ALARM || controllerState==GcodeBackend.MachineState.UNKNOWN;
+        rawCommands.setUnavailable(recoveryState && connected && !plotting && !plotJobController.isMachineBusy() && manualActions==0 ? null : unavailable);
+        for(JButton control:manualMotionControls)WorkspaceStyle.availability(control,unavailable);
         updateBoundsReview();
         String summary=workspaceSummary();
         workspaceChecks.update(pendingJob!=null||documentSession.currentOutput()!=null,pendingJob!=null||!selectedLayerIndices().isEmpty(),connected,idle,plotJobController.isMachineBusy()||manualActions>0 || !historicalCompatible(),summary);

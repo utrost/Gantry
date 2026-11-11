@@ -23,7 +23,8 @@ final class JogPanel extends JPanel {
     JLabel positionIndicator(){remove(position);return position;}
     private JButton home;
     JButton homeButton(){return home;}
-    private boolean plotting;
+    private boolean plotting,connected;
+    private String unavailable;
     private volatile double x,y; private volatile boolean known,holding;
     private volatile Thread jogWorker;
     private Window window;
@@ -59,8 +60,14 @@ final class JogPanel extends JPanel {
     @Override public void addNotify(){super.addNotify();window=SwingUtilities.getWindowAncestor(this);if(window!=null)window.addWindowFocusListener(focusListener);}
     @Override public void removeNotify(){stopContinuous();if(window!=null)window.removeWindowFocusListener(focusListener);super.removeNotify();}
     void stopContinuous(){holding=false;for(Timer timer:holdTimers)timer.stop();if(jogWorker!=null)jobs.cancelPlot();}
-    void setConnected(boolean value){if(!value){known=false;stopContinuous();position.setText("Head position: unknown");}for(JComponent c:connectedControls)c.setEnabled(value&&(!plotting||!plotSafeControls.contains(c)));for(JComponent c:plotSafeControls)c.setEnabled(value&&!plotting);}
-    void setPlotting(boolean plotting){this.plotting=plotting;if(plotting)stopContinuous();for(JComponent c:plotSafeControls)c.setEnabled(!plotting&&jobs.isConnected());}
+    void setConnected(boolean value){connected=value;if(!value){known=false;stopContinuous();position.setText("Head position: unknown");}refreshAvailability();}
+    void setPlotting(boolean plotting){this.plotting=plotting;if(plotting)stopContinuous();refreshAvailability();}
+    void setUnavailable(String reason){unavailable=reason;refreshAvailability();}
+    private void refreshAvailability(){
+        for(JComponent c:connectedControls)WorkspaceStyle.availability(c,!connected?"Connect a plotter first.":null);
+        String reason=!connected?"Connect a plotter first.":unavailable!=null?unavailable:plotting?"Wait for the current job to finish.":null;
+        for(JComponent c:plotSafeControls)WorkspaceStyle.availability(c,reason);
+    }
     void setSpeed(int percent){speed.setText(percent+"%");}
     void reportPosition(double x,double y){this.x=x;this.y=y;known=true;SwingUtilities.invokeLater(()->position.setText(String.format(java.util.Locale.ROOT,"Head X %.1f · Y %.1f mm",x,y)));}
     void home(){if(!jobs.isConnected()||jobs.isMachineBusy()){log.accept("Connect an idle plotter before homing.");return;}
@@ -73,11 +80,11 @@ final class JogPanel extends JPanel {
         b.addMouseListener(new MouseAdapter(){public void mousePressed(MouseEvent e){if(b.isEnabled()&&SwingUtilities.isLeftMouseButton(e)){continuous[0]=false;timer.restart();}}public void mouseReleased(MouseEvent e){timer.stop();stopContinuous();}public void mouseExited(MouseEvent e){timer.stop();stopContinuous();}});
         b.addFocusListener(new FocusAdapter(){public void focusLost(FocusEvent e){stopContinuous();}});return b;}
     private <T extends JComponent>T control(T c,boolean plotSafe){connectedControls.add(c);if(plotSafe)plotSafeControls.add(c);c.setEnabled(false);return c;}
-    void jog(int dx,int dy){if(!jobs.isConnected()||jobs.isMachineBusy())return;double[]delta=transform(dx,dy,((Number)step.getValue()).doubleValue());backend.accept(b->move(b,delta[0],delta[1]));}
+    void jog(int dx,int dy){if(!connected||plotting||unavailable!=null||!jobs.isConnected()||jobs.isMachineBusy())return;double[]delta=transform(dx,dy,((Number)step.getValue()).doubleValue());backend.accept(b->move(b,delta[0],delta[1]));}
     private double[] transform(int dx,int dy,double mm){PlotSettings s=config.get().toPlotSettings();double x=dx,y=dy;if(s.swapXY){double t=x;x=y;y=t;}if(s.invertX)x=-x;if(s.invertY)y=-y;return new double[]{x*mm,y*mm};}
     private boolean move(PlotterBackend b,double dx,double dy){if(config.get().softLimits&&known){double[]target=visualization.clampMotorToBed(x+dx,y+dy);dx=target[0]-x;dy=target[1]-y;}if(dx==0&&dy==0)return false;b.move(dx,dy);x+=dx;y+=dy;return true;}
     private void startContinuous(int dx,int dy){
-        if(holding || !isShowing() || !jobs.isConnected() || jobs.isMachineBusy())return;
+        if(unavailable!=null || plotting || holding || !isShowing() || !jobs.isConnected() || jobs.isMachineBusy())return;
         holding=true;
         try {
             jogWorker=jobs.startOperation("Manual jog",b->{

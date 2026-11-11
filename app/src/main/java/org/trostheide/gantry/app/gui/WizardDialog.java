@@ -116,16 +116,25 @@ final class WizardDialog extends JDialog {
         steps.get(current).onLeave();
     }
 
-    void operationControls(java.util.function.BooleanSupplier busy, Runnable stop) {
+    void operationControls(java.util.function.BooleanSupplier busy, Runnable stop, java.util.function.BooleanSupplier connected) {
         operationBusy=busy;stopOperation=stop;
         stopButton.setVisible(true);
         operationTimer=new javax.swing.Timer(100,e->{
             boolean active=operationBusy.getAsBoolean();
             stopButton.setEnabled(active); backBtn.setEnabled(!active && current>0);
             skipBtn.setEnabled(!active); updateNextEnabled();
+            updateMotionAvailability(cardPanel,!connected.getAsBoolean()?"Connect a plotter first.":active?"Wait for the current operation to finish, or use Stop.":null);
             if(closePending && !active)dispose();
         });
         operationTimer.start();
+    }
+
+    private static void updateMotionAvailability(java.awt.Container parent,String reason) {
+        for(java.awt.Component child:parent.getComponents()) {
+            if(child instanceof JButton button && button.getClientProperty("Gantry.actionRole")==WorkspaceStyle.ActionRole.MOTION)
+                WorkspaceStyle.availability(button,reason);
+            if(child instanceof java.awt.Container nested)updateMotionAvailability(nested,reason);
+        }
     }
 
     @Override public void dispose() {

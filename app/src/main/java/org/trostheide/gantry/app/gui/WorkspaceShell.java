@@ -111,8 +111,7 @@ final class WorkspaceShell extends JPanel {
             case WAITING, PAUSED, STOPPED -> "Gantry.warning";
             default -> "Label.foreground";
         });
-        jobTitle.setText(view.title());jobTitle.setToolTipText(view.hint());jobHint.setText(view.hint());jobHint.setVisible(guidance);stop.setVisible(view.stop());stop.setEnabled(view.stop());
-        if(view.stop()&&view.phase()!=WorkspacePresentation.Phase.MANUAL&&!activeJob&&!config.get().machinePanelPinned)setMachineOpen(false);
+        jobTitle.setText(view.title());jobTitle.setToolTipText(view.hint());jobHint.setText(view.hint());jobHint.setVisible(guidance);stop.setVisible(true);WorkspaceStyle.availability(stop,view.stop()?null:"No active Gantry operation to stop.");
         activeJob=view.stop();back.setEnabled(!activeJob);progressSlot.setVisible(activeJob||view.phase()==WorkspacePresentation.Phase.COMPLETE||view.phase()==WorkspacePresentation.Phase.STOPPED||view.phase()==WorkspacePresentation.Phase.FAILED);
     }
 }

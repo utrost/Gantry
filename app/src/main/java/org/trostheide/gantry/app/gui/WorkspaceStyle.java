@@ -24,6 +24,8 @@ public final class WorkspaceStyle {
         palette.put("Component.disabledBorderColor", dark ? "#292f3b" : "#e3e7ee");
         palette.put("Component.focusColor", "#7faaff");
         palette.put("Component.focusedBorderColor", "#7faaff");
+        palette.put("Button.disabledBackground", dark ? "#292e38" : "#e9ecf1");
+        palette.put("Button.disabledText", dark ? "#929baa" : "#737d8f");
         palette.put("Button.borderWidth", "0");
         palette.put("Button.paintShadow", "false");
         palette.put("Button.toolbar.hoverBackground", dark ? "#333d4d" : "#e2e8f2");
@@ -141,6 +143,16 @@ public final class WorkspaceStyle {
     }
     static void status(JComponent component, String key) {
         component.putClientProperty("FlatLaf.style", "foreground: $" + key);
+    }
+    /** Keep unavailable controls visible and explain why without losing their normal tooltip. */
+    static void availability(JComponent control, String reason) {
+        if(control.getClientProperty("Gantry.unavailableReason")==null && reason!=null)
+            control.putClientProperty("Gantry.availableTooltip",control.getToolTipText());
+        String previous=(String)control.getClientProperty("Gantry.unavailableReason");
+        control.putClientProperty("Gantry.unavailableReason",reason);
+        control.setEnabled(reason==null);
+        if(reason!=null)control.setToolTipText(reason);
+        else if(previous!=null)control.setToolTipText((String)control.getClientProperty("Gantry.availableTooltip"));
     }
     static JPanel surface(LayoutManager layout) {
         JPanel panel=new JPanel(layout){
