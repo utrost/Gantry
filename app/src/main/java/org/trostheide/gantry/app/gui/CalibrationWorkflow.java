@@ -57,7 +57,7 @@ final class CalibrationWorkflow {
                         + "<i>Machine &gt; Calibrate Axes…</i>.</html>")));
 
         WizardDialog wizard = new WizardDialog(owner, "Calibrate Axes", steps);
-        wizard.operationControls(busy,stop);
+        wizard.operationControls(busy,stop,connected);
         connectStep.attachOwner(wizard);
         wizard.setVisible(true);
         if (wizard.finishedSuccessfully()) {

@@ -103,12 +103,15 @@ Button colours describe the action's consequence in both themes:
 - **Green status text:** verified conditions or successful submission. A connection
   is not job readiness, and successful submission is not proof of physical completion.
 
-Disabled controls use muted colours. Labels, icons and explicit status text remain
+Disabled controls remain visible with muted labels and backgrounds. Tooltips explain
+connection or busy-state restrictions. Stop remains visible and is disabled when no
+Gantry operation is active. Labels, icons and explicit status text remain
 available so that colour is never the only way to understand the workspace.
 
 The top-bar **Machine** toggle opens compact manual controls above the artwork
 properties. **Pin** keeps them open across jobs and restarts. Close or Escape
-while focused hides them and clears the pin; unpinned controls close at job start.
+while focused hides them and clears the pin. Open machine controls stay visible
+during jobs; unavailable actions are disabled with explanatory tooltips.
 Jog arrows respond only while a direction button has keyboard focus. Setup,
 calibration and watercolor station checks are in **Machine > More**.
 

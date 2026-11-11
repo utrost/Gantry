@@ -42,7 +42,7 @@ final class StationTestWorkflow {
         }
         steps.add(new PanelStep("Done", label("<h3>Test run complete</h3>Finish to save nudged positions.")));
         WizardDialog wizard = new WizardDialog(owner, "Test Color Stations", steps);
-        wizard.operationControls(busy,stop);
+        wizard.operationControls(busy,stop,connected);
         wizard.setVisible(true);
         if (!wizard.finishedSuccessfully()) return;
         for (StationStep step : stationSteps) config.stations.put(step.name, step.current());

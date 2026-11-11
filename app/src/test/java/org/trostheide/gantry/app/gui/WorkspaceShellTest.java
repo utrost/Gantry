@@ -13,9 +13,10 @@ class WorkspaceShellTest {
             WorkspaceShell shell=new WorkspaceShell(new JPanel(),new JPanel(),new JPanel(),new JPanel(),new JPanel(),new JPanel(),new JPanel(),new JButton(),()->{},()->{},()->config,()->{},stopped::incrementAndGet);
             assertFalse(shell.isMachineOpen());shell.machineToggle.doClick();assertTrue(shell.isMachineOpen());
             var running=new WorkspacePresentation.View(WorkspacePresentation.Phase.RUNNING,"Running","","Pause",WorkspacePresentation.Action.PAUSE,true,true);
-            shell.render(running,true);assertFalse(shell.isMachineOpen());assertTrue(shell.stop.isVisible());
+            shell.render(running,true);assertTrue(shell.isMachineOpen());assertTrue(shell.stop.isVisible());
             shell.render(new WorkspacePresentation.View(WorkspacePresentation.Phase.PREPARE,"","","",WorkspacePresentation.Action.NONE,false,false),true);
-            shell.machineToggle.doClick();shell.pin.doClick();assertTrue(config.machinePanelPinned);
+            assertTrue(shell.stop.isVisible());assertFalse(shell.stop.isEnabled());
+            shell.pin.doClick();assertTrue(config.machinePanelPinned);
             shell.render(running,true);assertTrue(shell.isMachineOpen());
             int calls=stopped.get();shell.showView("Check");assertTrue(stopped.get()>calls);
             shell.setMachineOpen(false);assertFalse(shell.isMachineOpen());
