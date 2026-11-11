@@ -290,6 +290,7 @@ public final class VectorizeStudioDialog extends JDialog {
     }
 
     private JComponent buildSouth() {
+        WorkspaceStyle.primary(vectorizeBtn);
         JButton cancelBtn = new JButton("Cancel");
         vectorizeBtn.addActionListener(e -> onVectorize());
         cancelBtn.addActionListener(e -> dispose());

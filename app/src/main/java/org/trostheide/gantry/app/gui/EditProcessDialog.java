@@ -32,6 +32,7 @@ public final class EditProcessDialog extends JDialog {
         if (initialConfig != null) optionsPanel.applyConfig(initialConfig);
 
         JButton okBtn = new JButton("Apply");
+        WorkspaceStyle.primary(okBtn);
         JButton resetBtn = new JButton("Reset to original artwork");
         JButton cancelBtn = new JButton("Cancel");
         okBtn.addActionListener(e -> onOk());

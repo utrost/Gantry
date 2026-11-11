@@ -98,6 +98,7 @@ final class CalibrationWorkflow {
             for (int[] direction : new int[][]{{-1,0},{1,0},{0,-1},{0,1}}) {
                 double dx=direction[0],dy=direction[1];
                 JButton move=new JButton((dx==0?"Y ":"X ")+(dx+dy>0?"+":"−")+"1 mm");
+            WorkspaceStyle.motion(move);
                 move.addActionListener(e->runOnBackend(b->{b.penup();b.move(dx,dy);})); positioning.add(move);
             }
             panel.add(positioning);
@@ -117,6 +118,7 @@ final class CalibrationWorkflow {
                 java.util.function.Consumer<AxisDirectionSolver.Dir> onObserved) {
             JPanel row = new JPanel(new FlowLayout(FlowLayout.LEFT));
             JButton jogBtn = new JButton(jogLabel);
+            WorkspaceStyle.motion(jogBtn);
             jogBtn.addActionListener(e -> runOnBackend(b -> b.move(dxMm, dyMm)));
             row.add(jogBtn);
             row.add(new JLabel("moved:"));
@@ -195,6 +197,7 @@ final class CalibrationWorkflow {
             panel.add(left(currentLabel));
 
             JButton moveBtn = new JButton("Move " + axis + " by commanded distance");
+            WorkspaceStyle.motion(moveBtn);
             moveBtn.addActionListener(e -> {
                 double d = ((Number) commandedSpinner.getValue()).doubleValue();
                 runOnBackend(b -> {
@@ -395,6 +398,7 @@ final class CalibrationWorkflow {
             panel.add(left(cards));
 
             JButton testBtn = new JButton("Test pen (up → down → up)");
+            WorkspaceStyle.motion(testBtn);
             testBtn.addActionListener(e -> runOnBackend(b -> {
                 log("Pen test: lifting, lowering, lifting…");
                 b.penup();

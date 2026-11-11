@@ -15,6 +15,7 @@ final class WorkspaceShell extends JPanel {
     final JLabel jobSummary = new JLabel("No artwork");
     final JTextArea jobDetail = WorkspaceStyle.note("No active job");
     final JButton stop;
+    private final JButton primary;
     final JSplitPane split;
     final JToggleButton machineToggle = new JToggleButton("Machine");
     final JToggleButton pin = new JToggleButton("Pin");
@@ -38,6 +39,7 @@ final class WorkspaceShell extends JPanel {
                    JComponent console,JComponent raw,JButton primary,Runnable stopAction,Runnable copy,
                    Supplier<GantryConfig> config,Runnable save,Runnable stopJog) {
         super(new BorderLayout(6,4));
+        this.primary=primary;
         this.stopJog=stopJog; this.config=config; this.save=save;
         cards.add(prepare,"Prepare"); cards.add(check,"Check"); cards.add(plot,"Plot");
         // CardLayout otherwise uses the tallest hidden card when computing the scroll height.
@@ -73,7 +75,7 @@ final class WorkspaceShell extends JPanel {
         jobTitle.setFont(jobTitle.getFont().deriveFont(Font.BOLD,15f));
         JPanel copyPanel=new JPanel(new BorderLayout(0,3));copyPanel.setMinimumSize(new Dimension(0,0));copyPanel.add(jobTitle,BorderLayout.NORTH);JPanel middle=new JPanel(new BorderLayout(0,3));middle.add(jobSummary,BorderLayout.NORTH);middle.add(progressSlot,BorderLayout.CENTER);copyPanel.add(middle,BorderLayout.CENTER);jobTitle.setToolTipText(jobHint.getText());job.add(copyPanel,BorderLayout.CENTER);
         JPanel controls=new JPanel(new FlowLayout(FlowLayout.RIGHT,8,0));WorkspaceStyle.primary(primary);controls.add(primary);
-        stop=WorkspaceStyle.button("Stop",stopAction);stop.putClientProperty("JButton.buttonType","roundRect");stop.setBackground(new Color(175,35,35));stop.setForeground(Color.WHITE);stop.getAccessibleContext().setAccessibleDescription("Stop the active job and attempt motion halt and pen lift");controls.add(stop);job.add(controls,BorderLayout.EAST);
+        stop=WorkspaceStyle.button("Stop",stopAction);WorkspaceStyle.action(stop,WorkspaceStyle.ActionRole.STOP,true);stop.getAccessibleContext().setAccessibleDescription("Stop the active job and attempt motion halt and pen lift");controls.add(stop);job.add(controls,BorderLayout.EAST);
         JToggleButton diagnostics=new JToggleButton("Diagnostics");WorkspaceStyle.quiet(diagnostics);diagnostics.setSelected(config.get().diagnosticsOpen);
         JPanel drawerTools=new JPanel(new FlowLayout(FlowLayout.LEFT,6,0));controls.add(diagnostics,0);
         JPanel drawer=new JPanel(new BorderLayout());JPanel drawerHeader=new JPanel(new BorderLayout());drawerHeader.add(raw,BorderLayout.CENTER);drawerHeader.add(WorkspaceStyle.button("Copy diagnostics",copy),BorderLayout.EAST);
@@ -102,6 +104,13 @@ final class WorkspaceShell extends JPanel {
         revalidate();repaint();
     }
     void render(WorkspacePresentation.View view,boolean guidance){
+        WorkspaceStyle.action(primary,WorkspaceStyle.roleFor(view.action()),true);
+        WorkspaceStyle.status(jobTitle,switch(view.phase()) {
+            case COMPLETE, READY -> "Gantry.success";
+            case FAILED -> "Gantry.error";
+            case WAITING, PAUSED, STOPPED -> "Gantry.warning";
+            default -> "Label.foreground";
+        });
         jobTitle.setText(view.title());jobTitle.setToolTipText(view.hint());jobHint.setText(view.hint());jobHint.setVisible(guidance);stop.setVisible(view.stop());stop.setEnabled(view.stop());
         if(view.stop()&&view.phase()!=WorkspacePresentation.Phase.MANUAL&&!activeJob&&!config.get().machinePanelPinned)setMachineOpen(false);
         activeJob=view.stop();back.setEnabled(!activeJob);progressSlot.setVisible(activeJob||view.phase()==WorkspacePresentation.Phase.COMPLETE||view.phase()==WorkspacePresentation.Phase.STOPPED||view.phase()==WorkspacePresentation.Phase.FAILED);

@@ -59,10 +59,12 @@ final class StationTestWorkflow {
             panel.setBorder(BorderFactory.createEmptyBorder(12,12,12,12));
             panel.add(new JLabel("Station '"+name+"' — "+base.behavior())); updateLabel(); panel.add(coordinates);
             JButton move=new JButton("Move here (pen up)"), wet=new JButton("Wet test (dip)");
+            WorkspaceStyle.motion(move);WorkspaceStyle.motion(wet);
             move.addActionListener(e -> service(s -> s.dryVisitStation(current())));
             wet.addActionListener(e -> service(s -> s.wetTestStation(current())));
             panel.add(row(move,wet));
             JButton xm=new JButton("−X"), xp=new JButton("+X"), ym=new JButton("−Y"), yp=new JButton("+Y");
+            for(JButton button:List.of(xm,xp,ym,yp))WorkspaceStyle.motion(button);
             xm.addActionListener(e->nudge(-step(),0)); xp.addActionListener(e->nudge(step(),0));
             ym.addActionListener(e->nudge(0,-step())); yp.addActionListener(e->nudge(0,step()));
             panel.add(row(new JLabel("Step:"),amount,xm,xp,ym,yp));

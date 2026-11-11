@@ -24,6 +24,7 @@ public class WorkspaceLayouts extends GuiAcceptance {
    var beforeNavigation=edt(()->project().output());
    edt(()->{Object vis=field(panel,"visPanel");Object session=field(panel,"documentSession");java.util.List<?> artworks=(java.util.List<?>)session.getClass().getMethod("artworks").invoke(session);if(!artworks.isEmpty()){Object artwork=artworks.get(0);String id=(String)artwork.getClass().getMethod("id").invoke(artwork);Method select=vis.getClass().getDeclaredMethod("selectArtwork",String.class);select.setAccessible(true);select.invoke(vis,id);}return null;});capture(out,"selected-artwork");
    edt(()->{Object shell=field(panel,"workspace");((JToggleButton)field(shell,"machineToggle")).doClick();return null;});capture(out,"machine");assertLayerRows();
+   edt(()->{check(!findButton(panel,"Home…").isEnabled(),"Home disabled when disconnected");check(!findButton(panel,"Frame…").isEnabled(),"Frame disabled when disconnected");return null;});
    edt(()->{Object vis=field(panel,"visPanel");Method select=vis.getClass().getDeclaredMethod("selectArtwork",String.class);select.setAccessible(true);select.invoke(vis,new Object[]{null});return null;});capture(out,"machine-whole-drawing");assertLayerRows();
    check(edt(()->project().output().equals(beforeNavigation)),"selection and machine navigation preserve prepared output");
    edt(()->{Object shell=field(panel,"workspace");((JToggleButton)field(shell,"machineToggle")).doClick();frame.setSize(1440,1000);return null;});capture(out,"large-workspace");edt(()->{frame.setSize(1024,800);return null;});

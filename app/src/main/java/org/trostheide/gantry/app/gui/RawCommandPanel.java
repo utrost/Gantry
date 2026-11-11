@@ -14,7 +14,7 @@ final class RawCommandPanel extends JPanel {
     RawCommandPanel(Consumer<Consumer<PlotterBackend>> backend,Consumer<String> log){this.backend=backend;this.log=log;
         setLayout(new FlowLayout(FlowLayout.LEFT,6,4));setBorder(new TitledBorder("Raw G-code"));
         Action action=new AbstractAction(){public void actionPerformed(java.awt.event.ActionEvent e){submit();}};
-        send.setAction(action);send.setText("Send");input.addActionListener(action);add(input);add(send);refresh();}
+        send.setAction(action);send.setText("Send");WorkspaceStyle.motion(send);send.setToolTipText("Send raw commands — may move the machine immediately");input.addActionListener(action);add(input);add(send);refresh();}
     void setConnected(boolean value){connected=value;refresh();}void setPlotting(boolean value){plotting=value;refresh();}
     private void refresh(){boolean enabled=connected&&!plotting;input.setEnabled(enabled);send.setEnabled(enabled);}
     private void submit(){String command=input.getText().trim();if(command.isEmpty())return;input.setText("");backend.accept(b->{for(String line:b.sendRaw(command))log.accept(line);});}

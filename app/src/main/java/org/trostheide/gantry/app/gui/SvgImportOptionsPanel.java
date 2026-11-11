@@ -61,7 +61,6 @@ final class SvgImportOptionsPanel extends JPanel {
     private Result result;
 
     /** Turns green once a valid size is chosen, signalling the import is ready to run. */
-    private static final Color READY_GREEN = new Color(46, 125, 50);
     private final JButton okBtn = new JButton("Import");
 
     public SvgImportOptionsPanel(Window owner) {
@@ -133,8 +132,7 @@ final class SvgImportOptionsPanel extends JPanel {
             ready = true;
         }
         okBtn.setEnabled(ready);
-        okBtn.setBackground(ready ? READY_GREEN : null);
-        okBtn.setForeground(ready ? Color.WHITE : null);
+        WorkspaceStyle.primary(okBtn);
         okBtn.setOpaque(ready);
     }
 

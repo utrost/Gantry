@@ -40,6 +40,7 @@ final class JogPanel extends JPanel {
         JPanel manual=new JPanel(new BorderLayout(8,0));manual.add(pad,BorderLayout.WEST);
         JButton penUp=control(WorkspaceStyle.button("Pen up",()->backend.accept(PlotterBackend::penup)),true);
         JButton penDown=control(WorkspaceStyle.button("Pen down",()->backend.accept(PlotterBackend::pendown)),true);
+        WorkspaceStyle.motion(penUp);WorkspaceStyle.motion(penDown);
         penUp.setMargin(new Insets(3,8,3,8));penDown.setMargin(new Insets(3,8,3,8));
         step.getAccessibleContext().setAccessibleName("Jog distance in millimetres");step.setPreferredSize(new Dimension(64,step.getPreferredSize().height));plotSafeControls.add(step);
         JComboBox<String> presets=new JComboBox<>(new String[]{"Step preset…","0.1 mm","1 mm","10 mm"});
@@ -50,6 +51,7 @@ final class JogPanel extends JPanel {
         home=control(WorkspaceStyle.button("Home machine…",this::home),true);
         for(JButton button:List.of(minus,plus,reset))button.setMargin(new Insets(3,6,3,6));
         reset.setText("↺");reset.getAccessibleContext().setAccessibleName("Reset feed override");reset.setToolTipText("Reset feed override to 100%");
+        WorkspaceStyle.motion(home);
         home.setText("Home…");home.setToolTipText("Home moves toward the configured limit switches");
         JPanel footer=row(new JLabel("Feed override"),minus,speed,plus,reset,home);add(footer,BorderLayout.SOUTH);
     }
@@ -65,7 +67,7 @@ final class JogPanel extends JPanel {
         if(JOptionPane.showConfirmDialog(parent,"Home moves the plotter toward its configured limit switches. Clear the bed before continuing.","Home machine",JOptionPane.OK_CANCEL_OPTION,JOptionPane.WARNING_MESSAGE)!=JOptionPane.OK_OPTION)return;
         backend.accept(b->{b.home();reportPosition(0,0);});}
     private void adjustSpeed(String value){new Thread(()->{try{jobs.withBackend(b->b.adjustSpeed(value));}catch(RuntimeException e){log.accept("Feed override failed: "+e.getMessage());}},"feed-override").start();}
-    private JButton jogButton(String label,int dx,int dy){JButton b=control(new JButton(label),true);b.putClientProperty("jogDirection",true);b.getAccessibleContext().setAccessibleName("Jog "+(dx<0?"left":dx>0?"right":dy>0?"up":"down"));b.setMargin(new Insets(0,0,0,0));b.setPreferredSize(new Dimension(34,30));
+    private JButton jogButton(String label,int dx,int dy){JButton b=control(new JButton(label),true);b.putClientProperty("jogDirection",true);WorkspaceStyle.motion(b);b.getAccessibleContext().setAccessibleName("Jog "+(dx<0?"left":dx>0?"right":dy>0?"up":"down"));b.setMargin(new Insets(0,0,0,0));b.setPreferredSize(new Dimension(34,30));
         boolean[] continuous={false};Timer timer=new Timer(300,e->{continuous[0]=true;startContinuous(dx,dy);});timer.setRepeats(false);holdTimers.add(timer);
         b.addActionListener(e->{timer.stop();if(!continuous[0])jog(dx,dy);continuous[0]=false;});
         b.addMouseListener(new MouseAdapter(){public void mousePressed(MouseEvent e){if(b.isEnabled()&&SwingUtilities.isLeftMouseButton(e)){continuous[0]=false;timer.restart();}}public void mouseReleased(MouseEvent e){timer.stop();stopContinuous();}public void mouseExited(MouseEvent e){timer.stop();stopContinuous();}});

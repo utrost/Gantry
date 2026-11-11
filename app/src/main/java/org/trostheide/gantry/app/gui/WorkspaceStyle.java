@@ -43,6 +43,13 @@ public final class WorkspaceStyle {
         palette.put("Separator.foreground", dark ? "#343e4f" : "#dce3ee");
         palette.put("ProgressBar.arc", "999");
         palette.put("ProgressBar.foreground", "#5283e8");
+        palette.put("Gantry.motion.background", dark ? "#3b3021" : "#fff0d4");
+        palette.put("Gantry.motion.foreground", dark ? "#f4bd62" : "#784500");
+        palette.put("Gantry.motion.hover", dark ? "#504027" : "#ffe1a5");
+        palette.put("Gantry.motion.pressed", dark ? "#64502f" : "#f4ce87");
+        palette.put("Gantry.success", dark ? "#83d5aa" : "#21683f");
+        palette.put("Gantry.warning", dark ? "#f4bd62" : "#784500");
+        palette.put("Gantry.error", dark ? "#ff9696" : "#a82b35");
         look.setExtraDefaults(palette);
         FlatLaf.setup(look);
         boolean compact="Compact".equals(config.uiDensity);
@@ -94,8 +101,46 @@ public final class WorkspaceStyle {
         button.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
     }
     static void primary(JButton button) {
+        action(button, ActionRole.PREPARE, true);
+    }
+    enum ActionRole { NEUTRAL, PREPARE, MOTION, PAUSE, STOP }
+    /** Explicit consequences, never inferred from translated labels or wired to machine state. */
+    static void action(AbstractButton button, ActionRole role, boolean prominent) {
+        button.putClientProperty("Gantry.actionRole", role);
         button.putClientProperty("JButton.buttonType", null);
-        button.putClientProperty("FlatLaf.style", "background: #3167d0; foreground: #ffffff; focusedBackground: #2a58b4; hoverBackground: #2856b1; pressedBackground: #204591");
+        String style = switch(role) {
+            case NEUTRAL -> "";
+            case PREPARE -> "background: #3167d0; foreground: #ffffff; focusedBackground: #2a58b4; hoverBackground: #2856b1; pressedBackground: #204591";
+            case MOTION, PAUSE -> prominent
+                    ? "background: #edb459; foreground: #292013; focusedBackground: #f3c477; hoverBackground: #f3c477; pressedBackground: #d99c3c"
+                    : "background: $Gantry.motion.background; foreground: $Gantry.motion.foreground; focusedBackground: $Gantry.motion.hover; hoverBackground: $Gantry.motion.hover; pressedBackground: $Gantry.motion.pressed";
+            case STOP -> "background: #ad2935; foreground: #ffffff; focusedBackground: #c33340; hoverBackground: #c33340; pressedBackground: #90212b";
+        };
+        if (!style.isEmpty()) style += "; disabledBackground: $Button.disabledBackground; disabledText: $Button.disabledText";
+        button.putClientProperty("FlatLaf.style", style);
+        if (role == ActionRole.MOTION && !Boolean.TRUE.equals(button.getClientProperty("jogDirection"))) {
+            button.setIcon(new WorkspaceIcon(WorkspaceIcon.Kind.MOTION));
+            button.getAccessibleContext().setAccessibleDescription("Can send machine movement commands. " + button.getText());
+        } else if (button.getIcon() instanceof WorkspaceIcon icon && icon.isMotion()) {
+            button.setIcon(null);
+            button.getAccessibleContext().setAccessibleDescription(null);
+        }
+    }
+    static JButton motion(JButton button) {
+        action(button, ActionRole.MOTION, false);
+        if(button.getToolTipText()==null)button.setToolTipText("Can move the machine: " + button.getText() + ". Requires a connected, available plotter.");
+        return button;
+    }
+    static ActionRole roleFor(WorkspacePresentation.Action action) {
+        return switch(action) {
+            case START, CONTINUE, RESUME -> ActionRole.MOTION;
+            case PAUSE -> ActionRole.PAUSE;
+            case CHECK -> ActionRole.PREPARE;
+            default -> ActionRole.NEUTRAL;
+        };
+    }
+    static void status(JComponent component, String key) {
+        component.putClientProperty("FlatLaf.style", "foreground: $" + key);
     }
     static JPanel surface(LayoutManager layout) {
         JPanel panel=new JPanel(layout){
