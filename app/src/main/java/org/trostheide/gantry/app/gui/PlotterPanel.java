@@ -62,7 +62,6 @@ import java.time.format.DateTimeFormatter;
  */
 public class PlotterPanel extends JPanel {
 
-    private static final Color ACTION_GREEN = new Color(46, 125, 50);
     private static final Color ACTION_RED = new Color(198, 40, 40);
     private record OptimizationResult(ProcessorOutput output, OptimizeStage.Stats before,
                                       OptimizeStage.Stats after) { }
@@ -133,6 +132,7 @@ public class PlotterPanel extends JPanel {
     /** Controls that should be disabled while a plot is running (jog, pen, speed, edit actions). */
     private final List<JComponent> plotDisabledControls = new ArrayList<>();
     private final List<JComponent> connectionRequiredControls = new ArrayList<>();
+    private final List<JButton> manualMotionControls = new ArrayList<>();
 
     private JSplitPane controlSplit;
     private WorkspaceShell workspace;
@@ -261,7 +261,9 @@ public class PlotterPanel extends JPanel {
             menu.add(menuItem("Watercolor station checks…",event->onTestStationsWizard(),false));
             menu.show(machineMore,0,machineMore.getHeight());});
         JPanel machineActions=new JPanel(new FlowLayout(FlowLayout.LEFT,6,0));
-        JButton frameButton=WorkspaceStyle.button("Frame…",this::frameJob);frameButton.getAccessibleContext().setAccessibleName("Frame artwork — pen up");frameButton.setToolTipText("Move around the prepared drawing with the pen raised");machineActions.add(frameButton);machineActions.add(jogPanel.homeButton());machineActions.add(machineMore);
+        JButton frameButton=WorkspaceStyle.button("Frame…",this::frameJob);frameButton.getAccessibleContext().setAccessibleName("Frame artwork — pen up");frameButton.setToolTipText("Move around the prepared drawing with the pen raised");WorkspaceStyle.motion(frameButton);machineActions.add(frameButton);machineActions.add(jogPanel.homeButton());machineActions.add(machineMore);
+        manualMotionControls.add(frameButton);manualMotionControls.add(jogPanel.homeButton());
+        manualMotionControls.addAll(workspaceChecks.motionControls());
         JPanel machine = WorkspaceStyle.stack(jogPanel,machineActions);machine.setBorder(BorderFactory.createEmptyBorder(4,10,4,10));
         machine.setToolTipText("Manual controls can move the connected plotter. Arrow keys work only on focused jog buttons.");
         // Only navigation remains available during a job; editing/motion actions retain existing gates.
@@ -390,6 +392,9 @@ public class PlotterPanel extends JPanel {
         if (workspace == null) return;
         boolean connected=plotJobController.isConnected();
         boolean idle=config.mock || controllerState==GcodeBackend.MachineState.IDLE;
+        for(JButton control:manualMotionControls) {
+            control.setEnabled(connected && !plotting && !plotJobController.isMachineBusy() && manualActions==0);
+        }
         updateBoundsReview();
         String summary=workspaceSummary();
         workspaceChecks.update(pendingJob!=null||documentSession.currentOutput()!=null,pendingJob!=null||!selectedLayerIndices().isEmpty(),connected,idle,plotJobController.isMachineBusy()||manualActions>0 || !historicalCompatible(),summary);
@@ -409,6 +414,8 @@ public class PlotterPanel extends JPanel {
         workspace.jobSummary.setToolTipText(summary+(boundsWarning.isBlank()?"":" · "+boundsWarning));
         if(artworkInspector!=null)artworkInspector.updateSummary(summary);
         safetyStatusLabel.setText(config.mock ? "Simulation • no physical hardware" : connected ? "Controller: "+controllerState : "Not connected • physical state unknown");
+        WorkspaceStyle.status(safetyStatusLabel, !config.mock && connected && controllerState==GcodeBackend.MachineState.IDLE
+                ? "Gantry.success" : controllerState==GcodeBackend.MachineState.ALARM ? "Gantry.error" : "Label.foreground");
         for(ActionListener listener:guidanceActionBtn.getActionListeners())guidanceActionBtn.removeActionListener(listener);
         guidanceActionBtn.setText(view.button());guidanceActionBtn.setEnabled(view.enabled()&&historicalCompatible()&&!replaying&&manualActions==0&&(plotting||!plotJobController.isMachineBusy()));
         WorkspacePresentation.Action nextAction=view.action();

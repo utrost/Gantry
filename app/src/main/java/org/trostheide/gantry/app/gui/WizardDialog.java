@@ -39,6 +39,7 @@ final class WizardDialog extends JDialog {
     private javax.swing.Timer operationTimer;
     private boolean closePending;
     private final JButton stopButton = new JButton("Stop operation");
+    { WorkspaceStyle.action(stopButton, WorkspaceStyle.ActionRole.STOP, true); }
     private final JPanel buttons = new JPanel(new FlowLayout(FlowLayout.RIGHT));
 
     WizardDialog(Window owner, String title, List<WizardStep> steps) {

@@ -90,6 +90,22 @@ The bottom job strip holds the next action, progress, pen-change instructions,
 Pause/Resume and Stop. Progress counts commands submitted; it does not prove that
 physical motion has ended. Stop remains available without scrolling.
 
+Button colours describe the action's consequence in both themes:
+
+- **Neutral graphite:** editing, navigation and connection controls.
+- **Blue:** preparation or review, such as Import, Apply processing and Check.
+- **Amber with a movement icon:** actions that can move the machine, including
+  Home, Frame, pen lift, calibration tests, raw commands, Start and Continue.
+  Jog arrows use their existing direction symbols. The primary motion action
+  has a filled amber background; secondary actions use a subtle tint.
+- **Amber:** Pause, which interrupts command submission.
+- **Red:** Stop, including Stop operation in wizards.
+- **Green status text:** verified conditions or successful submission. A connection
+  is not job readiness, and successful submission is not proof of physical completion.
+
+Disabled controls use muted colours. Labels, icons and explicit status text remain
+available so that colour is never the only way to understand the workspace.
+
 The top-bar **Machine** toggle opens compact manual controls above the artwork
 properties. **Pin** keeps them open across jobs and restarts. Close or Escape
 while focused hides them and clears the pin; unpinned controls close at job start.

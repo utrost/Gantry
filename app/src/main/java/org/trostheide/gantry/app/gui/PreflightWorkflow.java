@@ -67,7 +67,7 @@ final class PreflightWorkflow {
         HomeStep() {
             super("Run the homing cycle so the machine knows where it is.");
             JLabel status = new JLabel("Not homed yet.");
-            JButton button = new JButton("Home");
+            JButton button = WorkspaceStyle.motion(new JButton("Home"));
             button.addActionListener(e -> {
                 actions.home().run();
                 status.setText("Homing requested. Wait for the machine to stop before continuing.");
@@ -83,7 +83,7 @@ final class PreflightWorkflow {
             super("Trace the job's outline with the pen up, to check it lines up with the taped-down paper. "
                     + "Repeat as many times as you like.");
             JLabel status = new JLabel(" ");
-            JButton button = new JButton("Frame the job");
+            JButton button = WorkspaceStyle.motion(new JButton("Frame the job"));
             button.addActionListener(e -> { actions.frame().run(); status.setText("Tracing outline..."); });
             panel.add(row(button, status), BorderLayout.CENTER);
         }
