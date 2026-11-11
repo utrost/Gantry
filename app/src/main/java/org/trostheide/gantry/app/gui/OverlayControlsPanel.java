@@ -26,7 +26,7 @@ final class OverlayControlsPanel extends JPanel {
         setLayout(new BoxLayout(this,BoxLayout.Y_AXIS));setBorder(BorderFactory.createEmptyBorder(2,0,2,0));
         JButton reset=WorkspaceStyle.button("Reset",visualization::resetOverlay),rotate=WorkspaceStyle.button("Rotate 90°",visualization::rotateOverlay),mirror=WorkspaceStyle.button("Mirror",visualization::toggleMirror);
         reset.setToolTipText("Reset artwork placement");
-        add(WorkspaceStyle.heading("Position on bed · mm from origin"));
+        add(WorkspaceStyle.section("Position & size","mm · from origin"));
         JPanel grid=new JPanel(new GridBagLayout());GridBagConstraints g=new GridBagConstraints();g.insets=new Insets(3,2,3,2);g.fill=GridBagConstraints.HORIZONTAL;
         String[] names={"X","Y","Width","Height"};JSpinner[] fields={x,y,width,height};
         for(int i=0;i<fields.length;i++){compactCoordinateSpinner(fields[i]);fields[i].getAccessibleContext().setAccessibleName("Artwork "+names[i]+" in millimetres");

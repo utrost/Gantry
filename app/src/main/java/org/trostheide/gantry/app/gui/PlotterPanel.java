@@ -556,8 +556,8 @@ public class PlotterPanel extends JPanel {
     private JPanel toolbar() {
         JPanel bar = new JPanel(new BorderLayout(8,4));
         JPanel tools=new JPanel(new FlowLayout(FlowLayout.LEFT,6,2));
-        projectLabel.setFont(projectLabel.getFont().deriveFont(Font.BOLD));projectLabel.setPreferredSize(new Dimension(150,projectLabel.getPreferredSize().height));tools.add(projectLabel);
-        JButton open=WorkspaceStyle.button("Open / Add ▾",()->{});open.addActionListener(e->showAddArtworkMenu(open));tools.add(disableDuringPlot(open));
+        projectLabel.setFont(projectLabel.getFont().deriveFont(Font.BOLD,14f));projectLabel.setPreferredSize(new Dimension(150,projectLabel.getPreferredSize().height));tools.add(projectLabel);
+        JButton open=WorkspaceStyle.button("Open / Add ▾",()->{});WorkspaceStyle.quiet(open);open.addActionListener(e->showAddArtworkMenu(open));tools.add(disableDuringPlot(open));
         JButton save=WorkspaceStyle.button("Save",this::onSaveProject);WorkspaceIcon.install(save,WorkspaceIcon.Kind.SAVE,"Save project");tools.add(disableDuringPlot(save));
         toolbarUndo.addActionListener(e->onUndo());toolbarRedo.addActionListener(e->onRedo());
         WorkspaceIcon.install(toolbarUndo,WorkspaceIcon.Kind.UNDO,"Undo");WorkspaceIcon.install(toolbarRedo,WorkspaceIcon.Kind.REDO,"Redo");

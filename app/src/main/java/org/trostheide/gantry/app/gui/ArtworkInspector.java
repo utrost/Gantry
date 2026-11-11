@@ -13,7 +13,7 @@ final class ArtworkInspector extends JPanel {
     private final JLabel summary = new JLabel("No artwork loaded");
     private final JPanel placement;
     private final JPanel layers;
-    private final JLabel layersHeading=WorkspaceStyle.heading("Layers & pens");
+    private final JPanel layersHeading=WorkspaceStyle.section("Layers & pens",null);
     private final JButton processing;
     private final JButton groups;
     private final JPanel groupPlacement = new JPanel();
@@ -37,7 +37,7 @@ final class ArtworkInspector extends JPanel {
         selection.getAccessibleContext().setAccessibleName("Artwork properties target");
         selection.setMaximumSize(new Dimension(Integer.MAX_VALUE,selection.getPreferredSize().height));selection.setMinimumSize(new Dimension(0,selection.getPreferredSize().height));
         selection.addActionListener(e->{if(!refreshing){int i=selection.getSelectedIndex();select.accept(i<=0?null:artworks.get(i-1).id());}});
-        processing=WorkspaceStyle.button("Processing ▾",()->{});
+        processing=WorkspaceStyle.button("Processing ▾",()->{});WorkspaceStyle.quiet(processing);
         processing.addActionListener(e->{JPopupMenu menu=new JPopupMenu();
             if(selected!=null&&selected.sourcePath()!=null&&selected.importOptions()!=null)add(menu,"Re-process selected artwork…",reprocess);
             else if(selected==null&&svg)add(menu,"Adjust source processing…",processSource);
@@ -47,7 +47,7 @@ final class ArtworkInspector extends JPanel {
         for(Object[] entry:new Object[][]{{"Group X offset (mm)",x},{"Group Y offset (mm)",y},{"Group scale",scale}}){JLabel label=new JLabel((String)entry[0]);JComponent field=(JComponent)entry[1];label.setLabelFor(field);field.getAccessibleContext().setAccessibleName(label.getText());relativePlacement.add(label);relativePlacement.add(field);}
         relativePlacement.add(groupSize);relativePlacement.add(mirror);
         groupPlacement.setLayout(new BoxLayout(groupPlacement,BoxLayout.Y_AXIS));
-        groupPlacement.add(WorkspaceStyle.heading("Position on bed · mm from origin"));
+        groupPlacement.add(WorkspaceStyle.section("Position & size","mm · from origin"));
         JPanel physical=new JPanel(new GridLayout(2,4,6,6));
         String[] labels={"X","Y","Width","Height"};JSpinner[] values={bedX,bedY,width,height};
         JTextArea validation=WorkspaceStyle.note("");validation.setVisible(false);

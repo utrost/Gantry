@@ -40,6 +40,7 @@ final class PlotControlsPanel extends JPanel {
         setBorder(BorderFactory.createEmptyBorder(0,0,0,0));
         passes.addChangeListener(e->actions.projectChanged().run());
         progress.setStringPainted(true); progress.setVisible(false);
+        layerTable.setIntercellSpacing(new Dimension(0,0));
         layerTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         layerTable.setRowHeight(24); layerTable.setShowGrid(false);
         layerTable.getAccessibleContext().setAccessibleName("Layers and plot inclusion");
@@ -77,6 +78,7 @@ final class PlotControlsPanel extends JPanel {
         scroll.setPreferredSize(new Dimension(180, layerHeight));
         scroll.setMinimumSize(new Dimension(100,layerHeight));
         scroll.setMaximumSize(new Dimension(Integer.MAX_VALUE,Integer.MAX_VALUE));
+        scroll.setBorder(BorderFactory.createEmptyBorder());
         scroll.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
         colors.addActionListener(e -> actions.colorByLayer().accept(colors.isSelected()));
         JPanel footer = row(time, colors);

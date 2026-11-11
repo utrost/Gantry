@@ -45,9 +45,9 @@ final class CanvasRenderer {
         g2.scale(scale, scale);
 
         // --- Draw Machine Bed ---
-        g2.setColor(CanvasPalette.light?Color.WHITE:new Color(50,52,58));
+        g2.setColor(CanvasPalette.light?Color.WHITE:new Color(33,40,52));
         g2.fill(new java.awt.geom.Rectangle2D.Double(0, 0, dw, dh));
-        g2.setColor(new Color(80, 82, 90));
+        g2.setColor(CanvasPalette.light?new Color(180,190,205):new Color(63,76,96));
         g2.setStroke(new BasicStroke((float) (1.5 / scale)));
         g2.draw(new java.awt.geom.Rectangle2D.Double(0, 0, dw, dh));
 
@@ -66,12 +66,12 @@ final class CanvasRenderer {
         double axisLen = Math.min(panel.machineWidth, panel.machineHeight) * 0.15;
 
         double[] xAxisEnd = panel.physicalToScreen(axisLen, 0);
-        g2.setColor(Color.RED);
+        g2.setColor(CanvasPalette.light?new Color(170,50,65):new Color(230,122,139));
         g2.draw(new java.awt.geom.Line2D.Double(originScreen[0], originScreen[1], xAxisEnd[0], xAxisEnd[1]));
         g2.drawString("+X", (float) (xAxisEnd[0] - 10 / scale), (float) (xAxisEnd[1] + 15 / scale));
 
         double[] yAxisEnd = panel.physicalToScreen(0, axisLen);
-        g2.setColor(CanvasPalette.light?new Color(0,115,40):Color.GREEN);
+        g2.setColor(CanvasPalette.light?new Color(0,115,40):new Color(107,195,157));
         g2.draw(new java.awt.geom.Line2D.Double(originScreen[0], originScreen[1], yAxisEnd[0], yAxisEnd[1]));
         g2.drawString("+Y", (float) (yAxisEnd[0] + 5 / scale), (float) (yAxisEnd[1] + 5 / scale));
 
@@ -241,8 +241,8 @@ final class CanvasRenderer {
                 sMinY = Math.min(sMinY, sc[1]); sMaxY = Math.max(sMaxY, sc[1]);
             }
 
-            g2.setColor(new Color(255, 200, 50, 120));
-            float[] dash = {(float)(6 / scale), (float)(4 / scale)};
+            g2.setColor(CanvasPalette.selection());
+            float[] dash = {(float)(3 / scale), (float)(3 / scale)};
             g2.setStroke(new BasicStroke((float)(1.5 / scale), BasicStroke.CAP_BUTT, BasicStroke.JOIN_MITER, 10, dash, 0));
             g2.draw(new Rectangle2D.Double(sMinX, sMinY, sMaxX - sMinX, sMaxY - sMinY));
 

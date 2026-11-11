@@ -54,3 +54,9 @@ Additional regression tests cover manual cancellation races, durable disconnecte
 - The five-participant novice study tracked by #16.
 
 No physical hardware acceptance, novice-study result, native Windows acceptance, or new published installer is claimed by this record. Keep #54 and #16 open until the corresponding evidence exists. The previous audit evidence bundle remains local.
+
+## Visual refinement
+
+Dark is now the default for new profiles. The follow-up visual pass centralizes a graphite/blue palette, rounded quiet surfaces, softer field and button treatments, compact property headings, an unboxed layer list, and less saturated canvas orientation cues. Light remains available and saved preferences are preserved. No artwork coordinates, job preparation or machine command behavior is changed by the visual styling.
+
+The appearance regression checks and actual Swing layouts were exercised in both themes and both densities at 1024×800. The native mock GUI workflow includes keyboard numeric editing, pen changes, Stop, import, save and recovery. The DPI and physical-hardware limitations above still apply.

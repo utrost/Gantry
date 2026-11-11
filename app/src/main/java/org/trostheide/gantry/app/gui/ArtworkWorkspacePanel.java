@@ -9,15 +9,16 @@ import java.util.function.Consumer;
 /** A session-dismissible hint; hiding it never changes the document. */
 final class ArtworkWorkspacePanel extends JLayeredPane {
     private final JComponent canvas;
-    private final JPanel emptyState = new JPanel(new BorderLayout(0, 12));
+    private final JPanel emptyState = WorkspaceStyle.surface(new BorderLayout(0, 12));
     private boolean dismissed;
-    private final JPanel viewportActions=new JPanel(new FlowLayout(FlowLayout.LEFT,6,2));
+    private final JPanel viewportActions=WorkspaceStyle.surface(new FlowLayout(FlowLayout.LEFT,6,2));
 
     ArtworkWorkspacePanel(JComponent canvas, Consumer<Component> browse) {
         this.canvas = canvas;
+        setOpaque(true);setBackground(CanvasPalette.BACKGROUND);
         emptyState.setBorder(BorderFactory.createEmptyBorder(20, 24, 20, 24));
         JLabel title = new JLabel("Your next drawing starts here");
-        title.setFont(title.getFont().deriveFont(Font.BOLD, 18f));
+        title.setFont(title.getFont().deriveFont(Font.BOLD, 22f));
         emptyState.add(title, BorderLayout.NORTH);
         emptyState.add(new JLabel("Browse for artwork or open a Gantry project."), BorderLayout.CENTER);
         JButton open = WorkspaceStyle.button("Browse…", () -> { });
@@ -25,6 +26,7 @@ final class ArtworkWorkspacePanel extends JLayeredPane {
         JButton close = WorkspaceStyle.button("Close", this::dismiss);
         close.getAccessibleContext().setAccessibleDescription("Hide this hint and return to the empty canvas");
         JPanel actions = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 0));
+        WorkspaceStyle.quiet(close);actions.setOpaque(false);
         actions.add(open); actions.add(close); emptyState.add(actions, BorderLayout.SOUTH);
         emptyState.getInputMap(WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), "dismiss");
         emptyState.getActionMap().put("dismiss", new AbstractAction() {
@@ -41,12 +43,13 @@ final class ArtworkWorkspacePanel extends JLayeredPane {
         }
         add(canvas, DEFAULT_LAYER); add(emptyState, PALETTE_LAYER);add(viewportActions,MODAL_LAYER);
     }
+    @Override public void updateUI(){super.updateUI();setBackground(CanvasPalette.BACKGROUND);}
     void dismiss() { dismissed = true; emptyState.setVisible(false); canvas.requestFocusInWindow(); repaint(); }
     void setHasArtwork(boolean hasArtwork) { emptyState.setVisible(!hasArtwork && !dismissed); repaint(); }
     boolean isShowingEmptyState() { return emptyState.isVisible(); }
     @Override public void doLayout() {
         int toolbarHeight=viewportActions.getPreferredSize().height;
-        viewportActions.setBounds(0,0,getWidth(),toolbarHeight);
+        viewportActions.setBounds(10,0,Math.min(getWidth()-20,viewportActions.getPreferredSize().width),toolbarHeight);
         canvas.setBounds(0,toolbarHeight,getWidth(),Math.max(0,getHeight()-toolbarHeight));
         Dimension size = emptyState.getPreferredSize();
         int width = Math.min(size.width, Math.max(0, getWidth() - 24));
