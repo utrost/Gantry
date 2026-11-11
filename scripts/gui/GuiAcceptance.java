@@ -79,9 +79,15 @@ public class GuiAcceptance {
             click(panel,"Redo");await(()->!project().placement().equals(originalPlacement));
             click(panel,"Undo");await(()->project().placement().equals(originalPlacement));
             System.out.println("PASS placement undo and redo through toolbar");
-            JFormattedTextField widthField=edt(()->{JSpinner width=findSpinner(panel,"Artwork Width in millimetres");check(width!=null,"accessible width editor");JFormattedTextField field=((JSpinner.DefaultEditor)width.getEditor()).getTextField();frame.toFront();field.requestFocusInWindow();return field;});
-            await(widthField::isFocusOwner);edt(()->{widthField.setText("80");return null;});
-            Robot keyboard=new Robot();keyboard.keyPress(java.awt.event.KeyEvent.VK_ENTER);keyboard.keyRelease(java.awt.event.KeyEvent.VK_ENTER);
+            JFormattedTextField widthField=edt(()->{JSpinner width=findSpinner(panel,"Artwork Width in millimetres");check(width!=null,"accessible width editor");JFormattedTextField field=((JSpinner.DefaultEditor)width.getEditor()).getTextField();if(Boolean.getBoolean("gantry.gui.realKeyboard")){frame.toFront();field.requestFocusInWindow();}return field;});
+            if(Boolean.getBoolean("gantry.gui.realKeyboard")){
+                await(widthField::isFocusOwner);edt(()->{widthField.setText("80");return null;});
+                Robot keyboard=new Robot();keyboard.keyPress(java.awt.event.KeyEvent.VK_ENTER);keyboard.keyRelease(java.awt.event.KeyEvent.VK_ENTER);
+            }else{
+                // Xvfb without a window manager cannot reliably grant native keyboard focus.
+                // Exercise the same formatted-field commit; use realKeyboard on a desktop.
+                edt(()->{widthField.setText("80");widthField.commitEdit();return null;});
+            }
             await(()->!project().placement().equals(originalPlacement));
             click(panel,"Undo");await(()->project().placement().equals(originalPlacement));
             System.out.println("PASS committed numeric placement edit is one undo step");

@@ -11,7 +11,7 @@ trap 'rm -rf "$GUI_TEMP"' EXIT
 GUI_PROFILE="$(mktemp -d "$RESULTS/profile-XXXXXX")"
 javac -cp "$JAR" -d "$GUI_TEMP" scripts/gui/GuiAcceptance.java
 for phase in seed recover; do
-    timeout 120s java -Dsun.java2d.uiScale=1 -cp "$GUI_TEMP:$JAR" GuiAcceptance \
+    timeout 120s java -Dsun.java2d.uiScale=1 -Dgantry.gui.realKeyboard="${GANTRY_GUI_REAL_KEYBOARD:-false}" -cp "$GUI_TEMP:$JAR" GuiAcceptance \
         "$PWD" "$GUI_PROFILE" "$phase" 2>&1 | tee "$RESULTS/$phase.log"
 done
 printf 'GUI acceptance passed. Evidence: %s\n' "$RESULTS"
