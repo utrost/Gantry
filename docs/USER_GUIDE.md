@@ -67,24 +67,39 @@ an explicit alternate profile is needed.
 
 ![First-run guided-practice choice](images/first-run-guided-practice.png)
 
-Gantry uses one workspace for preparation and machine operation. The canvas stays
-central; the right inspector has **Prepare**, **Check**, **Plot**, and **Machine**
-views. Switching views never sends machine commands. The bottom job bar always
-provides the next action, with Pause/Resume and Stop available during a job.
+Gantry uses a canvas-first workspace. **Open / Add** offers SVG, image and project
+imports. The empty-canvas hint has **Close** (or Escape while focused); it stays
+hidden for the session. Open / Add remains available afterwards.
 
-**Prepare** contains artwork placement, physical width/height, an aspect-ratio
-lock, layers and pens, and processing. Placement edits and completed drags can be
-undone. Layer checkboxes select what will plot; colour swatches identify pens.
-**Check** separates automatic conditions from your physical confirmations. Home,
-frame and pen-lift actions use the normal machine controls. Changing the drawing,
-placement, layers, passes, setup, origin, or connection invalidates confirmations.
-**Plot** shows command submission progress, elapsed/remaining estimates, and pen
-changes. Submission completion does not by itself prove physical motion has ended.
-**Machine** contains focused manual jogging, feed override, and setup/calibration.
+The right inspector follows the artwork selection. **Whole drawing** exposes
+physical X/Y, width/height, aspect lock, rotation and mirroring. Numeric values
+apply on Enter or leaving the field; placement edits and completed drags can be
+undone. Select an artwork group on the canvas or in the inspector to adjust its
+group offsets and scale. **Processing** offers only operations supported by that
+source. Group offsets are drawing coordinates, separate from machine-head position.
+
+In **Layers & pens**, check **Plot** to include a layer. Selecting its name does
+not change inclusion; it reveals the shared **Pen properties…** action. Pen
+colours have separate swatches and long names have tooltips.
+
+**Check before plotting** opens the checks in the inspector. **‹ Artwork**
+returns to the properties without moving the machine. Automatic conditions and
+operator confirmations stay separate. Changes to artwork, placement, layers,
+passes, setup, origin or connection invalidate confirmations.
+
+The bottom job strip holds the next action, progress, pen-change instructions,
+Pause/Resume and Stop. Progress counts commands submitted; it does not prove that
+physical motion has ended. Stop remains available without scrolling.
+
+The top-bar **Machine** toggle opens compact manual controls above the artwork
+properties. **Pin** keeps them open across jobs and restarts. Close or Escape
+while focused hides them and clears the pin; unpinned controls close at job start.
+Jog arrows respond only while a direction button has keyboard focus. Setup,
+calibration and watercolor station checks are in **Setup & calibration**.
 
 The top bar identifies connection and controller state, including unknown state
-and simulation. The **Diagnostics** drawer contains the Console and raw G-code.
-**Appearance…** and **Settings > Application** offer System/Light/Dark themes,
+and simulation. **Diagnostics** contains Console, raw G-code and Copy Diagnostics.
+**Settings > Preferences > Application** offers System/Light/Dark themes,
 comfortable/compact density, canvas appearance and optional guidance. Preferences
 are remembered; connections and readiness are never restored.
 
@@ -177,7 +192,7 @@ rate (`G0` would use the controller's maximum seek rate instead).
 
 ### 6. Verify jogging before your first real plot
 
-With the plotter connected (or Mock backend), open the **Machine** view and use
+With the plotter connected (or Mock backend), open the **Machine** controls and use
 the **Move pen manually** ▲▼◄► buttons.
 Each one should move the pen toward that side of the *bed as you're looking
 at it*. If any direction is wrong, **don't** ignore it — fix it now via the
@@ -358,7 +373,7 @@ Inkscape layers (`inkscape:groupmode="layer"`) become separate `Layer1`, `Layer2
 
 ![Per-layer refill and nib-width settings](images/layer-watercolor-settings.png)
 
-In the **Plot > Layers** list, click **Edit…** beside a layer to override its
+In **Layers & pens**, select a layer and choose **Pen properties…** to override its
 watercolor settings:
 
 - **Refill station** explicitly assigns that layer to a configured station. You
@@ -740,10 +755,10 @@ For watercolor work, configure each paint pot as a refill station in
 a default dip **Behavior** (`simple_dip`, `dip_swirl`, or `rinse`), a **Dwell**
 time and a **Swirl** radius (see [Refill stations](#refill-stations)). Each layer
 can explicitly override its station, dipping pattern, refill distance, and
-preview nib width through **Plot → Layers → Edit…**.
+preview nib width through **Layers & pens → Pen properties…**.
 
 Assign each drawing layer's refill station and dipping pattern explicitly with
-**Plot → Layers → Edit…**. Station markers in the Live View are tinted with their
+**Layers & pens → Pen properties…**. Station markers in the Live View are tinted with their
 configured colours. Stations set to `rinse` are used to clean the brush between
 colour changes.
 
@@ -785,7 +800,7 @@ streaming performance.
 
 ### Choosing which layers to show and plot (per-pen workflow)
 
-The **Layers** checklist in the Plot section lets you pick any subset of layers to
+The **Plot** checkboxes in Layers & pens lets you pick any subset of layers to
 show and plot instead of the whole drawing — useful when each layer is a different
 pen or ink colour:
 

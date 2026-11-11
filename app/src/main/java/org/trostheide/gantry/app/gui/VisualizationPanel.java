@@ -333,6 +333,7 @@ public class VisualizationPanel extends JPanel {
     }
 
     public interface ArtworkInteractionListener {
+        default void onSelectionChanged() { }
         void onArtworkMoved(String artworkId, double dx, double dy);
         void onTransformArtwork(String artworkId);
     }
@@ -348,6 +349,8 @@ public class VisualizationPanel extends JPanel {
         }
         repaint();
     }
+
+    void selectArtwork(String id){selectedArtworkId=id;repaint();if(artworkInteractionListener!=null)artworkInteractionListener.onSelectionChanged();}
 
     CompositionArtwork selectedArtwork() {
         if (selectedArtworkId == null) return null;

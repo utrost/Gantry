@@ -18,8 +18,15 @@ public class WorkspaceLayouts extends GuiAcceptance {
    c.gcode.machineWidth=210;c.gcode.machineHeight=148;ConfigStore.save(c,profile.resolve("config.json").toFile());
    GantryApp.main(new String[0]);await(()->{for(Window w:Window.getWindows())if(w instanceof JFrame f&&f.isShowing()){frame=f;panel=(PlotterPanel)f.getContentPane();return true;}return false;});
    edt(()->{frame.setSize(1024,800);return null;});capture(out,"empty");
+   click(panel,"Close");edt(()->{Object hint=field(panel,"artworkWorkspace");Method refresh=hint.getClass().getDeclaredMethod("setHasArtwork",boolean.class);refresh.setAccessible(true);refresh.invoke(hint,false);Method showing=hint.getClass().getDeclaredMethod("isShowingEmptyState");showing.setAccessible(true);check(!(boolean)showing.invoke(hint),"closed hint stays dismissed after refresh");return null;});capture(out,"empty-dismissed");
    menu("Open SVG or Vector Drawing...");choose(root.resolve("docs/samples/multi-colour-layers.svg"));click(dialog("Add SVG or vector drawing"),"Import");await(()->project().output()!=null);
-   capture(out,"prepared");click(panel,"Connect");await(()->jobs().isConnected());click(panel,"Check before plotting");
+   capture(out,"prepared");
+   var beforeNavigation=edt(()->project().output());
+   edt(()->{Object vis=field(panel,"visPanel");Object session=field(panel,"documentSession");java.util.List<?> artworks=(java.util.List<?>)session.getClass().getMethod("artworks").invoke(session);if(!artworks.isEmpty()){Object artwork=artworks.get(0);String id=(String)artwork.getClass().getMethod("id").invoke(artwork);Method select=vis.getClass().getDeclaredMethod("selectArtwork",String.class);select.setAccessible(true);select.invoke(vis,id);}return null;});capture(out,"selected-artwork");
+   edt(()->{Object shell=field(panel,"workspace");((JToggleButton)field(shell,"machineToggle")).doClick();return null;});capture(out,"machine");
+   check(edt(()->project().output().equals(beforeNavigation)),"selection and machine navigation preserve prepared output");
+   edt(()->{Object shell=field(panel,"workspace");((JToggleButton)field(shell,"machineToggle")).doClick();frame.setSize(1440,1000);return null;});capture(out,"large-workspace");edt(()->{frame.setSize(1024,800);return null;});
+   click(panel,"Connect");await(()->jobs().isConnected());click(panel,"Check before plotting");
    capture(out,"check");
    edt(()->{Container checks=(Container)field(panel,"workspaceChecks");for(Component child:checks.getComponents())if(child instanceof JCheckBox b)b.doClick();return null;});
    await(()->findButton(panel,"Start plotting")!=null);click(panel,"Start plotting");await(()->(boolean)field(panel,"awaitingLayerConfirmation"));capture(out,"pen-change");

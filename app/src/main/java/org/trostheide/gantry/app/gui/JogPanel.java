@@ -18,6 +18,7 @@ final class JogPanel extends JPanel {
     private final JLabel speed=new JLabel("100%"),position=new JLabel("Head position: unknown");
     private final List<JComponent> connectedControls=new ArrayList<>(),plotSafeControls=new ArrayList<>();
     private final List<Timer> holdTimers=new ArrayList<>();
+    private boolean plotting;
     private volatile double x,y; private volatile boolean known,holding;
     private volatile Thread jogWorker;
     private Window window;
@@ -26,27 +27,29 @@ final class JogPanel extends JPanel {
     JogPanel(Supplier<GantryConfig> config,PlotJobController jobs,VisualizationPanel visualization,
             Consumer<Consumer<PlotterBackend>> backend,Consumer<String> log,Component parent,Runnable changed){
         this.config=config;this.jobs=jobs;this.visualization=visualization;this.backend=backend;this.log=log;this.parent=parent;this.changed=changed;
-        setLayout(new GridBagLayout());GridBagConstraints g=new GridBagConstraints();g.insets=new Insets(3,3,3,3);
-        g.gridx=0;g.gridy=0;g.gridwidth=3;add(position,g);g.gridwidth=1;
+        setLayout(new BorderLayout(6,8));
+        add(position,BorderLayout.NORTH);
         JButton up=jogButton("↑",0,1),down=jogButton("↓",0,-1),left=jogButton("←",-1,0),right=jogButton("→",1,0);
-        g.gridx=1;g.gridy=1;add(up,g);g.gridx=0;g.gridy=2;add(left,g);g.gridx=2;add(right,g);g.gridx=1;g.gridy=3;add(down,g);
-        JButton penUp=control(new JButton("Pen Up"),true),penDown=control(new JButton("Pen Down"),true);
-        penUp.addActionListener(e->backend.accept(PlotterBackend::penup));penDown.addActionListener(e->backend.accept(PlotterBackend::pendown));
-        g.gridx=0;g.gridy=4;g.gridwidth=3;add(row(penUp,penDown),g);
-        step.getAccessibleContext().setAccessibleName("Jog distance in millimetres");step.setPreferredSize(new Dimension(80,step.getPreferredSize().height));plotSafeControls.add(step);
-        g.gridy=5;add(row(new JLabel("Step (mm)"),step),g);
-        JPanel presets=row();for(double value:new double[]{.1,1,10}){JButton b=new JButton(String.valueOf(value));b.addActionListener(e->step.setValue(value));presets.add(b);}g.gridy=6;add(presets,g);
-        JButton minus=control(new JButton("−"),false),plus=control(new JButton("+"),false),reset=control(new JButton("Reset"),false);
-        minus.addActionListener(e->adjustSpeed("down"));plus.addActionListener(e->adjustSpeed("up"));reset.addActionListener(e->adjustSpeed("reset"));
-        g.gridy=7;add(row(new JLabel("Feed override"),minus,speed,plus,reset),g);
-        JButton home=control(new JButton("Home machine…"),true);home.addActionListener(e->home());g.gridy=8;g.fill=GridBagConstraints.HORIZONTAL;add(home,g);
+        JPanel pad=new JPanel(new GridLayout(3,3,2,2));
+        for(JComponent cell:new JComponent[]{new JLabel(),up,new JLabel(),left,new JLabel(),right,new JLabel(),down,new JLabel()})pad.add(cell);
+        JPanel manual=new JPanel(new BorderLayout(8,0));manual.add(pad,BorderLayout.WEST);
+        JButton penUp=control(WorkspaceStyle.button("Pen up",()->backend.accept(PlotterBackend::penup)),true);
+        JButton penDown=control(WorkspaceStyle.button("Pen down",()->backend.accept(PlotterBackend::pendown)),true);
+        step.getAccessibleContext().setAccessibleName("Jog distance in millimetres");step.setPreferredSize(new Dimension(64,step.getPreferredSize().height));plotSafeControls.add(step);
+        JComboBox<String> presets=new JComboBox<>(new String[]{"Step preset…","0.1 mm","1 mm","10 mm"});
+        presets.getAccessibleContext().setAccessibleName("Jog step preset");presets.addActionListener(e->{if(presets.getSelectedIndex()>0)step.setValue(new double[]{.1,1,10}[presets.getSelectedIndex()-1]);});plotSafeControls.add(presets);
+        JPanel tools=new JPanel(new GridLayout(0,1,0,2));tools.add(penUp);tools.add(penDown);tools.add(row(new JLabel("mm"),step));tools.add(presets);manual.add(tools,BorderLayout.CENTER);add(manual,BorderLayout.CENTER);
+        JButton minus=control(WorkspaceStyle.button("−",()->adjustSpeed("down")),false),plus=control(WorkspaceStyle.button("+",()->adjustSpeed("up")),false),reset=control(WorkspaceStyle.button("Reset",()->adjustSpeed("reset")),false);
+        minus.getAccessibleContext().setAccessibleName("Reduce feed override");plus.getAccessibleContext().setAccessibleName("Increase feed override");
+        JButton home=control(WorkspaceStyle.button("Home machine…",this::home),true);
+        JPanel footer=new JPanel(new BorderLayout());footer.add(row(new JLabel("Feed override"),minus,speed,plus,reset),BorderLayout.NORTH);footer.add(home,BorderLayout.SOUTH);add(footer,BorderLayout.SOUTH);
     }
     static boolean acceptsJogKeys(Component focus,JogPanel panel){return focus instanceof JButton && SwingUtilities.isDescendingFrom(focus,panel) && Boolean.TRUE.equals(((JButton)focus).getClientProperty("jogDirection"));}
     @Override public void addNotify(){super.addNotify();window=SwingUtilities.getWindowAncestor(this);if(window!=null)window.addWindowFocusListener(focusListener);}
     @Override public void removeNotify(){stopContinuous();if(window!=null)window.removeWindowFocusListener(focusListener);super.removeNotify();}
     void stopContinuous(){holding=false;for(Timer timer:holdTimers)timer.stop();Thread worker=jogWorker;if(worker!=null)worker.interrupt();}
-    void setConnected(boolean value){if(!value){known=false;stopContinuous();position.setText("Head position: unknown");}for(JComponent c:connectedControls)c.setEnabled(value);}
-    void setPlotting(boolean plotting){if(plotting)stopContinuous();for(JComponent c:plotSafeControls)c.setEnabled(!plotting&&jobs.isConnected());}
+    void setConnected(boolean value){if(!value){known=false;stopContinuous();position.setText("Head position: unknown");}for(JComponent c:connectedControls)c.setEnabled(value&&(!plotting||!plotSafeControls.contains(c)));for(JComponent c:plotSafeControls)c.setEnabled(value&&!plotting);}
+    void setPlotting(boolean plotting){this.plotting=plotting;if(plotting)stopContinuous();for(JComponent c:plotSafeControls)c.setEnabled(!plotting&&jobs.isConnected());}
     void setSpeed(int percent){speed.setText(percent+"%");}
     void reportPosition(double x,double y){this.x=x;this.y=y;known=true;SwingUtilities.invokeLater(()->position.setText(String.format(java.util.Locale.ROOT,"Head X %.1f · Y %.1f mm",x,y)));}
     void home(){if(!jobs.isConnected()||jobs.isMachineBusy()){log.accept("Connect an idle plotter before homing.");return;}

@@ -1,81 +1,43 @@
 package org.trostheide.gantry.app.gui;
 
 import javax.swing.*;
-import javax.swing.border.EmptyBorder;
 import java.awt.*;
+import java.awt.event.ActionEvent;
+import java.awt.event.KeyEvent;
+import java.util.function.Consumer;
 
-/** Live View wrapper that offers obvious artwork entry points while the canvas is empty. */
+/** A session-dismissible hint; hiding it never changes the document. */
 final class ArtworkWorkspacePanel extends JLayeredPane {
-    record Actions(Runnable addSvg, Runnable addImage, Runnable openCommands, Runnable openProject) { }
-
     private final JComponent canvas;
-    private final JPanel emptyState = new JPanel(new GridBagLayout());
+    private final JPanel emptyState = new JPanel(new BorderLayout(0, 12));
+    private boolean dismissed;
 
-    ArtworkWorkspacePanel(JComponent canvas, Actions actions) {
+    ArtworkWorkspacePanel(JComponent canvas, Consumer<Component> browse) {
         this.canvas = canvas;
-        emptyState.setOpaque(false);
-
-        JPanel card = new JPanel();
-        card.setLayout(new BoxLayout(card, BoxLayout.Y_AXIS));
-        Color borderColor = UIManager.getColor("Component.borderColor");
-        if (borderColor == null) borderColor = UIManager.getColor("Separator.foreground");
-        if (borderColor == null) borderColor = Color.GRAY;
-        card.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(borderColor),
-                new EmptyBorder(18, 22, 18, 22)));
-
-        JLabel title = new JLabel("Add artwork");
-        title.setFont(title.getFont().deriveFont(Font.BOLD, 20f));
-        title.setAlignmentX(Component.CENTER_ALIGNMENT);
-        JLabel explanation = new JLabel("Prepare a drawing first — nothing will move yet.");
-        explanation.setAlignmentX(Component.CENTER_ALIGNMENT);
-
-        JButton svg = action("Add SVG or vector drawing", actions.addSvg(),
-                "Choose an SVG vector drawing and fit it safely to the machine bed");
-        JButton image = action("Add image or photo", actions.addImage(),
-                "Choose a raster image and convert it to plottable lines");
-        JButton commands = action("Open commands (JSON)", actions.openCommands(),
-                "Open a converted or exported Gantry command JSON file");
-        JButton project = action("Open Gantry project", actions.openProject(),
-                "Continue an existing editable Gantry project");
-
-        card.add(title);
-        card.add(Box.createVerticalStrut(5));
-        card.add(explanation);
-        card.add(Box.createVerticalStrut(14));
-        for (JButton button : new JButton[] {svg, image, project}) {
-            button.setAlignmentX(Component.CENTER_ALIGNMENT);
-            button.setMaximumSize(new Dimension(280, button.getPreferredSize().height));
-            card.add(button);
-            card.add(Box.createVerticalStrut(7));
-        }
-        emptyState.add(card);
-
-        add(canvas, JLayeredPane.DEFAULT_LAYER);
-        add(emptyState, JLayeredPane.PALETTE_LAYER);
-        setHasArtwork(false);
+        emptyState.setBorder(BorderFactory.createEmptyBorder(20, 24, 20, 24));
+        JLabel title = new JLabel("Your next drawing starts here");
+        title.setFont(title.getFont().deriveFont(Font.BOLD, 18f));
+        emptyState.add(title, BorderLayout.NORTH);
+        emptyState.add(new JLabel("Browse for artwork or open a Gantry project."), BorderLayout.CENTER);
+        JButton open = WorkspaceStyle.button("Browse…", () -> { });
+        open.addActionListener(e -> browse.accept(open));
+        JButton close = WorkspaceStyle.button("Close", this::dismiss);
+        close.getAccessibleContext().setAccessibleDescription("Hide this hint and return to the empty canvas");
+        JPanel actions = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 0));
+        actions.add(open); actions.add(close); emptyState.add(actions, BorderLayout.SOUTH);
+        emptyState.getInputMap(WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), "dismiss");
+        emptyState.getActionMap().put("dismiss", new AbstractAction() {
+            @Override public void actionPerformed(ActionEvent event) { dismiss(); }
+        });
+        add(canvas, DEFAULT_LAYER); add(emptyState, PALETTE_LAYER);
     }
-
-    void setHasArtwork(boolean hasArtwork) {
-        emptyState.setVisible(!hasArtwork);
-        emptyState.setEnabled(!hasArtwork);
-        repaint();
-    }
-
-    boolean isShowingEmptyState() {
-        return emptyState.isVisible();
-    }
-
-    @Override
-    public void doLayout() {
+    void dismiss() { dismissed = true; emptyState.setVisible(false); canvas.requestFocusInWindow(); repaint(); }
+    void setHasArtwork(boolean hasArtwork) { emptyState.setVisible(!hasArtwork && !dismissed); repaint(); }
+    boolean isShowingEmptyState() { return emptyState.isVisible(); }
+    @Override public void doLayout() {
         canvas.setBounds(0, 0, getWidth(), getHeight());
-        emptyState.setBounds(0, 0, getWidth(), getHeight());
-    }
-
-    private static JButton action(String label, Runnable action, String accessibleDescription) {
-        JButton button = new JButton(label);
-        button.addActionListener(e -> action.run());
-        button.getAccessibleContext().setAccessibleDescription(accessibleDescription);
-        return button;
+        Dimension size = emptyState.getPreferredSize();
+        int width = Math.min(size.width, Math.max(0, getWidth() - 24));
+        emptyState.setBounds((getWidth() - width) / 2, Math.max(12, (getHeight() - size.height) / 2), width, size.height);
     }
 }

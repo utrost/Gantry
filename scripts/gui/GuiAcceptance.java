@@ -79,6 +79,18 @@ public class GuiAcceptance {
             click(panel,"Redo");await(()->!project().placement().equals(originalPlacement));
             click(panel,"Undo");await(()->project().placement().equals(originalPlacement));
             System.out.println("PASS placement undo and redo through toolbar");
+            JFormattedTextField widthField=edt(()->{JSpinner width=findSpinner(panel,"Artwork Width in millimetres");check(width!=null,"accessible width editor");JFormattedTextField field=((JSpinner.DefaultEditor)width.getEditor()).getTextField();if(Boolean.getBoolean("gantry.gui.realKeyboard")){frame.toFront();field.requestFocusInWindow();}return field;});
+            if(Boolean.getBoolean("gantry.gui.realKeyboard")){
+                await(widthField::isFocusOwner);edt(()->{widthField.setText("80");return null;});
+                Robot keyboard=new Robot();keyboard.keyPress(java.awt.event.KeyEvent.VK_ENTER);keyboard.keyRelease(java.awt.event.KeyEvent.VK_ENTER);
+            }else{
+                // Xvfb without a window manager cannot reliably grant native keyboard focus.
+                // Exercise the same formatted-field commit; use realKeyboard on a desktop.
+                edt(()->{widthField.setText("80");widthField.commitEdit();return null;});
+            }
+            await(()->!project().placement().equals(originalPlacement));
+            click(panel,"Undo");await(()->project().placement().equals(originalPlacement));
+            System.out.println("PASS committed numeric placement edit is one undo step");
             java.awt.image.BufferedImage raster=new java.awt.image.BufferedImage(32,32,java.awt.image.BufferedImage.TYPE_INT_RGB);
             Path rasterFile=profile.resolve("cancel-import.png");javax.imageio.ImageIO.write(raster,"png",rasterFile.toFile());
             var beforeRaster=edt(()->project().output());
@@ -110,7 +122,7 @@ public class GuiAcceptance {
             await(()->Files.exists(profile.resolve("gui-export.gcode")));
             check(Files.readString(profile.resolve("gui-export.gcode")).contains("G1"),"export contains movement");
             click(panel,"None");
-            edt(()->{findLayer(panel).doClick();return null;});
+            edt(()->{findLayers(panel).setValueAt(true,0,0);return null;});
             menu("Save Project..."); choose(profile.resolve("gui-project.gantry"));
             await(()->Files.exists(profile.resolve("gui-project.gantry")));
             menu("Open Gantry Project..."); choose(profile.resolve("gui-project.gantry"));
@@ -119,7 +131,7 @@ public class GuiAcceptance {
             System.out.println("PASS G-code export and project save/reopen via file dialogs");
             click(panel,"All");
             // An unsaved layer change must survive an abrupt process exit.
-            edt(()-> { JCheckBox box=findLayer(panel); if(box==null)throw new IllegalStateException("No layer checkbox");box.doClick();return null;});
+            edt(()-> { JTable table=findLayers(panel); if(table==null)throw new IllegalStateException("No layer table");table.setValueAt(!Boolean.TRUE.equals(table.getValueAt(0,0)),0,0);return null;});
             await(()->Files.exists(profile.resolve(".gantry-recovery")) &&
                     org.trostheide.gantry.app.session.GantryProjectIO.load(profile.resolve(".gantry-recovery").toFile()).selectedLayers().size()==2);
             check(edt(()->project().selectedLayers().size())==2,"layer selection change applied");
@@ -155,8 +167,9 @@ public class GuiAcceptance {
     }
     static JFileChooser findChooser(Container root){for(Component c:root.getComponents()){if(c instanceof JFileChooser f)return f;if(c instanceof Container n){JFileChooser f=findChooser(n);if(f!=null)return f;}}return null;}
     static void click(Container root,String text) throws Exception {
-        JButton button=edt(()->findButton(root,text));check(button!=null,"button "+text);check(edt(button::isEnabled),"enabled "+text);SwingUtilities.invokeLater(button::doClick);
+        JButton[] button={null};await(()->{button[0]=findButton(root,text);return button[0]!=null&&button[0].isEnabled();});SwingUtilities.invokeLater(button[0]::doClick);
     }
-    static JButton findButton(Container root,String text){for(Component c:root.getComponents()){if(c instanceof JButton b && b.getText().equals(text))return b;if(c instanceof Container n){JButton b=findButton(n,text);if(b!=null)return b;}}return null;}
-    static JCheckBox findLayer(Container root){for(Component c:root.getComponents()){if(c instanceof JCheckBox b && b.getText().contains(" — "))return b;if(c instanceof Container n){JCheckBox b=findLayer(n);if(b!=null)return b;}}return null;}
+    static JButton findButton(Container root,String text){for(Component c:root.getComponents()){if(c instanceof JButton b && b.isShowing() && (text.equals(b.getText()) || text.equals(b.getAccessibleContext().getAccessibleName())))return b;if(c instanceof Container n){JButton b=findButton(n,text);if(b!=null)return b;}}return null;}
+    static JSpinner findSpinner(Container root,String name){for(Component c:root.getComponents()){if(c instanceof JSpinner s&&name.equals(s.getAccessibleContext().getAccessibleName()))return s;if(c instanceof Container n){JSpinner s=findSpinner(n,name);if(s!=null)return s;}}return null;}
+    static JTable findLayers(Container root){for(Component c:root.getComponents()){if(c instanceof JTable t && "Layers and plot inclusion".equals(t.getAccessibleContext().getAccessibleName()))return t;if(c instanceof Container n){JTable t=findLayers(n);if(t!=null)return t;}}return null;}
 }
