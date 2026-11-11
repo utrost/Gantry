@@ -30,7 +30,7 @@ final class ArtworkInspector extends JPanel {
                      BiConsumer<CompositionArtwork,CompositionArtwork.Transform> transform) {
         setLayout(new BoxLayout(this,BoxLayout.Y_AXIS));setBorder(BorderFactory.createEmptyBorder(8,14,8,14));this.placement=placement;this.layers=layers;
         selection.getAccessibleContext().setAccessibleName("Artwork properties target");
-        selection.setMaximumSize(new Dimension(Integer.MAX_VALUE,selection.getPreferredSize().height));
+        selection.setMaximumSize(new Dimension(Integer.MAX_VALUE,selection.getPreferredSize().height));selection.setMinimumSize(new Dimension(0,selection.getPreferredSize().height));
         selection.addActionListener(e->{if(!refreshing){int i=selection.getSelectedIndex();select.accept(i<=0?null:artworks.get(i-1).id());}});
         processing=WorkspaceStyle.button("Processing ▾",()->{});
         processing.addActionListener(e->{JPopupMenu menu=new JPopupMenu();
@@ -52,7 +52,7 @@ final class ArtworkInspector extends JPanel {
         try{this.artworks=next;this.selected=selected;this.svg=svg;this.raster=raster;
             selection.removeAllItems();selection.addItem("Whole drawing");for(var a:next)selection.addItem(a.label());
             for(int i=0;i<next.size();i++)if(selected!=null&&next.get(i).id().equals(selected.id()))selection.setSelectedIndex(i+1);
-            selection.setVisible(hasOutput);summary.setVisible(!hasOutput);layers.setVisible(hasOutput);layersHeading.setVisible(hasOutput);summary.setText(description);summary.setToolTipText(description);
+            selection.setToolTipText(selected==null?"Properties for the whole drawing":selected.label());selection.setVisible(hasOutput);summary.setVisible(!hasOutput);layers.setVisible(hasOutput);layersHeading.setVisible(hasOutput);summary.setText(description);summary.setToolTipText(description);
             placement.setVisible(hasOutput&&selected==null);groupPlacement.setVisible(selected!=null);
             if(selected!=null){var t=selected.transform();x.setValue(t.x());y.setValue(t.y());scale.setValue(t.scale());mirror.setSelected(t.mirror());var b=selected.bounds();groupSize.setText(b==null?"":String.format(java.util.Locale.ROOT,"%.1f × %.1f mm",b.maxX()-b.minX(),b.maxY()-b.minY()));}
             boolean canProcess=selected==null?svg||raster:selected.sourcePath()!=null&&selected.importOptions()!=null;

@@ -1909,6 +1909,7 @@ public class PlotterPanel extends JPanel {
 
     private void updateDirtyIndicator() {
         projectLabel.setText((fileWorkflow==null?projectName:fileWorkflow.projectName())+(documentSession.isDirty()?" •":""));
+        projectLabel.setToolTipText(projectLabel.getText());
         Window window = SwingUtilities.getWindowAncestor(this);
         if (window instanceof JFrame frame) {
             frame.setTitle(documentSession.isDirty() ? "Gantry — Unsaved changes" : "Gantry");

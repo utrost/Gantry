@@ -45,7 +45,7 @@ final class WorkspaceShell extends JPanel {
         machineSection.add(machineHeader,BorderLayout.NORTH);machineSection.add(machine,BorderLayout.CENTER);
         machineSection.setVisible(pin.isSelected());
         JPanel contents=new JPanel(new BorderLayout());contents.add(machineSection,BorderLayout.NORTH);contents.add(properties,BorderLayout.CENTER);
-        JPanel topAligned=new JPanel(new BorderLayout());topAligned.add(contents,BorderLayout.NORTH);
+        JPanel topAligned=new InspectorContent();topAligned.add(contents,BorderLayout.NORTH);
         JScrollPane scroll=new JScrollPane(topAligned);scroll.setBorder(BorderFactory.createEmptyBorder());
         scroll.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);scroll.getVerticalScrollBar().setUnitIncrement(24);
         inspector.add(scroll); inspector.setMinimumSize(new Dimension(300,0));
@@ -71,6 +71,15 @@ final class WorkspaceShell extends JPanel {
         diagnostics.addActionListener(e->{drawer.setVisible(diagnostics.isSelected());config.get().diagnosticsOpen=diagnostics.isSelected();save.run();revalidate();});
         JPanel diagnosticArea=new JPanel(new BorderLayout(0,4));diagnosticArea.add(drawerTools,BorderLayout.NORTH);diagnosticArea.add(drawer,BorderLayout.CENTER);
         bottom.add(diagnosticArea,BorderLayout.CENTER);bottom.add(job,BorderLayout.SOUTH);add(bottom,BorderLayout.SOUTH);
+    }
+    /** Forms follow the viewport width even when a document has a very long name. */
+    private static final class InspectorContent extends JPanel implements Scrollable {
+        InspectorContent(){super(new BorderLayout());}
+        public Dimension getPreferredScrollableViewportSize(){return getPreferredSize();}
+        public int getScrollableUnitIncrement(Rectangle visible,int orientation,int direction){return 24;}
+        public int getScrollableBlockIncrement(Rectangle visible,int orientation,int direction){return Math.max(24,visible.height-24);}
+        public boolean getScrollableTracksViewportWidth(){return true;}
+        public boolean getScrollableTracksViewportHeight(){return false;}
     }
     void setProgressComponent(JComponent component){progressSlot.add(component,BorderLayout.NORTH);jobDetail.setRows(1);progressSlot.add(jobDetail,BorderLayout.SOUTH);}
     void refreshInspectorSize(){revalidate();}
