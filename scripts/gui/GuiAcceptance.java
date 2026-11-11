@@ -167,9 +167,9 @@ public class GuiAcceptance {
     }
     static JFileChooser findChooser(Container root){for(Component c:root.getComponents()){if(c instanceof JFileChooser f)return f;if(c instanceof Container n){JFileChooser f=findChooser(n);if(f!=null)return f;}}return null;}
     static void click(Container root,String text) throws Exception {
-        JButton button=edt(()->findButton(root,text));check(button!=null,"button "+text);check(edt(button::isEnabled),"enabled "+text);SwingUtilities.invokeLater(button::doClick);
+        JButton[] button={null};await(()->{button[0]=findButton(root,text);return button[0]!=null&&button[0].isEnabled();});SwingUtilities.invokeLater(button[0]::doClick);
     }
-    static JButton findButton(Container root,String text){for(Component c:root.getComponents()){if(c instanceof JButton b && (text.equals(b.getText()) || text.equals(b.getAccessibleContext().getAccessibleName())))return b;if(c instanceof Container n){JButton b=findButton(n,text);if(b!=null)return b;}}return null;}
+    static JButton findButton(Container root,String text){for(Component c:root.getComponents()){if(c instanceof JButton b && b.isShowing() && (text.equals(b.getText()) || text.equals(b.getAccessibleContext().getAccessibleName())))return b;if(c instanceof Container n){JButton b=findButton(n,text);if(b!=null)return b;}}return null;}
     static JSpinner findSpinner(Container root,String name){for(Component c:root.getComponents()){if(c instanceof JSpinner s&&name.equals(s.getAccessibleContext().getAccessibleName()))return s;if(c instanceof Container n){JSpinner s=findSpinner(n,name);if(s!=null)return s;}}return null;}
     static JTable findLayers(Container root){for(Component c:root.getComponents()){if(c instanceof JTable t && "Layers and plot inclusion".equals(t.getAccessibleContext().getAccessibleName()))return t;if(c instanceof Container n){JTable t=findLayers(n);if(t!=null)return t;}}return null;}
 }
