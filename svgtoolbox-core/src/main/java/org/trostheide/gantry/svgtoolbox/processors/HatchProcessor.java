@@ -18,11 +18,17 @@ import java.util.List;
 import java.util.Locale;
 
 public class HatchProcessor implements Processor {
+    private final java.util.function.Function<Document,AffineTransform> physicalTransform;
+    public HatchProcessor(){this(null);}
+    public HatchProcessor(java.util.function.Function<Document,AffineTransform> transform){physicalTransform=transform;}
+    private AffineTransform physical;
+
 
     private static final String SVG_NS = "http://www.w3.org/2000/svg";
 
     @Override
     public void process(Document doc, Config config) {
+        physical=physicalTransform==null?new AffineTransform():physicalTransform.apply(doc);
         if (!config.enableHatching())
             return;
 
@@ -50,6 +56,8 @@ public class HatchProcessor implements Processor {
                     count++;
                 }
             } catch (Exception e) {
+                if(e instanceof java.util.concurrent.CancellationException)throw (java.util.concurrent.CancellationException)e;
+                if(config.globalStyle().penFill()!=null || config.overrides().values().stream().anyMatch(h->h.penFill()!=null))throw new IllegalArgumentException("Fill failed: "+e.getMessage(),e);
                 System.err.println("Skipped shape due to error: " + e.getMessage());
             }
         }
@@ -94,7 +102,7 @@ public class HatchProcessor implements Processor {
 
         // D. Check Area Filter (in World Space pixels)
         Rectangle2D bounds = worldShape.getBounds2D();
-        if ((bounds.getWidth() * bounds.getHeight()) < config.minHatchArea()) {
+        if (style.penFill()==null && (bounds.getWidth() * bounds.getHeight()) < config.minHatchArea()) {
             return false;
         }
 
@@ -142,14 +150,26 @@ public class HatchProcessor implements Processor {
                 break;
         }
 
-        List<Shape> hatchShapes = pattern.generate(worldShape, config, style);
+        List<Shape> hatchShapes;
+        if(style.penFill()!=null) {
+            if(!"linear".equals(patternName))throw new IllegalArgumentException("Pen-width fill requires straight lines.");
+            Shape targetMm=physical.createTransformedShape(worldShape);
+            List<Shape> physicalPaths;
+            @SuppressWarnings("unchecked") var previews=(java.util.List<org.trostheide.gantry.svgtoolbox.patterns.PenFillGeometry.Result>)doc.getUserData("gantry.fillPreviews");
+            if(previews!=null){var preview=org.trostheide.gantry.svgtoolbox.patterns.PenFillGeometry.preview(targetMm,style.angle(),style.penFill());if(previews.size()>=1000 || previews.stream().mapToInt(p->p.paths().size()).sum()+preview.paths().size()>3000)throw new IllegalArgumentException("Coverage preview is too complex. Preview fewer areas or reduce overlap.");previews.add(preview);physicalPaths=preview.paths();}
+            else physicalPaths=org.trostheide.gantry.svgtoolbox.patterns.PenFillGeometry.paths(targetMm,style.angle(),style.penFill());
+            try {
+                AffineTransform inverse=physical.createInverse();
+                hatchShapes=physicalPaths.stream().map(inverse::createTransformedShape).toList();
+            }catch(java.awt.geom.NoninvertibleTransformException ex){throw new IllegalArgumentException("Invalid fill scale",ex);}
+        }else hatchShapes = pattern.generate(worldShape, config, style);
 
         // Optional: append original outline so it has bounds? Some plotters like outline + fill.
         // Let's add the outline path as well to "close" the hatch visually.
         Element outline = doc.createElementNS(SVG_NS, "path");
         outline.setAttribute("d", getPathData(worldShape));
         outline.setAttribute("fill", "none");
-        group.appendChild(outline);
+        if(style.penFill()==null)group.appendChild(outline);
 
         // F. Serialize lines
         for (Shape s : hatchShapes) {
@@ -165,7 +185,7 @@ public class HatchProcessor implements Processor {
                     || s instanceof java.awt.geom.Path2D) {
                 
                 Element path = doc.createElementNS(SVG_NS, "path");
-                path.setAttribute("d", getPathData(s));
+                path.setAttribute("d", style.penFill()==null?getPathData(s):physicalLineData(s));
                 path.setAttribute("fill", "none");
                 group.appendChild(path);
             } else if (s instanceof java.awt.geom.Ellipse2D) {
@@ -186,6 +206,20 @@ public class HatchProcessor implements Processor {
         target.getParentNode().removeChild(target);
 
         return true;
+    }
+
+    /** Avoid rounding small SVG units before their physical scale is applied. */
+    private String physicalLineData(Shape shape) {
+        var iterator=shape.getPathIterator(null);double[] point=new double[6];StringBuilder data=new StringBuilder();
+        while(!iterator.isDone()) {
+            int type=iterator.currentSegment(point);
+            if(type==java.awt.geom.PathIterator.SEG_MOVETO || type==java.awt.geom.PathIterator.SEG_LINETO)
+                data.append(type==java.awt.geom.PathIterator.SEG_MOVETO?'M':'L').append(point[0]).append(',').append(point[1]).append(' ');
+            else if(type==java.awt.geom.PathIterator.SEG_CLOSE)data.append("Z ");
+            else throw new IllegalArgumentException("Expected straight pen-fill paths");
+            iterator.next();
+        }
+        return data.toString();
     }
 
     private String getPathData(Shape s) {

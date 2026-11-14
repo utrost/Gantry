@@ -28,8 +28,8 @@ are not part of this profile.
 
 ### Prerequisites
 
-- Java 17+
-- Maven 3.8+ (for building)
+- Windows MSI or Linux DEB (Java included), or Java 17+ for portable JARs
+- Maven 3.8+ only for building from source
 - A GRBL-based plotter connected via USB serial
 
 ### Build and launch
@@ -643,6 +643,40 @@ Nested shapes fill the innermost region under the cursor.
 pattern (linear, cross, zig-zag, wave, dot), spacing (mm) and angle. The current
 style applies to each click, so you can change it between clicks — e.g. dense
 cross-hatch for the hair, sparse linear for the coat, nothing on the face.
+
+**Pen-width spacing (straight lines).** In **Hatch Region Style…**, enable
+**Use pen width + overlap**, then click a region. The calculator starts with the
+target layer's pen width. Enter the effective drawn width and overlap percentage;
+spacing is `width × (1 − overlap / 100)`. A 0.5 mm pen at 20% overlap gives 0.4 mm
+spacing. Cancel leaves the drawing unchanged. Manual spacing remains the default.
+
+The same calculator is available in SVG/raster import processing and **Adjust
+artwork processing**, with per-colour overrides for different pens. Spacing is
+calculated in final physical millimetres, including non-proportional placement.
+The accepted width is saved with the layer; processing recipes retain the overlap
+and boundary choice. Manual spacing and existing projects keep their old behavior.
+Resizing an already generated fill changes its spacing: regenerate at the intended
+size using the retained source recipe, or undo and refill a manually selected region.
+
+**Keep ink inside boundary** insets the centreline by the pen radius, preserving
+holes and separate islands. Features narrower than the pen may disappear. The
+preview uses the generated paths and a round-tip footprint: blue means covered,
+amber indicates gaps or lost narrow features, and red indicates overshoot. Switch
+to toolpaths to inspect individual lines. Changing settings invalidates the preview;
+Cancel leaves the artwork unchanged. Very dense or complex previews are rejected
+with an explanation. Physical ink spread still depends on pen, paper and speed.
+
+Save named pen/paper profiles with separate nominal tip diameter and measured
+stroke width. **Pen fill calibration** creates labelled overlap swatches as ordinary
+artwork, with a preview before adding them; it never starts the plotter. Plot using
+the normal Check/Start workflow, compare the 0%, 10%, 20% and 30% swatches, then save
+the preferred effective width and overlap. **Apply pen/paper profile** updates
+included layers' widths and the next region-fill settings; regenerate existing
+fills to change their geometry. Profiles persist locally between sessions in `pen-paper-profiles.json` beside the GUI configuration.
+
+![Physical fill coverage](images/pen-fill/fill-dark.png)
+
+![Calibration artwork](images/pen-fill/calibration.png)
 
 The fill is a normal edit — **Undo** (Ctrl/⌘-Z) reverses the last one, and the
 time estimate updates to include the added strokes. Clicking empty space while

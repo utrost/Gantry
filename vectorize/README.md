@@ -52,3 +52,10 @@ From the Gantry repo root:
 ```
 mvn -pl vectorize -am package
 ```
+
+## Physical fills after tracing
+
+RC9's GUI import workflow can pass the accepted traced SVG into pen-width filling
+before adding artwork. Effective width and overlap belong to the shared SVG
+processing stage, not to the raster tracer. Cancelling either preview leaves the
+current document unchanged. See [the user guide](../docs/USER_GUIDE.md).

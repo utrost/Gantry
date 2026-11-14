@@ -93,3 +93,13 @@ Image/vectorize samples are intentionally not marked as beginner defaults here.
 The roadmap still requires running the existing image-art modes through the
 validation spine on a small real-image corpus before recommending them as sample
 inputs for external testers.
+
+## Pen-width calibration
+
+Use the hatch-fill SVG with pen-width processing to compare manual spacing against
+physical width/overlap. Gantry can also generate a calibration sheet through
+**Edit → Pen/paper calibration swatch…**: four labelled 14 mm squares, 0/10/20/30%
+overlap, and stroke samples. Review its size, workload and pen before adding it.
+Save the result as a `.gantry` project; plotting uses the normal preflight.
+
+![Generated calibration artwork](images/pen-fill/calibration.png)

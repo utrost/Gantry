@@ -41,11 +41,22 @@ final class HatchOverridesPanel extends JPanel {
         JPanel buttons = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 0));
         buttons.add(add);
         buttons.add(remove);
+        JButton pen=new JButton("Pen width / overlap…");buttons.add(pen);
+        pen.addActionListener(e->{int index=table.getSelectedRow();if(index<0)return;if(table.isEditing()&&!table.getCellEditor().stopCellEditing())return;
+            OverrideRow old=model.rows().get(index);PenFillOptionsPanel options=new PenFillOptionsPanel(old.penFill()==null?.3:old.penFill().widthMm(),old.penFill()==null?10:old.penFill().overlapPercent());
+            if(old.penFill()!=null)options.setFill(old.penFill());
+            JCheckBox enabled=new JCheckBox("Use physical pen-width fill for this colour",old.penFill()!=null);JPanel form=new JPanel(new BorderLayout());form.add(enabled,BorderLayout.NORTH);form.add(options);
+            if(JOptionPane.showConfirmDialog(this,form,"Colour pen settings",JOptionPane.OK_CANCEL_OPTION)!=JOptionPane.OK_OPTION)return;
+            try{options.commit();model.rows.set(index,new OverrideRow(old.color(),enabled.isSelected()?"linear":old.pattern(),old.angle(),old.gap(),enabled.isSelected()?options.fill():null));model.fireTableRowsUpdated(index,index);}
+            catch(Exception ex){JOptionPane.showMessageDialog(this,ex.getMessage(),"Invalid pen settings",JOptionPane.ERROR_MESSAGE);}
+        });
         buttons.add(new JLabel("Choose 'Use global' to leave a colour unchanged."));
         add(buttons, BorderLayout.SOUTH);
 
         fillColors.forEach(color -> model.addIfAbsent(color, USE_GLOBAL, 45.0, 5.0));
     }
+
+    void addChangeListener(Runnable listener){model.addTableModelListener(e->listener.run());}
 
     Map<String, HatchStyle> buildOverrides() {
         if (table.isEditing() && !table.getCellEditor().stopCellEditing()) {
@@ -61,7 +72,7 @@ final class HatchOverridesPanel extends JPanel {
                 if (row.gap() <= 0) {
                     throw new IllegalArgumentException("Hatch override gap must be greater than 0 for " + color + ".");
                 }
-                overrides.put(color, new HatchStyle(row.angle(), row.gap(), row.pattern()));
+                overrides.put(color, new HatchStyle(row.angle(), row.gap(), row.pattern(),0,0,0,row.penFill()));
             }
         }
         return overrides;
@@ -91,36 +102,41 @@ final class HatchOverridesPanel extends JPanel {
         return color;
     }
 
-    record OverrideRow(String color, String pattern, double angle, double gap) { }
+    record OverrideRow(String color, String pattern, double angle, double gap,org.trostheide.gantry.svgtoolbox.PenFill penFill) {
+        OverrideRow(String color,String pattern,double angle,double gap){this(color,pattern,angle,gap,null);}
+    }
+    void setOverride(String color,HatchStyle style){model.set(color,style.patternName(),style.angle(),style.gap());for(int i=0;i<model.rows.size();i++){var row=model.rows.get(i);if(row.color().equalsIgnoreCase(color))model.rows.set(i,new OverrideRow(color,style.patternName(),style.angle(),style.gap(),style.penFill()));}model.fireTableDataChanged();}
+
 
     private static final class OverrideTableModel extends AbstractTableModel {
-        private static final String[] COLUMNS = {"Fill colour", "Pattern", "Angle (deg)", "Gap"};
+        private static final String[] COLUMNS = {"Fill colour", "Pattern", "Angle (deg)", "Manual gap", "Physical spacing"};
         private final List<OverrideRow> rows = new ArrayList<>();
 
         @Override public int getRowCount() { return rows.size(); }
         @Override public int getColumnCount() { return COLUMNS.length; }
         @Override public String getColumnName(int column) { return COLUMNS[column]; }
         @Override public Class<?> getColumnClass(int column) {
-            return column < 2 ? String.class : Double.class;
+            return column < 2 || column == 4 ? String.class : Double.class;
         }
-        @Override public boolean isCellEditable(int row, int column) { return true; }
+        @Override public boolean isCellEditable(int row, int column) { return column < 4 && !(column == 3 && rows.get(row).penFill()!=null); }
         @Override public Object getValueAt(int row, int column) {
             OverrideRow value = rows.get(row);
             return switch (column) {
                 case 0 -> value.color();
                 case 1 -> value.pattern();
                 case 2 -> value.angle();
-                default -> value.gap();
+                case 3 -> value.gap();
+                default -> value.penFill()==null?"Manual":String.format(Locale.ROOT,"%.3f mm",value.penFill().spacingMm());
             };
         }
         @Override public void setValueAt(Object value, int row, int column) {
             OverrideRow old = rows.get(row);
             try {
                 rows.set(row, switch (column) {
-                    case 0 -> new OverrideRow(String.valueOf(value), old.pattern(), old.angle(), old.gap());
-                    case 1 -> new OverrideRow(old.color(), String.valueOf(value), old.angle(), old.gap());
-                    case 2 -> new OverrideRow(old.color(), old.pattern(), number(value), old.gap());
-                    default -> new OverrideRow(old.color(), old.pattern(), old.angle(), number(value));
+                    case 0 -> new OverrideRow(String.valueOf(value), old.pattern(), old.angle(), old.gap(),old.penFill());
+                    case 1 -> new OverrideRow(old.color(), String.valueOf(value), old.angle(), old.gap(),"linear".equals(String.valueOf(value))?old.penFill():null);
+                    case 2 -> new OverrideRow(old.color(), old.pattern(), number(value), old.gap(),old.penFill());
+                    default -> new OverrideRow(old.color(), old.pattern(), old.angle(), number(value),old.penFill());
                 });
             } catch (NumberFormatException ignored) {
                 // JTable leaves the previous valid value in place.

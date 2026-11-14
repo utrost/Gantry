@@ -66,8 +66,9 @@ public final class CaptureScreenshots {
 
             SwingUtilities.invokeLater(() -> invoke(panel, "onEditLayerSettings", new Class<?>[]{int.class}, 0));
             JDialog layer = dialog("Pen settings");
+            SwingUtilities.invokeAndWait(() -> { JCheckBox box=find(layer,JCheckBox.class); if(!box.isSelected())box.doClick(); layer.pack(); });
             capture(layer, "layer-watercolor-settings.png");
-            click(layer, "Cancel");
+            click(layer, "OK");
 
             SwingUtilities.invokeLater(() -> invoke(panel, "onOpenSettings", new Class<?>[0]));
             JDialog settings = dialog("Settings");
@@ -78,6 +79,12 @@ public final class CaptureScreenshots {
                 settings.setLocationRelativeTo(frame);
             });
             capture(settings, "preferences-geometry.png");
+            JTabbedPane settingsTabs=find(settings,JTabbedPane.class);
+            for(int i=0;i<settingsTabs.getTabCount();i++){
+                final int tab=i;
+                SwingUtilities.invokeAndWait(()->{settingsTabs.setSelectedIndex(tab);settings.pack();});
+                capture(settings,"settings-"+settingsTabs.getTitleAt(i).toLowerCase(java.util.Locale.ROOT).replaceAll("[^a-z0-9]+","-")+".png");
+            }
             click(settings, "Cancel");
             System.out.println("Captured four actual Gantry windows; no plotter connection was made.");
         } finally {

@@ -91,3 +91,10 @@ still needs to be filled before making broad hardware-readiness claims.
 - Caveats: detailed acceptance evidence, controller/GRBL version, travel,
   origin, pen mode, and exact tested workflow list are still pending.
 - Linked release result or issue: [#15](https://github.com/utrost/Gantry/issues/15)
+
+## RC9 validation boundary
+
+RC9 automated tests use mock plotting and mathematical round-tip coverage.
+No new Windows 11 / iDraw H A1 physical pen-fill acceptance has been recorded.
+Keep the earlier RC2 report scoped to its tested revision; record RC9 pen, paper,
+effective width, overlap and observed fill quality in a new entry.

@@ -49,6 +49,10 @@ final class ToolboxOptionsPanel extends JPanel {
     private final JSpinner hatchAmplitudeSpinner = spinner(0, 0, 1000, .5);
     private final JSpinner hatchWavelengthSpinner = spinner(0, 0, 1000, .5);
     private final JSpinner dotRadiusSpinner = spinner(0, 0, 1000, .1);
+    private final JCheckBox penFillCheck=new JCheckBox("Calculate spacing from pen width");
+    private final JSpinner penFillWidth=spinner(.3,.01,100,.05),penFillOverlap=spinner(10,0,99,5);
+    private final JCheckBox penFillInside=new JCheckBox("Keep strokes inside boundary",true);
+    private final JLabel penFillSpacing=new JLabel();
     private final JPanel hatchDetails = verticalPanel();
     private final JPanel waveDetails = verticalPanel();
     private final JPanel dotDetails = verticalPanel();
@@ -112,7 +116,19 @@ final class ToolboxOptionsPanel extends JPanel {
         fill.add(hatchCheck);
         hatchDetails.add(row("Pattern", hatchPatternCombo));
         hatchDetails.add(row("Direction", hatchAngleSpinner));
-        hatchDetails.add(row("Spacing (smaller = darker)", slider(hatchGapSpinner, .5, 30, 2)));
+        JComponent manualSpacing=slider(hatchGapSpinner, .5, 30, 2);
+        hatchDetails.add(row("Manual spacing (SVG units)", manualSpacing));
+        JButton penProfile=new JButton("Pen/paper profile…");hatchDetails.add(penProfile);
+        penProfile.addActionListener(e->{PenFillOptionsPanel profile=new PenFillOptionsPanel(num(penFillWidth),num(penFillOverlap));profile.setFill(new org.trostheide.gantry.svgtoolbox.PenFill(num(penFillWidth),num(penFillOverlap),penFillInside.isSelected()));
+            if(JOptionPane.showConfirmDialog(this,profile,"Pen/paper fill",JOptionPane.OK_CANCEL_OPTION)!=JOptionPane.OK_OPTION)return;
+            try{profile.commit();penFillWidth.setValue(profile.width());penFillOverlap.setValue(profile.overlap());penFillInside.setSelected(profile.fill().insideBoundary());if(!penFillCheck.isSelected())penFillCheck.doClick();controlChanged();}catch(Exception ex){JOptionPane.showMessageDialog(this,ex.getMessage());}});
+        hatchDetails.add(penFillCheck);hatchDetails.add(row("Effective width (mm)",penFillWidth));
+        hatchDetails.add(row("Overlap (%)",penFillOverlap));hatchDetails.add(penFillInside);hatchDetails.add(penFillSpacing);
+        Runnable updatePen=updatePenControls=()->{boolean enabled=penFillCheck.isSelected();penFillWidth.setEnabled(enabled);penFillOverlap.setEnabled(enabled);penFillInside.setEnabled(enabled);setChildrenEnabled(manualSpacing,!enabled);hatchPatternCombo.setEnabled(!enabled);
+            penFillSpacing.setText(enabled?String.format(java.util.Locale.ROOT,"Physical spacing: %.4f mm · round-tip estimate",num(penFillWidth)*(1-num(penFillOverlap)/100)):"Manual spacing keeps existing artwork behavior.");};
+        penFillCheck.addActionListener(e->{if(penFillCheck.isSelected())selectPattern("linear");updatePen.run();controlChanged();});
+        penFillInside.addActionListener(e->controlChanged());
+        penFillWidth.addChangeListener(e->{updatePen.run();controlChanged();});penFillOverlap.addChangeListener(e->{updatePen.run();controlChanged();});updatePen.run();
         waveDetails.add(row("Wave height (0 = automatic)", hatchAmplitudeSpinner));
         waveDetails.add(row("Wave length (0 = automatic)", hatchWavelengthSpinner));
         dotDetails.add(row("Dot size (0 = automatic)", dotRadiusSpinner));
@@ -188,7 +204,10 @@ final class ToolboxOptionsPanel extends JPanel {
         simplifyToleranceSpinner.setValue(0d); rotateSpinner.setValue(0d); cropCombo.setSelectedItem("None");
     }
 
+    private static void setChildrenEnabled(Component component,boolean enabled){component.setEnabled(enabled);if(component instanceof Container parent)for(Component child:parent.getComponents())setChildrenEnabled(child,enabled);}
+    private Runnable updatePenControls=()->{};
     private void installListeners() {
+        hatchOverridesPanel.addChangeListener(this::controlChanged);
         ActionListener action=e->controlChanged();
         ChangeListener change=e->controlChanged();
         for (AbstractButton b : List.of(hatchCheck, handdrawnCheck, optimizeCheck, linesimplifyCheck,
@@ -210,6 +229,7 @@ final class ToolboxOptionsPanel extends JPanel {
     }
 
     private void updateContext() {
+        updatePenControls.run();
         hatchDetails.setVisible(hatchCheck.isSelected()); handdrawnDetails.setVisible(handdrawnCheck.isSelected());
         String pattern=selectedPattern(); waveDetails.setVisible("wave".equals(pattern)||"zigzag".equals(pattern));
         dotDetails.setVisible("dot".equals(pattern));
@@ -246,8 +266,9 @@ final class ToolboxOptionsPanel extends JPanel {
         catch(NumberFormatException e){throw new IllegalArgumentException("Stroke width must be a number.");}
         List<Color> palette=parseColors(paletteField.getText());
         List<String> hidden=Arrays.stream(hiddenLayersField.getText().split(",")).map(String::trim).filter(s->!s.isEmpty()).map(String::toLowerCase).collect(Collectors.toList());
-        String pattern=selectedPattern();
-        HatchStyle style=new HatchStyle(num(hatchAngleSpinner),num(hatchGapSpinner),pattern,num(hatchAmplitudeSpinner),num(hatchWavelengthSpinner),num(dotRadiusSpinner));
+        String pattern=penFillCheck.isSelected()?"linear":selectedPattern();
+        try{penFillWidth.commitEdit();penFillOverlap.commitEdit();}catch(java.text.ParseException ex){throw new IllegalArgumentException("Enter a valid pen width and overlap.");}
+        HatchStyle style=new HatchStyle(num(hatchAngleSpinner),num(hatchGapSpinner),pattern,num(hatchAmplitudeSpinner),num(hatchWavelengthSpinner),num(dotRadiusSpinner),penFillCheck.isSelected()?new org.trostheide.gantry.svgtoolbox.PenFill(num(penFillWidth),num(penFillOverlap),penFillInside.isSelected()):null);
         Rectangle2D crop=PaperSizes.resolve((String)cropCombo.getSelectedItem(),cropCustomField.getText());
         Config c=new Config.Builder().inputPath("").outputPath("").strokeWidth(strokeWidth).palette(palette)
                 .enableHatching(hatchCheck.isSelected()).globalStyle(style).overrides(hatchOverridesPanel.buildOverrides())
@@ -260,6 +281,9 @@ final class ToolboxOptionsPanel extends JPanel {
                 .handdrawn(handdrawnCheck.isSelected()).handdrawnMagnitude(num(handdrawnMagnitudeSpinner))
                 .handdrawnSegment(num(handdrawnSegmentSpinner)).handdrawnWavelength(num(handdrawnWavelengthSpinner))
                 .handdrawnSeed(((Number)handdrawnSeedSpinner.getValue()).longValue()).build();
+        boolean physical=c.enableHatching()&&(c.globalStyle().penFill()!=null||c.overrides().values().stream().anyMatch(h->h.penFill()!=null));
+        if(physical&&(c.handdrawn()||c.linesimplify()||c.linemerge()||c.cropBounds()!=null))
+            throw new IllegalArgumentException("For predictable pen coverage, disable hand-drawn, line simplification/merging and cropping before using pen-width fill.");
         savedConfig=c; return c;
     }
 
@@ -267,9 +291,11 @@ final class ToolboxOptionsPanel extends JPanel {
         if(c==null)return; applying=true;
         strokeWidthField.setText(Float.toString(c.strokeWidth())); paletteField.setText(c.palette().stream().map(ToolboxOptionsPanel::hex).collect(Collectors.joining(", ")));
         hiddenLayersField.setText(String.join(", ",c.hiddenLayers())); hatchCheck.setSelected(c.enableHatching()); selectPattern(c.hatchPattern());
+        var pen=c.globalStyle().penFill();penFillCheck.setSelected(pen!=null);
+        if(pen!=null){penFillWidth.setValue(pen.widthMm());penFillOverlap.setValue(pen.overlapPercent());penFillInside.setSelected(pen.insideBoundary());}
         hatchAngleSpinner.setValue(c.globalStyle().angle()); hatchGapSpinner.setValue(c.globalStyle().gap());
         hatchAmplitudeSpinner.setValue(c.globalStyle().amplitude()); hatchWavelengthSpinner.setValue(c.globalStyle().wavelength()); dotRadiusSpinner.setValue(c.globalStyle().dotRadius());
-        c.overrides().forEach((color,s)->hatchOverridesPanel.setOverride(color,s.patternName(),s.angle(),s.gap()));
+        c.overrides().forEach(hatchOverridesPanel::setOverride);
         simplifyToleranceSpinner.setValue(c.simplifyTolerance()); rotateSpinner.setValue(c.rotationDegrees());
         applyCrop(c.cropBounds());
         optimizeCheck.setSelected(c.optimizePaths()); linesimplifyCheck.setSelected(c.linesimplify()); linesimplifyToleranceSpinner.setValue(c.linesimplifyTolerance());

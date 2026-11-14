@@ -175,6 +175,7 @@ public class PlotterPanel extends JPanel {
                     public void edited(String message) { showUndoFeedback(message); }
                     public void notice(String message) { showFeedback(message); }
                 });
+        documentEditor.setPhysicalTransform(visPanel::modelToPhysicalTransform);
         busyTasks = new BusyTaskRunner(this, this::log, this::error);
         fileWorkflow = new DocumentFileWorkflow(this, configFile, documentSession, documentEditor,
                 visPanel, new DocumentFileWorkflow.Actions(() -> config, this::resetReplot,
@@ -676,6 +677,8 @@ public class PlotterPanel extends JPanel {
                         + "click regions in Hatch Region mode. Change it between clicks to fill different "
                         + "areas with different styles."));
         editMenu.addSeparator();
+        editMenu.add(menuItem("Pen/paper calibration swatch…",e->documentEditor.calibration(),true));
+        editMenu.add(menuItem("Apply pen/paper profile…",e->documentEditor.applyPenProfile(),true));
         deleteStrokeModeItem = new JCheckBoxMenuItem("Delete Line (click a line to remove)");
         deleteStrokeModeItem.setToolTipText("Click a line to delete it (it highlights red under the "
                 + "cursor). Undoable. Handy for removing stray strokes a trace left behind.");

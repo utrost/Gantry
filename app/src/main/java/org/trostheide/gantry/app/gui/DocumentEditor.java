@@ -33,6 +33,12 @@ final class DocumentEditor {
     private String pattern = "linear";
     private double gap = 2.0;
     private double angle = 45.0;
+    private boolean penWidthFill;
+    private boolean penInsideBoundary=true;
+    private double overlapPercent=10.0;
+    private java.util.function.Supplier<java.awt.geom.AffineTransform> physicalTransform=java.awt.geom.AffineTransform::new;
+    void setPhysicalTransform(java.util.function.Supplier<java.awt.geom.AffineTransform> supplier){physicalTransform=supplier;}
+
 
     DocumentEditor(DocumentSession session, Component parent, Runnable changed,
             Consumer<Boolean> undoAvailable, Consumer<Boolean> redoAvailable, Consumer<String> log,
@@ -60,12 +66,23 @@ final class DocumentEditor {
 
     void hatch(Path2D region,int layer){
         ProcessorOutput current=session.currentOutput(); if(current==null)return;
-        List<DrawCommand> strokes=RegionHatch.hatchCommands(region,pattern,angle,gap,RegionHatch.maxCommandId(current)+1);
-        if(strokes.isEmpty()){log.accept(String.format("Region too small to hatch at %.1f mm spacing.",gap));return;}
+        if(layer<0||layer>=current.layers().size())return;
+        double resolvedGap=gap;List<DrawCommand> strokes;
+        Double acceptedWidth=null;
+        if(penWidthFill){
+            var transform=physicalTransform.get();
+            var accepted=new PenFillDialog(parent,transform.createTransformedShape(region),angle,session.penWidthsMm().get(layer),overlapPercent,penInsideBoundary).showDialog();
+            if(accepted==null)return;
+            try{strokes=RegionHatch.commands(accepted.geometry().paths(),transform.createInverse(),RegionHatch.maxCommandId(current)+1);}
+            catch(java.awt.geom.NoninvertibleTransformException ex){feedback.notice("Invalid artwork transform; fill was not applied.");return;}
+            penInsideBoundary=accepted.fill().insideBoundary();overlapPercent=accepted.fill().overlapPercent();resolvedGap=accepted.fill().spacingMm();acceptedWidth=accepted.fill().widthMm();
+        }else strokes=RegionHatch.hatchCommands(region,pattern,angle,resolvedGap,RegionHatch.maxCommandId(current)+1);
+        if(strokes.isEmpty()){log.accept(String.format("Region too small to hatch at %.4f model-mm spacing.",resolvedGap));return;}
         snapshot();session.update(RegionHatch.appendToLayer(current,layer,strokes));
+        if(acceptedWidth!=null){List<Double> widths=new ArrayList<>(session.penWidthsMm());widths.set(layer,acceptedWidth);session.setPenWidthsMm(widths);}
         for(DrawCommand stroke:strokes)hatchIds.add(stroke.id);changed.run();
         String message=String.format("Hatched region with %d new line(s).",strokes.size());
-        log.accept(String.format("Hatched region (%s, %.1fmm, %.0f°): +%d stroke(s) into layer %d.",pattern,gap,angle,strokes.size(),layer+1));feedback.edited(message);
+        log.accept(String.format("Hatched region (%s, %.1fmm, %.0f°): +%d stroke(s) into layer %d.",penWidthFill?"linear / pen width":pattern,resolvedGap,angle,strokes.size(),layer+1));feedback.edited(message);
     }
 
     void delete(int id){
@@ -106,13 +123,30 @@ final class DocumentEditor {
         log.accept(String.format("Cleared hatch: removed %d stroke(s).",result.removed()));feedback.edited("Hatch fill cleared.");
     }
 
+    void applyPenProfile(){
+        if(session.currentOutput()==null){feedback.notice("Add artwork before applying a pen profile.");return;}
+        try{Object chosen=JOptionPane.showInputDialog(parent,"Apply to included layers (pen width and next region-fill overlap)","Pen/paper profiles",JOptionPane.PLAIN_MESSAGE,null,PenFillProfiles.local().load().toArray(),null);
+            if(!(chosen instanceof PenFillProfiles.Profile p))return;
+            snapshot();List<Double> widths=new ArrayList<>(session.penWidthsMm());for(int layer:session.selectedLayerIndices())widths.set(layer,p.fill().widthMm());session.setPenWidthsMm(widths);overlapPercent=p.fill().overlapPercent();penInsideBoundary=p.fill().insideBoundary();penWidthFill=true;changed.run();feedback.edited("Applied profile to included layers; regenerate existing fills to use the new width.");
+        }catch(Exception ex){feedback.notice("Profile unavailable: "+ex.getMessage());}
+    }
+    void calibration(){
+        CalibrationSwatch.show(parent,session,physicalTransform,this::historyAvailability,changed,feedback);
+    }
     void chooseHatchStyle(){
         JComboBox<String> patterns=new JComboBox<>(RegionHatch.PATTERNS.toArray(new String[0]));patterns.setSelectedItem(pattern);
         JSpinner gaps=new JSpinner(new SpinnerNumberModel(gap,.2,50,.2));
         JSpinner angles=new JSpinner(new SpinnerNumberModel(angle,0,180,5));
+        JCheckBox automatic=new JCheckBox("Use pen width + overlap",penWidthFill);
+        automatic.setToolTipText("Straight-line fill with physical coverage preview, boundary inset and saved pen/paper profiles.");
+        Runnable availability=()->{patterns.setEnabled(!automatic.isSelected());gaps.setEnabled(!automatic.isSelected());};
+        automatic.addActionListener(e->availability.run());availability.run();
         JPanel form=new JPanel(new GridLayout(0,2,6,6));
+        form.add(new JLabel("Spacing mode"));form.add(automatic);
         form.add(new JLabel("Pattern"));form.add(patterns);form.add(new JLabel("Spacing (mm)"));form.add(gaps);form.add(new JLabel("Angle (°)"));form.add(angles);
         if(JOptionPane.showConfirmDialog(parent,form,"Hatch Region Style",JOptionPane.OK_CANCEL_OPTION,JOptionPane.PLAIN_MESSAGE)!=JOptionPane.OK_OPTION)return;
+        try{gaps.commitEdit();angles.commitEdit();}catch(java.text.ParseException ex){feedback.notice("Enter valid hatch spacing and angle.");return;}
+        penWidthFill=automatic.isSelected();
         pattern=(String)patterns.getSelectedItem();gap=((Number)gaps.getValue()).doubleValue();angle=((Number)angles.getValue()).doubleValue();
         log.accept(String.format("Hatch style set: %s, %.1fmm, %.0f°.",pattern,gap,angle));
     }

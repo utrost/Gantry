@@ -8,7 +8,11 @@ package org.trostheide.gantry.svgtoolbox;
  * keeping older configs (and the 3-arg constructor) behaving exactly as before.
  */
 public record HatchStyle(double angle, double gap, String patternName,
-                         double amplitude, double wavelength, double dotRadius) {
+                         double amplitude, double wavelength, double dotRadius, PenFill penFill) {
+
+    public HatchStyle(double angle,double gap,String patternName,double amplitude,double wavelength,double dotRadius){
+        this(angle,gap,patternName,amplitude,wavelength,dotRadius,null);
+    }
 
     /** Backward-compatible style with all per-pattern parameters left on "auto". */
     public HatchStyle(double angle, double gap, String patternName) {

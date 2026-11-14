@@ -213,3 +213,16 @@ hardware-marked ones still need a real machine before a hardware release.
 | `docs/USER_GUIDE.md` | Operator instructions (rendered in-app via Help > User Guide) |
 | `docs/TESTING.md` | Automated-test inventory + the `TS-*` human test-script suite |
 | `ROADMAP.md` | Phase history and design rationale; what's done vs planned |
+
+## Pen-fill geometry and previews (RC9)
+
+- Resolve millimetres before hatching; dividing by one scale factor fails for
+  stretched artwork. Keep the original import transform when inset bounds shrink.
+- Flatten curved boundaries at physical precision before radius erosion; coarse
+  stroke offsets can leak across curved holes even when rectangles pass tests.
+- Preserve coordinate precision when serializing tiny SVG units, or later scaling
+  amplifies rounding into visible spacing errors.
+- Render both original and coverage previews with the same Y-up convention.
+  Configure calibration previews explicitly instead of inheriting a machine origin.
+- Apply only the current preview generation, and snapshot pen width with geometry.
+  Calibration/profile UI must never construct a backend or issue machine commands.

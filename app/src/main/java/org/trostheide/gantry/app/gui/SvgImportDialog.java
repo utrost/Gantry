@@ -21,7 +21,7 @@ public final class SvgImportDialog extends JDialog {
         JButton apply=WorkspaceStyle.button("Import",()->{
             if(!options.previewReady())return;
             var chosen=options.collectResult();
-            if(chosen!=null){result=new Result(chosen.importOptions(),chosen.toolboxConfig());dispose();}
+            if(chosen!=null && options.previewReady()){result=new Result(chosen.importOptions(),chosen.toolboxConfig());dispose();}
         });
         apply.setEnabled(false);WorkspaceStyle.primary(apply);
         options.onPreviewChange(()->apply.setEnabled(options.previewReady()));
@@ -34,6 +34,7 @@ public final class SvgImportDialog extends JDialog {
     static PaperFormat resolvePaperPreset(String value){return SvgImportOptionsPanel.resolvePaperPreset(value);}
     static String[] paperSizeOptions(){return SvgImportOptionsPanel.paperSizeOptions();}
     static String initialFitSelection(PaperFormat value){return SvgImportOptionsPanel.initialFitSelection(value);}
+    void setPlacement(java.awt.geom.AffineTransform value){options.setPlacement(value);}
     void configurePreview(org.trostheide.gantry.app.plot.PlotSettings settings){options.configurePreview(settings);}
     public Result showDialog(){setVisible(true);return result;}
 }

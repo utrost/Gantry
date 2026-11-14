@@ -124,7 +124,7 @@ final class DocumentFileWorkflow {
         actions.cancellableBusy().run("Import",cancel->{ProcessorOutput imported=map(options.toolboxConfig()!=null
                 ?SvgImportStage.importSvg(file,options.toolboxConfig(),options.importOptions())
                 :SvgImportStage.importSvg(file,options.importOptions()));if(cancel.getAsBoolean())throw new CancellationException();return imported;},out->{
-            editor.replace(out);session.recordSvgSource(file,options.importOptions(),recipe(options.toolboxConfig()));
+            editor.replace(out);applyFillWidths(options.toolboxConfig(),0);session.recordSvgSource(file,options.importOptions(),recipe(options.toolboxConfig()));
             loaded(options.importOptions().preserveSvgViewport());
             String result=summary("Imported "+file.getName(),out);actions.log().accept(result);actions.feedback().accept(result);
         },()->actions.feedback().accept("Import cancelled. Artwork was not changed."));
@@ -134,12 +134,14 @@ final class DocumentFileWorkflow {
         JFileChooser chooser=chooser("Append vector artwork — SVG (*.svg)","svg");
         if(chooser.showOpenDialog(parent)!=JFileChooser.APPROVE_OPTION)return;
         File file=chooser.getSelectedFile();remember(file);
-        SvgImportDialog.Result options=importDialog(file).showDialog();if(options==null)return;
+        var physical=visualization.modelToPhysicalTransform();
+        SvgImportDialog dialog=importDialog(file);dialog.setPlacement(physical);
+        SvgImportDialog.Result options=dialog.showDialog();if(options==null)return;
         if(!confirmSvgFonts(file))return;
         actions.cancellableBusy().run("Append SVG",cancel->{ProcessorOutput imported=map(options.toolboxConfig()!=null
-                ?SvgImportStage.importSvg(file,options.toolboxConfig(),options.importOptions())
+                ?SvgImportStage.importSvg(file,options.toolboxConfig(),options.importOptions(),physical)
                 :SvgImportStage.importSvg(file,options.importOptions()));if(cancel.getAsBoolean())throw new CancellationException();return imported;},out->{
-            session.appendArtwork(out,file.getName(),file,options.importOptions(),recipe(options.toolboxConfig()));visualization.loadFromOutput(session.currentOutput());actions.refresh().run();
+            session.appendArtwork(out,file.getName(),file,options.importOptions(),recipe(options.toolboxConfig()));applyFillWidths(options.toolboxConfig(),session.currentOutput().layers().size()-out.layers().size());visualization.loadPathsPreservingOverlay(session.currentOutput());actions.refresh().run();
             editor.historyAvailability();actions.revectorizeEnabled().accept(false);
             String result=summary("Appended "+file.getName(),session.currentOutput());actions.log().accept(result);actions.feedback().accept(result);
         },()->actions.feedback().accept("Append cancelled. Artwork was not changed."));
@@ -173,7 +175,7 @@ final class DocumentFileWorkflow {
             if(cancel.getAsBoolean())throw new CancellationException();
             return map(options.toolboxConfig()!=null?SvgImportStage.importSvg(svg,options.toolboxConfig(),options.importOptions())
                     :SvgImportStage.importSvg(svg,options.importOptions()));
-        },out->{editor.replace(out);session.recordSvgSource(svg,options.importOptions(),recipe(options.toolboxConfig()));
+        },out->{editor.replace(out);applyFillWidths(options.toolboxConfig(),0);session.recordSvgSource(svg,options.importOptions(),recipe(options.toolboxConfig()));
             session.recordImageSource(image,vector.vectorizeArgs());actions.revectorizeEnabled().accept(true);
             loaded(options.importOptions().preserveSvgViewport());
             String result=summary("Vectorized "+image.getName()+" ("+vector.strategyLabel()+")",out);actions.log().accept(result);actions.feedback().accept(result);},()->{svg.delete();actions.feedback().accept("Import cancelled. Artwork was not changed.");});
@@ -183,18 +185,21 @@ final class DocumentFileWorkflow {
         if(session.sourceSvg()==null||session.sourceSvgOptions()==null){actions.info().accept("Import an SVG file first.");return;}
         if(!session.sourceSvg().isFile()){actions.error().accept("The source SVG is no longer available. Import the original SVG again to reprocess it.");return;}
         org.trostheide.gantry.svgtoolbox.Config initial=session.processingRecipe()==null?null:session.processingRecipe().toConfig();
-        EditProcessDialog dialog=new EditProcessDialog(owner(),session.sourceSvg(),initial);
+        var physical=visualization.modelToPhysicalTransform();
+        if(session.artworks().size()==1)physical.scale(session.artworks().get(0).transform().scale()*(session.artworks().get(0).transform().mirror()?-1:1),session.artworks().get(0).transform().scale());
+        EditProcessDialog dialog=new EditProcessDialog(owner(),session.sourceSvg(),initial,session.sourceSvgOptions(),physical);
         org.trostheide.gantry.svgtoolbox.Config toolbox=dialog.showDialog();if(toolbox==null)return;
         boolean process=dialog.processingEnabled();
         File source=session.sourceSvg();
         if(!confirmSvgFonts(source))return;
         actions.cancellableBusy().run("Process SVG",cancel->{ProcessorOutput processed=process
-                ?SvgImportStage.importSvg(source,toolbox,session.sourceSvgOptions())
+                ?SvgImportStage.importSvg(source,toolbox,session.sourceSvgOptions(),physical)
                 :SvgImportStage.importSvg(source,session.sourceSvgOptions());
             if(cancel.getAsBoolean())throw new CancellationException();return processed;},out->{
             var savedOptions=session.sourceSvgOptions();
             if(session.artworks().size()==1)session.replaceArtwork(session.artworks().get(0).id(),out,source.getAbsolutePath(),savedOptions,process?ProcessingRecipe.fromConfig(toolbox):null);
             else {editor.snapshot();editor.update(out);}
+            applyFillWidths(toolbox,0);
             session.recordSvgSource(source,savedOptions,process?ProcessingRecipe.fromConfig(toolbox):null);
             if(session.hasAmbiguousLayerMapping())actions.error().accept("Some processed layers could not be matched and are excluded. Review Layers & pens.");
             editor.historyAvailability();
@@ -209,15 +214,17 @@ final class DocumentFileWorkflow {
         File source=new File(artwork.sourcePath());
         if(!source.isFile()){actions.error().accept("Artwork source is missing: "+source.getAbsolutePath());return;}
         org.trostheide.gantry.svgtoolbox.Config initial=artwork.processingRecipe()==null?null:artwork.processingRecipe().toConfig();
-        EditProcessDialog dialog=new EditProcessDialog(owner(),source,initial);
+        var physical=visualization.modelToPhysicalTransform();physical.scale(artwork.transform().scale()*(artwork.transform().mirror()?-1:1),artwork.transform().scale());
+        EditProcessDialog dialog=new EditProcessDialog(owner(),source,initial,artwork.importOptions(),physical);
         org.trostheide.gantry.svgtoolbox.Config toolbox=dialog.showDialog();if(toolbox==null)return;
         boolean process=dialog.processingEnabled();
         if(!confirmSvgFonts(source))return;
         actions.cancellableBusy().run("Process Artwork",cancel->{ProcessorOutput processed=process
-                ?SvgImportStage.importSvg(source,toolbox,artwork.importOptions())
+                ?SvgImportStage.importSvg(source,toolbox,artwork.importOptions(),physical)
                 :SvgImportStage.importSvg(source,artwork.importOptions());
             if(cancel.getAsBoolean())throw new CancellationException();return map(processed);},out->{
             session.replaceArtwork(artwork.id(),out,source.getAbsolutePath(),artwork.importOptions(),process?ProcessingRecipe.fromConfig(toolbox):null);
+            applyFillWidths(toolbox,artwork.layerIndices().stream().mapToInt(Integer::intValue).min().orElse(0),out.layers().size());
             visualization.loadPathsPreservingOverlay(session.currentOutput());actions.refresh().run();
             actions.log().accept("Reprocessed artwork "+artwork.label()+" from "+source.getName());
             actions.feedback().accept("Artwork reprocessed: "+artwork.label());
@@ -225,6 +232,12 @@ final class DocumentFileWorkflow {
             ()->actions.feedback().accept("Processing cancelled. Artwork was not changed."));
     }
 
+    private void applyFillWidths(org.trostheide.gantry.svgtoolbox.Config config,int first){applyFillWidths(config,first,session.currentOutput().layers().size()-first);}
+    private void applyFillWidths(org.trostheide.gantry.svgtoolbox.Config config,int first,int count){
+        if(config==null||!config.enableHatching())return;List<Double> widths=new ArrayList<>(session.penWidthsMm());
+        for(int i=first;i<Math.min(first+count,widths.size());i++){String color=session.currentOutput().layers().get(i).color();var style=config.overrides().getOrDefault(color,config.globalStyle());if(style.penFill()!=null)widths.set(i,style.penFill().widthMm());}
+        session.setPenWidthsMm(widths);
+    }
     void exportCommands(){
         if(session.currentOutput()==null){actions.info().accept("Load or import a drawing first.");return;}
         JFileChooser chooser=chooser("Gantry commands — JSON (*.json)","json");

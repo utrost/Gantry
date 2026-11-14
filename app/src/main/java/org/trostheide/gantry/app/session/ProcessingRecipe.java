@@ -45,9 +45,10 @@ public record ProcessingRecipe(float strokeWidth, List<String> palette, boolean 
                 .handdrawn(handDrawn).handdrawnMagnitude(wobbleStrength).handdrawnSegment(lineDetail).handdrawnWavelength(wobbleSize).handdrawnSeed(seed).build();
     }
 
-    public record HatchRecipe(double angle,double gap,String pattern,double amplitude,double wavelength,double dotRadius){
-        static HatchRecipe from(HatchStyle h){return new HatchRecipe(h.angle(),h.gap(),h.patternName(),h.amplitude(),h.wavelength(),h.dotRadius());}
-        HatchStyle toStyle(){return new HatchStyle(angle,gap,pattern,amplitude,wavelength,dotRadius);}
+    public record HatchRecipe(double angle,double gap,String pattern,double amplitude,double wavelength,double dotRadius,org.trostheide.gantry.svgtoolbox.PenFill penFill){
+        public HatchRecipe(double angle,double gap,String pattern,double amplitude,double wavelength,double dotRadius){this(angle,gap,pattern,amplitude,wavelength,dotRadius,null);}
+        static HatchRecipe from(HatchStyle h){return new HatchRecipe(h.angle(),h.gap(),h.patternName(),h.amplitude(),h.wavelength(),h.dotRadius(),h.penFill());}
+        HatchStyle toStyle(){return new HatchStyle(angle,gap,pattern,amplitude,wavelength,dotRadius,penFill);}
     }
     public record Crop(double x,double y,double width,double height){
         static Crop from(Rectangle2D r){return r==null?null:new Crop(r.getX(),r.getY(),r.getWidth(),r.getHeight());}

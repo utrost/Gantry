@@ -24,6 +24,9 @@ public final class SvgToolboxPipeline {
 
     /** Builds the processor pipeline in execution order for the given config. */
     public static List<Processor> buildPipeline(Config config) {
+        boolean physical=config.enableHatching() && (config.globalStyle().penFill()!=null || config.overrides().values().stream().anyMatch(style->style.penFill()!=null));
+        if(physical && (config.handdrawn()||config.linesimplify()||config.linemerge()||config.cropBounds()!=null))
+            throw new IllegalArgumentException("Pen-width fill cannot be combined with hand-drawn, line simplification/merging or cropping.");
         List<Processor> pipeline = new ArrayList<>();
         pipeline.add(new VisibilityProcessor());
         pipeline.add(new StyleNormalizerProcessor());
@@ -67,7 +70,13 @@ public final class SvgToolboxPipeline {
 
     /** Runs the pipeline against {@code doc}, mutating it in place, reporting progress. */
     public static void process(Document doc, Config config, ProgressCallback progress) {
+        process(doc,config,progress,null);
+    }
+
+    public static void process(Document doc, Config config, ProgressCallback progress,
+            java.util.function.Function<Document,java.awt.geom.AffineTransform> physicalTransform) {
         List<Processor> pipeline = buildPipeline(config);
+        if(physicalTransform!=null)for(int i=0;i<pipeline.size();i++)if(pipeline.get(i) instanceof HatchProcessor)pipeline.set(i,new HatchProcessor(physicalTransform));
 
         int total = pipeline.size();
         int step = 0;

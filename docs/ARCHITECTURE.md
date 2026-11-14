@@ -654,3 +654,31 @@ live serial and full G-code file-content correctness.
 See `ROADMAP.md` for the active product plan and `docs/ROADMAP_HISTORY.md` for
 the deprecated phase diary. `docs/LESSONS_LEARNED.md` records recurring bugs,
 design principles, and gotchas distilled from building the system.
+
+## Physical pen-fill pipeline (RC9)
+
+`svgtoolbox-core.PenFill` stores effective width in millimetres, overlap and the
+inside-boundary choice. `PenFillGeometry` generates paths and their swept round-tip
+coverage from one physical coordinate space. SVG import resolves source units,
+placement and nonuniform transforms before filling, then transforms paths back to
+the command model without refitting the inset bounds. Legacy manual hatching keeps
+its original path. Processing recipes serialize optional pen-fill settings with
+backward-compatible null defaults.
+
+The GUI uses revisioned cancellable workers for previews. Apply consumes the
+current preview or runs the same import pipeline; changes invalidate readiness.
+`DocumentEditor` snapshots geometry and layer widths together. Pen/paper profiles
+are local JSON beside GUI configuration; they contain no controller commands.
+Calibration creates ordinary undoable artwork and does not access a backend.
+
+```mermaid
+flowchart LR
+    A[SVG or enclosed region] --> B[Resolve physical transform]
+    P[Effective width + overlap] --> C[Generate inset or centreline fill]
+    B --> C
+    C --> D[Coverage preview: gaps and overshoot]
+    D --> E{Apply or Cancel}
+    E -->|Apply| F[Undoable document geometry]
+    F --> G[Check and explicit Start]
+    E -->|Cancel| H[Document unchanged]
+```

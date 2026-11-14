@@ -17,6 +17,7 @@ public final class EditProcessDialog extends JDialog {
     private final ToolboxOptionsPanel optionsPanel;
     private Config result;
     private boolean processingEnabled;
+    private boolean previewReady;
 
     public EditProcessDialog(Window owner) {
         this(owner, null);
@@ -27,6 +28,9 @@ public final class EditProcessDialog extends JDialog {
     }
 
     public EditProcessDialog(Window owner, java.io.File sourceSvg, Config initialConfig) {
+        this(owner,sourceSvg,initialConfig,org.trostheide.gantry.pipeline.svgimport.SvgImportOptions.defaults(),new java.awt.geom.AffineTransform());
+    }
+    public EditProcessDialog(Window owner,java.io.File sourceSvg,Config initialConfig,org.trostheide.gantry.pipeline.svgimport.SvgImportOptions importOptions,java.awt.geom.AffineTransform placement){
         super(owner, "Adjust artwork processing", ModalityType.APPLICATION_MODAL);
         optionsPanel = new ToolboxOptionsPanel(SvgFillColors.read(sourceSvg));
         if (initialConfig != null) optionsPanel.applyConfig(initialConfig);
@@ -51,7 +55,9 @@ public final class EditProcessDialog extends JDialog {
         controls.setBorder(null);
         controls.getVerticalScrollBar().setUnitIncrement(12);
         padded.add(controls, BorderLayout.WEST);
-        padded.add(new ProcessingPreviewPanel(sourceSvg, optionsPanel), BorderLayout.CENTER);
+        ProcessingPreviewPanel preview=new ProcessingPreviewPanel(sourceSvg, optionsPanel,importOptions,placement);
+        preview.onReady(ready->{previewReady=ready;okBtn.setEnabled(ready);});
+        padded.add(preview, BorderLayout.CENTER);
 
         setLayout(new BorderLayout());
         add(padded, BorderLayout.CENTER);
@@ -65,7 +71,9 @@ public final class EditProcessDialog extends JDialog {
     private void onOk() {
         try {
             processingEnabled = optionsPanel.hasProcessingEnabled();
-            result = optionsPanel.buildConfig();
+            Config chosen = optionsPanel.buildConfig();
+            if(!previewReady)return;
+            result=chosen;
         } catch (IllegalArgumentException ex) {
             JOptionPane.showMessageDialog(this, ex.getMessage(), "Invalid option", JOptionPane.ERROR_MESSAGE);
             return;

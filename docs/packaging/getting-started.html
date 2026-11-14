@@ -46,6 +46,15 @@ nav{display:flex;flex-wrap:wrap;gap:16px}section{margin-top:36px}.note{border-le
 <li><a href="samples/text-outline.svg">Outlined text</a>: text geometry without relying on installed fonts.</li>
 </ul>
 </section>
+<section id="fills">
+<h2>Predictable filled areas</h2>
+<p>In import processing or Adjust artwork processing, enable pen-width filling. For a region edit, choose Hatch Region Style and enable Use pen width + overlap. Effective stroke width is the measured line on your paper; nominal tip diameter is only a starting estimate.</p>
+<p><code>spacing = width × (1 − overlap / 100)</code>. A 0.5 mm stroke at 20% overlap gives 0.4 mm spacing. Keep strokes inside boundary insets paths by the pen radius. Narrow features may disappear; the preview shows uncovered gaps in amber and overshoot in red. Coverage is a round-tip estimate.</p>
+<img src="images/pen-fill/fill-dark.png" alt="Physical fill preview with width, overlap, calculated spacing and Apply or Cancel">
+<p>Save named pen/paper profiles from the calculator. Edit &gt; Pen/paper calibration swatch creates labelled 0/10/20/30% overlap patches and stroke samples, with dimensions and a workload preview. Creating artwork never moves the plotter; Check and Start are still required. Choose the best real-paper result and save its effective width/overlap. Profiles are stored beside settings in pen-paper-profiles.json.</p>
+<img src="images/pen-fill/calibration.png" alt="Calibration artwork with four overlap patches and stroke samples">
+<p>Resize before filling, or regenerate after resizing: generated paths are static. Manual spacing and older projects retain their behavior. Cancel leaves the document unchanged; Undo restores generated geometry and pen width together.</p>
+</section>
 <section id="save">
 <h2>Save, reopen and export</h2>
 <p><strong>File &gt; Save Project…</strong> saves editable artwork, placement, layer selection and preparation settings in a <code>.gantry</code> file. Use <strong>Open Gantry Project…</strong> to return to it.</p>

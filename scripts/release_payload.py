@@ -7,7 +7,9 @@ import zipfile
 
 SAMPLES = ('simple-line.svg', 'multi-colour-layers.svg', 'hatch-fill.svg', 'text-outline.svg')
 IMAGES = ('workspace-layer-preview.png', 'first-run-guided-practice.png',
-          'preferences-geometry.png', 'layer-watercolor-settings.png')
+          'preferences-geometry.png', 'layer-watercolor-settings.png',
+          'pen-fill/fill-dark.png', 'pen-fill/fill-light.png',
+          'pen-fill/calibration.png', 'pen-fill/processing.png')
 
 class _Links(HTMLParser):
     def __init__(self):
@@ -50,6 +52,7 @@ def stage_help(root, directory, version):
         target = docs / folder
         target.mkdir(exist_ok=True)
         for name in names:
+            (target / name).parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(root / 'docs' / folder / name, target / name)
     shutil.copy2(root / 'LICENSE', directory / 'LICENSE')
     (directory / 'VERSION.txt').write_text(

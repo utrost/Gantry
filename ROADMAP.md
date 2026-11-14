@@ -15,11 +15,11 @@ GRBL cancellation/error handling. Its machine-aware preview also shows ordered
 layers with source pen colours, visibility, and physical nib widths that remain
 constant when artwork is scaled.
 
-Windows/Linux installers for 1.0.0-rc.2 are published. Native installation,
+Windows/Linux installers are published through GitHub Releases. RC9 adds pen-aware filling, coverage previews and calibration profiles. Native installation,
 upgrade, bundled-runtime launch, and persisted state checks pass. Uwe reports
 Windows 11 / iDraw H A1 plotting, stop/alarm recovery, limits and calibration
 working. Remaining desktop checks and post-RC2 hardening are tracked separately. See the
-[current acceptance record](release-results/1.0.0-rc.2.md). Beginner usability
+[current acceptance record](docs/release-results/1.0.0-rc.9.md). Beginner usability
 is closed as described in [`docs/USABILITY.md`](docs/USABILITY.md).
 
 ## Delivery plan
@@ -29,7 +29,7 @@ is closed as described in [`docs/USABILITY.md`](docs/USABILITY.md).
 | 1 | Per-colour hatch GUI | Discovered/manual colours map pattern, angle, and gap into `Config.overrides`; CLI regression and GUI mapping tests pass | Complete |
 | 2 | Roadmap reconciliation | Active plan is concise; historical phase diary is explicitly deprecated and archived | Complete |
 | 3 | Project/session persistence | `.gantry` files preserve commands, placement, selected layers, passes, and source/vectorizer provenance; command JSON is clearly a flattened interchange export | Complete |
-| 4 | Undo/recovery | Multi-level undo/redo covers model edits; dirty state, close protection, and recovery autosave protect unsaved work | Complete for model/project state; canvas gestures remain direct manipulation |
+| 4 | Undo/recovery | Multi-level undo/redo covers model edits; dirty state, close protection, and recovery autosave protect unsaved work | Complete for model/project state and artwork placement edits |
 | 5 | Release readiness | Non-SNAPSHOT version, repeatable release artifacts, checksums, and a recorded acceptance template/workflow | RC2 published; automated installer checks pass; Windows 11 / iDraw H A1 hardware report recorded; remaining desktop checks and post-RC2 hardening pending |
 | 6 | Focused polish | Full SVG colour discovery for hatch overrides, accurate travel accounting/labeling, and vectorizer crop restoration | Complete |
 | 7 | CLI batch artifacts | Post-import optimize, shared config/station mapping, and optional G-code output work headlessly with end-to-end tests | Complete |
