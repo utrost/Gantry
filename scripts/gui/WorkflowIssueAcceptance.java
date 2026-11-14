@@ -137,7 +137,7 @@ public final class WorkflowIssueAcceptance extends GuiAcceptance {
             click(overwrite,"Yes");
             await(()->((String)invoke(field(panel,"localFeedback"),"messageText")).contains("Failed to export"));
             check(Files.readString(exported.resolve("keep")).equals("preserve destination"),"failed export preserves destination");
-            try(var entries=Files.list(profile)){check(entries.noneMatch(path->path.getFileName().toString().startsWith("review-export.gcode.")&&path.toString().endsWith(".tmp")),"failed export cleans temporary output");}
+            await(()->{try(var entries=Files.list(profile)){return entries.noneMatch(path->path.getFileName().toString().startsWith("review-export.gcode.")&&path.toString().endsWith(".tmp"));}});
             Files.delete(exported.resolve("keep"));Files.delete(exported);
             menu("Export G-code (for plotter)...");choose(exported);
             await(()->((String)invoke(field(panel,"localFeedback"),"messageText")).contains("G-code exported:"));
