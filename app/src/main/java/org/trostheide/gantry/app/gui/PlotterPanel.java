@@ -134,6 +134,7 @@ public class PlotterPanel extends JPanel {
     private final List<JComponent> plotDisabledControls = new ArrayList<>();
     private final List<JComponent> connectionRequiredControls = new ArrayList<>();
     private final List<JButton> manualMotionControls = new ArrayList<>();
+    private final List<JButton> frameControls = new ArrayList<>();
 
     private JSplitPane controlSplit;
     private WorkspaceShell workspace;
@@ -264,6 +265,7 @@ public class PlotterPanel extends JPanel {
             menu.show(machineMore,0,machineMore.getHeight());});
         JPanel machineActions=new JPanel(new FlowLayout(FlowLayout.LEFT,6,0));
         JButton frameButton=WorkspaceStyle.button("Frame…",this::frameJob);frameButton.getAccessibleContext().setAccessibleName("Frame artwork — pen up");frameButton.setToolTipText("Move around the prepared drawing with the pen raised");WorkspaceStyle.motion(frameButton);machineActions.add(frameButton);machineActions.add(jogPanel.homeButton());machineActions.add(machineMore);
+        frameControls.add(frameButton);frameControls.add(workspaceChecks.frameButton());
         manualMotionControls.add(frameButton);manualMotionControls.add(jogPanel.homeButton());
         manualMotionControls.addAll(workspaceChecks.motionControls());
         JPanel machine = WorkspaceStyle.stack(jogPanel,machineActions);machine.setBorder(BorderFactory.createEmptyBorder(4,10,4,10));
@@ -404,7 +406,15 @@ public class PlotterPanel extends JPanel {
         // Keep technical recovery commands available in Alarm/Unknown; block conflicting motion.
         boolean recoveryState=controllerState==GcodeBackend.MachineState.ALARM || controllerState==GcodeBackend.MachineState.UNKNOWN;
         rawCommands.setUnavailable(recoveryState && connected && !plotting && !plotJobController.isMachineBusy() && manualActions==0 ? null : unavailable);
-        for(JButton control:manualMotionControls)WorkspaceStyle.availability(control,unavailable);
+        boolean hasFrameArtwork=reviewedJob()!=null||documentSession.currentOutput()!=null;
+        boolean hasFrameLayers=reviewedJob()!=null||!selectedLayerIndices().isEmpty();
+        String frameUnavailable=unavailable!=null?unavailable:!hasFrameArtwork?"Load artwork before framing.":
+                !hasFrameLayers?"Include a pen layer before framing.":!historicalCompatible()?"Return to artwork: stored job geometry differs from this machine.":null;
+        String reviewUnavailable=unavailable!=null?unavailable:!hasFrameArtwork?"Load artwork before running plot checks.":null;
+        List<JButton> reviewControls=workspaceChecks.motionControls();
+        for(JButton control:manualMotionControls)
+            WorkspaceStyle.availability(control,frameControls.contains(control)?frameUnavailable:
+                    reviewControls.contains(control)?reviewUnavailable:unavailable);
         updateBoundsReview();
         String summary=workspaceSummary();
         workspaceChecks.update(reviewedJob()!=null||documentSession.currentOutput()!=null,reviewedJob()!=null||!selectedLayerIndices().isEmpty(),connected,idle,plotJobController.isMachineBusy()||manualActions>0 || !historicalCompatible(),summary);

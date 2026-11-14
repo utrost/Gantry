@@ -28,6 +28,21 @@ public final class WorkflowIssueAcceptance extends GuiAcceptance {
             GantryApp.main(new String[0]);
             await(() -> { for (Window w : Window.getWindows()) if (w instanceof JFrame f && f.isShowing()) { frame=f; panel=(PlotterPanel)f.getContentPane(); return true; } return false; });
             edt(() -> { frame.setSize(1024,800); return null; });
+            click(panel,"Connect"); await(() -> jobs().isConnected() && !(boolean)field(panel,"connecting"));
+            edt(() -> {
+                for(Object value:(List<?>)field(panel,"frameControls")) {
+                    JButton button=(JButton)value;
+                    check(button.isVisible()&&!button.isEnabled(),"Frame stays visible but disabled without artwork");
+                    check(button.getToolTipText().contains("Load artwork"),"Frame explains missing artwork");
+                }
+                for(Object value:(List<?>)field(field(panel,"workspaceChecks"),"motionControls")) {
+                    JButton button=(JButton)value;
+                    check(button.isVisible()&&!button.isEnabled(),"Plot-check actions stay visible but disabled without artwork");
+                    check(button.getToolTipText().contains("Load artwork"),"Plot-check action explains missing artwork");
+                }
+                check(com.formdev.flatlaf.FlatLaf.isLafDark(),"default theme darkens the interface, independently of canvas");
+                return null;
+            });
             ProcessorOutput historical = drawing("Historical pen A",20,10);
             ProcessorOutput current = drawing("Current drawing B",300,160);
             PlotSettings stored = config.toPlotSettings(); stored.alignmentOffsetOverride=new double[]{30,40};
@@ -35,7 +50,12 @@ public final class WorkflowIssueAcceptance extends GuiAcceptance {
             GantryProject document = new GantryProject(1,current,List.of(0),GantryProject.Placement.identity(),1,null);
             edt(() -> { invoke(panel,"openProject",GantryProject.class,document); return null; });
             GantryProject before = edt(GuiAcceptance::project);
-            click(panel,"Connect"); await(() -> jobs().isConnected());
+            edt(() -> {
+                for(Object value:(List<?>)field(panel,"frameControls"))check(((JButton)value).isEnabled(),"Frame becomes available with artwork on an idle connection");
+                for(Object value:(List<?>)field(field(panel,"workspaceChecks"),"motionControls"))
+                    check(((JButton)value).isEnabled(),"Plot-check actions recover with artwork on an idle connection");
+                return null;
+            });
             GantryConfig changeBackend=ConfigStore.load(profile.resolve("config.json").toFile());changeBackend.mock=false;
             byte[] connectedConfig=Files.readAllBytes(profile.resolve("config.json"));
             edt(()->{

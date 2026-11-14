@@ -12,6 +12,8 @@ final class WorkspaceChecks extends JPanel {
             new JCheckBox("Paper secured; bed and frame clear"), new JCheckBox("Correct origin, size and pen layers"));
     private final Runnable changed;
     private boolean automaticPass;
+    private final JButton frameButton;
+    JButton frameButton(){return frameButton;}
     private final List<JButton> motionControls = new java.util.ArrayList<>();
     List<JButton> motionControls(){return List.copyOf(motionControls);}
     private void addMotion(JButton button){motionControls.add(button);add(WorkspaceStyle.motion(button));}
@@ -20,7 +22,8 @@ final class WorkspaceChecks extends JPanel {
         add(WorkspaceStyle.heading("Review this plot"));add(automatic);add(bounds);
         add(WorkspaceStyle.note("Machine checks"));
         addMotion(WorkspaceStyle.button("Home machine…",home));
-        addMotion(WorkspaceStyle.button("Frame artwork — pen up",frame));
+        frameButton=WorkspaceStyle.button("Frame artwork — pen up",frame);
+        addMotion(frameButton);
         addMotion(WorkspaceStyle.button("Raise pen",penUp));
         add(Box.createVerticalStrut(16));add(WorkspaceStyle.heading("Your physical checks"));
         add(WorkspaceStyle.note("Confirm these yourself. Simulation does not verify hardware."));

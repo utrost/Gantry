@@ -8,6 +8,16 @@ import java.awt.Color;
 import static org.junit.jupiter.api.Assertions.*;
 
 class WorkspaceSafetyRegressionTest {
+    @Test void interfaceThemeIsIndependentOfCanvasBackground() {
+        GantryConfig config=new GantryConfig();
+        assertEquals("Dark",config.uiTheme);
+        config.canvasTheme="Light";WorkspaceStyle.install(config);
+        assertTrue(com.formdev.flatlaf.FlatLaf.isLafDark());
+        assertTrue(luminance(UIManager.getColor("Panel.background"))<.1);
+        config.uiTheme="Light";config.canvasTheme="Dark";WorkspaceStyle.install(config);
+        assertFalse(com.formdev.flatlaf.FlatLaf.isLafDark());
+        assertTrue(luminance(UIManager.getColor("Panel.background"))>.7);
+    }
     @Test void enabledDefaultButtonsHaveReadableLabelsInBothThemes() {
         for (String theme : new String[]{"Light", "Dark"}) {
             GantryConfig config = new GantryConfig(); config.uiTheme = theme;
