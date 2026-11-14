@@ -1,4 +1,4 @@
-# Current Gantry screenshots — RC9
+# Current Gantry screenshots — RC10
 
 All current PNGs in this directory were regenerated on 2026-11-14 from actual
 Swing components on Linux / Java 17. Dark is the default; Light remains available.
@@ -18,6 +18,7 @@ panes are captured. Nothing here is an AI-generated UI mockup.
 - [Larger workspace](workspace/large-workspace.png)
 - [Light prepared](workspace/light-prepared.png), [Light check](workspace/light-check.png)
 - [SVG import](workspace/svg-import.png), [raster import](workspace/raster-import.png)
+- [Stored-job review](workspace/historical-review.png), [saved result with retained error](workspace/save-feedback.png)
 
 The failure state is injected to verify presentation. Mock job captures do not
 establish physical motion completion or real alarm recovery.

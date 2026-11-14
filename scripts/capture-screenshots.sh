@@ -29,3 +29,9 @@ cp "$ROOT/docs/images/workspace/light-machine.png" "$ROOT/docs/images/workspace/
 java -cp "$CAPTURE_TEMP:$JAR" ImportLayouts "$ROOT" "$ROOT/docs/images/workspace"
 java -cp "$CAPTURE_TEMP:$JAR" org.trostheide.gantry.app.gui.PenFillAcceptance "$ROOT/docs/images/pen-fill"
 java -cp "$CAPTURE_TEMP:$JAR" org.trostheide.gantry.app.gui.CaptureFillScreenshots "$ROOT" "$ROOT/docs/images/pen-fill"
+
+# Exact stored-job identity and actionable persistence feedback.
+javac -cp "$JAR" -d "$CAPTURE_TEMP" scripts/gui/GuiAcceptance.java scripts/gui/WorkflowIssueAcceptance.java
+java -Dsun.java2d.uiScale=1 -cp "$CAPTURE_TEMP:$JAR" WorkflowIssueAcceptance "$CAPTURE_TEMP/workflows"
+cp "$CAPTURE_TEMP/workflows/historical-review.png" "$ROOT/docs/images/workspace/historical-review.png"
+cp "$CAPTURE_TEMP/workflows/saved-with-error-details.png" "$ROOT/docs/images/workspace/save-feedback.png"

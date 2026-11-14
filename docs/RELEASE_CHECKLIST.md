@@ -3,7 +3,7 @@
 ## Build and stage a candidate
 
 1. Use `MAJOR.MINOR.PATCH-rc.N` (RC 1–98) or `MAJOR.MINOR.PATCH`. Preserve
-   published tags. This delivery targets `1.0.0-rc.9`.
+   published tags. This delivery targets `1.0.0-rc.10`.
 2. Write `docs/release-notes/<version>.md` and a truthful acceptance record in
    `docs/release-results/<version>.md`.
 3. Run `python scripts/test_release.py` and
@@ -119,12 +119,15 @@ hashes are attached to CI as `validation-<runner>` artifacts. Inspect
 `upgrade-result.json`, `seed.json`, and `verify.json`; a green unit test suite
 alone does not establish that an upgrade was attempted or completed.
 
-## RC9 documentation and fill checks
+## RC10 workflow and documentation checks
 
 - Refresh every current screenshot in `docs/images`, settings views, the mock
   walkthrough and offline help; keep historical evidence dated.
 - Run Java tests, Python packaging tests, GUI acceptance and the theme/scale matrix.
 - Verify optional PenFill recipe compatibility and profile save/reload.
 - Verify published MSI/DEB/JAR/docs ZIP identities and consolidated SHA256SUMS.
-- Preserve prior assets; RC9 upgrades from RC8 using native version 1.0.9.
+- Preserve prior assets; RC10 uses native version 1.0.10; CI tests upgrade from a synthetic RC9 fixture.
 - Record physical calibration separately; do not infer ink coverage from previews.
+
+- Verify the [workflow issue matrix](release-results/rc10-workflow-issues.md), including native keyboard checks and retained errors.
+- Keep participant, physical plotter and native display-scaling acceptance explicitly open.

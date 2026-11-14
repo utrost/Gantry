@@ -59,7 +59,13 @@ final class CanvasRenderer {
                 markerR * 2, markerR * 2));
         g2.setColor(CanvasPalette.text());
         g2.setFont(g2.getFont().deriveFont((float) (12 / scale)));
-        g2.drawString("0,0 (Origin)", (float) (originScreen[0] - 50 / scale), (float) (originScreen[1] + 15 / scale));
+        String originLabel = "0,0 (Origin)";
+        double labelWidth = g2.getFont().getStringBounds(originLabel, g2.getFontRenderContext()).getWidth();
+        double labelX = originScreen[0] <= dw / 2 ? originScreen[0] + 6 / scale
+                : originScreen[0] - labelWidth - 6 / scale;
+        double labelY = originScreen[1] <= dh / 2 ? originScreen[1] + 30 / scale
+                : originScreen[1] - 6 / scale;
+        g2.drawString(originLabel, (float) labelX, (float) labelY);
 
         // --- Draw Axes (from Physical Origin) ---
         g2.setStroke(new BasicStroke((float) (2.0 / scale)));
@@ -91,10 +97,8 @@ final class CanvasRenderer {
         }
 
         // --- Draw Paths ---
-        // Each layer is drawn in its own colour (so layers/pens are visually separable). Unselected
-        // layers are ghosted (dimmed toward the background), so the operator can focus on a chosen
-        // subset of layers without losing the surrounding context.
-        // The checkboxes are true visibility controls and also define the layers sent to plot.
+        // Each included layer is drawn in its own colour. Inclusion checkboxes determine
+        // both the visible paths and the layers sent to plot; there is no separate visibility state.
         for (int pass = 0; pass < 1; pass++) {
             for (int i = 0; i < panel.allPaths.size(); i++) {
                 List<VisualizationPanel.Point2D> path = panel.allPaths.get(i);
@@ -222,8 +226,8 @@ final class CanvasRenderer {
             }
         }
 
-        // --- Draw Interactive Bounding Box ---
-        if (!panel.allPaths.isEmpty()) {
+        // Read-only review and active jobs must not advertise editable handles.
+        if (panel.editingEnabled && !panel.allPaths.isEmpty()) {
             org.trostheide.gantry.app.session.CompositionArtwork selectedArtwork = panel.selectedArtwork();
             org.trostheide.gantry.model.Bounds selectedBounds = selectedArtwork == null ? null : selectedArtwork.bounds();
             // Transform raw content corners through the full pipeline

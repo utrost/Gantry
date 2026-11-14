@@ -22,6 +22,8 @@ public class SettingsPanel extends JPanel {
     private static final String[] ALIGNMENTS = {"None", "Top Left", "Top Right", "Bottom Left", "Bottom Right", "Center"};
     private static final String[] PEN_MODES = {"servo", "zaxis", "m3m5"};
     private static final String[] BEHAVIORS = {"simple_dip", "dip_swirl"};
+    private static final com.fasterxml.jackson.databind.ObjectMapper CONFIG_COPY = new com.fasterxml.jackson.databind.ObjectMapper();
+    private GantryConfig initial = new GantryConfig();
     private static final Integer[] ROTATIONS = {0, 90, 180, 270};
 
     private final JComboBox<String> theme=new JComboBox<>(new String[]{"System","Light","Dark"});
@@ -89,6 +91,14 @@ public class SettingsPanel extends JPanel {
         serialPortCombo.setEditable(true);
         refreshPortsButton.addActionListener(e -> refreshSerialPorts());
         refreshSerialPorts();
+    }
+
+    void setConnectionEditable(boolean editable) {
+        String reason = editable ? null : "Disconnect the plotter before changing connection settings.";
+        for (JComponent control : new JComponent[]{serialPortCombo, baudRateSpinner, mockCheckBox, refreshPortsButton}) {
+            control.setEnabled(editable);
+            control.setToolTipText(reason);
+        }
     }
 
     /** The "Connection" section panel, for the Setup Wizard to host as its own step. */
@@ -272,6 +282,7 @@ public class SettingsPanel extends JPanel {
 
     /** Loads every field from {@code config} (does not retain a reference to it). */
     public void loadConfig(GantryConfig config) {
+        initial = CONFIG_COPY.convertValue(config, GantryConfig.class);
         serialPortCombo.getEditor().setItem(config.gcode.serialPort);
         baudRateSpinner.setValue(config.gcode.baudRate);
         mockCheckBox.setSelected(config.mock);
@@ -309,7 +320,9 @@ public class SettingsPanel extends JPanel {
 
     /** Builds a fresh {@link GantryConfig} from the current field values. */
     public GantryConfig toConfig() {
-        GantryConfig config = new GantryConfig();
+        // Preserve values this editor does not expose, including calibrated limit-switch
+        // presence, serial boot/poll timing, history paths and workspace preferences.
+        GantryConfig config = CONFIG_COPY.convertValue(initial, GantryConfig.class);
         config.gcode.serialPort = extractPortName((String) serialPortCombo.getEditor().getItem());
         config.gcode.baudRate = (Integer) baudRateSpinner.getValue();
         config.mock = mockCheckBox.isSelected();

@@ -8,6 +8,16 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class MachineSettingsIOTest {
     @TempDir Path directory;
+    @Test void stationNamesCannotMoveTheirSettingsIntoTheConnectionOrPenGroups() {
+        GantryConfig before = new GantryConfig(), after = new GantryConfig();
+        after.stations.put("pen wash", new StationConfig(20,30,-2,"rinse"));
+        after.stations.put("serialPort", new StationConfig(40,50,-2,"simple_dip"));
+        var stationChanges = MachineSettingsIO.comparison(before,after).stream()
+                .filter(change -> change.property().startsWith("stations.")).toList();
+        assertFalse(stationChanges.isEmpty());
+        assertTrue(stationChanges.stream().allMatch(change -> change.group().equals("Watercolor stations")));
+    }
+
     @Test void portableRoundTripPreservesLocalPreferencesAndDetachesMachineData() throws Exception {
         GantryConfig source=new GantryConfig();source.gcode.machineWidth=594;source.gcode.machineHeight=841;
         source.gcode.serialPort="COM7";source.gcode.penMode="zaxis";source.gcode.zDown=-2;

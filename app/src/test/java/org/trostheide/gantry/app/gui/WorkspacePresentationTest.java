@@ -33,6 +33,17 @@ class WorkspacePresentationTest {
             assertEquals(outcome,view.phase());assertEquals(Action.CHECK,view.action());assertFalse(view.stop());
         }
     }
+    @Test void reconnectKeepsOutcomeButCannotStartAnotherConnectionAttempt() {
+        for (Phase outcome : new Phase[]{Phase.FAILED, Phase.STOPPED, Phase.COMPLETE}) {
+            var view = of(new Snapshot(true, false, true, false, false, false,
+                    false, false, false, false, true, true, outcome, "UNKNOWN"));
+            assertEquals(outcome, view.phase());
+            assertEquals(Action.NONE, view.action());
+            assertEquals("Connecting…", view.button());
+            assertFalse(view.enabled());
+        }
+    }
+
     @Test void disconnectDoesNotEraseJobOutcome() {
         for (Phase outcome : new Phase[]{Phase.FAILED, Phase.STOPPED, Phase.COMPLETE}) {
             var view = of(new Snapshot(true, false, false, false, false, false,

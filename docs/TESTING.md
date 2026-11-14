@@ -901,3 +901,18 @@ Physical acceptance: plot the calibration swatches on Windows 11 / iDraw H A1,
 measure actual stroke width, choose overlap on the intended paper, save/reload a
 profile and repeat a small contained fill. Record pen, paper, speed and observed
 bleed/gaps. Automated round-tip geometry is not proof of ink behavior.
+
+
+## RC10 workflow acceptance
+
+The [issue matrix](release-results/rc10-workflow-issues.md) maps each independently
+closable audit issue to source and regression evidence. `scripts/test-gui.sh`
+includes historical-job identity, pen-property Undo/Redo, save/settings write
+failures, direct practice, and raster-worker lifecycle checks. Use
+`GANTRY_GUI_REAL_KEYBOARD=true` on a real desktop to add native keyboard scope
+and rendered button-state contrast checks; ordinary Xvfb CI does not establish
+native focus, DPI or hardware acceptance.
+
+`NumericEditSupportTest` covers full-string and locale-sensitive numeric parsing;
+`WorkspaceNoteLayoutTest` covers bounds guidance that grows after initial layout.
+The five external acceptance gates remain listed in the release record.

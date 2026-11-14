@@ -350,11 +350,16 @@ Used for watercolor painting. Each station has:
 
 ## Opening or composing SVG/vector artwork
 
-When the Live View is empty, use its large **Add artwork** card, the guidance
-job bar's **Add artwork** action, or **File > Open SVG or Vector Drawing...**.
-Choose an SVG file. The **Add artwork** tab is immediately ready with a safe
-default: the configured machine-bed dimensions, preserved aspect ratio, and a
-10 mm margin. The summary states the physical target before you import.
+When the canvas is empty, use **Browse…** in the dismissible artwork hint,
+**Open / Add** in the toolbar, or **File > Open SVG or Vector Drawing...**.
+Choose an SVG file. The dialog previews the physical drawing before applying it.
+It defaults to **SVG document size** for a valid declared size, otherwise to
+**Machine bed**, with aspect ratio preserved and the configured margin shown.
+
+**Open drawing** replaces the current drawing after successful import.
+**Add SVG to current drawing...** instead opens an append dialog with
+**Add to drawing**; existing layer inclusion stays unchanged. Cancel or Close
+leaves the current artwork intact.
 
 > Note: a full-page background/border rectangle (the kind Inkscape adds as the page outline) is
 > detected and dropped automatically on import, so the pen no longer traces the outer frame before
@@ -367,7 +372,7 @@ Expand **Advanced options** only when you need to override the safe default:
 | Max draw distance (mm) | Insert a REFILL command every N mm of drawing. Set to 0 for no refill (pure pen plotting). |
 | Default station ID | Refill station used for layers that have no explicit station assignment. |
 | Curve step (mm) | Bezier curve linearization resolution (default 0.1 mm — smaller = smoother curves, more points). |
-| Fit to | Defaults to **SVG document size** when the file declares a valid physical width and height; otherwise it falls back to **Machine bed**. Advanced choices are A6 · A5 · A4 · A3 · A2 · A1 · XL · Custom (WxH mm). Custom disables **Import** until its size is valid; all valid choices keep the button green and ready. |
+| Fit to | Defaults to **SVG document size** when the file declares a valid physical width and height; otherwise it falls back to **Machine bed**. Advanced choices are A6 · A5 · A4 · A3 · A2 · A1 · XL · Custom (WxH mm). The **Open drawing** or **Add to drawing** action stays disabled until the size and current preview are valid. |
 | Custom size | WxH in mm, e.g. `210x297`. Active only when Fit to = Custom. |
 | Padding (mm) | Margin inside the target format when using Fit to. |
 | Keep aspect ratio | Prevents distortion when fitting to a format. |
@@ -960,7 +965,20 @@ Type any G-code command in the text field and press Enter to send it directly.
 - **Export Flattened Commands (JSON)** — writes the currently prepared commands with placement, selected layers, and passes baked in.
 - **Undo / Redo** — model-changing edits use multi-level history. Unsaved changes are marked in the window title and protected by the close prompt.
 - **Recovery autosave** — while a project is dirty, Gantry writes a recovery snapshot and offers it after an interrupted session. Recover restores it as an unsaved project; Later or closing the prompt preserves it. Only Discard recovery deletes a deferred copy.
-- **Recent Plot Jobs** — the ten most recent successful prepared jobs remain available from the File menu. Selecting a historical job opens its read-only stored preview and review before movement. The editable project stays intact; Return to artwork restores it. Changed machine geometry blocks replay. Re-plot uses the immutable prepared snapshot.
+- **Recent Plot Jobs** — the ten most recent successful prepared jobs remain available from the File menu. Selecting a historical job opens its read-only stored preview and review before movement. The editable project stays intact; Return to artwork restores it. Changed machine geometry blocks replay. Re-plot uses the stored paths, transforms and stations with the **current pen-lift and speed settings**, stated in the review.
+
+Placement fields commit with Enter or focus loss, with one Undo per completed
+edit. Escape restores the previous value. Incomplete or invalid numbers remain
+highlighted for correction; they do not prevent access to Stop.
+
+Save and export completion appears above the canvas, including when diagnostics
+are closed. Failures stay accessible through **Unresolved error** while newer
+success notices appear. **Details** exposes long messages; viewing details does
+not dismiss the error. A failed save keeps the dirty document and recovery copy.
+Failed preferences or machine-settings persistence leaves the active settings
+unchanged. Disconnect before changing the backend, serial port or baud rate, or
+running machine setup. Connection fields stay visible but disabled while connected;
+Preferences is unavailable during connection attempts and active operations.
 
 File choosers remember the last folder used and reopen there next time, even
 across restarts.

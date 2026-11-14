@@ -139,6 +139,38 @@ class DocumentCompositionTest {
         assertEquals("main.svg", session.artworks().get(0).label());
     }
 
+    @Test
+    void appendIntoEmptyDocumentRetainsSourceAndProcessingProvenance() {
+        DocumentSession session = new DocumentSession();
+        java.io.File source = new java.io.File("first.svg");
+        var options = org.trostheide.gantry.pipeline.svgimport.SvgImportOptions.defaults();
+        session.appendArtwork(output("first.svg", "ink", 0, 0, 10, 10, 1), "First drawing", source, options, null);
+        assertEquals(source, session.sourceSvg());
+        assertEquals(options, session.sourceSvgOptions());
+        assertEquals(source.getAbsolutePath(), session.artworks().get(0).sourcePath());
+        assertEquals("First drawing", session.artworks().get(0).label());
+    }
+
+    @Test
+    void ambiguousIncomingLayersDoNotInheritOneIncludedLayerTwice() {
+        DocumentSession session = new DocumentSession();
+        ProcessorOutput first = output("first.svg", "ink", 0, 0, 10, 10, 1);
+        session.replace(first);
+        session.setPenWidthsMm(List.of(.8));
+        Layer duplicate = first.layers().get(0);
+        ProcessorOutput replacement = new ProcessorOutput(first.metadata(), List.of(duplicate, duplicate));
+        session.replaceArtwork(session.artworks().get(0).id(), replacement, "first.svg", null, null);
+        assertTrue(session.hasAmbiguousLayerMapping());
+        assertEquals(List.of(), session.selectedLayerIndices());
+        assertEquals(List.of(.3, .3), session.penWidthsMm());
+        session.undo();
+        assertEquals(List.of(0), session.selectedLayerIndices());
+        assertEquals(List.of(.8), session.penWidthsMm());
+        session.redo();
+        assertEquals(List.of(), session.selectedLayerIndices());
+        assertEquals(List.of(.3, .3), session.penWidthsMm());
+    }
+
     private static ProcessorOutput output(String source, String layerId,
             double minX, double minY, double maxX, double maxY, int firstId) {
         List<Command> commands = List.of(

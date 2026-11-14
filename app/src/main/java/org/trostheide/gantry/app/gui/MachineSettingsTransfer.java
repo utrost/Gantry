@@ -47,6 +47,12 @@ final class MachineSettingsTransfer {
             };
             for(var row:rows)model.addRow(new Object[]{row.property(),row.before(),row.after(),row.changed()?"Changed":"Unchanged"});
             JTable table=new JTable(model);table.setRowHeight(26);table.getAccessibleContext().setAccessibleName(group+" settings comparison");
+            table.setDefaultRenderer(Object.class,new javax.swing.table.DefaultTableCellRenderer(){
+                @Override public Component getTableCellRendererComponent(JTable owner,Object value,boolean selected,boolean focused,int row,int column){
+                    JLabel label=(JLabel)super.getTableCellRendererComponent(owner,value,selected,focused,row,column);
+                    label.setToolTipText(value==null?null:value.toString());return label;
+                }
+            });
             table.setAutoCreateRowSorter(true);JScrollPane scroll=new JScrollPane(table);scroll.setPreferredSize(new Dimension(620,240));
             groups.addTab(group+" ("+changed+")",scroll);
         }

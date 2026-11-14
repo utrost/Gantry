@@ -135,7 +135,7 @@ final class DocumentFileWorkflow {
         if(chooser.showOpenDialog(parent)!=JFileChooser.APPROVE_OPTION)return;
         File file=chooser.getSelectedFile();remember(file);
         var physical=visualization.modelToPhysicalTransform();
-        SvgImportDialog dialog=importDialog(file);dialog.setPlacement(physical);
+        SvgImportDialog dialog=importDialog(file);dialog.setAppendIntent();dialog.setPlacement(physical);
         SvgImportDialog.Result options=dialog.showDialog();if(options==null)return;
         if(!confirmSvgFonts(file))return;
         actions.cancellableBusy().run("Append SVG",cancel->{ProcessorOutput imported=map(options.toolboxConfig()!=null

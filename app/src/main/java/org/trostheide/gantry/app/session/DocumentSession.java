@@ -95,6 +95,9 @@ public final class DocumentSession {
         Objects.requireNonNull(addition, "addition");
         if (currentOutput == null) {
             replace(addition);
+            clearSource();
+            if (sourceFile != null && importOptions != null) recordSvgSource(sourceFile, importOptions, recipe);
+            if (label != null && !label.isBlank()) artworks = List.of(artworks.get(0).withLabel(label));
             return;
         }
         snapshotForUndo();
@@ -207,6 +210,13 @@ public final class DocumentSession {
                 Layer incoming = replacement.layers().get(i - insertAt);
                 List<Integer> matches = oldIndices.stream().filter(j -> sameLayerIdentity(oldLayers.get(j), incoming)).toList();
                 oldIndex = matches.size() == 1 ? matches.get(0) : -1;
+                // A mapping must be unique in both directions. Two incoming layers must not
+                // silently inherit one included layer's pen settings and plot eligibility.
+                if (oldIndex >= 0) {
+                    Layer previous = oldLayers.get(oldIndex);
+                    if (replacement.layers().stream().filter(layer -> sameLayerIdentity(previous, layer)).count() != 1)
+                        oldIndex = -1;
+                }
                 if (oldIndex < 0) ambiguousLayerMapping = true;
                 else {
                     Layer previous = oldLayers.get(oldIndex);
