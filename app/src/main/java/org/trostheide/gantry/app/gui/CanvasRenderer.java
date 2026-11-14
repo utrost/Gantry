@@ -74,7 +74,8 @@ final class CanvasRenderer {
         double[] xAxisEnd = panel.physicalToScreen(axisLen, 0);
         g2.setColor(CanvasPalette.light?new Color(170,50,65):new Color(230,122,139));
         g2.draw(new java.awt.geom.Line2D.Double(originScreen[0], originScreen[1], xAxisEnd[0], xAxisEnd[1]));
-        g2.drawString("+X", (float) (xAxisEnd[0] - 10 / scale), (float) (xAxisEnd[1] + 15 / scale));
+        double xAxisLabelY = xAxisEnd[1] <= dh / 2 ? xAxisEnd[1] + 15 / scale : xAxisEnd[1] - 20 / scale;
+        g2.drawString("+X", (float) (xAxisEnd[0] - 10 / scale), (float) xAxisLabelY);
 
         double[] yAxisEnd = panel.physicalToScreen(0, axisLen);
         g2.setColor(CanvasPalette.light?new Color(0,115,40):new Color(107,195,157));
