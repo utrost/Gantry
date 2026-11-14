@@ -64,7 +64,10 @@ final class JogPanel extends JPanel {
     void setPlotting(boolean plotting){this.plotting=plotting;if(plotting)stopContinuous();refreshAvailability();}
     void setUnavailable(String reason){unavailable=reason;refreshAvailability();}
     private void refreshAvailability(){
-        for(JComponent c:connectedControls)WorkspaceStyle.availability(c,!connected?"Connect a plotter first.":null);
+        // Motion controls receive their final state only once per refresh.
+        // Enabling them first resets button animations and focus on every status report.
+        for(JComponent c:connectedControls)if(!plotSafeControls.contains(c))
+            WorkspaceStyle.availability(c,!connected?"Connect a plotter first.":null);
         String reason=!connected?"Connect a plotter first.":unavailable!=null?unavailable:plotting?"Wait for the current job to finish.":null;
         for(JComponent c:plotSafeControls)WorkspaceStyle.availability(c,reason);
     }

@@ -26,6 +26,10 @@ class JogPanelStateTest {
             panel.setConnected(true);JButton direction=direction(panel);assertTrue(direction.isEnabled());
             panel.setUnavailable("Machine moving");assertFalse(direction.isEnabled());assertTrue(direction.isVisible());
             assertEquals("Machine moving",direction.getToolTipText());panel.jog(1,0);assertEquals(0,moves.get());
+            java.util.concurrent.atomic.AtomicInteger transitions=new java.util.concurrent.atomic.AtomicInteger();
+            direction.addPropertyChangeListener("enabled",e->transitions.incrementAndGet());
+            for(int i=0;i<10;i++)panel.setUnavailable("Machine moving");
+            assertEquals(0,transitions.get(),"Busy refreshes must never briefly re-enable motion controls");
             panel.setConnected(false);panel.setUnavailable(null);assertFalse(direction.isEnabled());
             panel.setConnected(true);assertTrue(direction.isEnabled());jobs.disconnect();
         });

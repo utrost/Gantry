@@ -182,7 +182,11 @@ public class SettingsPanel extends JPanel {
         JPanel panel = new JPanel(new GridBagLayout());
         panel.setBorder(section("General"));
         GridBagConstraints gbc = gbc();
-        addRow(panel,gbc,"Theme",theme);addRow(panel,gbc,"Density",density);addRow(panel,gbc,"Canvas",canvasTheme);
+        theme.setToolTipText("Appearance of the entire interface. Dark is the default; System follows the operating system where supported.");
+        theme.getAccessibleContext().setAccessibleName("Interface theme");
+        canvasTheme.setToolTipText("Drawing canvas background only; independent of the interface theme.");
+        canvasTheme.getAccessibleContext().setAccessibleName("Canvas background");
+        addRow(panel,gbc,"Interface theme",theme);addRow(panel,gbc,"Density",density);addRow(panel,gbc,"Canvas background",canvasTheme);
         gbc.gridwidth = 2;panel.add(guidance,gbc);gbc.gridy++;
         panel.add(showWelcomeCheckBox, gbc);
         return panel;

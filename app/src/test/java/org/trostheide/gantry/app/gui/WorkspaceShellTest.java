@@ -7,6 +7,24 @@ import java.util.concurrent.atomic.AtomicInteger;
 import static org.junit.jupiter.api.Assertions.*;
 
 class WorkspaceShellTest {
+    @Test void manualMovementKeepsCanvasSpaceStableAndStopAvailable() throws Exception {
+        SwingUtilities.invokeAndWait(()->{
+            GantryConfig config=new GantryConfig();
+            WorkspaceShell shell=new WorkspaceShell(new JPanel(),new JPanel(),new JPanel(),new JPanel(),new JPanel(),new JPanel(),new JPanel(),new JButton(),()->{},()->{},()->config,()->{},()->{});
+            shell.setProgressComponent(new JProgressBar());
+            var idle=new WorkspacePresentation.View(WorkspacePresentation.Phase.PREPARE,"Ready","","Start",WorkspacePresentation.Action.START,true,false);
+            shell.render(idle,true);
+            shell.setSize(1024,800);shell.doLayout();
+            int height=shell.split.getHeight();
+            for(int i=0;i<5;i++){
+                shell.render(new WorkspacePresentation.View(WorkspacePresentation.Phase.MANUAL,"Manual jog","","Busy",WorkspacePresentation.Action.NONE,false,true),true);
+                shell.doLayout();assertEquals(height,shell.split.getHeight());assertTrue(shell.stop.isEnabled());
+                shell.render(new WorkspacePresentation.View(WorkspacePresentation.Phase.STOPPING,"Stopping","","Busy",WorkspacePresentation.Action.NONE,false,true),true);
+                shell.doLayout();assertEquals(height,shell.split.getHeight());assertTrue(shell.stop.isEnabled());
+                shell.render(idle,true);shell.doLayout();assertEquals(height,shell.split.getHeight());assertFalse(shell.stop.isEnabled());
+            }
+        });
+    }
     @Test void machineNavigationStopsJoggingAndPinSurvivesJobStart() throws Exception {
         SwingUtilities.invokeAndWait(()->{
             GantryConfig config=new GantryConfig();AtomicInteger stopped=new AtomicInteger();

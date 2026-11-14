@@ -34,7 +34,7 @@ Other distributions and architectures are not yet validated.
   `sudo apt install ./Gantry-<version>-linux-x64.deb`, then open **Gantry** from
   the applications menu.
 
-The [1.0.0-rc.10 candidate](https://github.com/utrost/Gantry/releases/tag/v1.0.0-rc.10)
+The [1.0.0-rc.11 candidate](https://github.com/utrost/Gantry/releases/tag/v1.0.0-rc.11)
 improves numeric editing, historical-job review, import cleanup, settings
 persistence and actionable feedback. It includes pen-width-aware area filling,
 coverage previews and saved pen/paper calibration profiles.

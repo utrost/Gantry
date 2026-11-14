@@ -112,6 +112,10 @@ final class WorkspaceShell extends JPanel {
             default -> "Label.foreground";
         });
         jobTitle.setText(view.title());jobTitle.setToolTipText(view.hint());jobHint.setText(view.hint());jobHint.setVisible(guidance);stop.setVisible(true);WorkspaceStyle.availability(stop,view.stop()?null:"No active Gantry operation to stop.");
-        activeJob=view.stop();back.setEnabled(!activeJob);progressSlot.setVisible(activeJob||view.phase()==WorkspacePresentation.Phase.COMPLETE||view.phase()==WorkspacePresentation.Phase.STOPPED||view.phase()==WorkspacePresentation.Phase.FAILED);
+        activeJob=view.stop();back.setEnabled(!activeJob);
+        // A jog is stoppable, but has no plot progress. Keep the canvas geometry stable
+        // while manual commands start/finish; stopping retains the preceding layout.
+        if(view.phase()!=WorkspacePresentation.Phase.MANUAL && view.phase()!=WorkspacePresentation.Phase.STOPPING)
+            progressSlot.setVisible(activeJob||view.phase()==WorkspacePresentation.Phase.COMPLETE||view.phase()==WorkspacePresentation.Phase.STOPPED||view.phase()==WorkspacePresentation.Phase.FAILED);
     }
 }
