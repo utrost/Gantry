@@ -1006,6 +1006,10 @@ public class VisualizationPanel extends JPanel {
         return physicalToScreen(motor[0], motor[1]);
     }
 
+    java.awt.geom.AffineTransform modelToPhysicalTransform() {
+        double[] o=transformPointToMotor(new Point2D(0,0)),x=transformPointToMotor(new Point2D(1,0)),y=transformPointToMotor(new Point2D(0,1));
+        return new java.awt.geom.AffineTransform(x[0]-o[0],x[1]-o[1],y[0]-o[0],y[1]-o[1],o[0],o[1]);
+    }
     double[] transformPointToMotor(Point2D rawPoint) {
         double cx = (rawMinX + rawMaxX) / 2.0;
         double cy = (rawMinY + rawMaxY) / 2.0;

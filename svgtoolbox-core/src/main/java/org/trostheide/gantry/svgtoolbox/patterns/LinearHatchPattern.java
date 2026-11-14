@@ -41,6 +41,7 @@ public class LinearHatchPattern implements HatchPattern {
         }
 
         for (double y = startY + gap; y < endY; y += gap) {
+            PenFillGeometry.cancelled();
             List<Double> intersections = new ArrayList<>();
             for (Line2D edge : edges) {
                 if (lineIntersectsY(edge, y)) {

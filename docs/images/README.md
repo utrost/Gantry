@@ -1,60 +1,62 @@
-# Application screenshots
+# Current Gantry screenshots — RC9
 
-Workspace and import captures refreshed 2026-11-11 from the current implementation, on Linux with Java 17.
-Dark is the default application theme; canvas appearance remains independent.
-The welcome, watercolor-settings and geometry images below are earlier RC3 reference captures.
+All current PNGs in this directory were regenerated on 2026-11-14 from actual
+Swing components on Linux / Java 17. Dark is the default; Light remains available.
+Canvas appearance is independent. The captures use isolated mock profiles; no
+physical plotter was connected. Native window borders are excluded where root
+panes are captured. Nothing here is an AI-generated UI mockup.
 
-These are captures of the running application's Swing root panes, rendered by
-Swing itself because desktop screen capture returned black pixels. Native window
-borders are excluded. No AI-generated interface or artwork is used. The harness
-uses an isolated mock profile, loads the committed gallery SVG through the real
-importer, and opens the real dialogs. No plotter was connected.
+## Daily workspace
 
-## Workspace and layer preview
+![Workspace with three layers](workspace-layer-preview.png)
 
-The [multi-colour sample](../samples/multi-colour-layers.svg), with its three
-layers selected, in a 210 × 148 mm workspace. The control panel uses its default width; long layer names retain their full text
-in tooltips. The current workspace capture uses the default 0.3 mm preview nib width.
+- [Empty](workspace/empty.png), [dismissed hint](workspace/empty-dismissed.png)
+- [Prepared](workspace/prepared.png), [selected artwork](workspace/selected-artwork.png)
+- [Machine controls](workspace/machine.png), [disabled movement](workspace/disabled-machine.png)
+- [Check](workspace/check.png), [pen change](workspace/pen-change.png), [running](workspace/running.png)
+- [Stopped](workspace/stopped.png), [failure presentation](workspace/failure.png)
+- [Larger workspace](workspace/large-workspace.png)
+- [Light prepared](workspace/light-prepared.png), [Light check](workspace/light-check.png)
+- [SVG import](workspace/svg-import.png), [raster import](workspace/raster-import.png)
 
-![Workspace and colour layers](workspace-layer-preview.png)
+The failure state is injected to verify presentation. Mock job captures do not
+establish physical motion completion or real alarm recovery.
 
-## Welcome
+## Fill preparation
 
-![Current guided-practice welcome](first-run-guided-practice.png)
+![Pen-aware fill preview](pen-fill/fill-dark.png)
 
-## Per-layer watercolor settings
+- [Light fill preview](pen-fill/fill-light.png)
+- [Processing with coverage](pen-fill/processing.png)
+- [Calibration artwork](pen-fill/calibration.png)
 
-![Refill and physical nib-width settings](layer-watercolor-settings.png)
+Coverage uses a round-tip geometric approximation. Ink, pressure, speed and paper
+can change the physical result. Calibration artwork remains subject to preflight.
 
-## Machine geometry
+## Setup and settings
 
-![Geometry preferences](preferences-geometry.png)
+- [Welcome](first-run-guided-practice.png)
+- [Layer pen/watercolor properties](layer-watercolor-settings.png)
+- [Connection](settings-connection.png)
+- [Application](settings-application.png)
+- [Machine geometry](settings-machine-geometry.png)
+- [Pen and speeds](settings-pen-speeds.png)
+- [Watercolor stations](settings-watercolor-stations.png)
 
 ## Reproduce
 
-From the repository root on Linux with a JDK and an available graphical display
-(or Xvfb), build the release JAR and run:
+With Java and a graphical display (or Xvfb):
 
 ```bash
-./scripts/capture-screenshots.sh dist/1.0.0-rc.3/Gantry-1.0.0-rc.3.jar
+mvn package
+./scripts/capture-screenshots.sh app/target/app-1.0.0.jar
+./scripts/record-demo.sh dist/demo
 ```
 
-The script compiles the developer-only capture harness, creates a temporary
-profile and replaces these four PNGs. It cleans up the temporary profile on exit.
-Inspect the images before committing them. Private UI entry points are used to
-prepare repeatable views; this is a documentation tool, not a GUI acceptance test.
-
-## Workspace reference states
-
-The executable `scripts/test-workspace-layouts.sh` generates both themes at four
-scale factors. Selected logical-pixel captures are committed here:
-
-- [Empty](workspace/empty.png)
-- [Prepared (Dark)](workspace/prepared.png) and [Light prepared](workspace/light-prepared.png)
-- [Check](workspace/check.png)
-- [Running](workspace/running.png)
-- [Pen change](workspace/pen-change.png)
-- [Failure presentation](workspace/failure.png), injected by the capture harness
-
-The job and pen-change captures use only the mock backend. The failure image
-verifies presentation, not physical alarm handling.
+The capture script refreshes all current screenshots. The demo script requires
+ffmpeg and produces the captioned one-minute mock video. Both use temporary
+profiles and application rendering rather than desktop capture. Inspect generated
+images before committing. The full scale/density acceptance matrix is separate:
+`./scripts/test-workspace-layouts.sh` exercises both themes, both densities and
+100%, 125%, 150%, 200% scales. Historical dated audit images are evidence of older
+revisions and are not presented as current screenshots.

@@ -180,3 +180,10 @@ The size measurements above and in the log are historical, not current counts.
   `mvn -Djava.awt.headless=true test`: all nine reactor modules and 308 tests
   passed. Headless mode is required for the vectorizer's image tests in this
   macOS terminal environment. `git diff --check` is clean.
+
+## RC9 additions
+
+Keep physical fill calculations in `PenFillGeometry`, SVG coordinate resolution
+in `SvgImportStage`, and profile storage in `PenFillProfiles`. Preview cancellation
+and freshness belong to the dedicated preview panels. Do not duplicate spacing
+formulas or introduce machine commands into calibration/artwork creation.

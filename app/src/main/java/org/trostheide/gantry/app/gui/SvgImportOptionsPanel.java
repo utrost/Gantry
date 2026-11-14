@@ -300,6 +300,7 @@ final class SvgImportOptionsPanel extends JPanel {
         if(next==null && USE_SVG_SIZE.equals(fitToCombo.getSelectedItem()))fitToCombo.setSelectedItem(FIT_TO_MACHINE);
         preview.setSource(file);updateSafeFitSummary();
     }
+    void setPlacement(java.awt.geom.AffineTransform value){preview.setPlacement(value);}
     void configurePreview(org.trostheide.gantry.app.plot.PlotSettings settings){preview.configure(settings);}
     boolean previewReady(){return preview.ready();}
     void onPreviewChange(Runnable callback){preview.onChange(callback);}

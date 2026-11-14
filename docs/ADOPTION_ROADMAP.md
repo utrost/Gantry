@@ -107,7 +107,7 @@ bar is desired.
 ### Product and code work
 
 1. **Create the first public pre-release artifact**
-   - Prepare the next candidate, `v1.0.0-rc.2`; preserve the existing alpha and RC1 tags.
+   - Maintain Windows/Linux installer candidates; preserve all published tags and assets.
    - Publish the GUI fat JAR, CLI fat JAR, checksums, license, and release notes.
    - Make the README say how to download and run before explaining how to build
      from source.
@@ -386,7 +386,7 @@ external people, or media production.
 7. **Done:** Write a “First plot with Gantry” quickstart and refresh the
    [welcome and application screenshots](images/README.md).
 8. **Done:** Add serial-permission and GRBL-alarm troubleshooting.
-9. **Blocked/manual:** Publish a one-minute demo video or GIF — tracked in
+9. **Done:** Publish a reproducible one-minute mock demo video — originally tracked in
    [#18](https://github.com/utrost/Gantry/issues/18).
 10. **Started:** Start the compatibility matrix from real tester reports. Uwe's
     Uuna Tek A1 H plotter is recorded as working; detailed acceptance evidence
@@ -395,8 +395,8 @@ external people, or media production.
 Additional support hardening now tracked in
 [#17](https://github.com/utrost/Gantry/issues/17).
 
-RC1 is also published as JARs. The next installer candidate is prepared but
-unpublished; current evidence is in the [RC2 record](../release-results/1.0.0-rc.2.md).
+Native MSI/DEB candidates and portable JARs are published. Current delivery and
+validation are recorded in the [RC9 record](release-results/1.0.0-rc.9.md).
 
 ## Operating rhythm
 

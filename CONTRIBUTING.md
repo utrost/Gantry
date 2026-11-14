@@ -85,3 +85,15 @@ Currently demand-driven or deferred:
 
 By contributing, you agree that your contribution is licensed under Gantry's
 AGPL-3.0 license.
+
+## Documentation and release verification
+
+For user-visible changes, update the active guides and offline help together.
+Run `scripts/capture-screenshots.sh` for current UI images and `scripts/record-demo.sh`
+for the mock walkthrough. Use isolated profiles; never capture private projects or
+connection details. Keep historical results dated, and report effective display
+scale rather than treating a requested scale as observed acceptance.
+
+Run `python3 -m unittest discover -s scripts -p 'test_*.py'` for packaging changes.
+Native Windows/Linux installers are built and upgrade-tested in release CI.
+Never replace a published candidate's assets to distribute changed code.

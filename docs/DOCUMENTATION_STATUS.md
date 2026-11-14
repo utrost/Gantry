@@ -1,28 +1,21 @@
-# Documentation audit — 2026-09-26
+# Documentation status — RC9, 2026-11-14
 
-Reviewed the repository's Markdown guides against the current RC2 implementation,
-release evidence, profile behavior and running UI. The audit found stale active
-status descriptions and an older welcome screenshot; these have been updated.
+The active guides, offline installer help, screenshots and mock walkthrough have
+been reviewed against the RC9 implementation. Current validation is recorded in
+[the RC9 release record](release-results/1.0.0-rc.9.md).
 
-| Documents | Status and maintenance rule |
+| Area | Current documentation |
 |---|---|
-| README, FIRST_PLOT, USER_GUIDE, SAMPLE_GALLERY | Current entry points and refreshed UI images; installer candidate remains unpublished |
-| ROADMAP, PROJECT_DIGEST, ADOPTION_ROADMAP | Reconciled with closed usability milestone, implemented composition, native installer evidence and remaining adoption work |
-| TESTING, NOVICE_STUDY | Include installed-runtime/upgrade checks and explicit isolated-profile instructions |
-| ARCHITECTURE, REFACTORING | Updated persistence/composition descriptions; removed misleading current size/test counts |
-| RELEASE_CHECKLIST, release-results/1.0.0-rc.2.md | Current release procedure and evidence; human desktop/hardware gates remain open |
-| RELEASE_ASSESSMENT | Historical pre-implementation baseline, now explicitly labeled |
-| ROADMAP_HISTORY, dated test-results, earlier release notes/results | Historical records: their old counts and pending work describe those revisions, not today's status |
-| TRACER_CAPTURE_IMPORT | Future design contract, not an implemented import workflow |
-| KNOWN_GOOD_SETUPS, novice-study templates | Evidence collection remains incomplete; do not turn pending checks into claimed results |
+| Install and first plot | README, FIRST_PLOT, packaging help; Windows MSI/Linux DEB include Java |
+| Daily operation | USER_GUIDE, SAMPLE_GALLERY, TROUBLESHOOTING; Dark default and visible disabled actions |
+| Pen-aware filling | Effective width/overlap, physical scale, boundary inset, coverage preview, profiles and calibration |
+| Developer reference | ARCHITECTURE, TESTING, REFACTORING and PROJECT_DIGEST |
+| Release and adoption | ROADMAP, ADOPTION_ROADMAP, RELEASE_CHECKLIST and RC9 notes/results |
+| Current visuals | All published PNGs under images/ regenerated from actual Swing components; settings and fill views added |
+| Historical evidence | Dated prior release/test records retain their original observations; they are not current acceptance claims |
+| Future work | TRACER_CAPTURE_IMPORT remains a proposed handoff contract |
 
-The [RC2 acceptance record](../release-results/1.0.0-rc.2.md) is the authoritative
-summary of current validation. The [screenshot gallery](images/README.md) records
-capture provenance and reproduction instructions. A demo video, external novice
-study and complete hardware acceptance remain outstanding.
-
-This audit checks documentation consistency and selected executable contracts;
-it does not claim every manual procedure has been performed on physical hardware.
-
-The subsequent [GUI pass](test-results-2026-09-26-gui.md) records layout,
-cancellation and recovery fixes, refreshed screenshots, and updated local results.
+The [image gallery](images/README.md) describes provenance and reproduction.
+The mock demo contains no hardware motion. Earlier Windows 11 / iDraw H A1
+reports do not establish physical acceptance of RC9. Pen/paper swatch evaluation,
+external novice/expert studies and broader hardware coverage require operators.

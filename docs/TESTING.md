@@ -15,9 +15,8 @@ covering both the automated test suite and manual acceptance checks.
 - **Hardware-marked scripts on the mock backend are smoke tests**, not proof of
   real motion/serial behaviour — repeat them on a real plotter before a hardware
   release.
-- **Canvas gestures are direct manipulation** — model edits have multi-level
-  undo/redo, but drawing transforms and station placement are not separate undo
-  history entries. Reopen the project or restore the values manually.
+- **Artwork placement and model edits support Undo/Redo.** Hardware actions and
+  machine configuration are separate from document undo; verify those explicitly.
 - The **mock backend emulates** `$$`/`$100`/`$101`, pen and motion commands well
   enough for flow testing, but does not model real timing, acceleration, or
   limit-switch behaviour.
@@ -885,3 +884,20 @@ These rely on the manual scripts above (Swing/serial/file behaviour that isn't u
 
 These are candidates for future integration tests; until then, run the relevant
 `TS-*` scripts before each release (the hardware-marked ones on a real plotter).
+
+## RC9 pen-fill verification
+
+`mvn clean package` covers physical spacing, finite input validation, SVG units
+(with and without viewBox), nonuniform placement, multiple pen widths, preview/path
+agreement, curved boundary containment, holes, concavity, disconnected regions,
+narrow-feature loss, cancellation and profile/recipe compatibility.
+
+`scripts/test-gui.sh` also runs `PenFillAcceptance`: Dark/Light coverage, Cancel,
+stale-preview Apply gating, transformed region filling, and geometry/pen-width
+Undo/Redo. `scripts/test-workspace-layouts.sh` covers both themes and densities at
+100%, 125%, 150% and 200% scaling. Capture screenshots in isolated mock profiles.
+
+Physical acceptance: plot the calibration swatches on Windows 11 / iDraw H A1,
+measure actual stroke width, choose overlap on the intended paper, save/reload a
+profile and repeat a small contained fill. Record pen, paper, speed and observed
+bleed/gaps. Automated round-tip geometry is not proof of ink behavior.

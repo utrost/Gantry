@@ -15,7 +15,7 @@ public class ImportLayouts extends GuiAcceptance {
             profile=Files.createTempDirectory("gantry-import-layout-");
             System.setProperty("gantry.config.file",profile.resolve("config.json").toString());
             GantryConfig config=new GantryConfig();config.mock=true;config.showWelcomeOnStartup=false;
-            config.gcode.machineWidth=210;config.gcode.machineHeight=148;config.uiTheme="Light";
+            config.gcode.machineWidth=210;config.gcode.machineHeight=148;config.uiTheme=args.length>2?args[2]:"Dark";
             ConfigStore.save(config,profile.resolve("config.json").toFile());GantryApp.main(new String[0]);
             await(()->{for(Window w:Window.getWindows())if(w instanceof JFrame f&&f.isShowing()){frame=f;panel=(PlotterPanel)f.getContentPane();return true;}return false;});
             menu("Open SVG or Vector Drawing...");choose(root.resolve("docs/samples/multi-colour-layers.svg"));

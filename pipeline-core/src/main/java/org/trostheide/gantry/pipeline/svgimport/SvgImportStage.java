@@ -65,13 +65,33 @@ public final class SvgImportStage {
      */
     public static ProcessorOutput importSvg(File inputFile, org.trostheide.gantry.svgtoolbox.Config toolboxConfig,
             SvgImportOptions options) throws IOException {
-        Document doc = loadDocument(inputFile);
-        SvgToolboxPipeline.process(doc, toolboxConfig);
-        return importSvg(doc, inputFile.getName(), options);
+        return importSvg(inputFile,toolboxConfig,options,new AffineTransform());
+    }
+    /** Additional placement applies to physical fill generation, not to the returned model. */
+    public static ProcessorOutput importSvg(File inputFile,org.trostheide.gantry.svgtoolbox.Config toolboxConfig,
+            SvgImportOptions options,AffineTransform physicalPlacement)throws IOException {
+        return importPenAware(inputFile,toolboxConfig,options,physicalPlacement,null);
+    }
+    public record FillPreview(ProcessorOutput output,java.util.List<org.trostheide.gantry.svgtoolbox.patterns.PenFillGeometry.Result> fills) { }
+    public static FillPreview previewSvg(File file,org.trostheide.gantry.svgtoolbox.Config config,SvgImportOptions options,AffineTransform physicalPlacement)throws IOException {
+        java.util.List<org.trostheide.gantry.svgtoolbox.patterns.PenFillGeometry.Result> fills=new java.util.ArrayList<>();
+        ProcessorOutput output=importPenAware(file,config,options,physicalPlacement,fills);
+        return new FillPreview(output,java.util.List.copyOf(fills));
+    }
+    private static ProcessorOutput importPenAware(File inputFile,org.trostheide.gantry.svgtoolbox.Config toolboxConfig,SvgImportOptions options,AffineTransform physicalPlacement,java.util.List<org.trostheide.gantry.svgtoolbox.patterns.PenFillGeometry.Result> previews)throws IOException {
+        Document doc = loadDocument(inputFile);if(previews!=null)doc.setUserData("gantry.fillPreviews",previews,null);
+        boolean physical=toolboxConfig.enableHatching() && (toolboxConfig.globalStyle().penFill()!=null || toolboxConfig.overrides().values().stream().anyMatch(h->h.penFill()!=null));
+        if(!physical){SvgToolboxPipeline.process(doc, toolboxConfig);return importSvg(doc,inputFile.getName(),options);}
+        AffineTransform[] transform={null};
+        SvgToolboxPipeline.process(doc,toolboxConfig,null,d->{transform[0]=physicalTransform(d,options);AffineTransform full=new AffineTransform(physicalPlacement);full.concatenate(transform[0]);return full;});
+        return importSvg(doc,inputFile.getName(),options,transform[0]);
     }
 
     /** Converts an already-loaded SVG {@link Document} to a command model. */
     public static ProcessorOutput importSvg(Document doc, String sourceName, SvgImportOptions options) {
+        return importSvg(doc,sourceName,options,null);
+    }
+    private static ProcessorOutput importSvg(Document doc,String sourceName,SvgImportOptions options,AffineTransform fixedTransform) {
         boolean hasTargetSize = options.targetWidth() > 0 && options.targetHeight() > 0;
         boolean hasPosition = options.posX() != 0 || options.posY() != 0;
 
@@ -123,6 +143,7 @@ public final class SvgImportStage {
             globalTx.concatenate(flipY);
         }
 
+        if(fixedTransform!=null)globalTx=new AffineTransform(fixedTransform);
         List<Layer> resultLayers = new ArrayList<>();
         BoundsBuilder globalBoundsBuilder = new BoundsBuilder();
         PathParser pathParser = new PathParser();
@@ -153,6 +174,74 @@ public final class SvgImportStage {
                 globalBoundsBuilder.build());
 
         return new ProcessorOutput(metadata, resultLayers);
+    }
+
+    private static AffineTransform physicalTransform(Document doc,SvgImportOptions options) {
+        if(options.targetWidth()<=0 || options.targetHeight()<=0){
+            Bounds viewport=svgViewportBounds(doc);
+            if(viewport!=null){double w=lengthMm(doc.getDocumentElement().getAttribute("width"),viewport.maxX()-viewport.minX());double h=lengthMm(doc.getDocumentElement().getAttribute("height"),viewport.maxY()-viewport.minY());
+                options=new SvgImportOptions(options.maxDrawDistance(),options.defaultStationId(),options.curveStep(),w,h,false,options.posX(),options.posY(),options.mirror(),true);}
+        }
+        boolean hasTargetSize = options.targetWidth() > 0 && options.targetHeight() > 0;
+        boolean hasPosition = options.posX() != 0 || options.posY() != 0;
+
+        List<LayerContext> layersToProcess = identifyLayers(doc, options.defaultStationId());
+
+        double nativeScale=!hasTargetSize && svgViewportBounds(doc)==null?25.4/96:1;
+        AffineTransform globalTx = AffineTransform.getScaleInstance(nativeScale,nativeScale);
+        // Always scan the content bounds: the Y-flip below needs them on every import, and so do
+        // the fit/position/mirror transforms.
+        Bounds preScannedBounds = calculateGlobalBounds(layersToProcess);
+        boolean haveBounds = preScannedBounds.minX() != Double.MAX_VALUE;
+        // A single shape can never be a "page border": that heuristic only makes sense when a
+        // background/frame rect coexists with separate real content. With one drawable in the
+        // whole document, that shape IS the content and must never be filtered out.
+        boolean skipPageBorderFilter = countDrawables(layersToProcess) <= 1;
+        Bounds viewportBounds = options.preserveSvgViewport() ? svgViewportBounds(doc) : null;
+
+        if (hasTargetSize && haveBounds) {
+            Bounds scaleBounds = viewportBounds != null
+                    ? viewportBounds
+                    : calculateContentOnlyBounds(layersToProcess, preScannedBounds, skipPageBorderFilter);
+            globalTx = calculateScaleTransform(scaleBounds, options.targetWidth(), options.targetHeight(),
+                    options.keepAspectRatio(), options.posX(), options.posY());
+        } else if (hasPosition && haveBounds) {
+            globalTx=new AffineTransform(nativeScale,0,0,nativeScale,options.posX()-preScannedBounds.minX()*nativeScale,options.posY()-preScannedBounds.minY()*nativeScale);
+        }
+
+        if (options.mirror()) {
+            double pivotX;
+            if (hasTargetSize) {
+                pivotX = options.posX() + options.targetWidth() / 2.0;
+            } else if (haveBounds) {
+                pivotX = hasPosition?options.posX()+(preScannedBounds.maxX()-preScannedBounds.minX())*nativeScale/2:(preScannedBounds.minX() + preScannedBounds.maxX())*nativeScale/2;
+            } else {
+                pivotX = 0;
+            }
+            AffineTransform mirrorTx = new AffineTransform(-1, 0, 0, 1, 2 * pivotX, 0);
+            globalTx.preConcatenate(mirrorTx);
+        }
+
+        // SVG uses a Y-down coordinate system (origin top-left), but the plotter/visualization treat
+        // Y as growing upward from the machine origin — so raw SVG content imports upside down. Mirror
+        // Y about the content's own vertical center so drawings come in upright without needing the
+        // manual "Flip Y" override. Concatenated last so it applies first, in raw content space,
+        // before the scale/position/mirror transforms (and it preserves the content's Y extents).
+        if (haveBounds) {
+            Bounds flipBounds = viewportBounds != null ? viewportBounds : preScannedBounds;
+            AffineTransform flipY = new AffineTransform(1, 0, 0, -1, 0,
+                    flipBounds.minY() + flipBounds.maxY());
+            globalTx.concatenate(flipY);
+        }
+
+        return globalTx;
+    }
+
+    private static double lengthMm(String length,double fallbackPixels){
+        String text=length.trim().toLowerCase(Locale.ROOT);double factor=25.4/96;
+        for(String unit:new String[]{"mm","cm","in","pt","px"})if(text.endsWith(unit)){factor=switch(unit){case "mm"->1;case "cm"->10;case "in"->25.4;case "pt"->25.4/72;default->25.4/96;};text=text.substring(0,text.length()-unit.length());break;}
+        try{double value=Double.parseDouble(text);if(Double.isFinite(value)&&value>0)return value*factor;}catch(NumberFormatException ignored){}
+        return fallbackPixels*25.4/96;
     }
 
     /** Returns the SVG page/viewBox in user units, or null when no valid viewBox is declared. */

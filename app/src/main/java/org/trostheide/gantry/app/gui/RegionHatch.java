@@ -17,6 +17,7 @@ import org.trostheide.gantry.svgtoolbox.patterns.ZigZagHatchPattern;
 
 import java.awt.Shape;
 import java.awt.geom.PathIterator;
+import java.awt.geom.Path2D;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -61,6 +62,22 @@ final class RegionHatch {
         return out;
     }
 
+    /** Bound the synchronous first implementation before allocating dense hatch paths. */
+    static void checkWorkload(Path2D region,double gap) {
+        if(!Double.isFinite(gap)||gap<=0)throw new IllegalArgumentException("Spacing must be positive and finite.");
+        var bounds=region.getBounds2D();
+        double scanlines=Math.hypot(bounds.getWidth(),bounds.getHeight())/gap;
+        int edges=0;var iterator=region.getPathIterator(null,0.5);
+        while(!iterator.isDone()){edges++;if(edges>100000)break;iterator.next();}
+        if(!Double.isFinite(scanlines)||scanlines>10000||scanlines*edges>2000000)
+            throw new IllegalArgumentException("Fill is too dense or complex. Reduce overlap, use a wider pen, or fill a smaller region.");
+    }
+
+    static List<DrawCommand> commands(List<Shape> shapes,java.awt.geom.AffineTransform inverse,int startId) {
+        List<DrawCommand> out=new ArrayList<>();int[] id={startId};
+        for(Shape shape:shapes)appendFlattened(out,inverse.createTransformedShape(shape),id);
+        return out;
+    }
     private static HatchPattern patternFor(String name) {
         return switch (name == null ? "linear" : name.toLowerCase()) {
             case "cross" -> new CrossHatchPattern();

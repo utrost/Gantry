@@ -181,3 +181,17 @@ manually:
 - expected behavior;
 - actual behavior;
 - screenshots or logs if available.
+
+## Filled areas have gaps or overshoot
+
+Use measured effective stroke width, not only the number printed on the pen.
+Preview the round-tip coverage and try a calibration swatch with several overlaps.
+Enable **Keep strokes inside boundary** to inset centreline paths; very narrow
+features can disappear and are shown as uncovered. Paper, pressure, ink and speed
+can change the result. Resize before filling, or regenerate after resizing.
+
+If a preview reports excessive complexity, reduce overlap, simplify the source or
+process fewer areas. If Apply is disabled, wait for the current preview or correct
+the reported settings. Pen-width mode requires straight lines and rejects
+hand-drawn distortion, line simplification/merging and cropping that would change
+its predicted coverage. Manual spacing remains available for decorative patterns.

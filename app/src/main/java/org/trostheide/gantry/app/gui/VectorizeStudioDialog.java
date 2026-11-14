@@ -830,7 +830,7 @@ public final class VectorizeStudioDialog extends JDialog {
     }
     private void onVectorize() {
         if(validTrace==null || !importOptions.previewReady())return;
-        var options=importOptions.collectResult();if(options==null)return;
+        var options=importOptions.collectResult();if(options==null || !importOptions.previewReady())return;
         placement=new SvgImportDialog.Result(options.importOptions(),options.toolboxConfig());
         result = new Result(validParams, currentStrategy().label, validTrace.svg);
         if (worker != null && !worker.isDone()) {

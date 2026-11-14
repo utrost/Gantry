@@ -38,9 +38,10 @@ The Maven reactor contains eight modules:
 - `cli` — headless SVG/image batch conversion and optional G-code output.
 - `app` — Swing GUI, orchestration, persistence, recovery, history, visualization, and help surface.
 
-The 2026-09-26 release validation passed 471 Java tests and nine Python packaging
-tests. See the [RC2 acceptance record](../release-results/1.0.0-rc.2.md) for
-platform evidence and remaining checks; counts describe that build.
+RC9 adds pen-aware fill geometry, coverage previews, boundary inset, profiles and
+calibration artwork. The local build passes 537 Java tests. Release CI verifies
+Java 17/21, GUI workflows and native Windows/Linux packaging; see the
+[RC9 record](release-results/1.0.0-rc.9.md) for evidence and limitations.
 
 ## Roadmap state
 
@@ -53,13 +54,10 @@ Active product roadmap:
 
 Active adoption roadmap:
 
-- Public JAR releases exist: `v1.0.0-alpha.1` and `v1.0.0-rc.1`.
-- `1.0.0-rc.2` Windows MSI and Linux DEB installers are prepared and validated,
-  but have not been tagged or published.
-- Release artifacts/checksums and CLI artifact smoke evidence are recorded.
-- GitHub metadata, issue templates, and labels are seeded.
-- First-plot quickstart, troubleshooting, Help > Copy Diagnostics, release checklist, and compatibility-matrix shell exist.
-- Manual adoption blockers remain: full real-hardware acceptance evidence, external tester recruitment, structured novice-study evidence, first demo GIF/video, and external known-good setup entries.
+- Native Windows MSI/Linux DEB releases and portable GUI/CLI JARs are published through GitHub Releases; RC9 is the pen-fill candidate.
+- Mock first-plot video, screenshots, offline help and SVG samples ship with the documented workflow.
+- Windows 11 / iDraw H A1 RC2 hardware success is recorded; changed RC9 behavior still needs physical confirmation.
+- External tester recruitment, structured novice evidence and additional known-good setups remain adoption work.
 
 ## Documentation health
 
@@ -76,7 +74,7 @@ Risks:
 - The adoption roadmap contains issue numbers and release details that can drift unless checked after GitHub changes.
 - `docs/KNOWN_GOOD_SETUPS.md` now has Uwe's Uuna Tek A1 H working report, but it should not be marketed as broad compatibility evidence until the detailed acceptance fields and external entries land.
 - Current UI captures are available in [the screenshot gallery](images/README.md).
-  A demo GIF/video and external novice evidence remain pending.
+  The mock video is available; external novice evidence remains pending.
 - The user guide is comprehensive, but long. If adoption reaches broader public testing, split it into focused pages only after real users show where they get lost.
 - Tracer JSON capture is now documented as a future pressure-bearing import path. Keep it out of current user instructions until implemented and tested.
 

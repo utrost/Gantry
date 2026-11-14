@@ -104,3 +104,12 @@ Use these docs next:
 If reporting an issue, include the operating system, Java version, Gantry
 version or commit, plotter/controller, connection type, and what you clicked just
 before the problem.
+
+## Try a calibrated fill next
+
+After completing the first mock plot, open the hatch-fill gallery sample and use
+processing's pen-width mode. Start with 0.5 mm effective width and 20% overlap
+(0.4 mm spacing), review coverage and apply. **Edit → Pen/paper calibration swatch…**
+adds labelled test artwork. Creating it sends no machine commands. Choose real
+width/overlap from a plotted sample, save a named profile, and regenerate at the
+final artwork size. See [the full guide](USER_GUIDE.md).

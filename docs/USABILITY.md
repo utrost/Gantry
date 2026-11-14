@@ -4,6 +4,11 @@ This document scopes Roadmap Milestone 9. Gantry already has enough plotting
 capability. The goal is to make the existing capability understandable, safe,
 and comfortable for casual operators who may not know plotting terminology.
 
+> This is the closed milestone scope, not a description of every current widget.
+> RC9 uses a canvas-first workspace, a contextual inspector, a fixed job strip,
+> pinnable machine controls and a diagnostics drawer. See the [user guide](USER_GUIDE.md)
+> and [current screenshots](images/README.md). External operator studies remain open.
+
 ## Outcome
 
 A first-time operator should be able to complete this journey without reading

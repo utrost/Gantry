@@ -65,3 +65,12 @@ both Start menu shortcuts, and cleanup/profile preservation after uninstall.
 
 Physical Windows 10/11 desktop acceptance, browser launch, signing, and plotter
 hardware checks remain separate from automated package validation.
+
+## RC9 help payload
+
+The offline guide now includes pen-width filling, coverage and calibration images,
+profile persistence and regeneration instructions. Native version 1.0.9 follows RC8
+(1.0.8). Release CI tests the matching help/resources using bundled Java with system
+Java removed from PATH; published SHA256SUMS covers installers and documentation.
+Pen/paper profiles live beside GUI settings and are separate from portable machine
+settings exports.

@@ -34,7 +34,10 @@ Other distributions and architectures are not yet validated.
   `sudo apt install ./Gantry-<version>-linux-x64.deb`, then open **Gantry** from
   the applications menu.
 
-The [1.0.0-rc.5 candidate](https://github.com/utrost/Gantry/releases/tag/v1.0.0-rc.5) introduces a calmer canvas-first workspace with contextual properties and pinnable machine controls. RC4 remains available unchanged. Portable users can download the GUI JAR and run
+The [1.0.0-rc.9 candidate](https://github.com/utrost/Gantry/releases/tag/v1.0.0-rc.9)
+adds predictable area filling from effective pen width and overlap, physical
+coverage previews, boundary containment, and saved pen/paper calibration profiles.
+Dark is the default theme. Earlier releases remain available unchanged. Portable users can download the GUI JAR and run
 `java -jar Gantry-<version>.jar` with Java 17 or newer, or build from source with
 `./scripts/build.sh`.
 
@@ -142,3 +145,15 @@ Gantry is licensed under the **GNU Affero General Public License v3.0** — see
 [Vectorize](https://github.com/utrost/vectorize) (BoofCV-Batik Vectorizer)
 sources (AGPLv3) and the public-domain
 [ImageTracer](https://github.com/jankovicsandras/imagetracerjava).
+
+## Predictable filled areas
+
+Use effective stroke width and optional overlap to calculate parallel-line spacing:
+`spacing = width × (1 − overlap / 100)`. A 0.5 mm stroke with 20% overlap gives
+0.4 mm spacing. Preview gaps, overshoot and narrow features before applying.
+
+![Physical fill preview in Dark](docs/images/pen-fill/fill-dark.png)
+
+Saved pen/paper profiles and labelled calibration swatches help tune real ink
+coverage. These create artwork only; plotting still uses Check and Start.
+See [the filling guide](docs/USER_GUIDE.md#hatch-filling-a-region-click-to-fill).
