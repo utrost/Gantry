@@ -34,9 +34,10 @@ Other distributions and architectures are not yet validated.
   `sudo apt install ./Gantry-<version>-linux-x64.deb`, then open **Gantry** from
   the applications menu.
 
-The [1.0.0-rc.9 candidate](https://github.com/utrost/Gantry/releases/tag/v1.0.0-rc.9)
-adds predictable area filling from effective pen width and overlap, physical
-coverage previews, boundary containment, and saved pen/paper calibration profiles.
+The [1.0.0-rc.10 candidate](https://github.com/utrost/Gantry/releases/tag/v1.0.0-rc.10)
+improves numeric editing, historical-job review, import cleanup, settings
+persistence and actionable feedback. It includes pen-width-aware area filling,
+coverage previews and saved pen/paper calibration profiles.
 Dark is the default theme. Earlier releases remain available unchanged. Portable users can download the GUI JAR and run
 `java -jar Gantry-<version>.jar` with Java 17 or newer, or build from source with
 `./scripts/build.sh`.

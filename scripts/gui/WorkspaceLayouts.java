@@ -19,7 +19,7 @@ public class WorkspaceLayouts extends GuiAcceptance {
    GantryApp.main(new String[0]);await(()->{for(Window w:Window.getWindows())if(w instanceof JFrame f&&f.isShowing()){frame=f;panel=(PlotterPanel)f.getContentPane();return true;}return false;});
    edt(()->{frame.setSize(1024,800);return null;});capture(out,"empty");
    click(panel,"Close");edt(()->{Object hint=field(panel,"artworkWorkspace");Method refresh=hint.getClass().getDeclaredMethod("setHasArtwork",boolean.class);refresh.setAccessible(true);refresh.invoke(hint,false);Method showing=hint.getClass().getDeclaredMethod("isShowingEmptyState");showing.setAccessible(true);check(!(boolean)showing.invoke(hint),"closed hint stays dismissed after refresh");return null;});capture(out,"empty-dismissed");
-   menu("Open SVG or Vector Drawing...");choose(root.resolve("docs/samples/multi-colour-layers.svg"));click(dialog("Add SVG or vector drawing"),"Import");await(()->project().output()!=null);
+   menu("Open SVG or Vector Drawing...");choose(root.resolve("docs/samples/multi-colour-layers.svg"));click(dialog("Open SVG or vector drawing"),"Open drawing");await(()->project().output()!=null);
    capture(out,"prepared");
    var beforeNavigation=edt(()->project().output());
    edt(()->{Object vis=field(panel,"visPanel");Object session=field(panel,"documentSession");java.util.List<?> artworks=(java.util.List<?>)session.getClass().getMethod("artworks").invoke(session);if(!artworks.isEmpty()){Object artwork=artworks.get(0);String id=(String)artwork.getClass().getMethod("id").invoke(artwork);Method select=vis.getClass().getDeclaredMethod("selectArtwork",String.class);select.setAccessible(true);select.invoke(vis,id);}return null;});capture(out,"selected-artwork");

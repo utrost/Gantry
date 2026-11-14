@@ -52,8 +52,8 @@ final class CalibrationWorkflow {
         steps.add(new CalibLimitsStep());
         steps.add(new CalibZStep());
         steps.add(new PanelStep("Done", wrapStep(
-                "<html><h3>Calibration complete</h3>Any direction fix, corrected steps/mm, limit "
-                        + "settings and pen-lift values have been applied. Re-run this any time from "
+                "<html><h3>Calibration review complete</h3>Only changes you explicitly made to direction, steps/mm, limit "
+                        + "settings or pen-lift values have been applied. Skipped steps are not verified. Re-run this any time from "
                         + "<i>Machine &gt; Calibrate Axes…</i>.</html>")));
 
         WizardDialog wizard = new WizardDialog(owner, "Calibrate Axes", steps);
@@ -63,7 +63,9 @@ final class CalibrationWorkflow {
         if (wizard.finishedSuccessfully()) {
             save.run();
             applyConfigToVis();
-            log("Axis calibration finished. Skipped steps were not verified.");
+            log("Axis calibration review finished. " + (wizard.skippedSteps().isEmpty()
+                    ? "No steps skipped."
+                    : "Skipped (not verified): " + String.join(", ", wizard.skippedSteps()) + "."));
         }
     }
 

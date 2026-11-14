@@ -49,7 +49,7 @@ This route:
 3. leads into the normal connection and safety check;
 4. completes a simulated plot without moving hardware.
 
-If the welcome was dismissed, reopen it with **Help > Guided First Plot...**.
+If the welcome was dismissed, start practice with **Help > Guided First Plot...**.
 
 ## 3. Confirm the safe state
 
@@ -62,7 +62,7 @@ reasonable.
 
 ## 4. Complete the mock plot
 
-Follow the primary action in the right-hand workflow area:
+Follow the primary action in the fixed job strip below the canvas:
 
 1. **Add artwork** if no practice artwork is loaded.
 2. **Connect plotter** using the mock backend.
@@ -81,7 +81,7 @@ Before using hardware:
 2. Set the machine width, height, origin corner, and pen-lift mode in Settings or
    the Setup Wizard.
 3. Connect the plotter and verify manual jog directions with the pen raised.
-4. Use **Find starting corner (Home)** only if the controller and limit switches
+4. Use **Home machine…** only if the controller and limit switches
    are configured for homing.
 5. Run **Check before plotting** and frame the job before putting the pen down.
 6. Keep a hand near power or emergency stop for the first real test.

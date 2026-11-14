@@ -1,8 +1,8 @@
-# Documentation status — RC9, 2026-11-14
+# Documentation status — RC10, 2026-11-14
 
 The active guides, offline installer help, screenshots and mock walkthrough have
-been reviewed against the RC9 implementation. Current validation is recorded in
-[the RC9 release record](release-results/1.0.0-rc.9.md).
+been reviewed against the RC10 implementation. Current validation is recorded in
+[the RC10 release record](release-results/1.0.0-rc.10.md).
 
 | Area | Current documentation |
 |---|---|
@@ -10,12 +10,12 @@ been reviewed against the RC9 implementation. Current validation is recorded in
 | Daily operation | USER_GUIDE, SAMPLE_GALLERY, TROUBLESHOOTING; Dark default and visible disabled actions |
 | Pen-aware filling | Effective width/overlap, physical scale, boundary inset, coverage preview, profiles and calibration |
 | Developer reference | ARCHITECTURE, TESTING, REFACTORING and PROJECT_DIGEST |
-| Release and adoption | ROADMAP, ADOPTION_ROADMAP, RELEASE_CHECKLIST and RC9 notes/results |
+| Release and adoption | ROADMAP, ADOPTION_ROADMAP, RELEASE_CHECKLIST and RC10 notes/results |
 | Current visuals | All published PNGs under images/ regenerated from actual Swing components; settings and fill views added |
 | Historical evidence | Dated prior release/test records retain their original observations; they are not current acceptance claims |
 | Future work | TRACER_CAPTURE_IMPORT remains a proposed handoff contract |
 
 The [image gallery](images/README.md) describes provenance and reproduction.
 The mock demo contains no hardware motion. Earlier Windows 11 / iDraw H A1
-reports do not establish physical acceptance of RC9. Pen/paper swatch evaluation,
+reports do not establish physical acceptance of RC10. Pen/paper swatch evaluation,
 external novice/expert studies and broader hardware coverage require operators.

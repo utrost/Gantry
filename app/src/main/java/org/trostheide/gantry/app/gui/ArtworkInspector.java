@@ -58,6 +58,8 @@ final class ArtworkInspector extends JPanel {
             values[i].addChangeListener(e->{if(!refreshing&&!locked&&selected!=null)physicalEdit.accept(selected,new PhysicalArtworkPlacement.Edit(
                     ((Number)bedX.getValue()).doubleValue(),((Number)bedY.getValue()).doubleValue(),((Number)width.getValue()).doubleValue(),((Number)height.getValue()).doubleValue(),widthEdit));});
         }
+        for (JSpinner relativeField : new JSpinner[]{x,y,scale})
+            NumericEditSupport.install(relativeField,message->{validation.setText(message);validation.setVisible(!message.isBlank());revalidate();});
         groupPlacement.add(physical);width.setToolTipText("Physical width in mm; proportions remain locked");height.setToolTipText("Physical height in mm; proportions remain locked");
         JCheckBox relative=new JCheckBox("Relative transform…");relativePlacement.setVisible(false);
         relative.addActionListener(e->{relativePlacement.setVisible(relative.isSelected());groupPlacement.setMaximumSize(new Dimension(Integer.MAX_VALUE,groupPlacement.getPreferredSize().height));revalidate();});

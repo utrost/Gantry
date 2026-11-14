@@ -40,6 +40,9 @@ final class WizardDialog extends JDialog {
     private boolean closePending;
     private final JButton stopButton = new JButton("Stop operation");
     { WorkspaceStyle.action(stopButton, WorkspaceStyle.ActionRole.STOP, true); }
+    private final java.util.Set<Integer> skipped = new java.util.LinkedHashSet<>();
+    private final JLabel skippedLabel = new JLabel();
+    private final javax.swing.JTextArea exitNotice = WorkspaceStyle.note("");
     private final JPanel buttons = new JPanel(new FlowLayout(FlowLayout.RIGHT));
 
     WizardDialog(Window owner, String title, List<WizardStep> steps) {
@@ -79,7 +82,16 @@ final class WizardDialog extends JDialog {
         setLayout(new BorderLayout());
         add(top, BorderLayout.NORTH);
         add(cardPanel, BorderLayout.CENTER);
-        add(buttons, BorderLayout.SOUTH);
+        JPanel footer = new JPanel(new BorderLayout(0, 4));
+        JPanel notices = new JPanel(new java.awt.GridLayout(0, 1, 0, 4));
+        notices.setBorder(BorderFactory.createEmptyBorder(0, 14, 0, 14));
+        skippedLabel.setVisible(false);
+        exitNotice.setVisible(false);
+        notices.add(skippedLabel);
+        notices.add(exitNotice);
+        footer.add(notices, BorderLayout.NORTH);
+        footer.add(buttons, BorderLayout.SOUTH);
+        add(footer, BorderLayout.SOUTH);
         getRootPane().setDefaultButton(nextBtn);
 
         setSize(new Dimension(560, 420));
@@ -96,6 +108,7 @@ final class WizardDialog extends JDialog {
         current = index;
         WizardStep step = steps.get(current);
         cardLayout.show(cardPanel, String.valueOf(current));
+        updateSkippedSummary();
         progressLabel.setText("Step " + (current + 1) + " of " + steps.size() + ": " + step.title());
         backBtn.setEnabled(current > 0);
         skipBtn.setVisible(step.isOptional());
@@ -107,7 +120,7 @@ final class WizardDialog extends JDialog {
 
     /** Re-evaluates whether {@code Next} should be enabled; call after UI state changes inside a step. */
     void updateNextEnabled() {
-        nextBtn.setEnabled(!operationBusy.getAsBoolean() && steps.get(current).canAdvance());
+        nextBtn.setEnabled(!closePending && !operationBusy.getAsBoolean() && steps.get(current).canAdvance());
     }
 
     private void leaveStep() {
@@ -118,11 +131,14 @@ final class WizardDialog extends JDialog {
 
     void operationControls(java.util.function.BooleanSupplier busy, Runnable stop, java.util.function.BooleanSupplier connected) {
         operationBusy=busy;stopOperation=stop;
+        exitNotice.setText("Closing stops the active operation. Motion and settings already applied are not undone.");
+        exitNotice.setVisible(true);
         stopButton.setVisible(true);
+        if (operationTimer != null) operationTimer.stop();
         operationTimer=new javax.swing.Timer(100,e->{
             boolean active=operationBusy.getAsBoolean();
-            stopButton.setEnabled(active); backBtn.setEnabled(!active && current>0);
-            skipBtn.setEnabled(!active); updateNextEnabled();
+            stopButton.setEnabled(active); backBtn.setEnabled(!closePending && !active && current>0);
+            skipBtn.setEnabled(!closePending && !active); updateNextEnabled();
             updateMotionAvailability(cardPanel,!connected.getAsBoolean()?"Connect a plotter first.":active?"Wait for the current operation to finish, or use Stop.":null);
             if(closePending && !active)dispose();
         });
@@ -140,23 +156,28 @@ final class WizardDialog extends JDialog {
     @Override public void dispose() {
         leaveStep();
         if(operationBusy.getAsBoolean()) {
-            closePending=true;stopOperation.run();progressLabel.setText("Stopping operation before closing…");return;
+            if (!closePending) stopOperation.run();
+            closePending=true;
+            backBtn.setEnabled(false); nextBtn.setEnabled(false); skipBtn.setEnabled(false);
+            progressLabel.setText("Stopping operation before closing…");return;
         }
         if(operationTimer!=null)operationTimer.stop();
         super.dispose();
     }
 
     private void onBack() {
-        if(operationBusy.getAsBoolean() || current==0)return;
+        if(closePending || operationBusy.getAsBoolean() || current==0)return;
         leaveStep();
         showStep(current - 1);
     }
 
     private void onNext() {
         WizardStep step = steps.get(current);
-        if (operationBusy.getAsBoolean() || !step.canAdvance()) {
+        if (closePending || operationBusy.getAsBoolean() || !step.canAdvance()) {
             return;
         }
+        skipped.remove(current);
+        updateSkippedSummary();
         leaveStep();
         if (current == steps.size() - 1) {
             finished = true;
@@ -167,7 +188,9 @@ final class WizardDialog extends JDialog {
     }
 
     private void onSkip() {
-        if(operationBusy.getAsBoolean())return;
+        if(closePending || operationBusy.getAsBoolean() || !steps.get(current).isOptional())return;
+        skipped.add(current);
+        updateSkippedSummary();
         leaveStep();
         if (current == steps.size() - 1) {
             finished = true;
@@ -177,8 +200,22 @@ final class WizardDialog extends JDialog {
         showStep(current + 1);
     }
 
+    java.util.List<String> skippedSteps() {
+        return skipped.stream().sorted().map(index -> steps.get(index).title()).toList();
+    }
+
+    private void updateSkippedSummary() {
+        String summary = "Skipped (not verified): " + String.join(", ", skippedSteps());
+        skippedLabel.setText(summary);
+        skippedLabel.setToolTipText(summary);
+        skippedLabel.getAccessibleContext().setAccessibleDescription(summary);
+        skippedLabel.setVisible(!skipped.isEmpty());
+    }
+
     private void onCancel() {
-        int choice = JOptionPane.showConfirmDialog(this, "Close this wizard? Applied machine changes and motion cannot be undone.",
+        int choice = JOptionPane.showConfirmDialog(this, exitNotice.isVisible()
+                ? "Close this wizard? Applied machine changes and motion cannot be undone."
+                : "Close this wizard without completing it?",
                 "Cancel wizard", JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE);
         if (choice == JOptionPane.YES_OPTION) {
             finished = false;

@@ -20,7 +20,7 @@ final class HistoricalJobPreview extends JPanel {
         header.add(WorkspaceStyle.button("Return to artwork",back),BorderLayout.EAST);
         ArtworkWorkspacePanel view=new ArtworkWorkspacePanel(canvas,c->{});view.setHasArtwork(true);
         add(header,BorderLayout.NORTH);add(view,BorderLayout.CENTER);
-        add(WorkspaceStyle.note("Read-only job preview. Your current artwork is preserved. Repeat uses these stored paths and transform settings."),BorderLayout.SOUTH);
+        add(WorkspaceStyle.note("Read-only job preview. Your current artwork is preserved. Repeat uses these stored paths, transforms and stations, with the current pen-lift and speed settings."),BorderLayout.SOUTH);
     }
     static boolean compatible(PlotSettings stored,PlotSettings current){
         return Math.abs(stored.resolveMachineWidth()-current.resolveMachineWidth())<.001

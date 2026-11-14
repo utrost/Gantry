@@ -27,7 +27,7 @@ public final class FirstPlotDemo extends GuiAcceptance {
             edt(()->{frame.setSize(1280,800);return null;});
             capture(1, "1. Open Gantry. This walkthrough uses the mock plotter; no hardware moves.");
             menu("Open SVG or Vector Drawing..."); choose(root.resolve("docs/samples/multi-colour-layers.svg"));
-            click(dialog("Add SVG or vector drawing"),"Import");
+            click(dialog("Open SVG or vector drawing"),"Open drawing");
             await(()->project().output()!=null && project().output().layers().size()==3);
             capture(2, "2. Import SVG artwork. Review its size and position inside the machine bed.");
             capture(3, "3. Review the colour layers and plotting order before starting.");

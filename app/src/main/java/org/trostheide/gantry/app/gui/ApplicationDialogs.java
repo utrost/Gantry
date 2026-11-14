@@ -9,10 +9,11 @@ import java.util.function.*;
 final class ApplicationDialogs {
     record OptimizeOptions(double tolerance,boolean reorder,double mergeTolerance){}
     private final Component parent; private final Supplier<GantryConfig> config; private final Consumer<GantryConfig> saveSettings;
-    private final Runnable setup; private final Consumer<OptimizeOptions> optimize; private final BooleanSupplier hasDocument;
+    private final Runnable setup; private final Consumer<OptimizeOptions> optimize; private final BooleanSupplier hasDocument, connectionEditable;
     ApplicationDialogs(Component parent,Supplier<GantryConfig> config,Consumer<GantryConfig> saveSettings,Runnable setup,
-            Consumer<OptimizeOptions> optimize,BooleanSupplier hasDocument){this.parent=parent;this.config=config;this.saveSettings=saveSettings;this.setup=setup;this.optimize=optimize;this.hasDocument=hasDocument;}
-    void settings(){SettingsPanel panel=new SettingsPanel();panel.loadConfig(config.get());boolean[] wizard={false};JButton run=new JButton("Run Setup Wizard...");
+            Consumer<OptimizeOptions> optimize,BooleanSupplier hasDocument,BooleanSupplier connectionEditable){this.parent=parent;this.config=config;this.saveSettings=saveSettings;this.setup=setup;this.optimize=optimize;this.hasDocument=hasDocument;this.connectionEditable=connectionEditable;}
+    void settings(){SettingsPanel panel=new SettingsPanel();panel.loadConfig(config.get());panel.setConnectionEditable(connectionEditable.getAsBoolean());boolean[] wizard={false};JButton run=new JButton("Run Setup Wizard...");
+        run.setEnabled(connectionEditable.getAsBoolean());run.setToolTipText(run.isEnabled()?"Configure the disconnected machine":"Disconnect the plotter before running setup.");
         JPanel body=new JPanel(new BorderLayout(0,6));body.add(run,BorderLayout.NORTH);body.add(panel);JOptionPane pane=new JOptionPane(body,JOptionPane.PLAIN_MESSAGE,JOptionPane.OK_CANCEL_OPTION);
         JDialog dialog=pane.createDialog(parent,"Settings");run.addActionListener(e->{wizard[0]=true;dialog.dispose();});dialog.setVisible(true);dialog.dispose();
         if(wizard[0])setup.run();else if(Integer.valueOf(JOptionPane.OK_OPTION).equals(pane.getValue()))saveSettings.accept(panel.toConfig());}

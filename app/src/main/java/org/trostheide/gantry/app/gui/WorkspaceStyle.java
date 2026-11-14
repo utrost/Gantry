@@ -92,10 +92,14 @@ public final class WorkspaceStyle {
         return row;
     }
     static JTextArea note(String text){
-        JTextArea note=new JTextArea(text,2,20);note.setEditable(false);note.setFocusable(false);
+        JTextArea note=new JTextArea(text,2,20){
+            @Override public Dimension getMaximumSize(){
+                return isMaximumSizeSet()?super.getMaximumSize():new Dimension(Integer.MAX_VALUE,getPreferredSize().height);
+            }
+        };note.setEditable(false);note.setFocusable(false);
         note.setLineWrap(true);note.setWrapStyleWord(true);note.setOpaque(false);note.setFont(UIManager.getFont("Label.font"));
         note.setForeground(UIManager.getColor("Label.foreground"));note.setAlignmentX(Component.LEFT_ALIGNMENT);
-        note.setMaximumSize(new Dimension(Integer.MAX_VALUE,note.getPreferredSize().height));return note;
+        return note;
     }
     static JButton button(String text,Runnable action){JButton b=new JButton(text);b.addActionListener(e->action.run());b.setAlignmentX(Component.LEFT_ALIGNMENT);return b;}
     static void quiet(AbstractButton button) {
@@ -109,6 +113,8 @@ public final class WorkspaceStyle {
     /** Explicit consequences, never inferred from translated labels or wired to machine state. */
     static void action(AbstractButton button, ActionRole role, boolean prominent) {
         button.putClientProperty("Gantry.actionRole", role);
+        // A malformed property edit must never trap focus away from Stop.
+        button.setVerifyInputWhenFocusTarget(role != ActionRole.STOP);
         button.putClientProperty("JButton.buttonType", null);
         String style = switch(role) {
             case NEUTRAL -> "";

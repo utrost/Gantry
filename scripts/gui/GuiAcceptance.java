@@ -68,7 +68,7 @@ public class GuiAcceptance {
             check(ConfigStore.load(profile.resolve("config.json").toFile()).gcode.machineWidth==220,"import persisted");
             System.out.println("PASS machine settings export, cancel and apply through GUI");
             menu("Open SVG or Vector Drawing..."); choose(root.resolve("docs/samples/multi-colour-layers.svg"));
-            click(dialog("Add SVG or vector drawing"),"Import");
+            click(dialog("Open SVG or vector drawing"),"Open drawing");
             await(()->project().output()!=null && project().output().layers().size()==3);
             System.out.println("PASS real SVG chooser/import dialog");
             // Every replacement entry point must preserve the dirty session on Cancel.
@@ -83,7 +83,7 @@ public class GuiAcceptance {
             // Discard authorizes replacement but cancelling the import still preserves the drawing.
             menu("Open SVG or Vector Drawing..."); click(dialog("Unsaved Gantry project"), "Discard");
             choose(root.resolve("docs/samples/multi-colour-layers.svg"));
-            click(dialog("Add SVG or vector drawing"),"Cancel");
+            click(dialog("Open SVG or vector drawing"),"Cancel");
             check(edt(()->project().output().layers().size())==3,"cancelled import preserves drawing");
             var originalPlacement=edt(()->project().placement());
             click(panel,"Rotate 90°");await(()->!project().placement().equals(originalPlacement));

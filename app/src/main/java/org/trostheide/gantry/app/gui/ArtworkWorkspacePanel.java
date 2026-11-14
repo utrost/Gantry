@@ -40,6 +40,8 @@ final class ArtworkWorkspacePanel extends JLayeredPane {
             }
             ((JButton)viewportActions.getComponent(2)).getAccessibleContext().setAccessibleName("Zoom out");
             ((JButton)viewportActions.getComponent(3)).getAccessibleContext().setAccessibleName("Zoom in");
+            ((JButton)viewportActions.getComponent(2)).setToolTipText("Zoom out (view only)");
+            ((JButton)viewportActions.getComponent(3)).setToolTipText("Zoom in (view only)");
         }
         add(canvas, DEFAULT_LAYER); add(emptyState, PALETTE_LAYER);add(viewportActions,MODAL_LAYER);
     }

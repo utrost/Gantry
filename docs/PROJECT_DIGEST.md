@@ -38,10 +38,10 @@ The Maven reactor contains eight modules:
 - `cli` — headless SVG/image batch conversion and optional G-code output.
 - `app` — Swing GUI, orchestration, persistence, recovery, history, visualization, and help surface.
 
-RC9 adds pen-aware fill geometry, coverage previews, boundary inset, profiles and
-calibration artwork. The local build passes 537 Java tests. Release CI verifies
+RC10 completes independent GUI/workflow fixes and retains pen-aware filling,
+coverage previews and calibration profiles. The local build passes 552 Java tests. Release CI verifies
 Java 17/21, GUI workflows and native Windows/Linux packaging; see the
-[RC9 record](release-results/1.0.0-rc.9.md) for evidence and limitations.
+[RC10 record](release-results/1.0.0-rc.10.md) for evidence and limitations.
 
 ## Roadmap state
 
@@ -54,9 +54,9 @@ Active product roadmap:
 
 Active adoption roadmap:
 
-- Native Windows MSI/Linux DEB releases and portable GUI/CLI JARs are published through GitHub Releases; RC9 is the pen-fill candidate.
+- Native Windows MSI/Linux DEB releases and portable GUI/CLI JARs are published through GitHub Releases; RC10 is the workflow-verification candidate.
 - Mock first-plot video, screenshots, offline help and SVG samples ship with the documented workflow.
-- Windows 11 / iDraw H A1 RC2 hardware success is recorded; changed RC9 behavior still needs physical confirmation.
+- Windows 11 / iDraw H A1 RC2 hardware success is recorded; changed RC10 behavior still needs physical confirmation.
 - External tester recruitment, structured novice evidence and additional known-good setups remain adoption work.
 
 ## Documentation health

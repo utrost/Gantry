@@ -396,7 +396,7 @@ Additional support hardening now tracked in
 [#17](https://github.com/utrost/Gantry/issues/17).
 
 Native MSI/DEB candidates and portable JARs are published. Current delivery and
-validation are recorded in the [RC9 record](release-results/1.0.0-rc.9.md).
+validation are recorded in the [RC10 record](release-results/1.0.0-rc.10.md).
 
 ## Operating rhythm
 

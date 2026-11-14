@@ -28,17 +28,17 @@ nav{display:flex;flex-wrap:wrap;gap:16px}section{margin-top:36px}.note{border-le
 <h2>Complete a first practice plot without hardware</h2>
 <ol>
 <li>On first launch, choose <strong>Start guided practice</strong>. If the welcome is hidden, choose <strong>Help &gt; Guided First Plot…</strong>.</li>
-<li>Follow Machine Setup with the <strong>mock backend</strong>. This simulates a plotter and cannot move physical hardware.</li>
+<li>The sample opens directly in <strong>simulation</strong>, without serial, axis or pen-actuator setup. It cannot move physical hardware.</li>
 <li>Check that the practice drawing sits inside the virtual bed.</li>
 <li>Choose <strong>Connect plotter</strong>, then <strong>Check before plotting</strong>. Follow the confirmations and start the mock plot.</li>
 <li>At each layer prompt, choose <strong>Pen ready — continue</strong>. Use <strong>Stop</strong> to cancel a plot.</li>
 </ol>
 <img src="images/first-run-guided-practice.png" alt="Welcome choices: Start guided practice, Machine setup only, and Close">
-<p>Gantry should show <strong>Safe — nothing will move</strong> while disconnected. Loading or saving artwork does not connect a machine.</p>
+<p>During practice the top bar says <strong>Simulation • no physical hardware</strong>. Loading or saving artwork does not connect a machine.</p>
 </section>
 <section id="samples">
 <h2>Try an included drawing</h2>
-<p>Use <strong>File &gt; Open SVG or Vector Drawing…</strong> and select a sample from the folder listed above. To keep an original sample unchanged, save your editable work as a new <code>.gantry</code> project in your Documents folder.</p>
+<p>Use <strong>File &gt; Open SVG or Vector Drawing…</strong> and select a sample from the folder listed above. Review the physical preview and choose <strong>Open drawing</strong>. Use <strong>Add SVG to current drawing…</strong> to append instead; Cancel leaves your document unchanged. To keep an original sample unchanged, save your editable work as a new <code>.gantry</code> project in your Documents folder.</p>
 <ul>
 <li><a href="samples/simple-line.svg">Simple line</a>: a small first drawing.</li>
 <li><a href="samples/multi-colour-layers.svg">Three colour layers</a>: practice selecting layers and changing pens.</li>
@@ -57,9 +57,11 @@ nav{display:flex;flex-wrap:wrap;gap:16px}section{margin-top:36px}.note{border-le
 </section>
 <section id="save">
 <h2>Save, reopen and export</h2>
-<p><strong>File &gt; Save Project…</strong> saves editable artwork, placement, layer selection and preparation settings in a <code>.gantry</code> file. Use <strong>Open Gantry Project…</strong> to return to it.</p>
+<p><strong>File &gt; Save Project…</strong> saves editable artwork, placement, layer selection and preparation settings in a <code>.gantry</code> file. Ctrl+S reuses that path after the first save; Ctrl+Shift+S opens Save As. Use <strong>Open Gantry Project…</strong> to return to it.</p>
 <p><strong>Export G-code (for plotter)…</strong> writes machine instructions for the selected layers and placement. Exporting does not send the file to a physical controller. Check machine geometry and pen settings before using exported G-code on hardware.</p>
 <p>Unsaved edits create a recovery copy in your user profile. Settings, recent jobs and recovery persist across upgrades. Uninstalling Gantry preserves your profile and projects; your Documents folder is the recommended place for saved work.</p>
+<p>Save/export results appear above the canvas. <strong>Unresolved error</strong> retains earlier failure details while a later success appears. Failed saves preserve dirty state and recovery; closing the recovery prompt keeps the copy for later.</p>
+<p><strong>Recent Plot Jobs</strong> reviews the stored drawing before movement. Return to artwork restores your editable document. Repeating uses stored paths/transforms/stations with your current pen-lift and speed settings.</p>
 <p>The Windows profile is <code>%APPDATA%\Gantry</code>. On Linux it is <code>$XDG_CONFIG_HOME/gantry</code>, or <code>~/.config/gantry</code> when that variable is unset.</p>
 </section>
 <section id="cli">

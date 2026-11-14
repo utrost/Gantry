@@ -2,7 +2,7 @@
 
 > Historical baseline assessment of `b360551`, before the installer work.
 > Its missing capabilities and test counts describe that revision. For current
-> results and remaining gates, see the [RC9 acceptance record](release-results/1.0.0-rc.9.md).
+> results and remaining gates, see the [RC10 acceptance record](release-results/1.0.0-rc.10.md).
 
 Assessed `main` at `b360551`. `git pull --ff-only` reported already up to date.
 Target platforms: Windows and Linux. Retain the 1.0 release line.

@@ -19,7 +19,7 @@ public class ImportLayouts extends GuiAcceptance {
             ConfigStore.save(config,profile.resolve("config.json").toFile());GantryApp.main(new String[0]);
             await(()->{for(Window w:Window.getWindows())if(w instanceof JFrame f&&f.isShowing()){frame=f;panel=(PlotterPanel)f.getContentPane();return true;}return false;});
             menu("Open SVG or Vector Drawing...");choose(root.resolve("docs/samples/multi-colour-layers.svg"));
-            JDialog svg=dialog("Add SVG or vector drawing");await(()->findButton(svg,"Import").isEnabled());capture(svg,out.resolve("svg-import.png"));click(svg,"Cancel");
+            JDialog svg=dialog("Open SVG or vector drawing");await(()->findButton(svg,"Open drawing").isEnabled());capture(svg,out.resolve("svg-import.png"));click(svg,"Cancel");
             BufferedImage photo=new BufferedImage(200,200,BufferedImage.TYPE_INT_RGB);Graphics2D g=photo.createGraphics();g.setColor(Color.WHITE);g.fillRect(0,0,200,200);g.setColor(Color.BLACK);g.setStroke(new BasicStroke(6));g.drawOval(35,35,130,130);g.dispose();
             Path source=profile.resolve("trace.png");ImageIO.write(photo,"png",source.toFile());
             menu("Add image or photo...");choose(source);JDialog raster=dialog("Add image — preview and placement");

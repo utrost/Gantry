@@ -15,11 +15,11 @@ GRBL cancellation/error handling. Its machine-aware preview also shows ordered
 layers with source pen colours, visibility, and physical nib widths that remain
 constant when artwork is scaled.
 
-Windows/Linux installers are published through GitHub Releases. RC9 adds pen-aware filling, coverage previews and calibration profiles. Native installation,
+Windows/Linux installers are published through GitHub Releases. RC10 verifies and completes independent GUI/workflow fixes, building on RC9’s pen-aware filling. Native installation,
 upgrade, bundled-runtime launch, and persisted state checks pass. Uwe reports
 Windows 11 / iDraw H A1 plotting, stop/alarm recovery, limits and calibration
 working. Remaining desktop checks and post-RC2 hardening are tracked separately. See the
-[current acceptance record](docs/release-results/1.0.0-rc.9.md). Beginner usability
+[current acceptance record](docs/release-results/1.0.0-rc.10.md). Beginner usability
 is closed as described in [`docs/USABILITY.md`](docs/USABILITY.md).
 
 ## Delivery plan

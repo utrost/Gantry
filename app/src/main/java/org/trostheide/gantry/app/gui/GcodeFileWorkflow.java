@@ -27,7 +27,11 @@ final class GcodeFileWorkflow {
         if(!hasSelection.get()){info.accept("No layers selected. Tick at least one layer to export.");return;}
         JFileChooser chooser=chooser();if(chooser.showSaveDialog(parent)!=JFileChooser.APPROVE_OPTION)return;File file=chooser.getSelectedFile();
         if(!overwrite(file))return;remember(file);PlotSettings settings=config.get().toPlotSettings();settings.alignmentOffsetOverride=new double[]{alignX.getAsDouble(),alignY.getAsDouble()};
-        new Thread(()->exportAtomically(output,settings,file),"gcode-export").start();
+        // The background write must use the same settings reviewed on the EDT, even if
+        // preferences change while a large export is still being generated.
+        GcodeOptions options = new GcodeOptions(); options.copyFrom(config.get().gcode);
+        settings.stations = new java.util.LinkedHashMap<>(settings.stations);
+        new Thread(()->exportAtomically(output,settings,options,file),"gcode-export").start();
     }
     void replay(){
         if(!(jobs.backend() instanceof GcodeBackend real)){log.accept("ERROR: Connect to a real G-code backend first (not available in mock mode).");return;}
@@ -61,12 +65,12 @@ final class GcodeFileWorkflow {
         }.execute();
     }
 
-    private void exportAtomically(ProcessorOutput output,PlotSettings settings,File destination){
+    private void exportAtomically(ProcessorOutput output,PlotSettings settings,GcodeOptions options,File destination){
         File parentDir=destination.getAbsoluteFile().getParentFile();
         File temporary=null;
         try{
             temporary=File.createTempFile(destination.getName()+".",".tmp",parentDir);
-            GcodeFileBackend target=new GcodeFileBackend(config.get().gcode,temporary);
+            GcodeFileBackend target=new GcodeFileBackend(options,temporary);
             PlotService service=new PlotService(target,settings);service.setLogCallback(log);
             if(!target.connect())throw new IOException("Could not open temporary output file");
             try{service.plot(output);}finally{target.disconnect();}

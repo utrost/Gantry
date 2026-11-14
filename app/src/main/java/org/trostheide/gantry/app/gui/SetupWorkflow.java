@@ -44,7 +44,11 @@ final class SetupWorkflow {
         WizardDialog wizard = new WizardDialog(owner, "Machine Setup", steps);
         wizard.setVisible(true);
         if (wizard.finishedSuccessfully()) {
-            saveAndApply.accept(settings.toConfig());
+            try { saveAndApply.accept(settings.toConfig()); }
+            catch (RuntimeException failure) {
+                JOptionPane.showMessageDialog(owner, failure.getMessage(), "Machine setup was not saved", JOptionPane.ERROR_MESSAGE);
+                return false;
+            }
             if (calibrateNext.isSelected()) calibrate.run();
             return true;
         }

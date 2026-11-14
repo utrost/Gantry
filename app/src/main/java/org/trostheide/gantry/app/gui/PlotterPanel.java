@@ -112,6 +112,7 @@ public class PlotterPanel extends JPanel {
     private JMenuItem replotMenuItem;
     private JMenu recentJobsMenu;
     private final PlotJobHistory plotHistory = new PlotJobHistory(org.trostheide.gantry.app.plot.UserStateFiles.resolve(configFile, "plot-history.json"));
+    private JMenuItem preferencesMenuItem, setupMenuItem;
     private PlotJobHistory.Job pendingJob;
     private PlotJobHistory.Job displayedHistoricalJob;
     private JobContextPanel jobContext;
@@ -234,7 +235,7 @@ public class PlotterPanel extends JPanel {
             }
         });
         dialogs = new ApplicationDialogs(this, () -> config, this::saveSettings, this::onSetupWizard,
-                this::onOptimize, () -> documentSession.currentOutput() != null);
+                this::onOptimize, () -> documentSession.currentOutput() != null, this::connectionSettingsEditable);
         rawCommands = new RawCommandPanel(this::runOnBackend, this::log);
         recoveryTimer = new javax.swing.Timer(900, e -> writeRecovery());
         recoveryTimer.setRepeats(false);
@@ -392,10 +393,13 @@ public class PlotterPanel extends JPanel {
     private void refreshGuidance() {
         if (workspace == null) return;
         boolean connected=plotJobController.isConnected();
-        boolean idle=config.mock || controllerState==GcodeBackend.MachineState.IDLE;
+        boolean simulation=isSimulation();
+        boolean idle=simulation || controllerState==GcodeBackend.MachineState.IDLE;
         String unavailable=!connected?"Connect a plotter first.":
                 plotting || plotJobController.isMachineBusy() || manualActions>0?"Wait for the current operation to finish, or use Stop.":
                 !idle?"Wait for the controller to report Idle (currently "+controllerState+").":null;
+        if(preferencesMenuItem!=null)preferencesMenuItem.setEnabled(!connecting&&!plotting&&!plotJobController.isMachineBusy());
+        if(setupMenuItem!=null)setupMenuItem.setEnabled(connectionSettingsEditable());
         jogPanel.setUnavailable(unavailable);
         // Keep technical recovery commands available in Alarm/Unknown; block conflicting motion.
         boolean recoveryState=controllerState==GcodeBackend.MachineState.ALARM || controllerState==GcodeBackend.MachineState.UNKNOWN;
@@ -403,11 +407,11 @@ public class PlotterPanel extends JPanel {
         for(JButton control:manualMotionControls)WorkspaceStyle.availability(control,unavailable);
         updateBoundsReview();
         String summary=workspaceSummary();
-        workspaceChecks.update(pendingJob!=null||documentSession.currentOutput()!=null,pendingJob!=null||!selectedLayerIndices().isEmpty(),connected,idle,plotJobController.isMachineBusy()||manualActions>0 || !historicalCompatible(),summary);
+        workspaceChecks.update(reviewedJob()!=null||documentSession.currentOutput()!=null,reviewedJob()!=null||!selectedLayerIndices().isEmpty(),connected,idle,plotJobController.isMachineBusy()||manualActions>0 || !historicalCompatible(),summary);
         WorkspacePresentation.View view=WorkspacePresentation.of(new WorkspacePresentation.Snapshot(
-                pendingJob!=null||documentSession.currentOutput()!=null,connected,connecting,config.mock,plotting,awaitingLayerConfirmation,
+                reviewedJob()!=null||documentSession.currentOutput()!=null,connected,connecting,simulation,plotting,awaitingLayerConfirmation,
                 plotJobController.isPaused(),pausing,stopping,workspaceChecks.ready(),config.preflightBeforeStart,
-                pendingJob!=null||!selectedLayerIndices().isEmpty(),outcome,controllerState.name()));
+                reviewedJob()!=null||!selectedLayerIndices().isEmpty(),outcome,controllerState.name()));
         if (plotJobController.isManualOperation()) {
             boolean halting=plotJobController.isStopping();
             view=new WorkspacePresentation.View(halting?WorkspacePresentation.Phase.STOPPING:WorkspacePresentation.Phase.MANUAL,
@@ -419,8 +423,8 @@ public class PlotterPanel extends JPanel {
         workspace.jobSummary.setText(summary+(boundsWarning.isBlank()?"":" · "+boundsWarning));
         workspace.jobSummary.setToolTipText(summary+(boundsWarning.isBlank()?"":" · "+boundsWarning));
         if(artworkInspector!=null)artworkInspector.updateSummary(summary);
-        safetyStatusLabel.setText(config.mock ? "Simulation • no physical hardware" : connected ? "Controller: "+controllerState : "Not connected • physical state unknown");
-        WorkspaceStyle.status(safetyStatusLabel, !config.mock && connected && controllerState==GcodeBackend.MachineState.IDLE
+        safetyStatusLabel.setText(simulation ? "Simulation • no physical hardware" : connected ? "Controller: "+controllerState : "Not connected • physical state unknown");
+        WorkspaceStyle.status(safetyStatusLabel, !simulation && connected && controllerState==GcodeBackend.MachineState.IDLE
                 ? "Gantry.success" : controllerState==GcodeBackend.MachineState.ALARM ? "Gantry.error" : "Label.foreground");
         for(ActionListener listener:guidanceActionBtn.getActionListeners())guidanceActionBtn.removeActionListener(listener);
         guidanceActionBtn.setText(view.button());guidanceActionBtn.setEnabled(view.enabled()&&historicalCompatible()&&!replaying&&manualActions==0&&(plotting||!plotJobController.isMachineBusy()));
@@ -438,26 +442,32 @@ public class PlotterPanel extends JPanel {
     }
 
     private String workspaceSummary(){
-        PlotJobHistory.Job reviewed = pendingJob != null ? pendingJob : displayedHistoricalJob;
-        if(reviewed!=null){double[] bounds=new PlotService(plotJobController.backend(),reviewed.settings()).computeFrameBounds(reviewed.output());
-            return "Stored job · "+reviewed.output().layers().size()+" pen layers"+(bounds==null?"":String.format(java.util.Locale.ROOT," · %.1f × %.1f mm",bounds[1]-bounds[0],bounds[3]-bounds[2]));}
+        PlotJobHistory.Job reviewed = reviewedJob();
+        if(reviewed!=null){double[] bounds=new PlotService(plotJobController.backend(),reviewed.settings()).computeArtworkBounds(reviewed.output());
+            return "Stored job · "+reviewed.output().layers().size()+" pen layers"+(bounds==null?"":String.format(java.util.Locale.ROOT," · %.1f × %.1f mm",bounds[1]-bounds[0],bounds[3]-bounds[2])) + estimateSummary();}
 
         ProcessorOutput output=documentSession.currentOutput();if(output==null)return "No artwork loaded";
         double[] size=visPanel.getContentMotorSize();
         return String.format(java.util.Locale.ROOT,"%.1f × %.1f mm · %d pen layer(s) · %d pass(es)",size[0],size[1],selectedLayerIndices().size(),plotControls.passes());
     }
+    private String estimateSummary() {
+        var estimate = plotProgress.estimate();
+        return estimate == null ? "" : " · Est. " + TimeEstimator.format(estimate.totalSeconds() * (100.0 / speedPercent));
+    }
     private void refreshCanvasPalette(){
         ProcessorOutput output=documentSession.currentOutput();if(output==null)return;
         visPanel.layerColors.clear();for(int i=0;i<output.layers().size();i++)visPanel.layerColors.add(CanvasPalette.displayColor(output.layers().get(i).color(),i));visPanel.repaint();
     }
-    private boolean historicalCompatible(){return pendingJob==null || HistoricalJobPreview.compatible(pendingJob.settings(),config.toPlotSettings());}
+    private PlotJobHistory.Job reviewedJob() { return pendingJob != null ? pendingJob : displayedHistoricalJob; }
+    private boolean historicalCompatible(){return reviewedJob()==null || HistoricalJobPreview.compatible(reviewedJob().settings(),config.toPlotSettings());}
     private void updateBoundsReview(){
         boundsWarning="";
         if(!historicalCompatible()){boundsWarning="Stored machine geometry differs — return to artwork";workspaceChecks.setBoundsMessage(boundsWarning);return;}
-        ProcessorOutput output=pendingJob==null?preparePlotOutput():pendingJob.output();
+        PlotJobHistory.Job reviewed = reviewedJob();
+        ProcessorOutput output=reviewed==null?preparePlotOutput():reviewed.output();
         if(output==null || output.layers().isEmpty()){workspaceChecks.setBoundsMessage("");return;}
-        PlotSettings settings=pendingJob==null?config.toPlotSettings():pendingJob.settings();
-        if(pendingJob==null)settings.alignmentOffsetOverride=new double[]{visPanel.getAlignOffsetX(),visPanel.getAlignOffsetY()};
+        PlotSettings settings=reviewed==null?config.toPlotSettings():reviewed.settings();
+        if(reviewed==null)settings.alignmentOffsetOverride=new double[]{visPanel.getAlignOffsetX(),visPanel.getAlignOffsetY()};
         double[] bounds=new PlotService(plotJobController.backend(),settings).computeArtworkBounds(output);
         if(bounds==null){workspaceChecks.setBoundsMessage("No drawable paths in the selected layers.");return;}
         boolean clipped=bounds[0]<-.001 || bounds[2]<-.001 || bounds[1]>settings.resolveMachineWidth()+.001 || bounds[3]>settings.resolveMachineHeight()+.001;
@@ -468,12 +478,13 @@ public class PlotterPanel extends JPanel {
     private void returnToArtwork(){
         if(plotting || plotJobController.isMachineBusy())return;
         pendingJob=null;displayedHistoricalJob=null;outcome=null;invalidateReadiness();
-        workspace.split.setLeftComponent(artworkWorkspace);workspace.showView("Prepare");refreshGuidance();
+        workspace.split.setLeftComponent(artworkWorkspace);workspace.showView("Prepare");refreshTimeEstimate();refreshGuidance();
     }
     private void reviewHistoricalJob(PlotJobHistory.Job job){
         if(plotJobController.isMachineBusy())return;
         pendingJob=job;displayedHistoricalJob=job;invalidateReadiness();outcome=null;
         workspace.split.setLeftComponent(new HistoricalJobPreview(job,this::returnToArtwork));
+        refreshTimeEstimate();
         onPreflightWizard();
     }
 
@@ -715,7 +726,7 @@ public class PlotterPanel extends JPanel {
         machineMenu.addSeparator();
         machineMenu.add(tip(menuItem("Check Before Plotting...", e -> onPreflightWizard(), true),
                 "Walk through connect / home / frame-the-job / pen-and-paper checks before starting a plot."));
-        machineMenu.add(tip(menuItem("Setup Wizard...", e -> onSetupWizard(), false),
+        machineMenu.add(tip(setupMenuItem=menuItem("Setup Wizard...", e -> onSetupWizard(), false),
                 "Guided first-time setup: machine size, origin, orientation, pen mode and speeds."));
         machineMenu.add(tip(menuItem("Calibrate Axes...", e -> onCalibrateAxesWizard(), false),
                 "Check that the axes move the right direction, and correct steps/mm if a commanded "
@@ -737,7 +748,7 @@ public class PlotterPanel extends JPanel {
 
         JMenu settingsMenu = new JMenu("Settings");
         settingsMenu.setMnemonic(KeyEvent.VK_S);
-        settingsMenu.add(menuItem("Preferences...", e -> onOpenSettings(), true));
+        settingsMenu.add(preferencesMenuItem=menuItem("Preferences...", e -> onOpenSettings(), true));
         settingsMenu.addSeparator();
         settingsMenu.add(menuItem("Import Machine Settings...", e -> onImportMachineSettings(), true));
         settingsMenu.add(menuItem("Export Machine Settings...", e -> MachineSettingsTransfer.exportSettings(this,config,this::showFeedback), true));
@@ -888,16 +899,17 @@ public class PlotterPanel extends JPanel {
     /** Sends a pen-up rectangle around the job's current bounds, reusing the existing baked overlay. */
     private void frameJob() {
         if(!historicalCompatible()){blocked("Stored job geometry differs from this machine. Return to artwork before framing.");return;}
-        if (documentSession.currentOutput() == null && pendingJob==null) {
+        if (documentSession.currentOutput() == null && reviewedJob()==null) {
             log("ERROR: No drawing loaded.");
             return;
         }
         // Frame exactly what Start would plot: same layer selection, same transform/alignment, and
         // the same soft-clamp-to-bed that the plot pipeline applies, so the trace can never command
         // the head outside the machine even if the drawing overhangs the bed.
-        ProcessorOutput toFrame = pendingJob==null?preparePlotOutput():pendingJob.output();
-        PlotSettings settings = pendingJob==null?config.toPlotSettings():pendingJob.settings();
-        if(pendingJob==null)settings.alignmentOffsetOverride = new double[] { visPanel.getAlignOffsetX(), visPanel.getAlignOffsetY() };
+        PlotJobHistory.Job reviewed = reviewedJob();
+        ProcessorOutput toFrame = reviewed==null?preparePlotOutput():reviewed.output();
+        PlotSettings settings = reviewed==null?config.toPlotSettings():reviewed.settings();
+        if(reviewed==null)settings.alignmentOffsetOverride = new double[] { visPanel.getAlignOffsetX(), visPanel.getAlignOffsetY() };
         double[] bounds = new PlotService(plotJobController.backend(), settings).computeFrameBounds(toFrame);
         if (bounds == null) {
             log("ERROR: Nothing to frame (no drawable points in the selected layers).");
@@ -921,14 +933,23 @@ public class PlotterPanel extends JPanel {
      * into wizard steps (so there is exactly one set of settings widgets, no duplication). On Finish
      * it commits, persists and applies the config exactly like {@code Settings > Preferences…}.
      */
+    private boolean connectionSettingsEditable() {
+        return !connecting && !plotting && !plotJobController.isConnected() && !plotJobController.isMachineBusy();
+    }
+
+    private boolean isSimulation() {
+        return plotJobController.isConnected() ? plotJobController.backend() instanceof MockPlotterBackend : config.mock;
+    }
+
     private void onSetupWizard() {
+        if(!connectionSettingsEditable()){blocked("Disconnect the plotter before running machine setup.");return;}
         new SetupWorkflow(config, this::saveSetupConfig, this::onCalibrateAxesWizard)
                 .show(SwingUtilities.getWindowAncestor(this));
     }
 
     private void onGuidedFirstPlot() {
-        if (plotting) {
-            blocked("Stop the active plot before starting guided practice.");
+        if (plotting || connecting || plotJobController.isMachineBusy()) {
+            blocked("Wait for the connection or active operation to finish before starting guided practice.");
             return;
         }
         if (plotJobController.isConnected()) {
@@ -950,14 +971,12 @@ public class PlotterPanel extends JPanel {
     }
 
     private void saveSetupConfig(GantryConfig updated) {
+        if(!connectionSettingsEditable())throw new IllegalStateException("Disconnect the plotter before applying machine setup. Settings were not changed.");
         updated.inspectorWidth=config.inspectorWidth;updated.diagnosticsOpen=config.diagnosticsOpen;updated.machinePanelPinned=config.machinePanelPinned;
+        try { ConfigStore.save(updated, configFile); }
+        catch (IOException ex) { throw new java.io.UncheckedIOException("Machine setup could not be saved. Settings were not applied: " + ex.getMessage(), ex); }
         config = updated;
         WorkspaceStyle.install(config);for(Window window:Window.getWindows())SwingUtilities.updateComponentTreeUI(window);visPanel.setBackground(CanvasPalette.BACKGROUND);refreshCanvasPalette();
-        try {
-            ConfigStore.save(config, configFile);
-        } catch (IOException ex) {
-            log("WARNING: Failed to save config: " + ex.getMessage());
-        }
         applyConfigToVis();
         log("Machine setup saved and applied.");
         showFeedback("Machine setup saved. Gantry is ready for artwork.");
@@ -1116,19 +1135,21 @@ public class PlotterPanel extends JPanel {
 
     /** Recomputes and displays the pre-plot time estimate (total + per-layer, via tooltip). */
     private void refreshTimeEstimate() {
-        if (documentSession.currentOutput() == null) {
+        PlotJobHistory.Job reviewed = reviewedJob();
+        ProcessorOutput output = reviewed == null ? preparePlotOutput() : reviewed.output();
+        if (output == null) {
             plotProgress.setEstimate(null);
             plotControls.setTime("Est: --:--");
             return;
         }
         TimeEstimator.PlotEstimate currentEstimate =
-                TimeEstimator.estimate(preparePlotOutput(), config.gcode, config.stations);
+                TimeEstimator.estimate(output, config.gcode, reviewed == null ? config.stations : reviewed.settings().stations);
         plotProgress.setEstimate(currentEstimate);
         double speedFactor = 100.0 / speedPercent;
         String estimateText = "Est: " + TimeEstimator.format(currentEstimate.totalSeconds() * speedFactor);
-        StringBuilder tooltip = new StringBuilder("<html>Per-layer estimate:<br>");
+        StringBuilder tooltip = new StringBuilder("<html>" + (reviewed == null ? "" : "Stored job, current pen and speeds.<br>") + "Per-layer estimate:<br>");
         for (TimeEstimator.LayerEstimate le : currentEstimate.layers()) {
-            tooltip.append(le.layerId()).append(": ").append(TimeEstimator.format(le.estimatedSeconds() * speedFactor)).append("<br>");
+            tooltip.append(WorkspaceStyle.escape(le.layerId())).append(": ").append(TimeEstimator.format(le.estimatedSeconds() * speedFactor)).append("<br>");
         }
         tooltip.append("Total: ").append(TimeEstimator.format(currentEstimate.totalSeconds() * speedFactor));
         if (speedPercent != 100) {
@@ -1224,16 +1245,23 @@ public class PlotterPanel extends JPanel {
         apply.addActionListener(event->{
         if(plotting || documentSession.currentOutput()!=output){blocked("Select the layer again before editing its pen settings.");return;}
         try {penWidth.commitEdit();distance.commitEdit();}catch(java.text.ParseException invalid){blocked("Enter valid pen values before applying.");return;}
-        String stationId = String.valueOf(station.getEditor().getItem()).trim();
-        if (stationId.isEmpty()) {
-            info("Choose or enter a refill station ID.");
+        Object stationValue = station.getEditor().getItem();
+        String stationId = stationValue == null ? "" : stationValue.toString().trim();
+        double maxDistance = ((Number) distance.getValue()).doubleValue();
+        if (maxDistance > 0 && stationId.isEmpty()) {
+            blocked("Choose a refill station before enabling automatic refills.");
             return;
         }
-        double maxDistance = ((Number) distance.getValue()).doubleValue();
         double widthMm = ((Number) penWidth.getValue()).doubleValue();
         String behavior = String.valueOf(dipBehavior.getEditor().getItem()).trim();
         if (behavior.isEmpty()) behavior = "simple_dip";
-        Layer configured = LayerRefillPlanner.configure(layer, stationId, maxDistance, behavior);
+        String oldStation = layer.stationId() == null ? "" : layer.stationId().trim();
+        String oldBehavior = layer.dipBehavior() == null || layer.dipBehavior().isBlank()
+                ? inheritedBehavior : layer.dipBehavior();
+        boolean refillChanged = !stationId.equals(oldStation) || maxDistance != layer.maxDrawDistance()
+                || !behavior.equals(oldBehavior);
+        // A width-only edit must not rebuild (or remove manually supplied) refill commands.
+        Layer configured = refillChanged ? LayerRefillPlanner.configure(layer, stationId, maxDistance, behavior) : layer;
         List<Layer> layers = new ArrayList<>(output.layers());
         layers.set(layerIndex, configured);
         Metadata metadata = output.metadata();
@@ -1422,19 +1450,34 @@ public class PlotterPanel extends JPanel {
                 });
     }
 
-    private void onOpenSettings() { dialogs.settings(); }
+    private void onOpenSettings() {
+        if(connecting || plotting || plotJobController.isMachineBusy()){blocked("Wait for the active connection or operation before opening Preferences.");return;}
+        dialogs.settings();
+    }
 
     private void saveSettings(GantryConfig updated) {
+        if(connecting || plotting || plotJobController.isMachineBusy()) {
+            blocked("Wait for the active connection or operation before applying Preferences. Settings were not changed.");return;
+        }
+        if(plotJobController.isConnected() && (updated.mock!=config.mock
+                || !java.util.Objects.equals(updated.gcode.serialPort,config.gcode.serialPort)
+                || updated.gcode.baudRate!=config.gcode.baudRate)) {
+            blocked("Disconnect the plotter before changing connection settings. Settings were not changed.");return;
+        }
+        updated.inspectorWidth=config.inspectorWidth;updated.diagnosticsOpen=config.diagnosticsOpen;updated.machinePanelPinned=config.machinePanelPinned;
+        try { ConfigStore.save(updated, configFile); }
+        catch (IOException ex) {
+            error("Preferences could not be saved. Settings were not applied: " + ex.getMessage());
+            return;
+        }
         // A connected backend retains the GcodeOptions instance it was constructed with.
         // Update that instance instead of replacing it so pen/Z and speed changes apply now.
         config.gcode.copyFrom(updated.gcode);
         updated.gcode = config.gcode;
-        updated.inspectorWidth=config.inspectorWidth;updated.diagnosticsOpen=config.diagnosticsOpen;updated.machinePanelPinned=config.machinePanelPinned;
         config = updated;
         WorkspaceStyle.install(config);for(Window window:Window.getWindows())SwingUtilities.updateComponentTreeUI(window);visPanel.setBackground(CanvasPalette.BACKGROUND);refreshCanvasPalette();
-        try { ConfigStore.save(config, configFile); }
-        catch (IOException ex) { log("WARNING: Failed to save config: " + ex.getMessage()); }
         applyConfigToVis();
+        showFeedback("Preferences saved and applied.");
     }
 
     private void onConnectToggle() { connections.toggle(config, plotting); }
@@ -1452,11 +1495,11 @@ public class PlotterPanel extends JPanel {
         }
         setConnectButtonColor(!connected);
         setConnectionRequiredControlsEnabled(connected);
-        statusLabel.setText(connecting ? "Connecting..." : failed ? "Connection failed" : connected ? (config.mock?"Simulator connected":"Plotter connected") : (config.mock?"Simulation · disconnected":"Plotter disconnected"));
+        statusLabel.setText(connecting ? "Connecting..." : failed ? "Connection failed" : connected ? (isSimulation()?"Simulator connected":"Plotter connected") : (config.mock?"Simulation · disconnected":"Plotter disconnected"));
         if (connecting) localFeedback.showMessage("Connecting to the plotter…", LocalFeedbackPanel.Tone.INFO);
         else if (failed) localFeedback.showAction("Connection failed. Check the port or choose the mock plotter in Settings.",
                 LocalFeedbackPanel.Tone.ERROR, "Open settings", this::onOpenSettings);
-        else if (connected) localFeedback.showMessage(config.mock?"Simulator connected. No physical hardware is connected.":"Plotter connected. Manual movement is now enabled.", LocalFeedbackPanel.Tone.SUCCESS);
+        else if (connected) localFeedback.showMessage(isSimulation()?"Simulator connected. No physical hardware is connected.":"Plotter connected. Manual movement is now enabled.", LocalFeedbackPanel.Tone.SUCCESS);
         else localFeedback.showMessage("Disconnected. Gantry cannot confirm the physical machine state.", LocalFeedbackPanel.Tone.INFO);
         refreshGuidance();
     }
@@ -1555,14 +1598,14 @@ public class PlotterPanel extends JPanel {
 
     private void onStartPlot() {
         if(!historicalCompatible()){blocked("Stored job geometry no longer matches this machine. Return to artwork and prepare it for the current machine.");return;}
-        if(manualActions>0 || plotJobController.isMachineBusy() || (!config.mock && controllerState!=GcodeBackend.MachineState.IDLE)){blocked("Wait for the controller to report idle before starting.");return;}
+        if(manualActions>0 || plotJobController.isMachineBusy() || (!isSimulation() && controllerState!=GcodeBackend.MachineState.IDLE)){blocked("Wait for the controller to report idle before starting.");return;}
         if(config.preflightBeforeStart && !workspaceChecks.ready()){onPreflightWizard();return;}
         stopping=false;outcome=null;jogPanel.stopContinuous();
         if (plotJobController.isPlotting()) {
             log("Plot start ignored: a plot is already active.");
             return;
         }
-        if (documentSession.currentOutput() == null && pendingJob == null) {
+        if (documentSession.currentOutput() == null && reviewedJob() == null) {
             blocked("Add artwork before plotting.");
             return;
         }
@@ -1571,12 +1614,12 @@ public class PlotterPanel extends JPanel {
             blocked("Connect the plotter before plotting.");
             return;
         }
-        if (pendingJob == null && selectedLayerIndices().isEmpty()) {
+        if (reviewedJob() == null && selectedLayerIndices().isEmpty()) {
             blocked("Choose at least one layer or colour to plot.");
             return;
         }
 
-        PlotJobHistory.Job requested = pendingJob;
+        PlotJobHistory.Job requested = reviewedJob();
         pendingJob = null;
         ProcessorOutput toPlot = requested == null ? preparePlotOutput() : requested.output();
 
@@ -1839,11 +1882,10 @@ public class PlotterPanel extends JPanel {
         });
     }
 
-    /** Logs a failure to the console and also surfaces it as an error dialog so it can't be missed. */
+    /** Retains failures beside the workflow; details open only when requested. */
     private void error(String message) {
         log("ERROR: " + message);
-        localFeedback.showAction(message, LocalFeedbackPanel.Tone.ERROR, "Details", () ->
-                JOptionPane.showMessageDialog(this, message, "Error details", JOptionPane.ERROR_MESSAGE));
+        localFeedback.showMessage(message, LocalFeedbackPanel.Tone.ERROR);
     }
 
     /** Logs an informational note and shows it as a dialog (for workflow guidance the user must act on). */

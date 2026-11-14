@@ -136,6 +136,7 @@ public final class VectorizeStudioDialog extends JDialog {
     private boolean applyingPreset;
     private long traceRevision;
     private TraceResult validTrace;
+    private final java.util.Set<File> traceFiles = java.util.concurrent.ConcurrentHashMap.newKeySet();
     private List<String> validParams=List.of();
     private final java.util.Map<JComponent,JLabel> controlLabels=new java.util.LinkedHashMap<>();
     private Result result;
@@ -770,6 +771,12 @@ public final class VectorizeStudioDialog extends JDialog {
                 // A fresh temp file per trace, so a still-running cancelled trace can't clobber it.
                 File svg = File.createTempFile("gantry-studio-", ".svg");
                 svg.deleteOnExit();
+                File metadata = new File(svg.getPath() + ".json");
+                metadata.deleteOnExit();
+                traceFiles.add(svg);
+                boolean produced = false;
+                try {
+                if (isCancelled()) throw new java.util.concurrent.CancellationException();
                 List<String> args = new ArrayList<>(List.of(
                         "-i", imageFile.getAbsolutePath(), "-o", svg.getAbsolutePath()));
                 args.addAll(params);
@@ -778,7 +785,13 @@ public final class VectorizeStudioDialog extends JDialog {
                 // use namespace prefixes or shape elements instead of literal <path> tags.
                 ProcessorOutput output = SvgImportStage.importSvg(svg, SvgImportOptions.defaults());
                 StudioMetrics metrics = StudioMetrics.of(output);
+                produced = true;
                 return new TraceResult(svg, metrics.strokes(), metrics);
+                } finally {
+                    // The CLI emits a metadata sidecar; the studio retains its own argument list.
+                    metadata.delete();
+                    if (!produced || isCancelled()) discardTrace(svg);
+                }
             }
 
             @Override
@@ -792,6 +805,8 @@ public final class VectorizeStudioDialog extends JDialog {
                 try {
                     TraceResult tr = get();
                     if(tr.paths<=0)throw new IllegalArgumentException("No paths found. Try another preset or threshold.");
+                    previewCanvas.stopProcessing();
+                    for (File svg : traceFiles) if (!svg.equals(tr.svg)) discardTrace(svg);
                     validTrace=tr;validParams=List.copyOf(params);importOptions.setSource(tr.svg);
                     previewCanvas.setURI(tr.svg.toURI().toString());
                     if (tr.metrics != null) {
@@ -822,11 +837,20 @@ public final class VectorizeStudioDialog extends JDialog {
         return " ";
     }
 
+    private void discardTrace(File svg) {
+        File metadata = new File(svg.getPath() + ".json");
+        boolean metadataGone = metadata.delete() || !metadata.exists();
+        if ((svg.delete() || !svg.exists()) && metadataGone) traceFiles.remove(svg);
+        // Batik may briefly retain a Windows file handle; deleteOnExit remains the fallback.
+    }
+
     @Override public void dispose(){
         traceRevision++;
         if(debounce!=null)debounce.stop();if(worker!=null)worker.cancel(true);
         if(importOptions!=null)importOptions.closePreview();
-        previewCanvas.stopProcessing();super.dispose();
+        previewCanvas.stopProcessing();
+        for (File svg : traceFiles) if (result == null || !svg.equals(result.tracedSvg())) discardTrace(svg);
+        super.dispose();
     }
     private void onVectorize() {
         if(validTrace==null || !importOptions.previewReady())return;

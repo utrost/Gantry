@@ -29,8 +29,11 @@ public final class MachineSettingsIO {
         for(String path:paths){
             String group=path.startsWith("stations.")?"Watercolor stations":path.contains("Limit")||path.contains("limit")?"Limits":
                     "Machine geometry";
-            if(path.matches(".*(serialPort|baudRate|responseTimeoutSeconds|bootDelayMillis|positionPollIntervalSeconds)$"))group="Connection";
-            if(path.matches(".*(pen.*|servo.*|zUp|zDown|feedRate.*)$"))group="Pen & speeds";
+            if(path.startsWith("gcode.")) {
+                String field = path.substring("gcode.".length());
+                if(field.matches("serialPort|baudRate|responseTimeoutSeconds|bootDelayMillis|positionPollIntervalSeconds"))group="Connection";
+                if(field.matches("pen.*|servo.*|zUp|zDown|feedRate.*"))group="Pen & speeds";
+            }
             String name=path.replaceFirst("^gcode\\.","").replaceAll("([a-z])([A-Z])","$1 $2");
             result.add(new Change(group,name,before.getOrDefault(path,"Not configured"),after.getOrDefault(path,"Not configured")));
         }

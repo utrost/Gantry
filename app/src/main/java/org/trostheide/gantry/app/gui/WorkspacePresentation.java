@@ -14,10 +14,16 @@ final class WorkspacePresentation {
         if (s.active && s.waiting) return v(Phase.WAITING,"Waiting for pen","Fit the requested pen, then continue.","Pen ready — continue",Action.CONTINUE,true,true);
         if (s.active && s.paused) return v(Phase.PAUSED,"Command submission paused","Controller motion is reported separately above.","Resume plotting",Action.RESUME,true,true);
         if (s.active) return v(Phase.RUNNING,"Job in progress","Progress counts submitted commands, not measured physical completion.","Pause",Action.PAUSE,true,true);
+        if (s.connecting) {
+            Phase phase = s.outcome == Phase.FAILED || s.outcome == Phase.STOPPED || s.outcome == Phase.COMPLETE
+                    ? s.outcome : Phase.CONNECTING;
+            String title = phase == Phase.FAILED ? "Job failed" : phase == Phase.STOPPED ? "Job stopped"
+                    : phase == Phase.COMPLETE ? "Job submitted successfully" : "Connecting";
+            return v(phase,title,"Waiting for the machine connection.","Connecting…",Action.NONE,false,false);
+        }
         if (s.outcome == Phase.FAILED) return v(Phase.FAILED,"Job failed","Review the error and machine state before checking again.",s.connected?"Review checks":"Reconnect plotter",s.connected?Action.CHECK:Action.CONNECT,true,false);
         if (s.outcome == Phase.STOPPED) return v(Phase.STOPPED,"Job stopped","Review placement and machine state before restarting.",s.connected?"Review checks":"Reconnect plotter",s.connected?Action.CHECK:Action.CONNECT,true,false);
         if (s.outcome == Phase.COMPLETE) return v(Phase.COMPLETE,"Job submitted successfully","Check the controller and output before removing the paper.","Plot another copy",Action.CHECK,true,false);
-        if (s.connecting) return v(Phase.CONNECTING,"Connecting","Waiting for the machine connection.","Connecting…",Action.NONE,false,false);
         if (!s.artwork) return v(Phase.EMPTY,"Start with your artwork","Add a drawing or practise with the sample in Help.","Add artwork",Action.ADD,true,false);
         if (!s.connected) return v(Phase.PREPARE,"Prepare your drawing","Review size, placement and pen layers before connecting.","Connect plotter",Action.CONNECT,true,false);
         if (!s.hasSelection) return v(Phase.PREPARE,"Choose a pen layer","Include at least one layer in the artwork inspector.","Start plotting",Action.START,false,false);
