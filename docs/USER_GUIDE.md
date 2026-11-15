@@ -104,7 +104,9 @@ Button colours describe the action's consequence in both themes:
   is not job readiness, and successful submission is not proof of physical completion.
 
 Disabled controls remain visible with muted labels and backgrounds. Tooltips explain
-connection or busy-state restrictions. Stop remains visible and is disabled when no
+missing artwork or included pen layers, connection or busy-state restrictions.
+Frame and plot-review actions stay disabled until their required artwork is
+loaded. Stop remains visible and is disabled when no
 Gantry operation is active. Labels, icons and explicit status text remain
 available so that colour is never the only way to understand the workspace.
 

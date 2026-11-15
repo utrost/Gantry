@@ -1,14 +1,16 @@
-# Gantry screenshots — RC11 workspace, RC10 supporting views
+# Gantry screenshots — RC11
 
-The core `workspace/` state images were refreshed on 2026-11-15 from the successful
-[RC11 Java 21 GUI acceptance artifact](https://github.com/utrost/Gantry/actions/runs/43643382775)
-on Ubuntu. Import, historical-review, saved-result, setup, settings and fill
-images were generated on 2026-11-14
-from actual RC10 Swing components on Linux / Java 17. Dark is the default;
-Light remains available. Canvas appearance is independent. The captures use
-isolated mock profiles; no physical plotter was connected. Native window borders
-are excluded where root panes are captured. Nothing here is an AI-generated UI
-mockup. The RC10 supporting views do not show RC11's changed control states.
+All 44 PNGs in this gallery were refreshed on 2026-11-15 by the
+[RC11 Java 21 screenshot job](https://github.com/utrost/Gantry/actions/runs/43731483364)
+on Ubuntu, using actual Swing components and isolated mock profiles. Dark is the
+default; Light remains available. Canvas appearance is independent. No physical
+plotter was connected. Native window borders are excluded where root panes are
+captured. Nothing here is an AI-generated UI mockup.
+
+The [one-minute mock walkthrough](../demos/Gantry-first-plot-mock.mp4) was
+re-recorded from RC11 in the
+[CI capture run](https://github.com/utrost/Gantry/actions/runs/43732414599).
+It uses the same no-hardware mock backend.
 
 ## Daily workspace
 

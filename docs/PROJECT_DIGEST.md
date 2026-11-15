@@ -74,8 +74,8 @@ Risks:
 - There is a lot of documentation. For a new tester, README → FIRST_PLOT must stay the obvious path; everything else should remain secondary.
 - The adoption roadmap contains issue numbers and release details that can drift unless checked after GitHub changes.
 - `docs/KNOWN_GOOD_SETUPS.md` has a maintainer-reported Uuna Tek A1 H setup, but it should not be marketed as broad compatibility evidence until detailed acceptance fields and external entries land.
-- RC11 workspace captures and RC10 supporting views are available in
-  [the screenshot gallery](images/README.md). The mock video is available;
+- All screenshot views were captured from RC11 and are available in
+  [the screenshot gallery](images/README.md). The RC11 mock video is available;
   external novice evidence remains pending.
 - The user guide is comprehensive, but long. If adoption reaches broader public testing, split it into focused pages only after real users show where they get lost.
 - Tracer JSON capture is now documented as a future pressure-bearing import path. Keep it out of current user instructions until implemented and tested.
@@ -98,8 +98,8 @@ Risks:
    - Update `docs/TESTING.md`, `docs/USER_GUIDE.md`, release evidence, and roadmap candidates after the study.
 
 4. Review adoption visuals for RC11.
-   - Done: re-capture empty-document and machine-control states from RC11 CI.
-   - Review the one-minute mock walkthrough against the current workflow.
+   - Done: re-capture all documentation screenshots from RC11 CI.
+   - Done: re-record and inspect the one-minute mock walkthrough from RC11 CI.
    - Add image/vectorize gallery entries after validation evidence exists.
 
 5. Keep roadmap maintenance strict.
