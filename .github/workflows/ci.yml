@@ -46,7 +46,10 @@ jobs:
 
       - name: Record mock first-plot walkthrough
         if: matrix.java == 21
-        run: xvfb-run -a ./scripts/record-demo.sh dist/demo
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg
+          xvfb-run -a ./scripts/record-demo.sh dist/demo
 
       - name: Upload mock walkthrough
         if: matrix.java == 21
