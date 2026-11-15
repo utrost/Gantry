@@ -33,6 +33,17 @@ jobs:
         if: matrix.java == 21
         run: xvfb-run -a ./scripts/test-workspace-layouts.sh
 
+      - name: Capture documentation screenshots
+        if: matrix.java == 21
+        run: xvfb-run -a ./scripts/capture-screenshots.sh
+
+      - name: Upload documentation screenshots
+        if: matrix.java == 21
+        uses: actions/upload-artifact@v4
+        with:
+          name: documentation-screenshots-jdk-21
+          path: docs/images/
+
       - name: Upload GUI acceptance evidence
         if: always()
         uses: actions/upload-artifact@v4
