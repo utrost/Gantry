@@ -1,6 +1,6 @@
 # Gantry — Manual Test Run Record
 
-Copy this file per run (e.g. `test-results-2026-06-26-uwe.md`) and fill it in
+Copy this file per run (e.g. `test-results-2026-06-26-tester.md`) and fill it in
 while executing the scripts in [`TESTING.md`](TESTING.md). One row per script ID.
 
 - **Result:** `PASS` / `FAIL` / `BLOCKED` / `N/A`

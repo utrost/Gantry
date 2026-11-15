@@ -34,7 +34,7 @@ Repository evidence at the start of this adoption plan:
   validation rather than a product-roadmap blocker
 
 The main adoption gap is not core capability. It is confidence: can someone who
-is not Uwe download Gantry, understand the safe path, complete a mock plot, and
+is not the maintainer download Gantry, understand the safe path, complete a mock plot, and
 then use either exported G-code or a real GRBL connection without verbal coaching?
 
 ## Positioning
@@ -101,7 +101,7 @@ and notes.
 Prove that one person other than the primary developer can get through Gantry
 with minimal hand-holding.
 
-This can be Uwe plus one external tester, or two external testers if a stricter
+This can be the maintainer plus one external tester, or two external testers if a stricter
 bar is desired.
 
 ### Product and code work
@@ -151,7 +151,7 @@ Suggested outreach text:
 
 ### Exit criteria
 
-- One person other than Uwe launches a release artifact without cloning/building.
+- One person other than the maintainer launches a release artifact without cloning/building.
 - They complete the guided mock practice.
 - Ideally they complete one real plot or produce usable G-code.
 - At least five concrete friction points are captured.
@@ -224,7 +224,7 @@ Suggested public text:
 - 10 people launch Gantry.
 - At least 7 complete the guided mock practice.
 - At least 3 complete a real plot or usable G-code export.
-- At least 5 concrete issues or feedback notes come from people other than Uwe.
+- At least 5 concrete issues or feedback notes come from people other than the maintainer.
 - README and troubleshooting reflect actual support questions.
 - No severe safety issue appears.
 
@@ -388,7 +388,7 @@ external people, or media production.
 8. **Done:** Add serial-permission and GRBL-alarm troubleshooting.
 9. **Done:** Publish a reproducible one-minute mock demo video — originally tracked in
    [#18](https://github.com/utrost/Gantry/issues/18).
-10. **Started:** Start the compatibility matrix from real tester reports. Uwe's
+10. **Started:** Start the compatibility matrix from real tester reports. The maintainer's
     Uuna Tek A1 H plotter is recorded as working; detailed acceptance evidence
     and external entries are still needed.
 
@@ -396,7 +396,7 @@ Additional support hardening now tracked in
 [#17](https://github.com/utrost/Gantry/issues/17).
 
 Native MSI/DEB candidates and portable JARs are published. Current delivery and
-validation are recorded in the [RC10 record](release-results/1.0.0-rc.10.md).
+validation are recorded in the [RC11 record](release-results/1.0.0-rc.11.md).
 
 ## Operating rhythm
 

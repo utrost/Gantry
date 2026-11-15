@@ -131,7 +131,7 @@ Windows (`.cmd`), all run from the repo root:
 
 Release builds require Python 3.9+ as well as Java/Maven; native installers
 require JDK 21+ with jpackage. Portable JARs still run on Java 17+. For example:
-`./scripts/release.sh 1.0.0-rc.5 --installer` (Windows: `scripts\release.cmd 1.0.0-rc.5 --installer`).
+`./scripts/release.sh 1.0.0-rc.11 --installer` (Windows: `scripts\release.cmd 1.0.0-rc.11 --installer`).
 
 Tagged releases are staged as drafts by GitHub Actions after both installers pass. See
 [`docs/RELEASE_CHECKLIST.md`](docs/RELEASE_CHECKLIST.md) for the required mock

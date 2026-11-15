@@ -16,7 +16,7 @@ The project has moved past core capability discovery. The active challenge is ad
 - `docs/FIRST_PLOT.md` — shortest safe path for a new tester.
 - `docs/USER_GUIDE.md` — full operator guide.
 - `docs/TROUBLESHOOTING.md` — serial, GRBL, launch, and first-run failure help.
-- `docs/KNOWN_GOOD_SETUPS.md` — evidence-based compatibility matrix; currently includes Uwe's Uuna Tek A1 H as working, with detailed acceptance fields still pending.
+- `docs/KNOWN_GOOD_SETUPS.md` — evidence-based compatibility matrix; includes a maintainer-reported Uuna Tek A1 H setup, with detailed acceptance fields still pending.
 - `docs/TESTING.md` — automated coverage inventory and manual acceptance scripts.
 - `docs/USABILITY.md` — scoped Beginner Usability milestone, now closed; novice validation remains an adoption-evidence path.
 - `docs/TRACER_CAPTURE_IMPORT.md` — future Tracer JSON capture handoff contract; documents pressure-bearing gesture import without claiming current implementation.
@@ -38,10 +38,11 @@ The Maven reactor contains eight modules:
 - `cli` — headless SVG/image batch conversion and optional G-code output.
 - `app` — Swing GUI, orchestration, persistence, recovery, history, visualization, and help surface.
 
-RC10 completes independent GUI/workflow fixes and retains pen-aware filling,
-coverage previews and calibration profiles. The local build passes 552 Java tests. Release CI verifies
+RC11 stabilizes manual controls and clarifies disabled actions while retaining
+RC10's workflow fixes, pen-aware filling, coverage previews and calibration
+profiles. Its release notes record 554 passing Java tests. Release CI verifies
 Java 17/21, GUI workflows and native Windows/Linux packaging; see the
-[RC10 record](release-results/1.0.0-rc.10.md) for evidence and limitations.
+[RC11 record](release-results/1.0.0-rc.11.md) for evidence and limitations.
 
 ## Roadmap state
 
@@ -54,9 +55,9 @@ Active product roadmap:
 
 Active adoption roadmap:
 
-- Native Windows MSI/Linux DEB releases and portable GUI/CLI JARs are published through GitHub Releases; RC10 is the workflow-verification candidate.
+- Native Windows MSI/Linux DEB releases and portable GUI/CLI JARs are published through GitHub Releases; RC11 is the current candidate.
 - Mock first-plot video, screenshots, offline help and SVG samples ship with the documented workflow.
-- Windows 11 / iDraw H A1 RC2 hardware success is recorded; changed RC10 behavior still needs physical confirmation.
+- Windows 11 / iDraw H A1 RC2 hardware success is recorded; changed RC11 behavior still needs physical confirmation.
 - External tester recruitment, structured novice evidence and additional known-good setups remain adoption work.
 
 ## Documentation health
@@ -72,16 +73,17 @@ Risks:
 
 - There is a lot of documentation. For a new tester, README → FIRST_PLOT must stay the obvious path; everything else should remain secondary.
 - The adoption roadmap contains issue numbers and release details that can drift unless checked after GitHub changes.
-- `docs/KNOWN_GOOD_SETUPS.md` now has Uwe's Uuna Tek A1 H working report, but it should not be marketed as broad compatibility evidence until the detailed acceptance fields and external entries land.
-- Current UI captures are available in [the screenshot gallery](images/README.md).
-  The mock video is available; external novice evidence remains pending.
+- `docs/KNOWN_GOOD_SETUPS.md` has a maintainer-reported Uuna Tek A1 H setup, but it should not be marketed as broad compatibility evidence until detailed acceptance fields and external entries land.
+- RC11 workspace captures and RC10 supporting views are available in
+  [the screenshot gallery](images/README.md). The mock video is available;
+  external novice evidence remains pending.
 - The user guide is comprehensive, but long. If adoption reaches broader public testing, split it into focused pages only after real users show where they get lost.
 - Tracer JSON capture is now documented as a future pressure-bearing import path. Keep it out of current user instructions until implemented and tested.
 
 ## Recommended next work
 
-1. Record human desktop and real-hardware acceptance for `1.0.0-rc.2`.
-   - Fill `release-results/` using the release checklist.
+1. Record human desktop and real-hardware acceptance for `1.0.0-rc.11`.
+   - Add a physical test record using the release checklist.
    - Fill in the remaining fields for the Uuna Tek A1 H entry in `docs/KNOWN_GOOD_SETUPS.md`.
    - Keep hardware readiness language conservative until detailed acceptance evidence exists.
 
@@ -95,12 +97,10 @@ Risks:
    - Treat results as adoption/release evidence, not as a blocker for the already-closed usability milestone.
    - Update `docs/TESTING.md`, `docs/USER_GUIDE.md`, release evidence, and roadmap candidates after the study.
 
-4. Produce the missing adoption assets.
-   - Done: the first committed SVG sample gallery exists for simple line,
-     hatch/fill, multi-colour/layer, and text-outline practice.
-   - Next: one-minute demo GIF/video of launch → guided mock plot → export/plot result.
-   - Done: refreshed welcome, workspace, layer settings, and geometry screenshots.
-   - Later: image/vectorize gallery entries only after validation evidence exists.
+4. Review adoption visuals for RC11.
+   - Done: re-capture empty-document and machine-control states from RC11 CI.
+   - Review the one-minute mock walkthrough against the current workflow.
+   - Add image/vectorize gallery entries after validation evidence exists.
 
 5. Keep roadmap maintenance strict.
    - `ROADMAP.md`: Now / current status only.

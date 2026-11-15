@@ -1,8 +1,13 @@
-# Documentation status — RC10, 2026-11-14
+# Documentation status — RC11, 2026-11-15
 
-The active guides, offline installer help, screenshots and mock walkthrough have
-been reviewed against the RC10 implementation. Current validation is recorded in
-[the RC10 release record](release-results/1.0.0-rc.10.md).
+The public entry points, release links, offline help links and screenshot
+references were checked against RC11. Current validation is recorded in
+[the RC11 release record](release-results/1.0.0-rc.11.md). A full human review of
+every operator-guide instruction remains open.
+The core workspace-state captures were refreshed from the successful RC11 CI
+GUI artifact on 2026-11-15. Import, historical-review, setup, settings and fill
+captures and the mock walkthrough were generated from RC10 on 2026-11-14; they
+do not show RC11's changed control states.
 
 | Area | Current documentation |
 |---|---|
@@ -10,12 +15,12 @@ been reviewed against the RC10 implementation. Current validation is recorded in
 | Daily operation | USER_GUIDE, SAMPLE_GALLERY, TROUBLESHOOTING; Dark default and visible disabled actions |
 | Pen-aware filling | Effective width/overlap, physical scale, boundary inset, coverage preview, profiles and calibration |
 | Developer reference | ARCHITECTURE, TESTING, REFACTORING and PROJECT_DIGEST |
-| Release and adoption | ROADMAP, ADOPTION_ROADMAP, RELEASE_CHECKLIST and RC10 notes/results |
-| Current visuals | All published PNGs under images/ regenerated from actual Swing components; settings and fill views added |
+| Release and adoption | ROADMAP, ADOPTION_ROADMAP, RELEASE_CHECKLIST and RC11 notes/results |
+| Visuals | Core workspace states refreshed from RC11 CI; other views and mock video remain RC10 captures |
 | Historical evidence | Dated prior release/test records retain their original observations; they are not current acceptance claims |
 | Future work | TRACER_CAPTURE_IMPORT remains a proposed handoff contract |
 
 The [image gallery](images/README.md) describes provenance and reproduction.
 The mock demo contains no hardware motion. Earlier Windows 11 / iDraw H A1
-reports do not establish physical acceptance of RC10. Pen/paper swatch evaluation,
+reports do not establish physical acceptance of RC11. Pen/paper swatch evaluation,
 external novice/expert studies and broader hardware coverage require operators.

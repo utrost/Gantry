@@ -1,10 +1,14 @@
-# Current Gantry screenshots — RC10
+# Gantry screenshots — RC11 workspace, RC10 supporting views
 
-All current PNGs in this directory were regenerated on 2026-11-14 from actual
-Swing components on Linux / Java 17. Dark is the default; Light remains available.
-Canvas appearance is independent. The captures use isolated mock profiles; no
-physical plotter was connected. Native window borders are excluded where root
-panes are captured. Nothing here is an AI-generated UI mockup.
+The core `workspace/` state images were refreshed on 2026-11-15 from the successful
+[RC11 Java 21 GUI acceptance artifact](https://github.com/utrost/Gantry/actions/runs/43643382775)
+on Ubuntu. Import, historical-review, saved-result, setup, settings and fill
+images were generated on 2026-11-14
+from actual RC10 Swing components on Linux / Java 17. Dark is the default;
+Light remains available. Canvas appearance is independent. The captures use
+isolated mock profiles; no physical plotter was connected. Native window borders
+are excluded where root panes are captured. Nothing here is an AI-generated UI
+mockup. The RC10 supporting views do not show RC11's changed control states.
 
 ## Daily workspace
 
@@ -54,7 +58,7 @@ mvn package
 ./scripts/record-demo.sh dist/demo
 ```
 
-The capture script refreshes all current screenshots. The demo script requires
+The capture script refreshes the screenshot set. The demo script requires
 ffmpeg and produces the captioned one-minute mock video. Both use temporary
 profiles and application rendering rather than desktop capture. Inspect generated
 images before committing. The full scale/density acceptance matrix is separate:

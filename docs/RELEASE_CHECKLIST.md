@@ -3,7 +3,8 @@
 ## Build and stage a candidate
 
 1. Use `MAJOR.MINOR.PATCH-rc.N` (RC 1–98) or `MAJOR.MINOR.PATCH`. Preserve
-   published tags. This delivery targets `1.0.0-rc.10`.
+   published tags. For the current candidate and evidence, see
+   [the documentation status](DOCUMENTATION_STATUS.md).
 2. Write `docs/release-notes/<version>.md` and a truthful acceptance record in
    `docs/release-results/<version>.md`.
 3. Run `python scripts/test_release.py` and
@@ -119,7 +120,7 @@ hashes are attached to CI as `validation-<runner>` artifacts. Inspect
 `upgrade-result.json`, `seed.json`, and `verify.json`; a green unit test suite
 alone does not establish that an upgrade was attempted or completed.
 
-## RC10 workflow and documentation checks
+## RC10 workflow and documentation checks (historical)
 
 - Refresh every current screenshot in `docs/images`, settings views, the mock
   walkthrough and offline help; keep historical evidence dated.
