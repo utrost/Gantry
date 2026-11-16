@@ -8,6 +8,7 @@ import org.trostheide.gantry.app.plot.PlotService;
 import org.trostheide.gantry.app.plot.PlotJobController;
 import org.trostheide.gantry.app.plot.PlotProgressState;
 import org.trostheide.gantry.app.plot.PlotJobHistory;
+import org.trostheide.gantry.app.plot.InkCoverageAnalyzer;
 import org.trostheide.gantry.app.plot.PlotSettings;
 import org.trostheide.gantry.app.plot.StationConfig;
 import org.trostheide.gantry.app.plot.TimeEstimator;
@@ -246,7 +247,7 @@ public class PlotterPanel extends JPanel {
         artworkWorkspace = new ArtworkWorkspacePanel(visPanel, this::showAddArtworkMenu);
 
         workspaceChecks = new WorkspaceChecks(this::onHome, this::frameJob,
-                () -> runOnBackend(PlotterBackend::penup), this::refreshGuidance);
+                () -> runOnBackend(PlotterBackend::penup), this::showInkCoverage, this::refreshGuidance);
         artworkInspector = new ArtworkInspector(overlayControls,plotControls,
                 id -> {visPanel.selectArtwork(id);refreshArtworkInspector();},this::onArtworkGroups,
                 this::onEditProcessSvg,()->fileWorkflow.reprocessArtwork(visPanel.selectedArtwork()),this::onReVectorizeImage,
@@ -906,6 +907,33 @@ public class PlotterPanel extends JPanel {
         if(outcome==WorkspacePresentation.Phase.COMPLETE && displayedHistoricalJob!=null)pendingJob=displayedHistoricalJob;
         outcome=null;checking=true;
         workspace.showView("Check");refreshGuidance();
+    }
+
+    private void showInkCoverage() {
+        PlotJobHistory.Job reviewed = reviewedJob();
+        ProcessorOutput output = reviewed == null ? preparePlotOutput() : reviewed.output();
+        if (output == null || output.layers().isEmpty()) {
+            blocked("Select at least one layer before analyzing ink overlap.");
+            return;
+        }
+        PlotSettings settings = reviewed == null ? config.toPlotSettings() : reviewed.settings();
+        if (reviewed == null) settings.alignmentOffsetOverride = new double[] {
+                visPanel.getAlignOffsetX(), visPanel.getAlignOffsetY()};
+        List<InkCoverageAnalyzer.PenSpec> pens = new ArrayList<>();
+        if (reviewed == null) {
+            for (int index : documentSession.selectedLayerIndices()) {
+                PenLibrary.Pen pen = documentSession.penLibrary().penForLayer(index);
+                pens.add(new InkCoverageAnalyzer.PenSpec(pen.id(), pen.name(), pen.widthMm()));
+            }
+        } else {
+            for (int i = 0; i < output.layers().size(); i++) {
+                PlotJobHistory.PenSnapshot pen = i < reviewed.pens().size() ? reviewed.pens().get(i) : null;
+                pens.add(pen == null
+                        ? new InkCoverageAnalyzer.PenSpec("legacy-" + i, output.layers().get(i).id(), .3)
+                        : new InkCoverageAnalyzer.PenSpec(pen.id(), pen.name(), pen.widthMm()));
+            }
+        }
+        InkCoverageDialog.show(SwingUtilities.getWindowAncestor(this), output, settings, pens);
     }
 
     /** Sends a pen-up rectangle around the job's current bounds, reusing the existing baked overlay. */
