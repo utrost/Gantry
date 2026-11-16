@@ -9,7 +9,12 @@ import org.trostheide.gantry.model.Point;
 import org.trostheide.gantry.model.ProcessorOutput;
 import org.trostheide.gantry.model.command.DrawCommand;
 import org.trostheide.gantry.model.command.MoveCommand;
+import org.trostheide.gantry.app.plot.PlotService;
+import org.trostheide.gantry.app.plot.PlotSettings;
+import org.trostheide.gantry.plotter.GcodeFileBackend;
+import org.trostheide.gantry.plotter.GcodeOptions;
 
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
 import java.util.List;
@@ -67,6 +72,20 @@ class QuickArtworkTest {
         assertEquals(edited, reopened.artworks().get(1).quickArtwork());
         assertEquals(penId, reopened.penLibrary().penForLayer(1).id());
         assertEquals(new Bounds(50, 40, 85, 55), reopened.artworks().get(1).bounds());
+        MoveCommand beforeMove = (MoveCommand) session.currentOutput().layers().get(1).commands().get(0);
+        MoveCommand afterMove = (MoveCommand) reopened.output().layers().get(1).commands().get(0);
+        assertEquals(new Point(beforeMove.x, beforeMove.y), new Point(afterMove.x, afterMove.y));
+        assertEquals(((DrawCommand) session.currentOutput().layers().get(1).commands().get(1)).points,
+                ((DrawCommand) reopened.output().layers().get(1).commands().get(1)).points);
+
+        var gcode = temp.resolve("quick.gcode").toFile();
+        GcodeOptions options = new GcodeOptions();
+        options.penDownDelayMillis = 0;
+        GcodeFileBackend backend = new GcodeFileBackend(options, gcode);
+        assertTrue(backend.connect());
+        new PlotService(backend, new PlotSettings()).plot(reopened.output());
+        backend.disconnect();
+        assertTrue(Files.readString(gcode.toPath()).contains("G1 X85.000 Y55.000 F1000"));
 
         session.undo();
         assertEquals(first, session.artworks().get(1).quickArtwork());
