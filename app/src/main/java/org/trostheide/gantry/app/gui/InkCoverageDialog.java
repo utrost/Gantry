@@ -26,7 +26,7 @@ final class InkCoverageDialog {
         image.setBackground(Color.WHITE);
         JScrollPane scroll = new JScrollPane(image);
         JComboBox<String> view = new JComboBox<>(new String[] {"All pens"});
-        JSpinner threshold = new JSpinner(new SpinnerNumberModel(2, 2, 20, 1));
+        JSpinner threshold = new JSpinner(new SpinnerNumberModel(2, 2, 255, 1));
         JPanel controls = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 0));
         controls.add(new JLabel("View")); controls.add(view);
         controls.add(new JLabel("Warn at overlap count")); controls.add(threshold);
