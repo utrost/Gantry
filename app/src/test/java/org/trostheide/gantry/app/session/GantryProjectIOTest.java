@@ -60,6 +60,37 @@ class GantryProjectIOTest {
         assertEquals(new Bounds(30, 0, 35, 5), loaded.artworks().get(1).bounds());
     }
 
+    @Test void roundTripsSharedNamedPenAndMigratesLegacyProject() throws Exception {
+        DocumentSession session = new DocumentSession();
+        session.replace(new ProcessorOutput(new Metadata("source", Instant.EPOCH, "station", "mm", 0, Bounds.empty()),
+                List.of(new Layer("first", "station", List.of()), new Layer("second", "station", List.of()))));
+        String id = session.penLibrary().penForLayer(0).id();
+        session.assignPen(1, id);
+        session.editPen(new PenLibrary.Pen(id, "Violet", "#8844aa", .55));
+        GantryProject project = new GantryProject(1, session.currentOutput(), session.selectedLayerIndices(),
+                GantryProject.Placement.identity(), 1, GantryProject.Source.empty(), session.artworks(),
+                session.penWidthsMm(), session.penLibrary());
+        var file = tmp.resolve("pens.gantry").toFile();
+        GantryProjectIO.save(project, file);
+        GantryProject loaded = GantryProjectIO.load(file);
+        assertEquals(project.penLibrary(), loaded.penLibrary());
+        assertEquals(List.of(.55, .55), loaded.penLibrary().widths());
+
+        GantryProject legacy = new GantryProject(1, session.currentOutput(), List.of(0, 1),
+                GantryProject.Placement.identity(), 1, GantryProject.Source.empty(), List.of(), List.of(.2, .6));
+        assertEquals(List.of(.2, .6), legacy.penLibrary().widths());
+        assertEquals(2, legacy.penLibrary().pens().size());
+
+        GantryProjectIO.save(legacy, file);
+        var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+        var json = (com.fasterxml.jackson.databind.node.ObjectNode) mapper.readTree(file);
+        json.remove("penLibrary");
+        mapper.writeValue(file, json);
+        GantryProject migrated = GantryProjectIO.load(file);
+        assertEquals(List.of(.2, .6), migrated.penLibrary().widths());
+        assertEquals(2, migrated.penLibrary().pens().size());
+    }
+
     private static ProcessorOutput output(String source, String layerId,
             double minX, double minY, double maxX, double maxY, int firstId) {
         List<org.trostheide.gantry.model.command.Command> commands = List.of(

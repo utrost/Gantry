@@ -11,7 +11,7 @@ Java 17 / Maven multi-module project. Pen-plotting is the first-class, default
 path; watercolor (paint stations + refill) is an optional stage layered on top.
 
 The machine-aware Live View previews the configured workspace, final artwork
-placement, per-layer pen colour, plot inclusion, plot order, and physical nib width
+placement, assigned pen colour, plot inclusion, plot order, and physical nib width
 before paper or ink is committed.
 
 ![Gantry workspace with three colour layers](docs/images/workspace-layer-preview.png)
