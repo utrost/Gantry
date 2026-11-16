@@ -10,6 +10,7 @@ import org.trostheide.gantry.app.plot.PlotProgressState;
 import org.trostheide.gantry.app.plot.PlotJobHistory;
 import org.trostheide.gantry.app.plot.PlotSettings;
 import org.trostheide.gantry.app.plot.StationConfig;
+import org.trostheide.gantry.app.plot.SvgJobExporter;
 import org.trostheide.gantry.app.plot.TimeEstimator;
 import org.trostheide.gantry.app.session.CompositionArtwork;
 import org.trostheide.gantry.app.session.DocumentSession;
@@ -641,6 +642,10 @@ public class PlotterPanel extends JPanel {
                 "Write machine instructions (.gcode) for the plotter from the current drawing. "
                         + "One-way output — G-code can't be reopened for editing."),
                 KeyEvent.VK_E, shortcut));
+        fileMenu.add(tip(menuItem("Export Reviewed Job as SVG...", e -> onExportSvg(false), true),
+                "Export selected, placed artwork as a physical-size SVG with ordered pen layers."));
+        fileMenu.add(tip(menuItem("Export Reviewed Job as SVG Package...", e -> onExportSvg(true), true),
+                "Export one ZIP containing a combined SVG and one SVG per selected pen layer."));
         fileMenu.add(tip(menuItem("Replay G-code...", e -> onReplayGcode(), true),
                 "Validate an absolute-mm G-code file against machine limits, then replay with Stop available."));
         replotMenuItem = accel(tip(menuItem("Re-plot Last Job", e -> onReplotLastJob(), false),
@@ -1824,6 +1829,73 @@ public class PlotterPanel extends JPanel {
     }
 
     private void onExportGcode() { gcodeFiles.export(); }
+    private void onExportSvg(boolean separated) {
+        PlotJobHistory.Job reviewed = reviewedJob();
+        ProcessorOutput output = reviewed == null ? preparePlotOutput() : reviewed.output();
+        if (output == null || output.layers().isEmpty()) {
+            blocked("Choose at least one artwork layer before exporting SVG.");
+            return;
+        }
+        if (output.layers().stream().flatMap(layer -> layer.commands().stream())
+                .noneMatch(command -> command instanceof DrawCommand draw && !draw.points.isEmpty())) {
+            blocked("The selected layers contain no drawing paths to export.");
+            return;
+        }
+        PlotSettings settings = reviewed == null ? config.toPlotSettings() : reviewed.settings();
+        settings.stations = new java.util.LinkedHashMap<>(settings.stations);
+        if (reviewed == null) settings.alignmentOffsetOverride =
+                new double[] {visPanel.getAlignOffsetX(), visPanel.getAlignOffsetY()};
+        List<Double> widths = reviewed == null
+                ? documentSession.selectedLayerIndices().stream()
+                        .map(index -> documentSession.penWidthsMm().get(index)).toList()
+                : List.of();
+        PlotService projector = new PlotService(null, settings);
+        double[] bounds = projector.computeArtworkBounds(output);
+        boolean clipped = bounds != null && (bounds[0] < 0 || bounds[1] > settings.resolveMachineWidth()
+                || bounds[2] < 0 || bounds[3] > settings.resolveMachineHeight());
+        if (clipped && JOptionPane.showConfirmDialog(this,
+                "Some artwork lies outside the configured machine bed and will be clamped in the SVG. Continue?",
+                "SVG export will clip artwork", JOptionPane.OK_CANCEL_OPTION,
+                JOptionPane.WARNING_MESSAGE) != JOptionPane.OK_OPTION) return;
+        if (reviewed != null && JOptionPane.showConfirmDialog(this,
+                "Stored jobs do not retain pen widths. The SVG will use an assumed 0.3 mm display width. Continue?",
+                "Historical job pen widths", JOptionPane.OK_CANCEL_OPTION,
+                JOptionPane.WARNING_MESSAGE) != JOptionPane.OK_OPTION) return;
+        String extension = separated ? "zip" : "svg";
+        JFileChooser chooser = new JFileChooser();
+        if (config.lastDirectory != null && !config.lastDirectory.isBlank()) {
+            File directory = new File(config.lastDirectory);
+            if (directory.isDirectory()) chooser.setCurrentDirectory(directory);
+        }
+        chooser.setFileFilter(new javax.swing.filechooser.FileNameExtensionFilter(
+                separated ? "SVG package (*.zip)" : "Vector drawing (*.svg)", extension));
+        if (chooser.showSaveDialog(this) != JFileChooser.APPROVE_OPTION) return;
+        File selected = chooser.getSelectedFile();
+        File destination = selected.getName().toLowerCase(java.util.Locale.ROOT).endsWith("." + extension)
+                ? selected : new File(selected.getParentFile(), selected.getName() + "." + extension);
+        if (destination.exists() && JOptionPane.showConfirmDialog(this,
+                destination.getName() + " already exists. Overwrite it?", "Confirm overwrite",
+                JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE) != JOptionPane.YES_OPTION) return;
+        config.lastDirectory = destination.getAbsoluteFile().getParent();
+        try { ConfigStore.save(config, configFile); }
+        catch (IOException failure) { log("WARNING: Failed to save last directory: " + failure.getMessage()); }
+        new Thread(() -> {
+            try {
+                PlotService.ProjectedArtwork projected = projector.projectArtwork(output);
+                if (separated) SvgJobExporter.writePackage(destination, projected, widths);
+                else SvgJobExporter.writeCombined(destination, projected, widths);
+                SwingUtilities.invokeLater(() -> {
+                    log("Exported SVG " + (separated ? "package" : "drawing") + " to " + destination);
+                    localFeedback.showMessage("SVG exported: " + destination.getAbsolutePath(), LocalFeedbackPanel.Tone.SUCCESS);
+                });
+            } catch (IOException | RuntimeException failure) {
+                SwingUtilities.invokeLater(() -> {
+                    log("ERROR: SVG export failed: " + failure.getMessage());
+                    localFeedback.showMessage("SVG export failed: " + failure.getMessage(), LocalFeedbackPanel.Tone.ERROR);
+                });
+            }
+        }, "svg-export").start();
+    }
     private void onReplayGcode() { gcodeFiles.replay(); }
 
     /**
