@@ -14,7 +14,12 @@ import java.util.function.Consumer;
 /** Inspector/actions panel for addressable artwork groups in a composed document. */
 final class ArtworkGroupsPanel extends JPanel {
     record Actions(Consumer<CompositionArtwork> transform, Consumer<CompositionArtwork> reprocess,
-                   Consumer<CompositionArtwork> rename) { }
+                   Consumer<CompositionArtwork> rename, Consumer<CompositionArtwork> editQuick) {
+        Actions(Consumer<CompositionArtwork> transform, Consumer<CompositionArtwork> reprocess,
+                Consumer<CompositionArtwork> rename) {
+            this(transform, reprocess, rename, artwork -> {});
+        }
+    }
 
     private final List<CompositionArtwork> artworks;
     private final Actions actions;
@@ -25,6 +30,7 @@ final class ArtworkGroupsPanel extends JPanel {
     private final JButton transform = new JButton("Transform...");
     private final JButton reprocess = new JButton("Re-process...");
     private final JButton rename = new JButton("Rename...");
+    private final JButton editQuick = new JButton("Edit quick artwork...");
 
     ArtworkGroupsPanel(List<CompositionArtwork> artworks, Actions actions) {
         super(new BorderLayout(8, 8));
@@ -54,12 +60,14 @@ final class ArtworkGroupsPanel extends JPanel {
         actionsPanel.add(transform);
         actionsPanel.add(reprocess);
         actionsPanel.add(rename);
+        actionsPanel.add(editQuick);
         details.add(actionsPanel);
         add(details, BorderLayout.SOUTH);
 
         transform.addActionListener(e -> { if (selected() != null) actions.transform().accept(selected()); });
         reprocess.addActionListener(e -> { if (selected() != null) actions.reprocess().accept(selected()); });
         rename.addActionListener(e -> { if (selected() != null) actions.rename().accept(selected()); });
+        editQuick.addActionListener(e -> { if (selected() != null) actions.editQuick().accept(selected()); });
         refreshDetails();
     }
 
@@ -84,13 +92,15 @@ final class ArtworkGroupsPanel extends JPanel {
         transform.setEnabled(hasSelection);
         rename.setEnabled(hasSelection);
         reprocess.setEnabled(hasSelection && canReprocess(artwork));
+        editQuick.setEnabled(hasSelection && artwork.quickArtwork() != null);
         if (artwork != null) {
             details.add(label("Label: " + artwork.label()));
             details.add(label("Source: " + sourceLabel(artwork)));
             details.add(label("Layers: " + artwork.layerIndices().size()));
             details.add(label("Bounds: " + boundsLabel(artwork.bounds())));
             details.add(label("Transform: " + transformLabel(artwork.transform())));
-            details.add(label(canReprocess(artwork) ? "Can re-process" : "No saved SVG source"));
+            details.add(label(artwork.quickArtwork() != null ? "Editable quick artwork"
+                    : canReprocess(artwork) ? "Can re-process" : "No saved SVG source"));
         }
         revalidate();
         repaint();
@@ -107,6 +117,7 @@ final class ArtworkGroupsPanel extends JPanel {
     }
 
     private static String sourceLabel(CompositionArtwork artwork) {
+        if (artwork.quickArtwork() != null) return "Built-in quick artwork";
         if (artwork.sourcePath() == null || artwork.sourcePath().isBlank()) return "No saved SVG source";
         return new File(artwork.sourcePath()).getName();
     }

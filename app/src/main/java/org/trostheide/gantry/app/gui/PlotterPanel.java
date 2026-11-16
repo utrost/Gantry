@@ -16,6 +16,8 @@ import org.trostheide.gantry.app.session.DocumentSession;
 import org.trostheide.gantry.app.session.GantryProject;
 import org.trostheide.gantry.app.session.GantryProjectIO;
 import org.trostheide.gantry.app.session.PenLibrary;
+import org.trostheide.gantry.app.session.QuickArtwork;
+import org.trostheide.gantry.app.session.QuickArtworkGenerator;
 import org.trostheide.gantry.model.Bounds;
 import org.trostheide.gantry.model.CoordinateTransform;
 import org.trostheide.gantry.model.Layer;
@@ -517,6 +519,7 @@ public class PlotterPanel extends JPanel {
         JPopupMenu menu = new JPopupMenu();
         // These are transient popup entries, not long-lived controls that need plot-state tracking.
         menu.add(menuItem("Open SVG or vector drawing", e -> onImportSvg(), false));
+        menu.add(menuItem("Create quick artwork...", e -> onCreateQuickArtwork(), false));
         if (documentSession.currentOutput() != null) {
             menu.add(menuItem("Append SVG to current artwork", e -> onAppendSvg(), false));
         }
@@ -1341,8 +1344,68 @@ public class PlotterPanel extends JPanel {
         ArtworkGroupsPanel panel = new ArtworkGroupsPanel(documentSession.artworks(), new ArtworkGroupsPanel.Actions(
                 artwork -> showTransformArtworkDialog(artwork),
                 fileWorkflow::reprocessArtwork,
-                this::renameArtwork));
+                this::renameArtwork, this::onEditQuickArtwork));
         JOptionPane.showMessageDialog(this, panel, "Artwork Groups", JOptionPane.PLAIN_MESSAGE);
+    }
+
+    private void onCreateQuickArtwork() {
+        QuickArtwork spec = promptQuickArtwork(null);
+        if (spec == null) return;
+        documentSession.appendQuickArtwork(spec);
+        resetReplot();
+        visPanel.loadPathsPreservingOverlay(documentSession.currentOutput());
+        refreshDocumentUi();
+        documentEditor.historyAvailability();
+        showUndoFeedback("Quick artwork added.");
+    }
+
+    private void onEditQuickArtwork(CompositionArtwork artwork) {
+        if (artwork.quickArtwork() == null) return;
+        QuickArtwork spec = promptQuickArtwork(artwork.quickArtwork());
+        if (spec == null || spec.equals(artwork.quickArtwork())) return;
+        documentSession.editQuickArtwork(artwork.id(), spec);
+        resetReplot();
+        visPanel.loadPathsPreservingOverlay(documentSession.currentOutput());
+        refreshDocumentUi();
+        documentEditor.historyAvailability();
+        showUndoFeedback("Quick artwork updated.");
+    }
+
+    private QuickArtwork promptQuickArtwork(QuickArtwork original) {
+        JComboBox<QuickArtwork.Kind> kind = new JComboBox<>(QuickArtwork.Kind.values());
+        kind.setSelectedItem(original == null ? QuickArtwork.Kind.LINE : original.kind());
+        JTextField text = new JTextField(original == null ? "" : original.text(), 20);
+        JTextField width = new JTextField(original == null ? "20" : Double.toString(original.widthMm()), 8);
+        JTextField height = new JTextField(original == null ? "10" : Double.toString(original.heightMm()), 8);
+        JLabel note = new JLabel("Text uses a bundled uppercase stroke font (A-Z, 0-9 and basic punctuation).");
+        Runnable update = () -> {
+            boolean isText = kind.getSelectedItem() == QuickArtwork.Kind.TEXT;
+            text.setEnabled(isText);
+            width.setEnabled(!isText);
+            note.setVisible(isText);
+        };
+        kind.addActionListener(e -> update.run());
+        update.run();
+        JPanel form = new JPanel(new GridLayout(0, 2, 8, 8));
+        form.add(new JLabel("Type")); form.add(kind);
+        form.add(new JLabel("Text")); form.add(text);
+        form.add(new JLabel("Width (mm)")); form.add(width);
+        form.add(new JLabel("Height (mm)")); form.add(height);
+        form.add(note); form.add(new JLabel(""));
+        while (true) {
+            if (JOptionPane.showConfirmDialog(this, form, original == null ? "Create quick artwork" : "Edit quick artwork",
+                    JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE) != JOptionPane.OK_OPTION) return null;
+            try {
+                QuickArtwork.Kind selected = (QuickArtwork.Kind) kind.getSelectedItem();
+                double widthMm = selected == QuickArtwork.Kind.TEXT ? 0 : Double.parseDouble(width.getText().trim());
+                QuickArtwork spec = new QuickArtwork(selected, text.getText(), widthMm,
+                        Double.parseDouble(height.getText().trim()));
+                QuickArtworkGenerator.generate(spec); // Report unsupported glyphs before changing the document.
+                return spec;
+            } catch (IllegalArgumentException ex) {
+                JOptionPane.showMessageDialog(this, ex.getMessage(), "Invalid quick artwork", JOptionPane.ERROR_MESSAGE);
+            }
+        }
     }
 
     private CompositionArtwork artworkById(String artworkId) {
