@@ -42,6 +42,8 @@ import org.trostheide.gantry.watercolor.LayerRefillPlanner;
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import javax.swing.border.TitledBorder;
+import javax.swing.event.DocumentEvent;
+import javax.swing.event.DocumentListener;
 import java.awt.*;
 import java.awt.event.ActionListener;
 import java.awt.event.KeyEvent;
@@ -519,6 +521,7 @@ public class PlotterPanel extends JPanel {
         JPopupMenu menu = new JPopupMenu();
         // These are transient popup entries, not long-lived controls that need plot-state tracking.
         menu.add(menuItem("Open SVG or vector drawing", e -> onImportSvg(), false));
+        menu.add(menuItem("Add text label...", e -> onCreateQuickArtwork(QuickArtwork.Kind.TEXT), false));
         menu.add(menuItem("Create quick artwork...", e -> onCreateQuickArtwork(), false));
         if (documentSession.currentOutput() != null) {
             menu.add(menuItem("Append SVG to current artwork", e -> onAppendSvg(), false));
@@ -1349,7 +1352,11 @@ public class PlotterPanel extends JPanel {
     }
 
     private void onCreateQuickArtwork() {
-        QuickArtwork spec = promptQuickArtwork(null);
+        onCreateQuickArtwork(QuickArtwork.Kind.LINE);
+    }
+
+    private void onCreateQuickArtwork(QuickArtwork.Kind initialKind) {
+        QuickArtwork spec = promptQuickArtwork(null, initialKind);
         if (spec == null) return;
         documentSession.appendQuickArtwork(spec);
         resetReplot();
@@ -1361,7 +1368,7 @@ public class PlotterPanel extends JPanel {
 
     private void onEditQuickArtwork(CompositionArtwork artwork) {
         if (artwork.quickArtwork() == null) return;
-        QuickArtwork spec = promptQuickArtwork(artwork.quickArtwork());
+        QuickArtwork spec = promptQuickArtwork(artwork.quickArtwork(), artwork.quickArtwork().kind());
         if (spec == null || spec.equals(artwork.quickArtwork())) return;
         documentSession.editQuickArtwork(artwork.id(), spec);
         resetReplot();
@@ -1371,19 +1378,44 @@ public class PlotterPanel extends JPanel {
         showUndoFeedback("Quick artwork updated.");
     }
 
-    private QuickArtwork promptQuickArtwork(QuickArtwork original) {
+    private QuickArtwork promptQuickArtwork(QuickArtwork original, QuickArtwork.Kind initialKind) {
         JComboBox<QuickArtwork.Kind> kind = new JComboBox<>(QuickArtwork.Kind.values());
-        kind.setSelectedItem(original == null ? QuickArtwork.Kind.LINE : original.kind());
+        kind.setSelectedItem(original == null ? initialKind : original.kind());
         JTextField text = new JTextField(original == null ? "" : original.text(), 20);
         JTextField width = new JTextField(original == null ? "20" : Double.toString(original.widthMm()), 8);
         JTextField height = new JTextField(original == null ? "10" : Double.toString(original.heightMm()), 8);
         JLabel note = new JLabel("Text uses a bundled uppercase stroke font (A-Z, 0-9 and basic punctuation).");
+        JLabel size = new JLabel();
+        Runnable updateSize = () -> {
+            if (kind.getSelectedItem() != QuickArtwork.Kind.TEXT) {
+                size.setText("");
+                return;
+            }
+            try {
+                QuickArtwork spec = new QuickArtwork(QuickArtwork.Kind.TEXT, text.getText(), 0,
+                        Double.parseDouble(height.getText().trim()));
+                Bounds bounds = QuickArtworkGenerator.generate(spec).metadata().bounds();
+                size.setText(String.format(java.util.Locale.ROOT, "Label size: %.1f × %.1f mm",
+                        bounds.maxX() - bounds.minX(), bounds.maxY() - bounds.minY()));
+            } catch (IllegalArgumentException ex) {
+                size.setText("Enter supported text and a positive height to see the label size.");
+            }
+        };
         Runnable update = () -> {
             boolean isText = kind.getSelectedItem() == QuickArtwork.Kind.TEXT;
             text.setEnabled(isText);
             width.setEnabled(!isText);
             note.setVisible(isText);
+            size.setVisible(isText);
+            updateSize.run();
         };
+        DocumentListener sizeListener = new DocumentListener() {
+            public void insertUpdate(DocumentEvent e) { updateSize.run(); }
+            public void removeUpdate(DocumentEvent e) { updateSize.run(); }
+            public void changedUpdate(DocumentEvent e) { updateSize.run(); }
+        };
+        text.getDocument().addDocumentListener(sizeListener);
+        height.getDocument().addDocumentListener(sizeListener);
         kind.addActionListener(e -> update.run());
         update.run();
         JPanel form = new JPanel(new GridLayout(0, 2, 8, 8));
@@ -1392,6 +1424,7 @@ public class PlotterPanel extends JPanel {
         form.add(new JLabel("Width (mm)")); form.add(width);
         form.add(new JLabel("Height (mm)")); form.add(height);
         form.add(note); form.add(new JLabel(""));
+        form.add(size); form.add(new JLabel(""));
         while (true) {
             if (JOptionPane.showConfirmDialog(this, form, original == null ? "Create quick artwork" : "Edit quick artwork",
                     JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE) != JOptionPane.OK_OPTION) return null;

@@ -48,6 +48,43 @@ class QuickArtworkTest {
                 new QuickArtwork(QuickArtwork.Kind.TEXT, "A♥", 0, 7)));
     }
 
+    @Test void labelCanBeReopenedEditedAndExportedWithoutAnInstalledFont() throws Exception {
+        DocumentSession created = new DocumentSession();
+        QuickArtwork first = new QuickArtwork(QuickArtwork.Kind.TEXT, "Max", 0, 10);
+        created.appendQuickArtwork(first);
+        assertEquals(1, created.artworks().size());
+        assertEquals(first, created.artworks().get(0).quickArtwork());
+        assertEquals(170.0 / 7, created.currentOutput().metadata().bounds().maxX(), 1e-9);
+        assertEquals(10, created.currentOutput().metadata().bounds().maxY());
+
+        GantryProject project = new GantryProject(1, created.currentOutput(), created.selectedLayerIndices(),
+                GantryProject.Placement.identity(), 1, GantryProject.Source.empty(), created.artworks(),
+                created.penWidthsMm(), created.penLibrary());
+        var file = temp.resolve("label.gantry").toFile();
+        GantryProjectIO.save(project, file);
+        GantryProject reopened = GantryProjectIO.load(file);
+        DocumentSession editing = new DocumentSession();
+        editing.restore(reopened.output(), reopened.selectedLayers(), reopened.artworks());
+        assertEquals(first, editing.artworks().get(0).quickArtwork());
+
+        QuickArtwork edited = new QuickArtwork(QuickArtwork.Kind.TEXT, "Max Mustermann", 0, 10);
+        editing.editQuickArtwork(editing.artworks().get(0).id(), edited);
+        assertEquals(edited, editing.artworks().get(0).quickArtwork());
+        assertEquals(830.0 / 7, editing.currentOutput().metadata().bounds().maxX(), 1e-9);
+        assertEquals(10, editing.currentOutput().metadata().bounds().maxY());
+
+        var gcode = temp.resolve("label.gcode").toFile();
+        GcodeOptions options = new GcodeOptions();
+        options.penDownDelayMillis = 0;
+        GcodeFileBackend backend = new GcodeFileBackend(options, gcode);
+        assertTrue(backend.connect());
+        new PlotService(backend, new PlotSettings()).plot(editing.currentOutput());
+        backend.disconnect();
+        String exported = Files.readString(gcode.toPath());
+        assertTrue(exported.contains("G1 X3.571 Y5.000 F1000"), exported);
+        assertTrue(exported.lines().filter(line -> line.startsWith("G1 ")).count() > 10);
+    }
+
     @Test void editSaveOpenAndUndoPreserveQuickSourceAndPenAssignment() throws Exception {
         DocumentSession session = new DocumentSession();
         session.replace(new ProcessorOutput(new Metadata("base", Instant.EPOCH, "station", "mm", 0, Bounds.empty()),

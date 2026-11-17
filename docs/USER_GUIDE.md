@@ -453,8 +453,10 @@ are still edited with the existing line tools.
 
 ### Quick artwork
 
-Use **Open / Add > Create quick artwork...** to add a line, rectangle, ellipse,
-or short text label directly in physical millimetres. The new item is an artwork
+Use **Open / Add > Add text label...** for a short label. Enter its text and letter
+height in millimetres; the dialog shows the resulting label width before you add
+it. **Open / Add > Create quick artwork...** also creates lines, rectangles,
+ellipses, and text directly in physical millimetres. The new item is an artwork
 group, so you can drag, transform, assign its layer to a named pen, undo it, and
 include or exclude it from a plot like imported SVG. **Edit > Artwork Groups... >
 Edit quick artwork...** reopens its source dimensions or text after saving and
