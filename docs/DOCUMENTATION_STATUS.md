@@ -1,4 +1,4 @@
-# Documentation status — RC11, 2026-11-15
+# Documentation status — RC11 and main, 2026-11-20
 
 The public entry points, release links, offline help links and screenshot
 references were checked against RC11. Current validation is recorded in
@@ -31,3 +31,11 @@ the preserved public RC11 artifacts do not contain them. See the
 [integration evidence](release-results/2026-11-20-integration.md) and
 [operator checklist](OPERATOR_ACCEPTANCE.md). Existing screenshots retain their
 recorded RC11 provenance rather than implying that all new dialogs are pictured.
+
+## Roadmap and tracker reconciliation
+
+The active roadmap now separates delivered main changes, software work that can
+run without hardware, operator/participant acceptance and deferred candidates.
+Detailed research is preserved in [FEATURE_CANDIDATES.md](FEATURE_CANDIDATES.md).
+The [mock fidelity audit](release-results/2026-11-20-mock-fidelity.md) qualifies
+simulation evidence and feeds #78/#79; it does not revise historical test passes.

@@ -10,16 +10,21 @@ covering both the automated test suite and manual acceptance checks.
 > [`../testdata/`](../testdata/) (already in the repo — no need to hand-author
 > them). See `testdata/README.md` for what each file is for.
 
-### Known limitations / out of scope (don't file these as bugs)
+### Known limitations and validation boundaries
 
 - **Hardware-marked scripts on the mock backend are smoke tests**, not proof of
   real motion/serial behaviour — repeat them on a real plotter before a hardware
   release.
 - **Artwork placement and model edits support Undo/Redo.** Hardware actions and
   machine configuration are separate from document undo; verify those explicitly.
-- The **mock backend emulates** `$$`/`$100`/`$101`, pen and motion commands well
-  enough for flow testing, but does not model real timing, acceleration, or
-  limit-switch behaviour.
+- The **mock backend** provides timed XY interpolation and selected settings
+  (`$$`, `$100`, `$101`, `$20`–`$23`) for workflow tests. The
+  [2026-11-20 audit](release-results/2026-11-20-mock-fidelity.md) confirmed Stop,
+  interruption, status, connection and raw-command fidelity defects, tracked in
+  #78/#79. Do not infer realistic stopping or controller behavior from GUI passes.
+- **Production GRBL tests use a separate fake serial transport.** They exercise
+  actual command/response/recovery code for scripted cases, but neither fake
+  emulates physical acceleration, planner timing, switches or pen mechanics.
 
 ---
 

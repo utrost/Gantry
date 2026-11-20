@@ -83,7 +83,9 @@ Risks:
 ## Development integration — 2026-11-20
 
 Reviewed SVG/ZIP export, shared named pens, advisory ink overlap and editable
-quick artwork are integrated for the next development revision. RC11 remains
+quick artwork are merged on main at `3462659`. SVG export #68 is reopened for
+remaining result-feedback and excluded/empty-layer acceptance; #69/#70 remain
+software-complete. RC11 remains
 the public download. See the [integration evidence](release-results/2026-11-20-integration.md)
 and [operator checklist](OPERATOR_ACCEPTANCE.md). Software verification does not
 close the hardware/native-scaling/participant gates in #39, #43, #54 and #16,
@@ -91,45 +93,20 @@ or the real-user-task criterion in #72. Drying-aware execution (#71) is deferred
 
 ## Recommended next work
 
-1. Record human desktop and real-hardware acceptance for `1.0.0-rc.11`.
-   - Add a physical test record using the release checklist.
-   - Fill in the remaining fields for the Uuna Tek A1 H entry in `docs/KNOWN_GOOD_SETUPS.md`.
-   - Keep hardware readiness language conservative until detailed acceptance evidence exists.
-
-2. Run one external guided mock test before broad outreach.
-   - Use only the release link and `docs/FIRST_PLOT.md`.
-   - Capture every point where spoken explanation feels necessary.
-   - Convert each friction point into a docs fix, product issue, or test-environment note.
-
-3. Run structured novice validation when external testers are available.
-   - Use `docs/NOVICE_STUDY.md` and `docs/NOVICE_STUDY_RESULTS_TEMPLATE.md`.
-   - Treat results as adoption/release evidence, not as a blocker for the already-closed usability milestone.
-   - Update `docs/TESTING.md`, `docs/USER_GUIDE.md`, release evidence, and roadmap candidates after the study.
-
-4. Review adoption visuals for RC11.
-   - Done: re-capture all documentation screenshots from RC11 CI.
-   - Done: re-record and inspect the one-minute mock walkthrough from RC11 CI.
-   - Add image/vectorize gallery entries after validation evidence exists.
-
-5. Keep roadmap maintenance strict.
-   - `ROADMAP.md`: Now / current status only.
-   - `docs/ADOPTION_ROADMAP.md`: user-count and outreach path.
-   - `docs/ROADMAP_HISTORY.md`: old phases and design diary.
-   - New feature ideas should enter “validate before scheduling” until supported by tester evidence.
-
-6. Treat Tracer capture import as an experimental source format, not a current promise.
-   - Start from `docs/TRACER_CAPTURE_IMPORT.md` when the work becomes active.
-   - First useful slice: import visible centerline strokes at a chosen physical size, preserve layer/stroke order, ignore pressure for motion, and keep pressure metadata in `.gantry` provenance.
-   - Pressure-to-Z or pressure-to-feed behavior needs per-tool calibration and real Z-axis hardware testing before any hardware-ready claim.
-
-7. Dogfood composition before building a full editor.
-   - File > Append SVG to Current Artwork adds another SVG as an addressable artwork group.
-   - Edit > Artwork Groups lists groups with size/source/transform and offers transform, re-process, and rename actions.
-   - Edit > Transform Artwork can move, scale, or mirror one artwork group while leaving the others alone.
-   - The Live View can select and drag one artwork group directly; its context menu exposes precise per-artwork transforms and the shared Add artwork flow.
-   - Edit > Re-process Selected Artwork can re-run SVG processors for one provenance-backed artwork while preserving its transform.
-   - Use it for sticker sheets, borders, registration marks, and mixed generated art.
-   - Direct selection and movement are now available; add richer per-artwork handles only when daily-use evidence justifies them.
+1. Fix mock Stop/interruption (#78), then define backend contracts and harden
+   simulated state/raw-command/failure behavior (#79). See the
+   [mock audit](release-results/2026-11-20-mock-fidelity.md).
+2. Finish the narrowed SVG export acceptance in #68. Its implementation is
+   delivered; file-count feedback and explicit excluded/empty-layer tests remain.
+3. Use [OPERATOR_ACCEPTANCE.md](OPERATOR_ACCEPTANCE.md) for hardware, native scaling
+   and expert checks (#39/#43/#54). Keep the first independent tester and
+   five-person study (#16) separate from mock evidence; #72 still needs a user task.
+4. Validate the existing four image-art modes on a licensed real-image corpus
+   (#80), using the existing CLI pipeline before new engines or defaults.
+5. Keep drying-aware execution (#71) deferred pending coverage review and
+   physical pen/paper evidence. Preserve wider research in
+   [FEATURE_CANDIDATES.md](FEATURE_CANDIDATES.md), rather than expanding the
+   active roadmap with unscheduled algorithms.
 
 ## Decision frame for incoming work
 

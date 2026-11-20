@@ -329,8 +329,13 @@ Implementations:
   motion cannot begin with the pen down; `haltMotion()` sends a realtime
   soft-reset to abort buffered motion (used by Stop). Formatting is delegated
   to `GcodeFormatter`.
-- **`MockPlotterBackend`** — logs/simulates motion instantly; used for GUI/CI
-  testing without hardware (`--mock-backend` / Settings checkbox).
+- **`MockPlotterBackend`** — logs calls and interpolates XY with feed-based
+  sleeps for GUI/CI workflow testing without hardware (`--mock-backend` /
+  Settings checkbox). It is not a GRBL emulator. Its current halt/interruption,
+  status, connection and raw-command limitations are documented in the
+  [mock audit](release-results/2026-11-20-mock-fidelity.md) and tracked in #78/#79.
+  `FakeGrblTransport` separately drives production `GcodeBackend` tests; it also
+  simplifies firmware behavior and cannot establish physical acceptance.
 - **`GcodeFileBackend`** — writes G-code to a `.gcode` file instead of a serial
   port (export). `GcodeFileReplay` streams an existing `.gcode` back through a
   backend for re-plotting.
