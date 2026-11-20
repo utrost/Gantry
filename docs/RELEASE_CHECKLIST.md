@@ -65,6 +65,10 @@ real hardware, Windows 10/11 testing, or upgrade acceptance.
 
 ## Hardware-ready / stable release
 
+Use [OPERATOR_ACCEPTANCE.md](OPERATOR_ACCEPTANCE.md) for the focused pending
+Windows/iDraw, native-scaling and new-feature checks. Record the exact tested
+revision; RC2 results cannot establish acceptance for later motion/UI changes.
+
 Complete the mock acceptance suite from `TESTING.md` and record real-machine
 connect/disconnect, home/jog/limits, pen lift, frame, stop/alarm recovery, scale
 calibration, configured travel speed and a small pen plot. Include station dry/wet

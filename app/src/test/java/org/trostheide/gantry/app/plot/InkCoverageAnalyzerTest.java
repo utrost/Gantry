@@ -8,6 +8,7 @@ import org.trostheide.gantry.model.Point;
 import org.trostheide.gantry.model.ProcessorOutput;
 import org.trostheide.gantry.model.command.DrawCommand;
 import org.trostheide.gantry.model.command.MoveCommand;
+import org.trostheide.gantry.model.command.RefillCommand;
 import org.trostheide.gantry.pipeline.optimize.MultipassStage;
 
 import java.time.Instant;
@@ -95,6 +96,45 @@ class InkCoverageAnalyzerTest {
                 segments.get(0).x1(), segments.get(0).y1()), backend.calls.get(0));
         assertEquals(String.format(java.util.Locale.ROOT, "LINETO %.3f %.3f",
                 segments.get(0).x2(), segments.get(0).y2()), backend.calls.get(1));
+    }
+
+    @Test void exportAndCoverageTrackTheExecutedHeadAfterRefills() {
+        PlotSettings settings = settings();
+        settings.stations.put("paint", new StationConfig(3, 4, 0, "simple_dip"));
+        ProcessorOutput job = output(new Layer("paint", "paint", List.of(
+                new MoveCommand(1, 5, 6),
+                new DrawCommand(2, List.of(new Point(7, 8))),
+                new RefillCommand(3, "paint"),
+                new DrawCommand(4, List.of(new Point(11, 12))))));
+        List<PlotService.DrawSegment> segments = new ArrayList<>();
+        List<PlotService.DrawSegment> executed = new ArrayList<>();
+        FakePlotterBackend backend = new FakePlotterBackend() {
+            double x, y;
+            @Override public void moveto(double nx, double ny) { x = nx; y = ny; }
+            @Override public void lineto(double nx, double ny) {
+                executed.add(new PlotService.DrawSegment(0, executed.size() + 1, x, y, nx, ny, false));
+                x = nx; y = ny;
+            }
+        };
+        PlotService service = new PlotService(backend, settings);
+        service.forEachDrawSegment(job, segments::add);
+        service.plot(job);
+        assertEquals(executed, segments);
+        assertEquals(new Point(3, 4), service.projectArtwork(job).layers().get(0).strokes().get(1).get(0));
+    }
+
+    @Test void nextLayerStartsAtRinseStationWhenNoMovePrecedesDrawing() {
+        PlotSettings settings = settings();
+        settings.stations.put("rinse", new StationConfig(3, 4, 0, "rinse"));
+        ProcessorOutput job = output(line("first", 1, 5, 6, 7, 8),
+                new Layer("second", "paint", List.of(new DrawCommand(3, List.of(new Point(11, 12))))));
+        List<PlotService.DrawSegment> segments = new ArrayList<>();
+        PlotService service = new PlotService(new FakePlotterBackend(), settings);
+        service.forEachDrawSegment(job, segments::add);
+        assertEquals(3, segments.get(1).x1());
+        assertEquals(4, segments.get(1).y1());
+        assertEquals(List.of(new Point(3, 4), new Point(11, 12)),
+                service.projectArtwork(job).layers().get(1).strokes().get(0));
     }
 
     @Test void largeMultiPenBedKeepsRasterAllocationBounded() {

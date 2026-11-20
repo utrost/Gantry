@@ -22,3 +22,12 @@ The [image gallery](images/README.md) describes provenance and reproduction.
 The mock demo contains no hardware motion. Earlier Windows 11 / iDraw H A1
 reports do not establish physical acceptance of RC11. Pen/paper swatch evaluation,
 external novice/expert studies and broader hardware coverage require operators.
+
+## Development changes after RC11
+
+The source guide now also covers named pens, quick artwork, reviewed SVG/ZIP
+exports and advisory whole-job overlap. These changes are for the next revision;
+the preserved public RC11 artifacts do not contain them. See the
+[integration evidence](release-results/2026-11-20-integration.md) and
+[operator checklist](OPERATOR_ACCEPTANCE.md). Existing screenshots retain their
+recorded RC11 provenance rather than implying that all new dialogs are pictured.

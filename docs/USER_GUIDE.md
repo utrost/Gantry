@@ -984,7 +984,7 @@ Type any G-code command in the text field and press Enter to send it directly.
 
 ## Exporting and replaying G-code
 
-- **Export Reviewed Job as SVG** — save selected layers, placement and passes as one physical-size SVG. **Export Reviewed Job as SVG Package** writes the same combined SVG plus one file per layer in a ZIP. Out-of-bed points are clamped to the configured bed, with a warning before export. These files contain no pen-change gate, refill motion or controller commands. A stored historical job retains its geometry and colours; because older job-history snapshots do not retain pen widths, their SVG uses a labelled 0.3 mm display-width assumption.
+- **Export Reviewed Job as SVG** — save selected layers, placement and passes as one physical-size SVG. **Export Reviewed Job as SVG Package** writes the same combined SVG plus one file per layer in a ZIP. Out-of-bed points are clamped to the configured bed, with a warning before export. These files contain no pen-change gate, refill motion or controller commands. A stored historical job retains its geometry and colours. New job snapshots also retain named pens and widths, which are included in SVG metadata; layers from older histories without widths use a labelled 0.3 mm display-width assumption after confirmation.
 
 - **Export G-code (for plotter)** — save the current command model as a `.gcode` file without executing it.
 - **Replay G-code** — load and stream an existing `.gcode` file straight to the plotter (bypasses the command model).

@@ -121,7 +121,8 @@ public final class QuickArtworkGenerator {
                         for (String vertex : vertices) {
                             String[] coordinates = vertex.split(",");
                             points.add(new Point(startX + Double.parseDouble(coordinates[0]) * unit,
-                                    Double.parseDouble(coordinates[1]) * unit));
+                                    // Glyph definitions are Y-down; commands use Y-up millimetres.
+                                    spec.heightMm() - Double.parseDouble(coordinates[1]) * unit));
                         }
                         line(commands, points.get(0), points.subList(1, points.size()));
                     }

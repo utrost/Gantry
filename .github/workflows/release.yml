@@ -3,8 +3,8 @@ name: Release installers
 on:
   push:
     tags: ['v*']
+  # Also validate stacked PRs targeting feature branches.
   pull_request:
-    branches: [main, master]
   workflow_dispatch:
     inputs:
       version:

@@ -48,6 +48,30 @@ class QuickArtworkTest {
                 new QuickArtwork(QuickArtwork.Kind.TEXT, "A♥", 0, 7)));
     }
 
+    @Test void firstQuickArtworkCanBeUndoneAndRedoneWithoutPhantomGroups() {
+        DocumentSession session = new DocumentSession();
+        QuickArtwork label = new QuickArtwork(QuickArtwork.Kind.TEXT, "A", 0, 7);
+        session.appendQuickArtwork(label);
+        assertTrue(session.canUndo());
+        assertTrue(session.undo().layers().isEmpty());
+        assertTrue(session.artworks().isEmpty());
+        assertNotNull(session.redo());
+        assertEquals(label, session.artworks().get(0).quickArtwork());
+        session.undo();
+        session.appendQuickArtwork(label);
+        assertEquals(1, session.artworks().size());
+        assertEquals(List.of(0), session.artworks().get(0).layerIndices());
+    }
+
+    @Test void strokeTextIsUprightInCommandCoordinates() {
+        var text = QuickArtworkGenerator.generate(new QuickArtwork(QuickArtwork.Kind.TEXT, "A", 0, 7));
+        var commands = text.layers().get(0).commands();
+        MoveCommand start = (MoveCommand) commands.get(0);
+        assertEquals(new Point(0, 0), new Point(start.x, start.y));
+        assertEquals(List.of(new Point(2.5, 7), new Point(5, 0)),
+                ((DrawCommand) commands.get(1)).points);
+    }
+
     @Test void labelCanBeReopenedEditedAndExportedWithoutAnInstalledFont() throws Exception {
         DocumentSession created = new DocumentSession();
         QuickArtwork first = new QuickArtwork(QuickArtwork.Kind.TEXT, "Max", 0, 10);

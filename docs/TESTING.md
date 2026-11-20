@@ -66,6 +66,15 @@ menus, file dialogs and buttons with an isolated mock profile, including a secon
 process for recovery. See [the GUI evaluation](test-results-2026-09-26-gui.md) for
 coverage, findings and limitations. Java 17/21 CI runs this after the reactor build.
 
+### Integrated preparation checks
+
+`PreparationIntegrationAcceptance` in `scripts/test-gui.sh` exercises the actual
+Open / Add text-label action, first Undo/Redo, project save, named-pen SVG/ZIP
+export and advisory overlap UI using an isolated disconnected mock profile.
+See the [post-RC11 integration record](release-results/2026-11-20-integration.md)
+for local evidence and the [operator checklist](OPERATOR_ACCEPTANCE.md) for the
+physical/native/participant gates that automation cannot close.
+
 ### Test coverage by module
 
 | Module | Test classes | What is covered |

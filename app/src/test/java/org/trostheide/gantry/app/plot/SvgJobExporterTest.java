@@ -74,6 +74,27 @@ class SvgJobExporterTest {
         }
     }
 
+    @Test void storedJobExportUsesItsPenSnapshotAfterReload() throws Exception {
+        ProcessorOutput output = new ProcessorOutput(
+                new Metadata("test", Instant.EPOCH, "station", "mm", 0, Bounds.empty()),
+                List.of(new Layer("artwork", "station", "#ff0000", List.of(
+                        new MoveCommand(1, 10, 20), new DrawCommand(2, List.of(new Point(20, 30)))))));
+        var historyFile = temporary.resolve("history.json").toFile();
+        var history = new PlotJobHistory(historyFile);
+        history.add(new PlotJobHistory.Job(Instant.EPOCH, output, new PlotSettings(),
+                List.of(new PlotJobHistory.PenSnapshot("pen-1", "Fine & red", "#ff0000", .7))));
+        var stored = new PlotJobHistory(historyFile).latest();
+        var destination = temporary.resolve("stored.svg");
+        SvgJobExporter.writeCombined(destination.toFile(),
+                new PlotService(null, stored.settings()).projectArtwork(stored.output()),
+                stored.pens().stream().map(PlotJobHistory.PenSnapshot::widthMm).toList(),
+                stored.pens().stream().map(PlotJobHistory.PenSnapshot::name).toList());
+        String svg = Files.readString(destination);
+        assertTrue(svg.contains("data-gantry-pen-name=\"Fine &amp; red\""));
+        assertTrue(svg.contains("data-gantry-pen-width-mm=\"0.7\""));
+        assertFalse(svg.contains("data-gantry-pen-width-assumed"));
+    }
+
     @Test void failedPackageLeavesNoPartialDestination() {
         Layer layer = new Layer("bad", "station", List.of());
         PlotService.ProjectedArtwork invalid = new PlotService.ProjectedArtwork(100, 80,

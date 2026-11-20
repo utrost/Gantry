@@ -80,6 +80,15 @@ Risks:
 - The user guide is comprehensive, but long. If adoption reaches broader public testing, split it into focused pages only after real users show where they get lost.
 - Tracer JSON capture is now documented as a future pressure-bearing import path. Keep it out of current user instructions until implemented and tested.
 
+## Development integration — 2026-11-20
+
+Reviewed SVG/ZIP export, shared named pens, advisory ink overlap and editable
+quick artwork are integrated for the next development revision. RC11 remains
+the public download. See the [integration evidence](release-results/2026-11-20-integration.md)
+and [operator checklist](OPERATOR_ACCEPTANCE.md). Software verification does not
+close the hardware/native-scaling/participant gates in #39, #43, #54 and #16,
+or the real-user-task criterion in #72. Drying-aware execution (#71) is deferred.
+
 ## Recommended next work
 
 1. Record human desktop and real-hardware acceptance for `1.0.0-rc.11`.
@@ -147,8 +156,9 @@ Exception: Tracer `.tracer.json` is worth keeping as a named candidate because i
 
 ## Distribution checks
 
-The next candidate provides bundled-runtime Windows MSI and Ubuntu DEB packages;
-existing published releases remain JAR-only until that candidate is published.
+RC11 already publishes bundled-runtime Windows MSI and Linux DEB packages,
+portable GUI/CLI JARs and an offline documentation ZIP. Development changes are
+not part of those preserved published assets.
 Every release should verify the native install/upgrade/uninstall checks, GUI and
 CLI JARs, source build helpers, and exact published artifact names. See the
 [release checklist](RELEASE_CHECKLIST.md) and [documentation audit](DOCUMENTATION_STATUS.md).

@@ -18,20 +18,30 @@ public final class SvgJobExporter {
 
     public static void writeCombined(File destination, PlotService.ProjectedArtwork artwork,
                                      List<Double> widthsMm) throws IOException {
-        String svg = combined(artwork, widthsMm);
+        writeCombined(destination, artwork, widthsMm, List.of());
+    }
+
+    public static void writeCombined(File destination, PlotService.ProjectedArtwork artwork,
+                                     List<Double> widthsMm, List<String> penNames) throws IOException {
+        String svg = render(artwork, widthsMm, penNames, -1);
         AtomicFiles.write(destination, temp -> Files.writeString(temp.toPath(), svg, StandardCharsets.UTF_8));
     }
 
     public static void writePackage(File destination, PlotService.ProjectedArtwork artwork,
                                     List<Double> widthsMm) throws IOException {
+        writePackage(destination, artwork, widthsMm, List.of());
+    }
+
+    public static void writePackage(File destination, PlotService.ProjectedArtwork artwork,
+                                    List<Double> widthsMm, List<String> penNames) throws IOException {
         AtomicFiles.write(destination, temp -> {
             try (ZipOutputStream zip = new ZipOutputStream(Files.newOutputStream(temp.toPath()),
                     StandardCharsets.UTF_8)) {
-                entry(zip, "combined.svg", combined(artwork, widthsMm));
+                entry(zip, "combined.svg", render(artwork, widthsMm, penNames, -1));
                 for (int i = 0; i < artwork.layers().size(); i++) {
                     String name = String.format(Locale.ROOT, "layers/%02d-%s.svg", i + 1,
                             safeName(artwork.layers().get(i).layer().id()));
-                    entry(zip, name, render(artwork, widthsMm, i));
+                    entry(zip, name, render(artwork, widthsMm, penNames, i));
                 }
                 entry(zip, "README.txt", "SVG coordinates are millimetres on the configured machine bed.\n"
                         + "combined.svg preserves the reviewed layer order; layers/ contains one SVG per layer.\n"
@@ -42,10 +52,10 @@ public final class SvgJobExporter {
     }
 
     public static String combined(PlotService.ProjectedArtwork artwork, List<Double> widthsMm) {
-        return render(artwork, widthsMm, -1);
+        return render(artwork, widthsMm, List.of(), -1);
     }
 
-    private static String render(PlotService.ProjectedArtwork artwork, List<Double> widthsMm, int onlyLayer) {
+    private static String render(PlotService.ProjectedArtwork artwork, List<Double> widthsMm, List<String> penNames, int onlyLayer) {
         if (!Double.isFinite(artwork.widthMm()) || !Double.isFinite(artwork.heightMm())
                 || artwork.widthMm() <= 0 || artwork.heightMm() <= 0) {
             throw new IllegalArgumentException("SVG bed dimensions must be positive and finite");
@@ -70,6 +80,9 @@ public final class SvgJobExporter {
             svg.append("  <g id=\"layer-").append(i + 1).append("\" inkscape:groupmode=\"layer\" ")
                     .append("inkscape:label=\"").append(xml(id)).append("\" data-gantry-order=\"")
                     .append(i + 1).append("\" ");
+            if (i < penNames.size() && penNames.get(i) != null) {
+                svg.append("data-gantry-pen-name=\"").append(xml(penNames.get(i))).append("\" ");
+            }
             if (knownWidth) svg.append("data-gantry-pen-width-mm=\"").append(number(width)).append("\" ");
             else svg.append("data-gantry-pen-width-assumed=\"true\" ");
             svg.append("fill=\"none\" stroke=\"").append(color)

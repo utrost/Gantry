@@ -38,37 +38,25 @@ public class PlotService {
     public ProjectedArtwork projectArtwork(ProcessorOutput output) {
         double machineW = settings.resolveMachineWidth();
         double machineH = settings.resolveMachineHeight();
-        double[] bounds = computeContentBounds(output.layers());
-        double[] offset = alignmentOffset(bounds, machineW, machineH);
-        List<ProjectedLayer> projected = new ArrayList<>();
-        StationConfig rinse = findRinseStation();
-        int layerIndex = 0;
-        for (Layer layer : output.layers()) {
-            Point cursor = layerIndex++ > 0 && rinse != null
-                    ? new Point(rinse.x(), rinse.y()) : new Point(0, 0);
-            List<List<Point>> strokes = new ArrayList<>();
-            for (Command command : layer.commands()) {
-                if (command instanceof MoveCommand move) {
-                    double[] p = transformAndClamp(move.x, move.y, machineW, machineH,
-                            offset[0], offset[1], bounds, new int[1]);
-                    cursor = new Point(p[0], p[1]);
-                } else if (command instanceof DrawCommand draw && !draw.points.isEmpty()) {
-                    List<Point> path = new ArrayList<>();
-                    path.add(cursor);
-                    for (Point point : draw.points) {
-                        double[] p = transformAndClamp(point.x(), point.y(), machineW, machineH,
-                                offset[0], offset[1], bounds, new int[1]);
-                        cursor = new Point(p[0], p[1]);
-                        if (!cursor.equals(path.get(path.size() - 1))) path.add(cursor);
-                    }
-                    strokes.add(List.copyOf(path));
-                } else if (command instanceof RefillCommand refill) {
-                    StationConfig station = settings.stations.get(refill.stationId);
-                    if (station == null) station = settings.stations.get("default_station");
-                    if (station != null) cursor = new Point(station.x(), station.y());
-                }
+        List<List<List<Point>>> paths = new ArrayList<>();
+        for (Layer layer : output.layers()) paths.add(new ArrayList<>());
+        int[] previousStroke = {-1};
+        forEachDrawSegment(output, segment -> {
+            List<List<Point>> strokes = paths.get(segment.layerIndex());
+            if (previousStroke[0] != segment.strokeOrdinal()) {
+                List<Point> path = new ArrayList<>();
+                path.add(new Point(segment.x1(), segment.y1()));
+                strokes.add(path);
+                previousStroke[0] = segment.strokeOrdinal();
             }
-            projected.add(new ProjectedLayer(layer, List.copyOf(strokes)));
+            List<Point> path = strokes.get(strokes.size() - 1);
+            Point point = new Point(segment.x2(), segment.y2());
+            if (!point.equals(path.get(path.size() - 1))) path.add(point);
+        });
+        List<ProjectedLayer> projected = new ArrayList<>();
+        for (int i = 0; i < output.layers().size(); i++) {
+            projected.add(new ProjectedLayer(output.layers().get(i),
+                    paths.get(i).stream().map(List::copyOf).toList()));
         }
         return new ProjectedArtwork(machineW, machineH, List.copyOf(projected));
     }
@@ -82,26 +70,18 @@ public class PlotService {
         double machineW = settings.resolveMachineWidth();
         double machineH = settings.resolveMachineHeight();
         double[] contentBounds = computeContentBounds(output.layers());
-        if (contentBounds == null) return;
-        double offsetX = 0, offsetY = 0;
-        if (settings.alignmentOffsetOverride != null) {
-            offsetX = settings.alignmentOffsetOverride[0];
-            offsetY = settings.alignmentOffsetOverride[1];
-        } else if (settings.canvasAlign != null && contentBounds != null) {
-            double[] offset = CoordinateTransform.calculateAlignmentOffset(
-                    settings.canvasAlign, contentBounds, machineW, machineH,
-                    settings.swapXY, settings.invertX, settings.invertY,
-                    settings.dataRotation, settings.originRight, settings.originBottom,
-                    settings.flipY, settings.paddingX, settings.paddingY);
-            offsetX = offset[0]; offsetY = offset[1];
-        }
+        double[] offset = alignmentOffset(contentBounds, machineW, machineH);
+        double offsetX = offset[0], offsetY = offset[1];
+        StationConfig rinse = findRinseStation();
         int[] clampedCount = {0};
         int strokeOrdinal = 0;
         for (int layerIndex = 0; layerIndex < output.layers().size(); layerIndex++) {
-            double x = 0, y = 0; // The plot loop parks at origin between layers.
+            // plot() parks between layers, then optionally rinses before the next layer.
+            double x = layerIndex > 0 && rinse != null ? rinse.x() : 0;
+            double y = layerIndex > 0 && rinse != null ? rinse.y() : 0;
             boolean startClamped = false;
             for (Command command : output.layers().get(layerIndex).commands()) {
-                if (Thread.currentThread().isInterrupted()) return;
+                if (Thread.currentThread().isInterrupted()) throw new java.util.concurrent.CancellationException();
                 if (command instanceof MoveCommand move) {
                     int before = clampedCount[0];
                     double[] point = transformAndClamp(move.x, move.y, machineW, machineH,
@@ -111,6 +91,7 @@ public class PlotService {
                 } else if (command instanceof DrawCommand draw) {
                     int ordinal = ++strokeOrdinal;
                     for (Point point : draw.points) {
+                        if (Thread.currentThread().isInterrupted()) throw new java.util.concurrent.CancellationException();
                         int before = clampedCount[0];
                         double[] next = transformAndClamp(point.x(), point.y(), machineW, machineH,
                                 offsetX, offsetY, contentBounds, clampedCount);
@@ -118,6 +99,12 @@ public class PlotService {
                                 startClamped || clampedCount[0] != before));
                         x = next[0]; y = next[1];
                         startClamped = clampedCount[0] != before;
+                    }
+                } else if (command instanceof RefillCommand refill) {
+                    StationConfig station = settings.stations.get(refill.stationId);
+                    if (station == null) station = settings.stations.get("default_station");
+                    if (station != null) {
+                        x = station.x(); y = station.y(); startClamped = false;
                     }
                 }
             }

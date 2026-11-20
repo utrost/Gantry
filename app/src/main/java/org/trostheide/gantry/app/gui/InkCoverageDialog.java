@@ -81,7 +81,7 @@ final class InkCoverageDialog {
         BufferedImage bitmap = new BufferedImage(result.columns(), result.rows(), BufferedImage.TYPE_INT_RGB);
         for (int y = 0; y < result.rows(); y++) {
             for (int x = 0; x < result.columns(); x++) {
-                int count = Byte.toUnsignedInt(counts[y * result.columns() + x]);
+                int count = Byte.toUnsignedInt(counts[(result.rows() - 1 - y) * result.columns() + x]);
                 int rgb = count == 0 ? 0xffffff : count >= threshold ? 0xd73524 : 0xf3ba4a;
                 bitmap.setRGB(x, y, rgb);
             }

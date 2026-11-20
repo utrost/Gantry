@@ -9,7 +9,7 @@ RESULTS="$(cd "$RESULTS" && pwd)"
 GUI_TEMP="$(mktemp -d -t gantry-gui-check-XXXXXX)"
 trap 'rm -rf "$GUI_TEMP"' EXIT
 GUI_PROFILE="$(mktemp -d "$RESULTS/profile-XXXXXX")"
-javac -cp "$JAR" -d "$GUI_TEMP" scripts/gui/GuiAcceptance.java scripts/gui/WizardLifecycleAcceptance.java scripts/gui/ImportLayouts.java scripts/gui/PenFillAcceptance.java scripts/gui/WorkflowIssueAcceptance.java scripts/gui/ButtonStateAcceptance.java scripts/gui/KeyboardWorkflowAcceptance.java scripts/gui/VectorizeLifecycleAcceptance.java
+javac -cp "$JAR" -d "$GUI_TEMP" scripts/gui/GuiAcceptance.java scripts/gui/WizardLifecycleAcceptance.java scripts/gui/ImportLayouts.java scripts/gui/PenFillAcceptance.java scripts/gui/WorkflowIssueAcceptance.java scripts/gui/ButtonStateAcceptance.java scripts/gui/KeyboardWorkflowAcceptance.java scripts/gui/VectorizeLifecycleAcceptance.java scripts/gui/PreparationIntegrationAcceptance.java
 for phase in seed defer recover; do
     timeout 120s java -Dsun.java2d.uiScale=1 -Dgantry.gui.realKeyboard="${GANTRY_GUI_REAL_KEYBOARD:-false}" -cp "$GUI_TEMP:$JAR" GuiAcceptance \
         "$PWD" "$GUI_PROFILE" "$phase" 2>&1 | tee "$RESULTS/$phase.log"
@@ -19,6 +19,7 @@ timeout 90s java -cp "$GUI_TEMP:$JAR" ImportLayouts "$PWD" "$RESULTS/imports" 2>
 timeout 90s java -cp "$GUI_TEMP:$JAR" org.trostheide.gantry.app.gui.PenFillAcceptance "$RESULTS/pen-fill" 2>&1 | tee "$RESULTS/pen-fill.log"
 timeout 90s java -Dsun.java2d.uiScale=1 -cp "$GUI_TEMP:$JAR" org.trostheide.gantry.app.gui.VectorizeLifecycleAcceptance 2>&1 | tee "$RESULTS/trace-lifecycle.log"
 timeout 180s java -Dsun.java2d.uiScale=1 -cp "$GUI_TEMP:$JAR" WorkflowIssueAcceptance "$RESULTS/workflows" 2>&1 | tee "$RESULTS/workflows.log"
+timeout 90s java -Dsun.java2d.uiScale=1 -cp "$GUI_TEMP:$JAR" PreparationIntegrationAcceptance "$RESULTS/preparation" 2>&1 | tee "$RESULTS/preparation.log"
 if [[ "${GANTRY_GUI_REAL_KEYBOARD:-false}" == true ]]; then
     timeout 90s java -Dsun.java2d.uiScale=1 -cp "$GUI_TEMP:$JAR" org.trostheide.gantry.app.gui.ButtonStateAcceptance "$RESULTS/button-states" 2>&1 | tee "$RESULTS/button-states.log"
     timeout 180s java -Dsun.java2d.uiScale=1 -cp "$GUI_TEMP:$JAR" KeyboardWorkflowAcceptance "$PWD" 2>&1 | tee "$RESULTS/keyboard.log"

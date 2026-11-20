@@ -1981,7 +1981,13 @@ public class PlotterPanel extends JPanel {
         List<Double> widths = reviewed == null
                 ? documentSession.selectedLayerIndices().stream()
                         .map(index -> documentSession.penWidthsMm().get(index)).toList()
-                : List.of();
+                : java.util.stream.IntStream.range(0, output.layers().size())
+                        .mapToObj(i -> i < reviewed.pens().size() ? reviewed.pens().get(i).widthMm() : null)
+                        .toList();
+        List<String> penNames = reviewed == null
+                ? documentSession.selectedLayerIndices().stream()
+                        .map(i -> documentSession.penLibrary().penForLayer(i).name()).toList()
+                : reviewed.pens().stream().map(PlotJobHistory.PenSnapshot::name).toList();
         PlotService projector = new PlotService(null, settings);
         double[] bounds = projector.computeArtworkBounds(output);
         boolean clipped = bounds != null && (bounds[0] < 0 || bounds[1] > settings.resolveMachineWidth()
@@ -1990,8 +1996,9 @@ public class PlotterPanel extends JPanel {
                 "Some artwork lies outside the configured machine bed and will be clamped in the SVG. Continue?",
                 "SVG export will clip artwork", JOptionPane.OK_CANCEL_OPTION,
                 JOptionPane.WARNING_MESSAGE) != JOptionPane.OK_OPTION) return;
-        if (reviewed != null && JOptionPane.showConfirmDialog(this,
-                "Stored jobs do not retain pen widths. The SVG will use an assumed 0.3 mm display width. Continue?",
+        if (reviewed != null && reviewed.pens().size() < output.layers().size()
+                && JOptionPane.showConfirmDialog(this,
+                "This older job has missing pen widths. Those layers will use an assumed 0.3 mm display width. Continue?",
                 "Historical job pen widths", JOptionPane.OK_CANCEL_OPTION,
                 JOptionPane.WARNING_MESSAGE) != JOptionPane.OK_OPTION) return;
         String extension = separated ? "zip" : "svg";
@@ -2015,8 +2022,8 @@ public class PlotterPanel extends JPanel {
         new Thread(() -> {
             try {
                 PlotService.ProjectedArtwork projected = projector.projectArtwork(output);
-                if (separated) SvgJobExporter.writePackage(destination, projected, widths);
-                else SvgJobExporter.writeCombined(destination, projected, widths);
+                if (separated) SvgJobExporter.writePackage(destination, projected, widths, penNames);
+                else SvgJobExporter.writeCombined(destination, projected, widths, penNames);
                 SwingUtilities.invokeLater(() -> {
                     log("Exported SVG " + (separated ? "package" : "drawing") + " to " + destination);
                     localFeedback.showMessage("SVG exported: " + destination.getAbsolutePath(), LocalFeedbackPanel.Tone.SUCCESS);

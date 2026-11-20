@@ -115,7 +115,7 @@ public final class DocumentSession {
         widths.addAll(defaultWidths(addition));
         penWidthsMm = List.copyOf(widths);
         penLibrary = penLibrary.append(currentOutput.layers());
-        List<CompositionArtwork> nextArtworks = new ArrayList<>(artworks.isEmpty()
+        List<CompositionArtwork> nextArtworks = new ArrayList<>(artworks.isEmpty() && firstNewLayer > 0
                 ? List.of(artwork("artwork-1", labelFor(currentOutput), null,
                         indices(0, firstNewLayer), currentOutput.metadata().bounds(),
                         null, null, null))
@@ -133,7 +133,17 @@ public final class DocumentSession {
 
     public void appendQuickArtwork(QuickArtwork spec) {
         ProcessorOutput output = QuickArtworkGenerator.generate(spec);
+        boolean initiallyEmpty = currentOutput == null;
         appendArtwork(output, output.metadata().source());
+        if (initiallyEmpty) {
+            // Keep an editable empty document as the undo root, so the first addition is undoable.
+            Metadata metadata = output.metadata();
+            ProcessorOutput empty = new ProcessorOutput(new Metadata("Empty drawing", metadata.generatedAt(),
+                    metadata.stationId(), metadata.units(), 0, Bounds.empty()), List.of());
+            undoHistory.addLast(new HistoryState(empty, List.of(), null, List.of(),
+                    GantryProject.Placement.identity(), List.of(), new PenLibrary(List.of(), List.of()),
+                    null, null, null, List.of()));
+        }
         List<CompositionArtwork> next = new ArrayList<>(artworks);
         int last = next.size() - 1;
         next.set(last, next.get(last).withQuickArtwork(spec));

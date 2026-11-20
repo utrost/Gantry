@@ -86,6 +86,18 @@ keeps it dead — keep it green.
 
 ---
 
+### Post-RC11 integration guards
+
+- Stroke-font definitions are Y-down; generated command geometry must flip them
+  to Y-up. `QuickArtworkTest#strokeTextIsUprightInCommandCoordinates` checks an
+  asymmetric glyph, since size-only and symmetric-glyph tests miss mirroring.
+- SVG export and coverage consume `PlotService#forEachDrawSegment`. Refills and
+  inter-layer rinsing change the head position; the next draw can begin at that
+  station when no Move precedes it. The regression compares projected segments
+  with executed backend calls.
+- Job histories created with named pens retain width/name snapshots. Export
+  those snapshots rather than assuming all historical jobs lack pen metadata.
+
 ## 3. Development & verification gotchas
 
 Practical traps that cost time during this project's development (not bugs in the
