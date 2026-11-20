@@ -83,8 +83,9 @@ Risks:
 ## Development integration — 2026-11-20
 
 Reviewed SVG/ZIP export, shared named pens, advisory ink overlap and editable
-quick artwork are merged on main at `3462659`. SVG export #68 is reopened for
-remaining result-feedback and excluded/empty-layer acceptance; #69/#70 remain
+quick artwork are merged on main at `3462659`. SVG export #68 now also has
+destination/count feedback and explicit excluded/empty-layer acceptance; see the
+[verification record](release-results/2026-11-20-svg-export.md). #69/#70 remain
 software-complete. RC11 remains
 the public download. See the [integration evidence](release-results/2026-11-20-integration.md)
 and [operator checklist](OPERATOR_ACCEPTANCE.md). Software verification does not
@@ -98,14 +99,12 @@ controlled-motion, shared-backend and scripted serial fault regressions. See
 [BACKEND_CONTRACT.md](BACKEND_CONTRACT.md) and the
 [verification record](release-results/2026-11-20-backend-contracts.md).
 
-1. Finish the narrowed SVG export acceptance in #68. Its implementation is
-   delivered; file-count feedback and explicit excluded/empty-layer tests remain.
+1. Validate the existing four image-art modes on a licensed real-image corpus
+   (#80), using the existing CLI pipeline before new engines or defaults.
 2. Use [OPERATOR_ACCEPTANCE.md](OPERATOR_ACCEPTANCE.md) for hardware, native scaling
    and expert checks (#39/#43/#54). Keep the first independent tester and
    five-person study (#16) separate from mock evidence; #72 still needs a user task.
-3. Validate the existing four image-art modes on a licensed real-image corpus
-   (#80), using the existing CLI pipeline before new engines or defaults.
-4. Keep drying-aware execution (#71) deferred pending coverage review and
+3. Keep drying-aware execution (#71) deferred pending coverage review and
    physical pen/paper evidence. Preserve wider research in
    [FEATURE_CANDIDATES.md](FEATURE_CANDIDATES.md), rather than expanding the
    active roadmap with unscheduled algorithms.

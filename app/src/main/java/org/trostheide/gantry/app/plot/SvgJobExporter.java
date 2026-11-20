@@ -12,7 +12,11 @@ import java.util.Locale;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
-/** Writes a reviewed job as physical-size SVG, or one atomic ZIP with a file per layer. */
+/**
+ * Writes a reviewed job as physical-size SVG, or one atomic ZIP with a file per layer.
+ * Included empty layers retain their group/file and order; selection and rejecting
+ * jobs without drawing paths are the caller's responsibility.
+ */
 public final class SvgJobExporter {
     private SvgJobExporter() { }
 
