@@ -49,15 +49,16 @@ See the [integration record](docs/release-results/2026-11-20-integration.md).
 
 - **Named pens #69 and advisory overlap #70:** software delivered; physical
   pen/paper evaluation remains operator evidence, not a drying guarantee.
-- **SVG export #68:** implemented, but reopened for file-count feedback and
-  explicit excluded/empty-layer acceptance tests.
+- **SVG export #68:** complete, including destination/SVG-count feedback and
+  excluded/empty-layer acceptance. See the
+  [verification record](docs/release-results/2026-11-20-svg-export.md).
 - **Quick artwork #72:** software criteria complete; one actual user task remains.
 
 ## Now — software work without a plotter
 
 | Priority | Work | Exit criteria |
 |---|---|---|
-| P2 | [#68 — Finish reviewed SVG export acceptance](https://github.com/utrost/Gantry/issues/68) | Success reports destination and output count; excluded/empty layers have explicit tests; atomic output and round-trip guarantees remain intact |
+| P2 | [#80 — Validate existing image-art modes](https://github.com/utrost/Gantry/issues/80) | Licensed real-image corpus and reproducible Sketch, Squiggle, Needles and Isolines metrics/previews using the existing CLI chain |
 
 Mock hardening #78/#79 implements cancellable motion that freezes at the last
 reached point, explicit pen/connection/Run/Idle state, supported raw-command

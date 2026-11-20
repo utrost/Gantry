@@ -11,6 +11,7 @@ import org.trostheide.gantry.model.command.DrawCommand;
 import org.trostheide.gantry.model.command.MoveCommand;
 import org.trostheide.gantry.pipeline.svgimport.SvgImportOptions;
 import org.trostheide.gantry.pipeline.svgimport.SvgImportStage;
+import org.trostheide.gantry.app.session.DocumentSession;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -71,6 +72,75 @@ class SvgJobExporterTest {
             assertNotNull(zip.getEntry("layers/02-blue-second.svg"));
             assertNotNull(zip.getEntry("README.txt"));
             assertEquals(4, zip.size());
+        }
+    }
+
+    @Test void preparedSelectionKeepsEmptyLayersAndExcludesUnselectedGeometry() throws Exception {
+        DocumentSession session = new DocumentSession();
+        session.replace(new ProcessorOutput(
+                new Metadata("selection", Instant.EPOCH, "station", "mm", 0, Bounds.empty()),
+                List.of(
+                        new Layer("Excluded", "station", "#ff0000", List.of(
+                                new MoveCommand(1, 90, 90),
+                                new DrawCommand(2, List.of(new Point(99, 99))))),
+                        new Layer("Empty / pen", "station", "#00ff00", List.of()),
+                        new Layer("Included", "station", "#0000ff", List.of(
+                                new MoveCommand(3, 10, 20),
+                                new DrawCommand(4, List.of(new Point(30, 40))))))));
+        session.selectLayers(List.of(2, 1)); // Preparation retains document order, not click order.
+        ProcessorOutput prepared = session.prepareOutput(output -> output, 2);
+        assertEquals(List.of("Empty / pen", "Included"), prepared.layers().stream().map(Layer::id).toList());
+        PlotSettings settings = new PlotSettings();
+        settings.alignmentOffsetOverride = new double[] {0, 0};
+        var projected = new PlotService(null, settings).projectArtwork(prepared);
+        assertTrue(projected.layers().get(0).strokes().isEmpty());
+        assertEquals(2, projected.layers().get(1).strokes().size(), "both prepared passes exported");
+        Path destination = temporary.resolve("selected.zip");
+        SvgJobExporter.writePackage(destination.toFile(), projected, List.of(.2, .7),
+                List.of("Empty pen", "Drawing pen"));
+        try (ZipFile zip = new ZipFile(destination.toFile())) {
+            assertEquals(List.of("combined.svg", "layers/01-empty-pen.svg", "layers/02-included.svg", "README.txt"),
+                    zip.stream().map(entry -> entry.getName()).toList());
+            String combined = new String(zip.getInputStream(zip.getEntry("combined.svg")).readAllBytes(),
+                    java.nio.charset.StandardCharsets.UTF_8);
+            assertFalse(combined.contains("Excluded"));
+            assertFalse(combined.contains("99"));
+            assertTrue(combined.indexOf("Empty / pen") < combined.indexOf("Included"));
+            assertEquals(2, combined.split("<path ", -1).length - 1);
+            String empty = new String(zip.getInputStream(zip.getEntry("layers/01-empty-pen.svg")).readAllBytes(),
+                    java.nio.charset.StandardCharsets.UTF_8);
+            assertFalse(empty.contains("<path "));
+            assertTrue(empty.contains("data-gantry-order=\"1\""));
+            assertTrue(empty.contains("data-gantry-pen-name=\"Empty pen\""));
+            String drawing = new String(zip.getInputStream(zip.getEntry("layers/02-included.svg")).readAllBytes(),
+                    java.nio.charset.StandardCharsets.UTF_8);
+            assertTrue(drawing.contains("data-gantry-order=\"2\""));
+            assertTrue(drawing.contains("data-gantry-pen-width-mm=\"0.7\""));
+        }
+        session.selectLayers(List.of());
+        assertTrue(session.prepareOutput(output -> output, 2).layers().isEmpty(),
+                "empty selection cannot fall back to all layers");
+        session.selectLayers(List.of(1));
+        assertTrue(new PlotService(null, settings).projectArtwork(session.prepareOutput(output -> output, 1))
+                .layers().get(0).strokes().isEmpty(), "empty-only selection has no drawing paths");
+    }
+
+    @Test void failedOverwritePreservesBothFormatsAndRemovesStagingFiles() throws Exception {
+        var invalid = new PlotService.ProjectedArtwork(100, 80,
+                List.of(new PlotService.ProjectedLayer(new Layer("bad", "station", List.of()),
+                        List.of(List.of(new Point(Double.NaN, 10))))));
+        for (String extension : List.of("svg", "zip")) {
+            Path destination = temporary.resolve("existing." + extension);
+            Files.writeString(destination, "original contents");
+            assertThrows(IllegalArgumentException.class, () -> {
+                if (extension.equals("svg")) SvgJobExporter.writeCombined(destination.toFile(), invalid, List.of());
+                else SvgJobExporter.writePackage(destination.toFile(), invalid, List.of());
+            });
+            assertEquals("original contents", Files.readString(destination));
+        }
+        try (var files = Files.list(temporary)) {
+            assertEquals(List.of("existing.svg", "existing.zip"),
+                    files.map(path -> path.getFileName().toString()).sorted().toList());
         }
     }
 

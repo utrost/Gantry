@@ -2024,9 +2024,13 @@ public class PlotterPanel extends JPanel {
                 PlotService.ProjectedArtwork projected = projector.projectArtwork(output);
                 if (separated) SvgJobExporter.writePackage(destination, projected, widths, penNames);
                 else SvgJobExporter.writeCombined(destination, projected, widths, penNames);
+                String result = separated
+                        ? (1 + projected.layers().size()) + " SVG files + README exported in package: "
+                        : "1 SVG file exported: ";
+                String message = result + destination.getAbsolutePath();
                 SwingUtilities.invokeLater(() -> {
-                    log("Exported SVG " + (separated ? "package" : "drawing") + " to " + destination);
-                    localFeedback.showMessage("SVG exported: " + destination.getAbsolutePath(), LocalFeedbackPanel.Tone.SUCCESS);
+                    log(message);
+                    localFeedback.showMessage(message, LocalFeedbackPanel.Tone.SUCCESS);
                 });
             } catch (IOException | RuntimeException failure) {
                 SwingUtilities.invokeLater(() -> {

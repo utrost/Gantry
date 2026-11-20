@@ -86,7 +86,12 @@ See [the contract table](BACKEND_CONTRACT.md) before interpreting results.
 
 `PreparationIntegrationAcceptance` in `scripts/test-gui.sh` exercises the actual
 Open / Add text-label action, first Undo/Redo, project save, named-pen SVG/ZIP
-export and advisory overlap UI using an isolated disconnected mock profile.
+export (destination and logical SVG count), rejected empty selection, cancelled
+export chooser and advisory overlap UI using an isolated disconnected mock profile.
+`SvgJobExporterTest` covers prepared selection with an included empty layer,
+excluded geometry, multipass/order/metadata, round-trip import and failed
+overwrite preservation with staging-file cleanup in both formats.
+See the [SVG acceptance record](release-results/2026-11-20-svg-export.md).
 See the [post-RC11 integration record](release-results/2026-11-20-integration.md)
 for local evidence and the [operator checklist](OPERATOR_ACCEPTANCE.md) for the
 physical/native/participant gates that automation cannot close.

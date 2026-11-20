@@ -61,13 +61,31 @@ public class PreparationIntegrationAcceptance extends GuiAcceptance {
             await(() -> project().artworks().size() == 1);
             Path saved = results.resolve("label.gantry");
             menu("Save Project As..."); choose(saved); await(() -> Files.isRegularFile(saved));
+            click(panel, "None");
+            menu("Export Reviewed Job as SVG...");
+            await(() -> hasLabel(panel, "Choose at least one artwork layer before exporting SVG."));
+            check(!Files.exists(results.resolve("reviewed.svg")), "empty selection writes nothing");
+            click(panel, "All");
+            menu("Export Reviewed Job as SVG...");
+            await(() -> {
+                for (Window window : Window.getWindows()) {
+                    if (window.isShowing()) {
+                        JFileChooser chooser = findChooser(window);
+                        if (chooser != null) { chooser.cancelSelection(); return true; }
+                    }
+                }
+                return false;
+            });
+            check(!Files.exists(results.resolve("reviewed.svg")), "cancelled chooser writes nothing");
             Path svg = results.resolve("reviewed.svg");
             menu("Export Reviewed Job as SVG..."); choose(svg); await(() -> Files.isRegularFile(svg));
+            await(() -> hasLabel(panel, "1 SVG file exported: " + svg.toAbsolutePath()));
             String text = Files.readString(svg);
             check(text.contains("data-gantry-pen-name="), "named pen retained in SVG metadata");
             check(!text.contains("data-gantry-pen-width-assumed"), "current width is known");
             Path zip = results.resolve("reviewed.zip");
             menu("Export Reviewed Job as SVG Package..."); choose(zip); await(() -> Files.isRegularFile(zip));
+            await(() -> hasLabel(panel, "2 SVG files + README exported in package: " + zip.toAbsolutePath()));
             try (ZipFile packageFile = new ZipFile(zip.toFile())) {
                 check(packageFile.getEntry("combined.svg") != null && packageFile.size() == 3,
                         "atomic package contains combined, layer and README");
@@ -82,7 +100,7 @@ public class PreparationIntegrationAcceptance extends GuiAcceptance {
             await(() -> hasAnalysis(coverage));
             click(coverage, "Close");
             check(!edt(() -> jobs().isConnected()), "preparation never connects a machine");
-            System.out.println("PASS editable label, first Undo/Redo, save, named-pen SVG/ZIP and overlap UI (mock only)");
+            System.out.println("PASS editable label, Undo/Redo, save, SVG/ZIP counts, empty selection, cancellation and overlap UI (mock only)");
             System.exit(0);
         } catch (Throwable e) { e.printStackTrace(); System.exit(1); }
     }
@@ -91,6 +109,13 @@ public class PreparationIntegrationAcceptance extends GuiAcceptance {
             if (c instanceof JTextField field) fields.add(field);
             else if (c instanceof Container nested) textFields(nested, fields);
         }
+    }
+    static boolean hasLabel(Container root, String text) {
+        for (Component c : root.getComponents()) {
+            if (c instanceof JLabel label && text.equals(label.getText())) return true;
+            if (c instanceof Container nested && hasLabel(nested, text)) return true;
+        }
+        return false;
     }
     static boolean hasAnalysis(Container root) {
         for (Component c : root.getComponents()) {
