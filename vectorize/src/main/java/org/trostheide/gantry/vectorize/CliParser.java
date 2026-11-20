@@ -792,8 +792,11 @@ public class CliParser {
             for (String section : new String[] {"contour", "sketch", "needles", "isolines"}) {
                 org.json.JSONObject nested = json.optJSONObject(section);
                 if (nested == null) continue;
-                for (String key : new String[] {"tolerance", "detail", "minLength", "maxLength", "cannyBlur",
-                        "cannyLow", "cannyHigh", "cannyAuto", "colorEdges", "strokeColor", "strokeWidth", "smoothCurves"}) {
+                String[] keys = section.equals("contour")
+                        ? new String[] {"tolerance", "detail", "minLength", "maxLength", "cannyBlur", "cannyLow",
+                            "cannyHigh", "cannyAuto", "colorEdges", "strokeColor", "strokeWidth", "smoothCurves"}
+                        : new String[] {"strokeColor", "strokeWidth"};
+                for (String key : keys) {
                     if (!json.has(key) && nested.has(key)) json.put(key, nested.get(key));
                 }
             }

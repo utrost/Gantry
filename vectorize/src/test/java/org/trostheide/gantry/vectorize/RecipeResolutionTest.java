@@ -18,6 +18,11 @@ class RecipeResolutionTest {
         assertEquals(1.3, cli.getTolerance(cmd)); assertEquals(.8, cli.getDetailLevel(cmd));
         assertEquals("#123456", cli.getStrokeColor(cmd)); assertEquals(.7, cli.getStrokeWidth(cmd));
         assertTrue(cli.getCannyAuto(cmd)); assertTrue(cli.getColorEdges(cmd)); assertTrue(cli.getSmoothCurves(cmd));
+        Files.writeString(recipe, "{\"sourceImage\":\"in.png\",\"strategy\":\"sketch\",\"sketch\":{\"minLength\":19,\"strokeColor\":\"#abcdef\"}}");
+        var sketch = cli.loadConfigFile(recipe.toString());
+        assertEquals(19, cli.getSketchMinLength(sketch));
+        assertEquals(5, cli.getMinLength(sketch), "traced-point count is not generic pixel-length filtering");
+        assertEquals("#abcdef", cli.getStrokeColor(sketch));
     }
     @Test void thresholdsAreValidatedAfterConfigAndExplicitOptionsAreMerged() throws Exception {
         Path recipe = directory.resolve("thresholds.json");
