@@ -739,12 +739,15 @@ position — is exactly what gets plotted and exported. The alignment offset sho
 in the live view is carried through to the plotter, so positioning is no longer
 overridden by the canvas-alignment re-centering at plot time.
 
-The preview also models the physical pen assigned to each layer. In the **Layers**
-list, the numbered rows show plot order and source-colour swatches; set the nib
-width beside each layer in millimetres. The canvas redraws immediately. Nib width
+The preview also models the physical pen assigned to each layer. Use **Edit > Manage Pens...**
+to name a pen, set its preview colour and nib width, add a pen, or assign one named
+pen to several artwork layers. Editing a shared pen updates every assigned layer.
+The **Layers** list shows plot order and assigned-pen swatches. You can also set nib
+width beside a layer in millimetres; when layers share a pen, this updates their
+shared width. The canvas redraws immediately. Nib width
 is a physical measurement: scaling a 100 mm drawing to 200 mm scales its geometry,
 but a configured 0.3 mm pen still previews as 0.3 mm on the bed. Save the drawing
-as a `.gantry` project to retain these width assignments.
+as a `.gantry` project to retain pen names, colours, widths, and assignments.
 
 The visualisation shows:
 - Dark background with the machine bed outline
@@ -967,12 +970,12 @@ Type any G-code command in the text field and press Enter to send it directly.
 
 ## Projects, recovery, and job history
 
-- **Open Project / Save Project** — use `.gantry` for an editable session. Save (Ctrl+S) reuses the current project path; Save Project As (Ctrl+Shift+S) chooses another file. Placement, pen widths, layer selection, pass count, and available source provenance are retained.
+- **Open Project / Save Project** — use `.gantry` for an editable session. Save (Ctrl+S) reuses the current project path; Save Project As (Ctrl+Shift+S) chooses another file. Placement, named pens and their layer assignments, layer selection, pass count, and available source provenance are retained. Older projects and command JSON gain one independent pen per layer when opened.
 - **Open Commands (JSON)** — imports an existing command model as a new project.
 - **Export Flattened Commands (JSON)** — writes the currently prepared commands with placement, selected layers, and passes baked in.
 - **Undo / Redo** — model-changing edits use multi-level history. Unsaved changes are marked in the window title and protected by the close prompt.
 - **Recovery autosave** — while a project is dirty, Gantry writes a recovery snapshot and offers it after an interrupted session. Recover restores it as an unsaved project; Later or closing the prompt preserves it. Only Discard recovery deletes a deferred copy.
-- **Recent Plot Jobs** — the ten most recent successful prepared jobs remain available from the File menu. Selecting a historical job opens its read-only stored preview and review before movement. The editable project stays intact; Return to artwork restores it. Changed machine geometry blocks replay. Re-plot uses the stored paths, transforms and stations with the **current pen-lift and speed settings**, stated in the review.
+- **Recent Plot Jobs** — the ten most recent successful prepared jobs remain available from the File menu. Selecting a historical job opens its read-only stored preview and review before movement. The editable project stays intact; Return to artwork restores it. Changed machine geometry blocks replay. Re-plot uses the stored paths, transforms, stations and pen assignments with the **current pen-lift and speed settings**, stated in the review.
 
 Placement fields commit with Enter or focus loss, with one Undo per completed
 edit. Escape restores the previous value. Incomplete or invalid numbers remain

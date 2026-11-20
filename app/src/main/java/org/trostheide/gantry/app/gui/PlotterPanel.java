@@ -16,6 +16,7 @@ import org.trostheide.gantry.app.session.CompositionArtwork;
 import org.trostheide.gantry.app.session.DocumentSession;
 import org.trostheide.gantry.app.session.GantryProject;
 import org.trostheide.gantry.app.session.GantryProjectIO;
+import org.trostheide.gantry.app.session.PenLibrary;
 import org.trostheide.gantry.model.Bounds;
 import org.trostheide.gantry.model.CoordinateTransform;
 import org.trostheide.gantry.model.Layer;
@@ -689,6 +690,7 @@ public class PlotterPanel extends JPanel {
         editMenu.add(tip(menuItem("Artwork Groups...", e -> onArtworkGroups(), true),
                 "Inspect composed artwork groups, then transform, re-process, or rename the selected group."));
         editMenu.addSeparator();
+        editMenu.add(menuItem("Manage Pens...", e -> onManagePens(), true));
         hatchRegionModeItem = new JCheckBoxMenuItem("Hatch Region (click areas to fill)");
         hatchRegionModeItem.setToolTipText("Click inside a closed traced region to fill it with hatch "
                 + "lines that plot as part of that layer (useful for outline traces where filled areas "
@@ -1656,15 +1658,22 @@ public class PlotterPanel extends JPanel {
             SwingUtilities.invokeLater(() -> visPanel.updatePosition(x, y));
         });
         int[] penNumber={0};
-        jobContext.start(toPlot,requested==null?fileWorkflow.projectName():"Stored job · "+requested.timestamp());
+        List<PlotJobHistory.PenSnapshot> jobPens = requested == null
+                ? documentSession.selectedLayerIndices().stream().map(i -> {
+                    PenLibrary.Pen pen = documentSession.penLibrary().penForLayer(i);
+                    return new PlotJobHistory.PenSnapshot(pen.id(), pen.name(), pen.color(), pen.widthMm());
+                }).toList() : requested.pens();
+        List<String> jobPenNames = jobPens.stream().map(PlotJobHistory.PenSnapshot::name).toList();
+        jobContext.start(toPlot,requested==null?fileWorkflow.projectName():"Stored job · "+requested.timestamp(),jobPenNames);
         service.setLayerGate(layer -> {
             int requestedPen=++penNumber[0];
             awaitingLayerConfirmation = true;
             SwingUtilities.invokeLater(()->jobContext.requestPen(requestedPen,layer));
-            SwingUtilities.invokeLater(()->workspace.jobDetail.setText("Fit pen: "+layer.id()));
-            log("Layer '" + layer.id() + "' ready. Click Pen ready — continue to start.");
+            String penName = requestedPen <= jobPenNames.size() ? jobPenNames.get(requestedPen - 1) : layer.id();
+            SwingUtilities.invokeLater(()->workspace.jobDetail.setText("Fit pen: "+penName));
+            log("Pen '" + penName + "' ready. Click Pen ready — continue to start.");
             SwingUtilities.invokeLater(() -> {
-                localFeedback.showMessage("Fit the pen for “" + layer.id() + "”, then click Pen ready — continue.", LocalFeedbackPanel.Tone.INFO);
+                localFeedback.showMessage("Fit the pen “" + penName + "”, then click Pen ready — continue.", LocalFeedbackPanel.Tone.INFO);
                 refreshGuidance();
             });
             try {
@@ -1698,7 +1707,7 @@ public class PlotterPanel extends JPanel {
         plotJobController.startPlot(service, toPlot, (completed, failure) -> {
             SwingUtilities.invokeLater(visPanel::finishPlotProgress);
             if (completed) {
-                plotHistory.add(new PlotJobHistory.Job(Instant.now(), toPlot, settings));
+                plotHistory.add(new PlotJobHistory.Job(Instant.now(), toPlot, settings, jobPens));
                 double actualSec = plotProgress.elapsedSeconds(System.currentTimeMillis());
                 TimeEstimator.PlotEstimate est = plotProgress.estimate();
                 if (est != null) {
@@ -2022,6 +2031,69 @@ public class PlotterPanel extends JPanel {
         updateDirtyIndicator();
     }
 
+    private void onManagePens() {
+        if (documentSession.currentOutput() == null) {
+            blocked("Add artwork before configuring pens.");
+            return;
+        }
+        String[] actions = {"Edit pen", "Add pen", "Assign layer", "Done"};
+        while (true) {
+            int action = JOptionPane.showOptionDialog(this,
+                    "Name physical pens, set their preview colour and nib width, and assign them to artwork layers.",
+                    "Manage Pens", JOptionPane.DEFAULT_OPTION, JOptionPane.PLAIN_MESSAGE,
+                    null, actions, actions[0]);
+            if (action < 0 || action == 3) return;
+            try {
+                PenLibrary library = documentSession.penLibrary();
+                if (action == 0 || action == 1) {
+                    PenLibrary.Pen old = null;
+                    if (action == 0) {
+                        Object choice = JOptionPane.showInputDialog(this, "Choose a pen to edit:", "Edit pen",
+                                JOptionPane.PLAIN_MESSAGE, null, library.pens().stream()
+                                        .map(p -> p.id() + " · " + p.name()).toArray(), null);
+                        if (choice == null) continue;
+                        String id = choice.toString().split(" · ", 2)[0];
+                        old = library.pens().stream().filter(p -> p.id().equals(id)).findFirst().orElseThrow();
+                    }
+                    JTextField name = new JTextField(old == null ? "" : old.name(), 22);
+                    JTextField color = new JTextField(old == null || old.color() == null ? "" : old.color(), 10);
+                    JTextField width = new JTextField(old == null ? "0.3" : Double.toString(old.widthMm()), 8);
+                    JPanel fields = new JPanel(new java.awt.GridLayout(3, 2, 8, 8));
+                    fields.add(new JLabel("Name")); fields.add(name);
+                    fields.add(new JLabel("Preview colour (#RRGGBB, optional)")); fields.add(color);
+                    fields.add(new JLabel("Nib width (mm)")); fields.add(width);
+                    if (JOptionPane.showConfirmDialog(this, fields, action == 0 ? "Edit pen" : "Add pen",
+                            JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE) != JOptionPane.OK_OPTION) continue;
+                    String hex = color.getText().trim();
+                    if (!hex.isEmpty() && !hex.matches("#[0-9a-fA-F]{6}"))
+                        throw new IllegalArgumentException("Colour must be #RRGGBB or empty.");
+                    double widthMm = Double.parseDouble(width.getText().trim());
+                    if (!Double.isFinite(widthMm) || widthMm <= 0)
+                        throw new IllegalArgumentException("Nib width must be a positive number.");
+                    if (action == 0) documentSession.editPen(new PenLibrary.Pen(old.id(), name.getText(), hex, widthMm));
+                    else documentSession.addPen(name.getText(), hex, widthMm);
+                } else {
+                    Object layer = JOptionPane.showInputDialog(this, "Choose an artwork layer:", "Assign pen",
+                            JOptionPane.PLAIN_MESSAGE, null, java.util.stream.IntStream.range(0,
+                                    documentSession.currentOutput().layers().size())
+                                    .mapToObj(i -> (i + 1) + " · " + documentSession.currentOutput().layers().get(i).id())
+                                    .toArray(), null);
+                    if (layer == null) continue;
+                    int layerIndex = Integer.parseInt(layer.toString().split(" · ", 2)[0]) - 1;
+                    Object pen = JOptionPane.showInputDialog(this, "Assign this layer to:", "Assign pen",
+                            JOptionPane.PLAIN_MESSAGE, null, library.pens().stream()
+                                    .map(p -> p.id() + " · " + p.name()).toArray(), null);
+                    if (pen == null) continue;
+                    documentSession.assignPen(layerIndex, pen.toString().split(" · ", 2)[0]);
+                }
+                onDocumentEdited();
+                documentEditor.historyAvailability();
+            } catch (IllegalArgumentException ex) {
+                JOptionPane.showMessageDialog(this, ex.getMessage(), "Invalid pen", JOptionPane.ERROR_MESSAGE);
+            }
+        }
+    }
+
     private void showFeedback(String message) {
         localFeedback.showMessage(message, LocalFeedbackPanel.Tone.SUCCESS);
     }
@@ -2039,6 +2111,13 @@ public class PlotterPanel extends JPanel {
         artworkWorkspace.setHasArtwork(documentSession.currentOutput() != null);
         visPanel.setArtworks(documentSession.artworks());
         visPanel.setPenWidthsMm(documentSession.penWidthsMm());
+        if (documentSession.currentOutput() != null) {
+            visPanel.setLayerColors(java.util.stream.IntStream.range(0, documentSession.currentOutput().layers().size())
+                    .mapToObj(i -> {
+                        String penColor = documentSession.penLibrary().penForLayer(i).color();
+                        return penColor == null ? documentSession.currentOutput().layers().get(i).color() : penColor;
+                    }).toList());
+        }
         refreshArtworkInspector();
         refreshLayerSelector();
         overlayControls.refreshPosition();
@@ -2074,7 +2153,7 @@ public class PlotterPanel extends JPanel {
                         documentSession.sourceSvgOptions(),
                         image == null ? null : image.getAbsolutePath(),
                         documentSession.vectorizeArgs(), documentSession.processingRecipe()),
-                documentSession.artworks(), documentSession.penWidthsMm());
+                documentSession.artworks(), documentSession.penWidthsMm(), documentSession.penLibrary());
     }
 
     private void openProject(GantryProject project) {
@@ -2084,7 +2163,7 @@ public class PlotterPanel extends JPanel {
                 source.importOptions(), source.imagePath() == null ? null : new File(source.imagePath()),
                 source.vectorizeArgs(), source.processingRecipe());
         visPanel.loadFromOutput(project.output());
-        documentSession.setPenWidthsMm(project.penWidthsMm());
+        documentSession.restorePenLibrary(project.penLibrary());
         visPanel.setPenWidthsMm(documentSession.penWidthsMm());
         visPanel.applyPlacement(project.placement());
         documentSession.setPlacement(project.placement());

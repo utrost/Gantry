@@ -26,7 +26,8 @@ class PlotJobHistoryTest {
                 new Metadata("x", Instant.EPOCH, "s", "mm", 0, Bounds.empty()), List.of());
         PlotSettings settings = new PlotSettings();
         settings.alignmentOffsetOverride = new double[] {12, 34};
-        history.add(new PlotJobHistory.Job(Instant.EPOCH, output, settings));
+        history.add(new PlotJobHistory.Job(Instant.EPOCH, output, settings,
+                List.of(new PlotJobHistory.PenSnapshot("pen-1", "Violet", "#8844aa", .55))));
 
         settings.alignmentOffsetOverride[0] = 99;
         PlotJobHistory loaded = new PlotJobHistory(file);
@@ -35,5 +36,7 @@ class PlotJobHistoryTest {
         assertEquals(output, loaded.latest().output());
         assertEquals(12, loaded.latest().settings().alignmentOffsetOverride[0]);
         assertNotSame(loaded.latest().settings(), loaded.latest().settings());
+        assertEquals(List.of(new PlotJobHistory.PenSnapshot("pen-1", "Violet", "#8844aa", .55)),
+                loaded.latest().pens());
     }
 }

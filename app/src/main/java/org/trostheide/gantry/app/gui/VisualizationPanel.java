@@ -831,6 +831,13 @@ public class VisualizationPanel extends JPanel {
         return layerColors.get(layerIndex);
     }
 
+    public void setLayerColors(List<String> colors) {
+        for (int i = 0; i < layerColors.size() && colors != null && i < colors.size(); i++) {
+            layerColors.set(i, CanvasPalette.displayColor(colors.get(i), i));
+        }
+        repaint();
+    }
+
     /** Returns the simulated physical pen/nib width for this layer, in millimetres. */
     public double penWidthForLayer(int layerIndex) {
         return layerIndex >= 0 && layerIndex < layerPenWidthsMm.size()
