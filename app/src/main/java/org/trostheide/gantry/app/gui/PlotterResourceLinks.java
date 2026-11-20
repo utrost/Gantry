@@ -6,7 +6,7 @@ import java.net.URI;
 import java.util.List;
 import java.util.function.Consumer;
 
-/** Curated links to Uwe's plotter-adjacent tools, kept close to Gantry's Help menu. */
+/** Curated links to related plotter tools, kept close to Gantry's Help menu. */
 final class PlotterResourceLinks {
 
     private PlotterResourceLinks() {
@@ -50,7 +50,7 @@ final class PlotterResourceLinks {
         resources.addSeparator();
         resources.add(tip(menuItem("Open all project repositories", opener,
                 URI.create("https://github.com/utrost?tab=repositories&q=&type=source")),
-                "Open Uwe's GitHub repositories so related plotting tools are easy to find."));
+                "Open related GitHub repositories for plotting tools and examples."));
         return resources;
     }
 

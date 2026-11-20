@@ -51,7 +51,7 @@ keyboard focus manager. This is not hardware acceptance.
   device transform. At 200%, the physical display is too short for an 800-logical-
   pixel window; the harness records that limitation instead of claiming a pass.
 - **#16:** five actual novice participants.
-- **#54:** those external checks plus Uwe's expert-workflow baseline/comparison.
+- **#54:** those external checks plus the maintainer's expert-workflow baseline/comparison.
 - **#33:** umbrella remains open until its external acceptance work is complete.
 
 Earlier RC2 hardware success and automated installer/GUI checks are not evidence

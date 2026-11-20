@@ -66,7 +66,7 @@ both Start menu shortcuts, and cleanup/profile preservation after uninstall.
 Physical Windows 10/11 desktop acceptance, browser launch, signing, and plotter
 hardware checks remain separate from automated package validation.
 
-## RC10 help payload
+## RC10 help payload (historical)
 
 The offline guide now includes pen-width filling, coverage and calibration images,
 profile persistence and regeneration instructions. Native version 1.0.10 follows RC9

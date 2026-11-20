@@ -1,10 +1,16 @@
-# Current Gantry screenshots — RC10
+# Gantry screenshots — RC11
 
-All current PNGs in this directory were regenerated on 2026-11-14 from actual
-Swing components on Linux / Java 17. Dark is the default; Light remains available.
-Canvas appearance is independent. The captures use isolated mock profiles; no
-physical plotter was connected. Native window borders are excluded where root
-panes are captured. Nothing here is an AI-generated UI mockup.
+All 44 PNGs in this gallery were refreshed on 2026-11-15 by the
+[RC11 Java 21 screenshot job](https://github.com/utrost/Gantry/actions/runs/43731483364)
+on Ubuntu, using actual Swing components and isolated mock profiles. Dark is the
+default; Light remains available. Canvas appearance is independent. No physical
+plotter was connected. Native window borders are excluded where root panes are
+captured. Nothing here is an AI-generated UI mockup.
+
+The [one-minute mock walkthrough](../demos/Gantry-first-plot-mock.mp4) was
+re-recorded from RC11 in the
+[CI capture run](https://github.com/utrost/Gantry/actions/runs/43732414599).
+It uses the same no-hardware mock backend.
 
 ## Daily workspace
 
@@ -54,7 +60,7 @@ mvn package
 ./scripts/record-demo.sh dist/demo
 ```
 
-The capture script refreshes all current screenshots. The demo script requires
+The capture script refreshes the screenshot set. The demo script requires
 ffmpeg and produces the captioned one-minute mock video. Both use temporary
 profiles and application rendering rather than desktop capture. Inspect generated
 images before committing. The full scale/density acceptance matrix is separate:
