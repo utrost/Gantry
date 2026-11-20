@@ -73,6 +73,57 @@ public class PlotService {
         return new ProjectedArtwork(machineW, machineH, List.copyOf(projected));
     }
 
+    /** One machine-space segment that the plot loop sends with the pen down. */
+    public record DrawSegment(int layerIndex, int strokeOrdinal, double x1, double y1,
+                              double x2, double y2, boolean clamped) { }
+
+    /** Streams the exact transformed, soft-clamped draw geometry without moving the machine. */
+    public void forEachDrawSegment(ProcessorOutput output, Consumer<DrawSegment> consumer) {
+        double machineW = settings.resolveMachineWidth();
+        double machineH = settings.resolveMachineHeight();
+        double[] contentBounds = computeContentBounds(output.layers());
+        if (contentBounds == null) return;
+        double offsetX = 0, offsetY = 0;
+        if (settings.alignmentOffsetOverride != null) {
+            offsetX = settings.alignmentOffsetOverride[0];
+            offsetY = settings.alignmentOffsetOverride[1];
+        } else if (settings.canvasAlign != null && contentBounds != null) {
+            double[] offset = CoordinateTransform.calculateAlignmentOffset(
+                    settings.canvasAlign, contentBounds, machineW, machineH,
+                    settings.swapXY, settings.invertX, settings.invertY,
+                    settings.dataRotation, settings.originRight, settings.originBottom,
+                    settings.flipY, settings.paddingX, settings.paddingY);
+            offsetX = offset[0]; offsetY = offset[1];
+        }
+        int[] clampedCount = {0};
+        int strokeOrdinal = 0;
+        for (int layerIndex = 0; layerIndex < output.layers().size(); layerIndex++) {
+            double x = 0, y = 0; // The plot loop parks at origin between layers.
+            boolean startClamped = false;
+            for (Command command : output.layers().get(layerIndex).commands()) {
+                if (Thread.currentThread().isInterrupted()) return;
+                if (command instanceof MoveCommand move) {
+                    int before = clampedCount[0];
+                    double[] point = transformAndClamp(move.x, move.y, machineW, machineH,
+                            offsetX, offsetY, contentBounds, clampedCount);
+                    x = point[0]; y = point[1];
+                    startClamped = clampedCount[0] != before;
+                } else if (command instanceof DrawCommand draw) {
+                    int ordinal = ++strokeOrdinal;
+                    for (Point point : draw.points) {
+                        int before = clampedCount[0];
+                        double[] next = transformAndClamp(point.x(), point.y(), machineW, machineH,
+                                offsetX, offsetY, contentBounds, clampedCount);
+                        consumer.accept(new DrawSegment(layerIndex, ordinal, x, y, next[0], next[1],
+                                startClamped || clampedCount[0] != before));
+                        x = next[0]; y = next[1];
+                        startClamped = clampedCount[0] != before;
+                    }
+                }
+            }
+        }
+    }
+
     /** Gates the start of each layer, e.g. waiting for an operator to press a "Start Layer" button. */
     @FunctionalInterface
     public interface LayerGate {

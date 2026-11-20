@@ -245,7 +245,7 @@ compensate.
 |---|---|
 | **Connect** / **Disconnect** | Opens or closes the serial connection to the plotter (same as the **Connect** button). |
 | **Find Starting Corner (Home)** | Runs the homing cycle against the limit switches (`$H`) — the same action as **Find starting corner (Home)** under **Move pen manually**. |
-| **Check Before Plotting...** | Opens Check in the inspector. Review connection and size, use home/frame/pen lift as needed, then confirm the physical setup. Required confirmations are enforced when the preflight policy is on. |
+| **Check Before Plotting...** | Opens Check in the inspector. Review connection and size, optionally analyze ink overlap, use home/frame/pen lift as needed, then confirm the physical setup. Required confirmations are enforced when the preflight policy is on. |
 | **Setup Wizard...** | The guided first-time setup described in [First start](#first-start) — Connection, Machine geometry/origin/orientation, Pen/speed, in order, re-using the exact same fields as **Settings**. Its final step offers **"Continue to axis calibration now"** (ticked by default), so a first run flows straight from settings into calibration. Safe to re-run any time to revisit those settings step by step. |
 | **Calibrate Axes...** | A guided pass over machine motion. It **connects first** (a Connect step using your saved settings or mock — no need to connect manually beforehand), then: **Direction:** centre the head, jog each motor axis, and click the arrow for the way the pen *actually* moved — the wizard derives the correct swap/invert in one shot (it catches *swapped* axes, not just reversed ones, and applies the result to the live preview). **Scale:** for X and Y, jog a commanded distance, measure what actually moved with a ruler, and the wizard computes a corrected `$100`/`$101` and writes it on request. **Limit switches:** record whether the machine has them, enable the homing cycle (`$22`), and press each switch by hand to watch it register live (a real wiring test, nothing moves). **Pen lift:** pick the lift type (servo / Z-axis / M3-M5), set the up/down values, and **Test** them — edits apply on the next test with no reconnect. The scale, limit and pen steps are each optional (use **Skip**). |
 | **Test Color Stations...** | A guided test run over every configured refill station (watercolor). For each station you can **Move here** (pen-up dry visit so you can eyeball whether the brush lines up with the physical pot), run a **Wet test** (the station's real two-cycle dip/swirl using normal pen heights, so you can verify pot and swirl clearance), and **nudge** the position with the **−X/+X/−Y/+Y** buttons if it's off — a nudge moves the head *and* the stored coordinate, and corrected positions are saved when you click **Finish**. Each station step is optional (use **Skip**). Requires a real or mock connection and at least one configured station. See also [placing stations on the canvas](#placing-refill-stations) below. |
@@ -253,6 +253,16 @@ compensate.
 ---
 
 ## Workflow
+
+The Check view's **Analyze ink overlap...** opens an optional heatmap of the exact
+selected, placed and multipass job. Switch between all pens and one named pen;
+set the overlap count that turns cells red. Gold cells have coverage below that
+count, and white cells have none. The grid uses each pen's physical nib width
+after machine-coordinate transforms and soft limits. If artwork extends beyond
+the bed, the summary says that some geometry is clipped. This is geometric
+coverage only: real ink spread and drying depend on pen, paper, pressure and
+speed. Analysis runs in the background and does not change plotting or safety
+confirmations.
 
 ```
 SVG or image artwork

@@ -18,8 +18,12 @@ final class WorkspaceChecks extends JPanel {
     List<JButton> motionControls(){return List.copyOf(motionControls);}
     private void addMotion(JButton button){motionControls.add(button);add(WorkspaceStyle.motion(button));}
     WorkspaceChecks(Runnable home,Runnable frame,Runnable penUp,Runnable changed) {
+        this(home,frame,penUp,()->{},changed);
+    }
+    WorkspaceChecks(Runnable home,Runnable frame,Runnable penUp,Runnable overlap,Runnable changed) {
         super();setBorder(BorderFactory.createEmptyBorder(10,12,10,12));this.changed=changed;setLayout(new BoxLayout(this,BoxLayout.Y_AXIS));
         add(WorkspaceStyle.heading("Review this plot"));add(automatic);add(bounds);
+        add(WorkspaceStyle.button("Analyze ink overlap...", overlap));
         add(WorkspaceStyle.note("Machine checks"));
         addMotion(WorkspaceStyle.button("Home machine…",home));
         frameButton=WorkspaceStyle.button("Frame artwork — pen up",frame);
