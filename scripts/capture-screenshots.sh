@@ -35,3 +35,10 @@ javac -cp "$JAR" -d "$CAPTURE_TEMP" scripts/gui/GuiAcceptance.java scripts/gui/W
 java -Dsun.java2d.uiScale=1 -cp "$CAPTURE_TEMP:$JAR" WorkflowIssueAcceptance "$CAPTURE_TEMP/workflows"
 cp "$CAPTURE_TEMP/workflows/historical-review.png" "$ROOT/docs/images/workspace/historical-review.png"
 cp "$CAPTURE_TEMP/workflows/saved-with-error-details.png" "$ROOT/docs/images/workspace/save-feedback.png"
+
+# Post-RC11 editable artwork and advisory overlap, through the actual Swing UI.
+javac -cp "$JAR" -d "$CAPTURE_TEMP" scripts/gui/GuiAcceptance.java scripts/gui/PreparationIntegrationAcceptance.java
+java -Dsun.java2d.uiScale=1 -cp "$CAPTURE_TEMP:$JAR" PreparationIntegrationAcceptance "$CAPTURE_TEMP/preparation"
+for name in quick-artwork-dialog quick-artwork ink-overlap; do
+    cp "$CAPTURE_TEMP/preparation/$name.png" "$ROOT/docs/images/workspace/$name.png"
+done

@@ -54,13 +54,26 @@ See the [integration record](docs/release-results/2026-11-20-integration.md).
   [verification record](docs/release-results/2026-11-20-svg-export.md).
 - **Quick artwork #72:** software criteria complete; one actual user task remains.
 
-## Now — software work without a plotter
+## Now — prepare RC12 for acceptance
+
+RC12 (`1.0.0-rc.12`, native `1.0.12`) is being prepared as a draft candidate,
+with upgrades from a synthetic RC11 fixture. RC11 remains the public download
+until a reviewed candidate is published. See the [candidate record](docs/release-results/1.0.0-rc.12.md)
+and [ready-to-fill operator worksheet](docs/release-results/1.0.0-rc.12-operator.md).
+
+### Software work without a plotter
+
+Visual review during RC12 preparation found [#93](https://github.com/utrost/Gantry/issues/93):
+Y-up document geometry, workspace mapping and SVG/overlap page orientation disagree.
+Public distribution is held pending a compatibility-preserving resolution; do not
+silently flip existing calibrated machine settings. The candidate record contains
+the failing captures. This is the next software investigation.
 
 The independently actionable tracked software issues #84 and #88–#91 are
 complete: packaged PNG support, honest export failures, reproducible recipes,
 explicit rerun overrides, failed-batch status and collision/source protection.
 See the [verification record](docs/release-results/2026-11-20-cli-reliability.md).
-The remaining tracked acceptance work needs native desktop, hardware or
+The remaining external acceptance work needs native desktop, hardware or
 participant evidence as listed below.
 
 Mock hardening #78/#79 implements cancellable motion that freezes at the last

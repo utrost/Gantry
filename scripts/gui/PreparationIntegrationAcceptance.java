@@ -51,6 +51,7 @@ public class PreparationIntegrationAcceptance extends GuiAcceptance {
                 fields.get(2).setText("10");
                 return null;
             });
+            capture(create, results.resolve("quick-artwork-dialog.png"));
             click(create, "OK");
             await(() -> project().output() != null && project().artworks().size() == 1);
             check(edt(() -> project().artworks().get(0).quickArtwork().text()).equals("Max Mustermann"),
@@ -86,6 +87,7 @@ public class PreparationIntegrationAcceptance extends GuiAcceptance {
             Path zip = results.resolve("reviewed.zip");
             menu("Export Reviewed Job as SVG Package..."); choose(zip); await(() -> Files.isRegularFile(zip));
             await(() -> hasLabel(panel, "2 SVG files + README exported in package: " + zip.toAbsolutePath()));
+            capture(frame, results.resolve("quick-artwork.png"));
             try (ZipFile packageFile = new ZipFile(zip.toFile())) {
                 check(packageFile.getEntry("combined.svg") != null && packageFile.size() == 3,
                         "atomic package contains combined, layer and README");
@@ -98,11 +100,25 @@ public class PreparationIntegrationAcceptance extends GuiAcceptance {
             });
             JDialog coverage = dialog("Ink overlap");
             await(() -> hasAnalysis(coverage));
+            capture(coverage, results.resolve("ink-overlap.png"));
             click(coverage, "Close");
             check(!edt(() -> jobs().isConnected()), "preparation never connects a machine");
             System.out.println("PASS editable label, Undo/Redo, save, SVG/ZIP counts, empty selection, cancellation and overlap UI (mock only)");
             System.exit(0);
         } catch (Throwable e) { e.printStackTrace(); System.exit(1); }
+    }
+    static void capture(Window window, Path output) throws Exception {
+        edt(() -> {
+            Container content = window instanceof RootPaneContainer root
+                    ? root.getRootPane() : window;
+            var image = new java.awt.image.BufferedImage(content.getWidth(), content.getHeight(),
+                    java.awt.image.BufferedImage.TYPE_INT_RGB);
+            Graphics2D graphics = image.createGraphics();
+            content.paint(graphics);
+            graphics.dispose();
+            javax.imageio.ImageIO.write(image, "png", output.toFile());
+            return null;
+        });
     }
     static void textFields(Container root, List<JTextField> fields) {
         for (Component c : root.getComponents()) {

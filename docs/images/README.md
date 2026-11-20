@@ -1,16 +1,23 @@
-# Gantry screenshots — RC11
+# Gantry screenshots — RC12 preparation
 
-All 44 PNGs in this gallery were refreshed on 2026-11-15 by the
-[RC11 Java 21 screenshot job](https://github.com/utrost/Gantry/actions/runs/43731483364)
-on Ubuntu, using actual Swing components and isolated mock profiles. Dark is the
-default; Light remains available. Canvas appearance is independent. No physical
-plotter was connected. Native window borders are excluded where root panes are
-captured. Nothing here is an AI-generated UI mockup.
+All 47 PNGs were captured locally on 2026-11-20 from the versioned RC12 JAR
+(implementation baseline `b972370`, JDK 21 / Linux / Xvfb, requested/effective
+scale 1). They render actual Swing components using isolated mock profiles.
+Dark is the default; Light remains available. Canvas appearance is independent.
+No physical plotter was connected. Root-pane captures exclude native borders.
 
-The [one-minute mock walkthrough](../demos/Gantry-first-plot-mock.mp4) was
-re-recorded from RC11 in the
-[CI capture run](https://github.com/utrost/Gantry/actions/runs/43732414599).
-It uses the same no-hardware mock backend.
+The [one-minute mock walkthrough](../demos/Gantry-first-plot-mock.mp4) was also
+refreshed from this build. It contains six captioned application states and no
+hardware motion. These captures do not establish native desktop or user acceptance.
+
+New preparation views: [text dialog](workspace/quick-artwork-dialog.png),
+[workspace/export feedback](workspace/quick-artwork.png) and
+[advisory overlap](workspace/ink-overlap.png). **Visual review found reversed
+text and inconsistent view orientation**, tracked in
+[#93](https://github.com/utrost/Gantry/issues/93). These three images are current
+defect evidence, not accepted examples of readable output. The workspace also
+retains an intentionally triggered empty-selection error alongside successful
+export feedback. See the [candidate record](../release-results/1.0.0-rc.12.md).
 
 ## Daily workspace
 

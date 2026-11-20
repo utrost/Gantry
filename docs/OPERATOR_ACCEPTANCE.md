@@ -1,5 +1,8 @@
 # Operator acceptance after RC11
 
+The [RC12 worksheet](release-results/1.0.0-rc.12-operator.md) is ready for session
+identity, task observations, scaling combinations and benchmark timings.
+
 Status: **not run**. This is a checklist for the next available operator session,
 not evidence of a pass. RC11 remains the latest public download; the integrated
 features require an installer/artifact built from the exact development revision.

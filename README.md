@@ -51,6 +51,11 @@ Watch the [one-minute mock walkthrough](docs/demos/Gantry-first-plot-mock.mp4):
 actual app screens show import, preview, the pre-plot checklist, pen confirmation,
 and completion. This captioned walkthrough simulates plotting; no hardware moves.
 
+RC12 is being prepared as a draft; public distribution is held for orientation
+defect [#93](https://github.com/utrost/Gantry/issues/93). See the
+[candidate evidence](docs/release-results/1.0.0-rc.12.md) and
+[operator worksheet](docs/release-results/1.0.0-rc.12-operator.md).
+
 ## Start here
 
 - [`docs/FIRST_PLOT.md`](docs/FIRST_PLOT.md) — shortest path to a safe guided
@@ -131,7 +136,7 @@ Windows (`.cmd`), all run from the repo root:
 
 Release builds require Python 3.9+ as well as Java/Maven; native installers
 require JDK 21+ with jpackage. Portable JARs still run on Java 17+. For example:
-`./scripts/release.sh 1.0.0-rc.11 --installer` (Windows: `scripts\release.cmd 1.0.0-rc.11 --installer`).
+`./scripts/release.sh 1.0.0-rc.12 --installer` (Windows: `scripts\release.cmd 1.0.0-rc.12 --installer`).
 
 Tagged releases are staged as drafts by GitHub Actions after both installers pass. See
 [`docs/RELEASE_CHECKLIST.md`](docs/RELEASE_CHECKLIST.md) for the required mock

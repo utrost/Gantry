@@ -9,7 +9,8 @@ SAMPLES = ('simple-line.svg', 'multi-colour-layers.svg', 'hatch-fill.svg', 'text
 IMAGES = ('workspace-layer-preview.png', 'first-run-guided-practice.png',
           'preferences-geometry.png', 'layer-watercolor-settings.png',
           'pen-fill/fill-dark.png', 'pen-fill/fill-light.png',
-          'pen-fill/calibration.png', 'pen-fill/processing.png')
+          'pen-fill/calibration.png', 'pen-fill/processing.png',
+          'workspace/quick-artwork-dialog.png', 'workspace/ink-overlap.png')
 
 class _Links(HTMLParser):
     def __init__(self):
