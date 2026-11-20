@@ -14,7 +14,7 @@ nav{display:flex;flex-wrap:wrap;gap:16px}section{margin-top:36px}.note{border-le
 <body>
 <h1>Getting started with Gantry</h1>
 <p>Version <strong>@VERSION@</strong>. Prepare drawings, preview their placement, and export or plot them.</p>
-<nav><a href="#launch">Launch</a><a href="#practice">First practice plot</a><a href="#samples">Samples</a><a href="#save">Save and export</a><a href="#cli">Command line</a><a href="#hardware">Your plotter</a><a href="#support">Support</a></nav>
+<nav><a href="#launch">Launch</a><a href="#practice">First practice plot</a><a href="#samples">Samples</a><a href="#prepare">Labels and pens</a><a href="#save">Save and export</a><a href="#cli">Command line</a><a href="#hardware">Your plotter</a><a href="#support">Support</a></nav>
 <p class="note">This guide, its screenshots and the sample drawings are installed locally and work without an internet connection. Links to the full online guides and issue tracker need internet access.</p>
 <section id="launch">
 <h2>Launch and find your files</h2>
@@ -46,6 +46,15 @@ nav{display:flex;flex-wrap:wrap;gap:16px}section{margin-top:36px}.note{border-le
 <li><a href="samples/text-outline.svg">Outlined text</a>: text geometry without relying on installed fonts.</li>
 </ul>
 </section>
+<section id="prepare">
+<h2>Add a label, share pens and review overlap</h2>
+<p><strong>Open / Add &gt; Add text label…</strong> creates a label using the bundled single-stroke alphabet. Enter the text and letter height in millimetres; review its resulting width. Lowercase is drawn uppercase and unsupported characters are reported. <strong>Create quick artwork…</strong> also offers lines, rectangles and ellipses.</p>
+<img src="images/workspace/quick-artwork-dialog.png" alt="Quick artwork dialog with editable label text and physical letter height">
+<p>The new item is an artwork group: position it, assign its layer to a named pen, and include or exclude it normally. Save a <code>.gantry</code> project to retain the source. Reopen and use <strong>Edit &gt; Artwork Groups… &gt; Edit quick artwork…</strong> to change it. Creation and editing do not move a machine.</p>
+<p><strong>Edit &gt; Manage Pens…</strong> lets layers share a named pen with a colour and physical width. Updating that pen updates all assigned layers. Undo/Redo, project reload and new job history preserve assignments. Pen width stays physical when artwork is resized; measure the actual line on your paper.</p>
+<p>In <strong>Check before plotting</strong>, choose <strong>Analyze ink overlap…</strong> to inspect crossings and repeated passes in the prepared job. The analysis does not send machine commands. Its heatmap is geometric advice; it does not predict physical ink spread or drying, and does not add waits or reorder paths.</p>
+<img src="images/workspace/ink-overlap.png" alt="Advisory ink overlap analysis for the reviewed job">
+</section>
 <section id="fills">
 <h2>Predictable filled areas</h2>
 <p>In import processing or Adjust artwork processing, enable pen-width filling. For a region edit, choose Hatch Region Style and enable Use pen width + overlap. Effective stroke width is the measured line on your paper; nominal tip diameter is only a starting estimate.</p>
@@ -58,6 +67,7 @@ nav{display:flex;flex-wrap:wrap;gap:16px}section{margin-top:36px}.note{border-le
 <section id="save">
 <h2>Save, reopen and export</h2>
 <p><strong>File &gt; Save Project…</strong> saves editable artwork, placement, layer selection and preparation settings in a <code>.gantry</code> file. Ctrl+S reuses that path after the first save; Ctrl+Shift+S opens Save As. Use <strong>Open Gantry Project…</strong> to return to it.</p>
+<p><strong>File &gt; Export Reviewed Job as SVG…</strong> saves included layers, placement and passes as a physical-size SVG. <strong>Export Reviewed Job as SVG Package…</strong> writes a ZIP with the combined SVG, one SVG per included layer and a README. Review any bed-clamping warning. These exports carry geometry and pen metadata, not machine commands, pen-change confirmations, refill motion or drying waits. Export feedback reports the destination and SVG count.</p>
 <p><strong>Export G-code (for plotter)…</strong> writes machine instructions for the selected layers and placement. Exporting does not send the file to a physical controller. Check machine geometry and pen settings before using exported G-code on hardware.</p>
 <p>Unsaved edits create a recovery copy in your user profile. Settings, recent jobs and recovery persist across upgrades. Uninstalling Gantry preserves your profile and projects; your Documents folder is the recommended place for saved work.</p>
 <p>Save/export results appear above the canvas. <strong>Unresolved error</strong> retains earlier failure details while a later success appears. Failed saves preserve dirty state and recovery; closing the recovery prompt keeps the copy for later.</p>

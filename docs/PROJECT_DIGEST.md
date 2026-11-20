@@ -74,8 +74,8 @@ Risks:
 - There is a lot of documentation. For a new tester, README → FIRST_PLOT must stay the obvious path; everything else should remain secondary.
 - The adoption roadmap contains issue numbers and release details that can drift unless checked after GitHub changes.
 - `docs/KNOWN_GOOD_SETUPS.md` has a maintainer-reported Uuna Tek A1 H setup, but it should not be marketed as broad compatibility evidence until detailed acceptance fields and external entries land.
-- All screenshot views were captured from RC11 and are available in
-  [the screenshot gallery](images/README.md). The RC11 mock video is available;
+- Current screenshot views were refreshed during RC12 preparation and are available in
+  [the screenshot gallery](images/README.md). The refreshed mock video is available;
   external novice evidence remains pending.
 - The user guide is comprehensive, but long. If adoption reaches broader public testing, split it into focused pages only after real users show where they get lost.
 - Tracer JSON capture is now documented as a future pressure-bearing import path. Keep it out of current user instructions until implemented and tested.
@@ -103,7 +103,12 @@ controlled-motion, shared-backend and scripted serial fault regressions. See
    complete saved recipes, overrides, batch failure status and collision/source
    protection. See the [verification record](release-results/2026-11-20-cli-reliability.md).
    Squiggle #85 retains its [quality/cost review](validation/image-art/squiggle-fix/README.md).
-   Next recorded work is the operator/participant acceptance below.
+   RC12 is now being prepared as a draft with current screenshots and an
+   [operator worksheet](release-results/1.0.0-rc.12-operator.md). Visual review found
+   [#93](https://github.com/utrost/Gantry/issues/93), a document/workspace/export
+   orientation mismatch. Public distribution is held for a compatibility-preserving
+   resolution; do not silently change calibrated motion defaults. See the
+   [candidate record](release-results/1.0.0-rc.12.md).
 2. Use [OPERATOR_ACCEPTANCE.md](OPERATOR_ACCEPTANCE.md) for hardware, native scaling
    and expert checks (#39/#43/#54). Keep the first independent tester and
    five-person study (#16) separate from mock evidence; #72 still needs a user task.
