@@ -262,7 +262,8 @@ after machine-coordinate transforms and soft limits. If artwork extends beyond
 the bed, the summary says that some geometry is clipped. This is geometric
 coverage only: real ink spread and drying depend on pen, paper, pressure and
 speed. Analysis runs in the background and does not change plotting or safety
-confirmations.
+confirmations. The displayed grid uses the same physical-page origin and effective
+axis swap as the workspace; the underlying motor-grid counts are unchanged.
 
 ```
 SVG or image artwork
@@ -984,7 +985,7 @@ Type any G-code command in the text field and press Enter to send it directly.
 
 ## Exporting and replaying G-code
 
-- **Export Reviewed Job as SVG** — save selected layers, placement and passes as one physical-size SVG. **Export Reviewed Job as SVG Package** writes the same combined SVG plus one file per layer in a ZIP. Out-of-bed points are clamped to the configured bed, with a warning before export. These files contain no pen-change gate, refill motion or controller commands. A stored historical job retains its geometry and colours. New job snapshots also retain named pens and widths, which are included in SVG metadata; layers from older histories without widths use a labelled 0.3 mm display-width assumption after confirmation.
+- **Export Reviewed Job as SVG** — save selected layers, placement and passes as one physical-size SVG. **Export Reviewed Job as SVG Package** writes the same combined SVG plus one file per layer in a ZIP. Out-of-bed points are clamped to the configured bed, with a warning before export. Names retain valid Unicode and whitespace. If a layer or pen name contains an illegal XML character, export explains how to rename it and preserves any previous destination. The page orientation and dimensions match the reviewed workspace, including origin and effective axis swap; the SVG matrix maps motor points onto that physical page. These files contain no pen-change gate, refill motion or controller commands. A stored historical job retains its geometry and colours. New job snapshots also retain named pens and widths, which are included in SVG metadata; layers from older histories without widths use a labelled 0.3 mm display-width assumption after confirmation.
 
 - **Export G-code (for plotter)** — save the current command model as a `.gcode` file without executing it.
 - **Replay G-code** — load and stream an existing `.gcode` file straight to the plotter (bypasses the command model).

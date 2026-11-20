@@ -47,7 +47,7 @@ public final class SvgJobExporter {
                             safeName(artwork.layers().get(i).layer().id()));
                     entry(zip, name, render(artwork, widthsMm, penNames, i));
                 }
-                entry(zip, "README.txt", "SVG coordinates are millimetres on the configured machine bed.\n"
+                entry(zip, "README.txt", "SVG coordinates are physical-page millimetres, matching the reviewed workspace.\n"
                         + "combined.svg preserves the reviewed layer order; layers/ contains one SVG per layer.\n"
                         + "These files contain drawing paths only. They do not encode pen-change gates,\n"
                         + "refill motions, drying waits, or G-code/controller settings.\n");
@@ -64,13 +64,18 @@ public final class SvgJobExporter {
                 || artwork.widthMm() <= 0 || artwork.heightMm() <= 0) {
             throw new IllegalArgumentException("SVG bed dimensions must be positive and finite");
         }
+        MachinePageProjection page = artwork.page();
+        double[] matrix = new double[6];
+        page.transform().getMatrix(matrix);
+        String transform = java.util.Arrays.stream(matrix).mapToObj(SvgJobExporter::number)
+                .collect(java.util.stream.Collectors.joining(" "));
         StringBuilder svg = new StringBuilder(1024);
         svg.append("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n")
                 .append("<svg xmlns=\"http://www.w3.org/2000/svg\" ")
                 .append("xmlns:inkscape=\"http://www.inkscape.org/namespaces/inkscape\" ")
-                .append("width=\"").append(number(artwork.widthMm())).append("mm\" height=\"")
-                .append(number(artwork.heightMm())).append("mm\" viewBox=\"0 0 ")
-                .append(number(artwork.widthMm())).append(' ').append(number(artwork.heightMm()))
+                .append("width=\"").append(number(page.widthMm())).append("mm\" height=\"")
+                .append(number(page.heightMm())).append("mm\" viewBox=\"0 0 ")
+                .append(number(page.widthMm())).append(' ').append(number(page.heightMm()))
                 .append("\">\n");
         for (int i = 0; i < artwork.layers().size(); i++) {
             if (onlyLayer >= 0 && i != onlyLayer) continue;
@@ -92,8 +97,7 @@ public final class SvgJobExporter {
             svg.append("fill=\"none\" stroke=\"").append(color)
                     .append("\" stroke-width=\"").append(number(width))
                     .append("\" stroke-linecap=\"round\" stroke-linejoin=\"round\" ")
-                    .append("transform=\"translate(0 ").append(number(artwork.heightMm()))
-                    .append(") scale(1 -1)\">\n");
+                    .append("transform=\"matrix(").append(transform).append(")\">\n");
             for (List<Point> stroke : layer.strokes()) {
                 if (stroke.isEmpty()) continue;
                 svg.append("    <path d=\"M ").append(number(stroke.get(0).x())).append(' ')
@@ -128,8 +132,26 @@ public final class SvgJobExporter {
     }
 
     private static String xml(String value) {
-        return value.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
-                .replace("\"", "&quot;").replace("'", "&apos;");
+        StringBuilder escaped = new StringBuilder(value.length());
+        value.codePoints().forEach(code -> {
+            if (!(code == 9 || code == 10 || code == 13 || code >= 0x20 && code <= 0xd7ff
+                    || code >= 0xe000 && code <= 0xfffd || code >= 0x10000 && code <= 0x10ffff)) {
+                throw new IllegalArgumentException(String.format(Locale.ROOT,
+                        "SVG metadata contains an unsupported XML character U+%04X. Rename the layer or pen and retry.", code));
+            }
+            switch (code) {
+                case '&' -> escaped.append("&amp;");
+                case '<' -> escaped.append("&lt;");
+                case '>' -> escaped.append("&gt;");
+                case '"' -> escaped.append("&quot;");
+                case 39 -> escaped.append("&apos;");
+                case 9 -> escaped.append("&#9;");
+                case 10 -> escaped.append("&#10;");
+                case 13 -> escaped.append("&#13;");
+                default -> escaped.appendCodePoint(code);
+            }
+        });
+        return escaped.toString();
     }
 
     private static String number(double value) {

@@ -29,6 +29,7 @@ class SvgJobExporterTest {
         settings.machineWidth = 100.0;
         settings.machineHeight = 80.0;
         settings.flipY = true;
+        settings.originBottom = true; // This fixture supplies canonical Y-up motor coordinates.
         settings.alignmentOffsetOverride = new double[] {5, 10};
         ProcessorOutput output = new ProcessorOutput(
                 new Metadata("test", Instant.EPOCH, "station", "mm", 0, Bounds.empty()),
@@ -192,4 +193,54 @@ class SvgJobExporterTest {
         assertTrue(svg.contains("data-gantry-pen-width-assumed=\"true\""));
         assertFalse(svg.contains("data-gantry-pen-width-mm="));
     }
+    @Test void metadataRetainsUnicodeWhitespaceAndXmlEscapingInBothFormats() throws Exception {
+        String name = "Fine & \"red\" <pen> '  café \uD83D\uDD8A\tline\nnext\rrow";
+        var artwork = new PlotService.ProjectedArtwork(20, 12,
+                List.of(new PlotService.ProjectedLayer(new Layer(name, "station", List.of()), List.of())));
+        Path combined = temporary.resolve("names.svg"), packaged = temporary.resolve("names.zip");
+        SvgJobExporter.writeCombined(combined.toFile(), artwork, List.of(.3), List.of(name));
+        SvgJobExporter.writePackage(packaged.toFile(), artwork, List.of(.3), List.of(name));
+        List<byte[]> documents = new java.util.ArrayList<>();
+        documents.add(Files.readAllBytes(combined));
+        try (ZipFile zip = new ZipFile(packaged.toFile())) {
+            for (var entry : java.util.Collections.list(zip.entries()))
+                if (entry.getName().endsWith(".svg")) documents.add(zip.getInputStream(entry).readAllBytes());
+        }
+        assertEquals(3, documents.size());
+        var parser = javax.xml.parsers.DocumentBuilderFactory.newInstance();
+        parser.setNamespaceAware(true);
+        for (byte[] bytes : documents) {
+            var xml = parser.newDocumentBuilder().parse(new java.io.ByteArrayInputStream(bytes));
+            var group = (org.w3c.dom.Element) xml.getElementsByTagNameNS("http://www.w3.org/2000/svg", "g").item(0);
+            assertEquals(name, group.getAttributeNS("http://www.inkscape.org/namespaces/inkscape", "label"));
+            assertEquals(name, group.getAttribute("data-gantry-pen-name"));
+        }
+    }
+
+    @Test void invalidMetadataCannotReplaceEitherExportAndLeavesNoStagingFiles() throws Exception {
+        for (String name : List.of("bad\u0001name", "bad\uD800name", "bad\uDC00name", "bad\uFFFFname")) {
+            for (boolean invalidPen : List.of(false, true)) {
+                var artwork = new PlotService.ProjectedArtwork(20, 12,
+                        List.of(new PlotService.ProjectedLayer(
+                                new Layer(invalidPen ? "valid" : name, "station", List.of()), List.of())));
+                for (String extension : List.of("svg", "zip")) {
+                    Path destination = temporary.resolve("existing." + extension);
+                    Files.writeString(destination, "keep valid previous output");
+                    var error = assertThrows(IllegalArgumentException.class, () -> {
+                        if (extension.equals("svg")) SvgJobExporter.writeCombined(destination.toFile(), artwork,
+                                List.of(.3), List.of(invalidPen ? name : "valid"));
+                        else SvgJobExporter.writePackage(destination.toFile(), artwork,
+                                List.of(.3), List.of(invalidPen ? name : "valid"));
+                    });
+                    assertTrue(error.getMessage().contains("Rename the layer or pen"));
+                    assertEquals("keep valid previous output", Files.readString(destination));
+                }
+            }
+        }
+        try (var paths = Files.list(temporary)) {
+            assertEquals(List.of("existing.svg", "existing.zip"),
+                    paths.map(path -> path.getFileName().toString()).sorted().toList());
+        }
+    }
+
 }

@@ -68,7 +68,11 @@ Visual review during RC12 preparation found [#93](https://github.com/utrost/Gant
 Y-up document geometry, workspace mapping and SVG/overlap page orientation disagree.
 Public distribution is held pending a compatibility-preserving resolution; do not
 silently flip existing calibrated machine settings. The candidate record contains
-the failing captures. This is the next software investigation.
+the failing captures. A presentation-only fix now maps SVG/ZIP and overlap onto
+the same physical page as the workspace, preserving all executable motion.
+[Verification](docs/release-results/2026-11-20-page-projection.md) covers 256
+configurations. Default workspace text readability remains unresolved; #93 and
+the public-distribution hold stay open.
 
 The independently actionable tracked software issues #84 and #88–#91 are
 complete: packaged PNG support, honest export failures, reproducible recipes,

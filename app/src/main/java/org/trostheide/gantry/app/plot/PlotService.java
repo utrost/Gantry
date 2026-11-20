@@ -29,7 +29,14 @@ public class PlotService {
 
     /** Drawing paths in final machine millimetres, excluding pen-up travel and refill motions. */
     public record ProjectedLayer(Layer layer, List<List<Point>> strokes) { }
-    public record ProjectedArtwork(double widthMm, double heightMm, List<ProjectedLayer> layers) { }
+    public record ProjectedArtwork(double widthMm, double heightMm, List<ProjectedLayer> layers,
+                                   MachinePageProjection page) {
+        /** Compatibility for callers supplying canonical X-right/Y-up coordinates directly. */
+        public ProjectedArtwork(double widthMm, double heightMm, List<ProjectedLayer> layers) {
+            this(widthMm, heightMm, layers,
+                    new MachinePageProjection(widthMm, heightMm, false, false, true));
+        }
+    }
 
     /**
      * Projects the same prepared commands used for plotting without moving a machine.
@@ -58,7 +65,8 @@ public class PlotService {
             projected.add(new ProjectedLayer(output.layers().get(i),
                     paths.get(i).stream().map(List::copyOf).toList()));
         }
-        return new ProjectedArtwork(machineW, machineH, List.copyOf(projected));
+        return new ProjectedArtwork(machineW, machineH, List.copyOf(projected),
+                MachinePageProjection.from(settings));
     }
 
     /** One machine-space segment that the plot loop sends with the pen down. */
