@@ -5,7 +5,7 @@
   "draft": true,
   "publicDistribution": "HELD for orientation issue #93",
   "tagBuild": "https://github.com/utrost/Gantry/actions/runs/44827629776",
-  "releaseUrl": "https://github.com/utrost/Gantry/releases/tag/untagged-0c5867758b5b2594142f",
+  "releaseUrl": "https://github.com/utrost/Gantry/releases/tag/untagged-b19cc993d7d1ca9e06dd",
   "automatedAssetVerification": "PASS",
   "debianVersion": "1.0.12",
   "checksummedAssets": 8,
@@ -73,5 +73,7 @@
       "profilePreserved": true,
       "packagedCli": "PASS"
     }
-  }
+  },
+  "releaseId": 453236890,
+  "targetCommitish": "8dcb772a88e49ff073a7646b5495655ac9791b5c"
 }
