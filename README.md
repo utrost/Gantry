@@ -51,7 +51,7 @@ Watch the [one-minute mock walkthrough](docs/demos/Gantry-first-plot-mock.mp4):
 actual app screens show import, preview, the pre-plot checklist, pen confirmation,
 and completion. This captioned walkthrough simulates plotting; no hardware moves.
 
-RC12 is being prepared as a draft; public distribution is held for orientation
+RC12 is staged as a verified draft; public distribution is held for orientation
 defect [#93](https://github.com/utrost/Gantry/issues/93). See the
 [candidate evidence](docs/release-results/1.0.0-rc.12.md) and
 [operator worksheet](docs/release-results/1.0.0-rc.12-operator.md).

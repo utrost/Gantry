@@ -1,0 +1,4 @@
+Top-Left: workspace F-up dy=7, F-right dx=5; SVG-page F-up dy=-7, F-right dx=5
+Top-Right: workspace F-up dy=7, F-right dx=5; SVG-page F-up dy=-7, F-right dx=-5
+Bottom-Left: workspace F-up dy=7, F-right dx=5; SVG-page F-up dy=7, F-right dx=5
+Bottom-Right: workspace F-up dy=7, F-right dx=5; SVG-page F-up dy=7, F-right dx=-5

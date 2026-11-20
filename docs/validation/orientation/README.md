@@ -29,3 +29,23 @@ Open the SVG independently and inspect all views before interpreting a pass.
 Source analysis and compatibility requirements are in #93. Do not fix this by
 silently changing calibrated-profile inversions. Any executable mapping change
 needs historical-job review and fresh direction/frame/plot acceptance.
+
+## Four-origin diagnosis
+
+[The measured matrix](origin-matrix.txt) uses a 7 mm asymmetric F and the actual
+GantryConfig → PlotService → CoordinateTransform.physicalToScreen pipeline.
+For screen/SVG-page coordinates, a readable F has an upward vector with negative
+Y and a rightward vector with positive X. The workspace instead reports upward
+stroke `dy=+7` for every ordinary origin; export signs depend on the origin.
+
+Reproduce this software-only measurement with the matching GUI JAR:
+
+```bash
+java -cp dist/1.0.0-rc.12/Gantry-1.0.0-rc.12.jar \
+  docs/validation/orientation/GantryOrientationAudit.java
+```
+
+The diagnostic creates no backend and changes no profile. It reports the
+observed projection, rather than asserting the current incorrect orientation
+as expected behavior. A future fix needs view/render regressions and the
+compatibility/hardware acceptance in #93.

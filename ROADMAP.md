@@ -54,10 +54,11 @@ See the [integration record](docs/release-results/2026-11-20-integration.md).
   [verification record](docs/release-results/2026-11-20-svg-export.md).
 - **Quick artwork #72:** software criteria complete; one actual user task remains.
 
-## Now — prepare RC12 for acceptance
+## Now — resolve RC12 orientation before public acceptance
 
-RC12 (`1.0.0-rc.12`, native `1.0.12`) is being prepared as a draft candidate,
-with upgrades from a synthetic RC11 fixture. RC11 remains the public download
+RC12 (`1.0.0-rc.12`, native `1.0.12`) is staged as a draft at `8dcb772`.
+The tagged Windows/Linux builds, synthetic RC11 upgrades and all nine downloaded
+assets/checksums passed verification. RC11 remains the public download
 until a reviewed candidate is published. See the [candidate record](docs/release-results/1.0.0-rc.12.md)
 and [ready-to-fill operator worksheet](docs/release-results/1.0.0-rc.12-operator.md).
 
