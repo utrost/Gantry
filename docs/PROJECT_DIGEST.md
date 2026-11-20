@@ -99,11 +99,11 @@ controlled-motion, shared-backend and scripted serial fault regressions. See
 [BACKEND_CONTRACT.md](BACKEND_CONTRACT.md) and the
 [verification record](release-results/2026-11-20-backend-contracts.md).
 
-1. Fix packaged CLI PNG export (#84). Squiggle subject retention/centre bias
-   (#85) is addressed with position-independent shading and connected sketch
-   contours. The [before/after report](validation/image-art/squiggle-fix/README.md)
-   reviews all three photographs, standard and actual Studio recipes, and the
-   increased motion cost. No beginner defaults changed.
+1. The five independent CLI issues #84/#88–#91 are fixed: PNG packaging,
+   complete saved recipes, overrides, batch failure status and collision/source
+   protection. See the [verification record](release-results/2026-11-20-cli-reliability.md).
+   Squiggle #85 retains its [quality/cost review](validation/image-art/squiggle-fix/README.md).
+   Next recorded work is the operator/participant acceptance below.
 2. Use [OPERATOR_ACCEPTANCE.md](OPERATOR_ACCEPTANCE.md) for hardware, native scaling
    and expert checks (#39/#43/#54). Keep the first independent tester and
    five-person study (#16) separate from mock evidence; #72 still needs a user task.

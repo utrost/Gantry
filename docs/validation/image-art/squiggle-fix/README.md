@@ -134,5 +134,6 @@ The historical files deliberately keep their original hashes and observations.
 The quality assessment above is an agent review of software-rendered output,
 not an external-user panel or a physical plot. No claim of photographic tone
 fidelity, broad image coverage, stable release readiness or measured print
-quality follows from this small corpus. PNG export remains separately tracked
-in [#84](https://github.com/utrost/Gantry/issues/84).
+quality follows from this small corpus. PNG export, tracked separately in
+[#84](https://github.com/utrost/Gantry/issues/84), is fixed with the
+[CLI reliability checks](../../../release-results/2026-11-20-cli-reliability.md).

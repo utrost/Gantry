@@ -5,6 +5,16 @@ import org.apache.commons.cli.ParseException;
 
 import java.awt.image.BufferedImage;
 import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.Locale;
+import java.util.Set;
+import java.util.HashSet;
+import java.util.Arrays;
+import org.apache.commons.cli.Option;
 import java.nio.file.Paths;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -39,26 +49,7 @@ public class Main {
         }
 
         try {
-            // --- CONFIG RERUN MODE ---
-            String configPath = cli.getConfigPath(cmd);
-            if (configPath != null) {
-                System.out.println("Loading parameters from config: " + configPath);
-                CommandLine configCmd = cli.loadConfigFile(configPath);
-                // Merge: CLI args override config, but config provides defaults.
-                // If user also specified -o, use that; otherwise auto-generate.
-                if (cmd.hasOption("o")) {
-                    // Build a merged command by re-parsing with output override
-                    List<String> mergedArgs = new ArrayList<>();
-                    for (String arg : rebuildArgs(configCmd)) {
-                        mergedArgs.add(arg);
-                    }
-                    mergedArgs.add("-o");
-                    mergedArgs.add(cmd.getOptionValue("o"));
-                    cmd = cli.parse(mergedArgs.toArray(new String[0]));
-                } else {
-                    cmd = configCmd;
-                }
-            }
+            cmd = resolveConfig(cli, cmd);
 
             // --- BATCH PROCESSING MODE ---
             String inputDir = cli.getInputDir(cmd);
@@ -88,42 +79,40 @@ public class Main {
 
         File dir = new File(inputDir);
         if (!dir.isDirectory()) {
-            System.err.println("Not a directory: " + inputDir);
-            System.exit(1);
+            throw new IOException("Not a directory: " + inputDir);
         }
 
         File outDir = new File(outputDir);
-        if (!outDir.exists()) {
-            outDir.mkdirs();
-        }
 
         File[] imageFiles = dir.listFiles((d, name) -> {
-            String lower = name.toLowerCase();
+            String lower = name.toLowerCase(Locale.ROOT);
             return lower.endsWith(".png") || lower.endsWith(".jpg") || lower.endsWith(".jpeg") || lower.endsWith(".bmp");
         });
 
-        if (imageFiles == null || imageFiles.length == 0) {
+        if (imageFiles == null) throw new IOException("Could not list input directory: " + inputDir);
+        if (imageFiles.length == 0) {
             System.out.println("No image files found in: " + inputDir);
             return;
         }
 
+        Arrays.sort(imageFiles, Comparator.comparing((File f) -> f.getName().toLowerCase(Locale.ROOT))
+                .thenComparing(File::getName));
+        preflightBatchOutputs(imageFiles, outDir, cli.getFormat(cmd));
+        Files.createDirectories(outDir.toPath());
         System.out.printf("Batch processing %d images from %s → %s%n", imageFiles.length, inputDir, outputDir);
 
         int success = 0;
         int failed = 0;
+        List<String> failedNames = new ArrayList<>();
         for (File imageFile : imageFiles) {
             try {
                 String baseName = getBaseFileName(imageFile.getName());
                 String svgPath = Paths.get(outputDir, baseName + ".svg").toString();
-                String jsonPath = Paths.get(outputDir, baseName + ".json").toString();
 
                 System.out.printf("%n--- Processing: %s ---%n", imageFile.getName());
 
-                // Build a per-file command with input and output overridden
-                List<String> fileArgs = rebuildArgs(cmd);
-                // Remove any existing -i and -o
-                fileArgs = removeOption(fileArgs, "-i");
-                fileArgs = removeOption(fileArgs, "-o");
+                List<String> fileArgs = rebuildArgs(cmd,
+                        Set.of("input", "output", "input-dir", "output-dir", "config"));
                 fileArgs.add("-i");
                 fileArgs.add(imageFile.getAbsolutePath());
                 fileArgs.add("-o");
@@ -135,10 +124,13 @@ public class Main {
             } catch (Exception e) {
                 System.err.printf("Failed to process %s: %s%n", imageFile.getName(), e.getMessage());
                 failed++;
+                failedNames.add(imageFile.getName());
             }
         }
 
         System.out.printf("%nBatch complete: %d succeeded, %d failed%n", success, failed);
+        if (failed > 0) throw new IOException("Batch failures (" + success + " succeeded, " + failed
+                + " failed): " + String.join(", ", failedNames));
     }
 
     /**
@@ -152,13 +144,14 @@ public class Main {
      */
     public static void runSingleFile(String[] args) throws Exception {
         CliParser cli = new CliParser();
-        runSingleFile(cli, cli.parse(args));
+        runSingleFile(cli, resolveConfig(cli, cli.parse(args)));
     }
 
     /**
      * Processes a single image file (the core workflow).
      */
     public static void runSingleFile(CliParser cli, CommandLine cmd) throws Exception {
+        cmd = resolveConfig(cli, cmd);
         // Diagnostic edge maps are written only with --debug (to the temp dir, not the CWD).
         BoofcvBatikVector.DEBUG = cmd.hasOption("debug");
 
@@ -197,6 +190,7 @@ public class Main {
 
         // Export format
         String format = cli.getFormat(cmd);
+        ExportUtil.requireFormatSupport(format);
 
         // Auto Canny
         boolean cannyAuto = cli.getCannyAuto(cmd);
@@ -493,39 +487,54 @@ public class Main {
         }
     }
 
-    /**
-     * Rebuilds CLI args from a parsed CommandLine for re-parsing with modifications.
-     */
-    private static List<String> rebuildArgs(CommandLine cmd) {
-        List<String> args = new ArrayList<>();
-        for (var opt : cmd.getOptions()) {
-            if (opt.getLongOpt() != null) {
-                args.add("--" + opt.getLongOpt());
-            } else {
-                args.add("-" + opt.getOpt());
-            }
-            if (opt.hasArg() && opt.getValue() != null) {
-                args.add(opt.getValue());
-            }
-        }
-        return args;
+    /** Saved settings are defaults; each explicit CLI option replaces its canonical alias once. */
+    static CommandLine resolveConfig(CliParser cli, CommandLine explicit) throws ParseException {
+        String path = cli.getConfigPath(explicit);
+        if (path == null) return explicit;
+        Map<String, Option> merged = options(cli.loadConfigFile(path), Set.of());
+        merged.putAll(options(explicit, Set.of("config")));
+        return cli.parse(arguments(merged).toArray(new String[0]));
     }
 
-    /**
-     * Removes an option (and its value) from an arg list.
-     */
-    private static List<String> removeOption(List<String> args, String optName) {
-        List<String> result = new ArrayList<>();
-        for (int i = 0; i < args.size(); i++) {
-            if (args.get(i).equals(optName) || args.get(i).equals("--" + optName.replaceFirst("^-+", ""))) {
-                // Skip this arg and its value if it has one
-                if (i + 1 < args.size() && !args.get(i + 1).startsWith("-")) {
-                    i++; // skip value too
-                }
-            } else {
-                result.add(args.get(i));
-            }
+    private static Map<String, Option> options(CommandLine cmd, Set<String> excluded) {
+        Map<String, Option> result = new LinkedHashMap<>();
+        for (Option option : cmd.getOptions()) {
+            String key = option.getLongOpt() == null ? option.getOpt() : option.getLongOpt();
+            if (!excluded.contains(key)) result.put(key, option);
         }
         return result;
+    }
+
+    private static List<String> arguments(Map<String, Option> options) {
+        List<String> result = new ArrayList<>();
+        for (Option option : options.values()) {
+            result.add(option.getLongOpt() == null ? "-" + option.getOpt() : "--" + option.getLongOpt());
+            if (option.hasArg() && option.getValue() != null) result.add(option.getValue());
+        }
+        return result;
+    }
+
+    private static List<String> rebuildArgs(CommandLine cmd, Set<String> excluded) {
+        return arguments(options(cmd, excluded));
+    }
+
+    /** Reject ambiguous destinations and source overwrites before writing any batch artifact. */
+    private static void preflightBatchOutputs(File[] inputs, File output, String format) throws IOException {
+        Set<String> sources = new HashSet<>();
+        for (File input : inputs) sources.add(input.getCanonicalPath().toLowerCase(Locale.ROOT));
+        Set<String> targets = new HashSet<>();
+        for (File input : inputs) {
+            String base = getBaseFileName(input.getName());
+            List<String> names = new ArrayList<>(List.of(base + ".svg", base + ".svg.json"));
+            if (!"svg".equals(format)) names.add(base + "." + format);
+            for (String name : names) {
+                File target = new File(output, name);
+                String key = target.getCanonicalPath().toLowerCase(Locale.ROOT);
+                if (sources.contains(key)) throw new IOException("Batch output would overwrite input: " + target
+                        + ". Choose a separate output directory.");
+                if (!targets.add(key)) throw new IOException("Batch output name collision: " + target
+                        + ". Rename duplicate input basenames or run them separately.");
+            }
+        }
     }
 }

@@ -6,6 +6,9 @@ import org.apache.batik.transcoder.image.PNGTranscoder;
 
 import java.io.*;
 import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
+import java.nio.file.AtomicMoveNotSupportedException;
 
 /**
  * Utility class for exporting SVG files to other formats (PNG, PDF).
@@ -27,11 +30,15 @@ public class ExportUtil {
             transcoder.addTranscodingHint(PNGTranscoder.KEY_WIDTH, widthHint);
         }
 
-        try (InputStream in = Files.newInputStream(new File(svgPath).toPath());
-             OutputStream out = new FileOutputStream(pngPath)) {
-            TranscoderInput input = new TranscoderInput(in);
-            TranscoderOutput output = new TranscoderOutput(out);
-            transcoder.transcode(input, output);
+        try {
+            atomicExport(pngPath, temporary -> {
+                try (InputStream in = Files.newInputStream(Path.of(svgPath));
+                     OutputStream out = Files.newOutputStream(temporary)) {
+                    transcoder.transcode(new TranscoderInput(in), new TranscoderOutput(out));
+                }
+            });
+        } catch (Exception failure) {
+            throw new IOException("Could not export PNG to " + pngPath + ": " + failure, failure);
         }
 
         System.out.println("Exported PNG: " + pngPath);
@@ -45,25 +52,43 @@ public class ExportUtil {
      * @param pdfPath Path for the output PDF file
      */
     public static void exportToPdf(String svgPath, String pdfPath) throws Exception {
-        // Try to use Batik's PDF transcoder (requires batik-transcoder + FOP)
-        try {
-            Class<?> pdfTranscoderClass = Class.forName("org.apache.fop.svg.PDFTranscoder");
-            org.apache.batik.transcoder.Transcoder transcoder =
-                    (org.apache.batik.transcoder.Transcoder) pdfTranscoderClass.getDeclaredConstructor().newInstance();
-
-            try (InputStream in = Files.newInputStream(new File(svgPath).toPath());
-                 OutputStream out = new FileOutputStream(pdfPath)) {
-                TranscoderInput input = new TranscoderInput(in);
-                TranscoderOutput output = new TranscoderOutput(out);
-                transcoder.transcode(input, output);
+        requireFormatSupport("pdf");
+        Class<?> pdfTranscoderClass = Class.forName("org.apache.fop.svg.PDFTranscoder");
+        org.apache.batik.transcoder.Transcoder transcoder =
+                (org.apache.batik.transcoder.Transcoder) pdfTranscoderClass.getDeclaredConstructor().newInstance();
+        atomicExport(pdfPath, temporary -> {
+            try (InputStream in = Files.newInputStream(Path.of(svgPath));
+                 OutputStream out = Files.newOutputStream(temporary)) {
+                transcoder.transcode(new TranscoderInput(in), new TranscoderOutput(out));
             }
+        });
+        System.out.println("Exported PDF: " + pdfPath);
+    }
 
-            System.out.println("Exported PDF: " + pdfPath);
-        } catch (ClassNotFoundException e) {
-            System.err.println("PDF export requires Apache FOP on the classpath. "
-                    + "Add 'org.apache.xmlgraphics:fop' dependency to pom.xml for PDF support.");
-            System.err.println("As an alternative, use --format png and convert to PDF externally.");
+    /** Fail before generating artifacts when an optional requested exporter is unavailable. */
+    public static void requireFormatSupport(String format) throws IOException {
+        if ("pdf".equals(format)) {
+            try { Class.forName("org.apache.fop.svg.PDFTranscoder"); }
+            catch (ClassNotFoundException | LinkageError missing) {
+                throw new IOException("PDF export is unavailable: the packaged CLI does not bundle Apache FOP. "
+                        + "Use --format svg or --format png, or supply Apache FOP on a custom classpath.", missing);
+            }
         }
+    }
+
+    @FunctionalInterface private interface ExportWriter { void write(Path temporary) throws Exception; }
+
+    // This module intentionally has no model-module dependency.
+    private static void atomicExport(String destination, ExportWriter writer) throws Exception {
+        Path target = Path.of(destination).toAbsolutePath();
+        Path temporary = Files.createTempFile(target.getParent(), ".gantry-export-", ".tmp");
+        try {
+            writer.write(temporary);
+            try { Files.move(temporary, target, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING); }
+            catch (AtomicMoveNotSupportedException unsupported) {
+                Files.move(temporary, target, StandardCopyOption.REPLACE_EXISTING);
+            }
+        } finally { Files.deleteIfExists(temporary); }
     }
 
     /**

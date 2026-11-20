@@ -5,6 +5,7 @@ import org.trostheide.gantry.vectorize.strategies.*;
 
 import java.util.Map;
 import java.util.HashMap;
+import java.util.Locale;
 
 /**
  * Parses command line arguments using Apache Commons CLI and validates inputs.
@@ -265,7 +266,7 @@ public class CliParser {
         options.addOption(Option.builder()
                 .longOpt("format")
                 .hasArg()
-                .desc("Output format: svg, png, pdf. Default: svg")
+                .desc("Output format: svg, png; pdf requires optional Apache FOP (not bundled). Default: svg")
                 .build());
 
         // --- Auto Canny Option ---
@@ -473,8 +474,13 @@ public class CliParser {
                 throw new ParseException("Missing required option: -i/--input (or use --config/--input-dir)");
             }
 
+            if (!cmd.hasOption("config")) {
+                try { getFormat(cmd); }
+                catch (IllegalArgumentException failure) { throw new ParseException(failure.getMessage()); }
+            }
+
             // Cross-validate Canny thresholds (only if not using bezier)
-            if (!"bezier".equals(cmd.getOptionValue("s"))) {
+            if (!cmd.hasOption("config") && !"bezier".equals(cmd.getOptionValue("s"))) {
                 double low = getCannyLow(cmd);
                 double high = getCannyHigh(cmd);
                 if (low >= high) {
@@ -755,7 +761,10 @@ public class CliParser {
     }
 
     public String getFormat(CommandLine cmd) {
-        return cmd.getOptionValue("format", "svg").toLowerCase();
+        String format = cmd.getOptionValue("format", "svg").toLowerCase(Locale.ROOT);
+        if (!java.util.Set.of("svg", "png", "pdf").contains(format))
+            throw new IllegalArgumentException("Unsupported output format: " + format + "; use svg or png (pdf requires optional Apache FOP)");
+        return format;
     }
 
     public String getConfigPath(CommandLine cmd) {
@@ -776,8 +785,18 @@ public class CliParser {
      */
     public CommandLine loadConfigFile(String configPath) throws ParseException {
         try {
-            String content = new String(java.nio.file.Files.readAllBytes(java.nio.file.Paths.get(configPath)));
+            String content = java.nio.file.Files.readString(java.nio.file.Paths.get(configPath), java.nio.charset.StandardCharsets.UTF_8);
             org.json.JSONObject json = new org.json.JSONObject(content);
+
+            // Older sidecars nested common/style settings under the strategy object.
+            for (String section : new String[] {"contour", "sketch", "needles", "isolines"}) {
+                org.json.JSONObject nested = json.optJSONObject(section);
+                if (nested == null) continue;
+                for (String key : new String[] {"tolerance", "detail", "minLength", "maxLength", "cannyBlur",
+                        "cannyLow", "cannyHigh", "cannyAuto", "colorEdges", "strokeColor", "strokeWidth", "smoothCurves"}) {
+                    if (!json.has(key) && nested.has(key)) json.put(key, nested.get(key));
+                }
+            }
 
             java.util.List<String> argList = new java.util.ArrayList<>();
 
@@ -832,6 +851,18 @@ public class CliParser {
             }
             if (json.has("smoothCurves") && json.getBoolean("smoothCurves")) {
                 argList.add("--smooth-curves");
+            }
+
+            for (String flag : new String[] {"cannyAuto", "colorEdges"}) {
+                if (json.optBoolean(flag, false)) argList.add(flag.equals("cannyAuto") ? "--canny-auto" : "--color-edges");
+            }
+            if (json.has("crop")) { argList.add("--crop"); argList.add(json.getString("crop")); }
+            if (json.has("format")) { argList.add("--format"); argList.add(json.getString("format")); }
+            if (json.has("squiggle")) {
+                org.json.JSONObject sq = json.getJSONObject("squiggle");
+                for (String key : new String[] {"density", "amplitude", "tone", "background"}) {
+                    if (sq.has(key)) { argList.add("--squiggle-" + key); argList.add(String.valueOf(sq.getDouble(key))); }
+                }
             }
 
             // Bezier params
@@ -906,6 +937,7 @@ public class CliParser {
             if (json.has("pbn")) {
                 org.json.JSONObject pbn = json.getJSONObject("pbn");
                 if (pbn.has("colors")) { argList.add("--pbn-colors"); argList.add(pbn.getString("colors")); }
+                if (pbn.has("numColors")) { argList.add("--pbn-num-colors"); argList.add(String.valueOf(pbn.getInt("numColors"))); }
                 if (pbn.has("minArea")) { argList.add("--pbn-min-area"); argList.add(String.valueOf(pbn.getInt("minArea"))); }
                 if (pbn.has("fontSize")) { argList.add("--pbn-font-size"); argList.add(String.valueOf(pbn.getInt("fontSize"))); }
                 if (pbn.has("noNumbers") && pbn.getBoolean("noNumbers")) { argList.add("--pbn-no-numbers"); }

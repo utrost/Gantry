@@ -63,6 +63,13 @@ jobs:
       - name: Build and test release
         shell: bash
         run: python scripts/release.py "$VERSION" --installer --upgrade-from "$UPGRADE_FROM"
+      - name: Packaged CLI workflows on native platform
+        shell: bash
+        run: >-
+          java -Djava.awt.headless=true -cp "dist/$VERSION/Gantry-CLI-$VERSION.jar"
+          scripts/validation/PackagedCliAcceptance.java
+          "dist/$VERSION/Gantry-CLI-$VERSION.jar" dist/validation/packaged-cli
+          docs/validation/image-art/inputs/camera.png
       - name: Linux installed workflows and upgrade acceptance
         if: runner.os == 'Linux'
         shell: bash

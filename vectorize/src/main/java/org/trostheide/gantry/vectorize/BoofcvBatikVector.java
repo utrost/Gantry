@@ -1,5 +1,8 @@
 package org.trostheide.gantry.vectorize;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
+
 import boofcv.alg.feature.detect.edge.CannyEdge;
 import boofcv.factory.feature.detect.edge.FactoryEdgeDetectors;
 import boofcv.core.image.GConvertImage;
@@ -550,6 +553,25 @@ public class BoofcvBatikVector {
         String strategyName = cmd.getOptionValue("s", "dp");
         params.put("strategy", strategyName);
 
+        // Effective common settings are top-level so every strategy can be rerun exactly.
+        params.put("recipeVersion", 2);
+        params.put("tolerance", tempParser.getTolerance(cmd));
+        params.put("detail", tempParser.getDetailLevel(cmd));
+        params.put("minLength", tempParser.getMinLength(cmd));
+        params.put("maxLength", tempParser.getMaxLength(cmd));
+        params.put("cannyBlur", tempParser.getCannyBlur(cmd));
+        params.put("cannyLow", tempParser.getCannyLow(cmd));
+        params.put("cannyHigh", tempParser.getCannyHigh(cmd));
+        params.put("cannyAuto", tempParser.getCannyAuto(cmd));
+        params.put("colorEdges", tempParser.getColorEdges(cmd));
+        params.put("strokeColor", tempParser.getStrokeColor(cmd));
+        params.put("strokeWidth", tempParser.getStrokeWidth(cmd));
+        params.put("smoothCurves", tempParser.getSmoothCurves(cmd));
+        params.put("clThreshold", tempParser.getClThreshold(cmd));
+        params.put("format", tempParser.getFormat(cmd));
+        java.awt.Rectangle crop = tempParser.getCrop(cmd);
+        if (crop != null) params.put("crop", crop.x + "," + crop.y + "," + crop.width + "," + crop.height);
+
         if (strategyName.equals("bezier")) {
             JSONObject bezier = new JSONObject();
             bezier.put("detail", tempParser.getBezierDetail(cmd));
@@ -569,10 +591,19 @@ public class BoofcvBatikVector {
             JSONObject pbn = new JSONObject();
             pbn.put("colors", cmd.getOptionValue("pbn-colors", ""));
             pbn.put("minArea", tempParser.getPbnMinArea(cmd));
+            pbn.put("numColors", tempParser.getPbnNumColors(cmd));
             pbn.put("fontSize", tempParser.getPbnFontSize(cmd));
             pbn.put("noNumbers", tempParser.isPbnNoNumbers(cmd));
             pbn.put("noLegend", tempParser.isPbnNoLegend(cmd));
             params.put("pbn", pbn);
+
+        } else if (strategyName.equals("squiggle")) {
+            JSONObject squiggle = new JSONObject();
+            squiggle.put("density", tempParser.getSquiggleDensity(cmd));
+            squiggle.put("amplitude", tempParser.getSquiggleAmplitude(cmd));
+            squiggle.put("tone", tempParser.getSquiggleTone(cmd));
+            squiggle.put("background", tempParser.getSquiggleBackgroundSuppression(cmd));
+            params.put("squiggle", squiggle);
 
         } else if (strategyName.equals("needles")) {
             JSONObject needles = new JSONObject();
@@ -622,9 +653,7 @@ public class BoofcvBatikVector {
             params.put("contour", contour);
         }
 
-        try (FileWriter file = new FileWriter(jsonOutputPath)) {
-            file.write(params.toString(4));
-        }
+        Files.writeString(Path.of(jsonOutputPath), params.toString(4), java.nio.charset.StandardCharsets.UTF_8);
     }
 
     /**
