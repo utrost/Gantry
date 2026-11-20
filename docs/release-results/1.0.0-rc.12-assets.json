@@ -1,0 +1,79 @@
+{
+  "version": "1.0.0-rc.12",
+  "sourceCommit": "8dcb772a88e49ff073a7646b5495655ac9791b5c",
+  "tag": "v1.0.0-rc.12",
+  "draft": true,
+  "publicDistribution": "HELD for orientation issue #93",
+  "tagBuild": "https://github.com/utrost/Gantry/actions/runs/44827629776",
+  "releaseUrl": "https://github.com/utrost/Gantry/releases/tag/untagged-b19cc993d7d1ca9e06dd",
+  "automatedAssetVerification": "PASS",
+  "debianVersion": "1.0.12",
+  "checksummedAssets": 8,
+  "assets": [
+    {
+      "name": "Gantry-1.0.0-rc.12-docs.zip",
+      "bytes": 285604,
+      "sha256": "5f45aac7cf283e2a0023c40b61e83c85796a96599c014e815235c7e10cf54efa"
+    },
+    {
+      "name": "Gantry-1.0.0-rc.12-linux-x64.deb",
+      "bytes": 100063858,
+      "sha256": "9a6347a8352fe3a2a9f51d3c135fbfa3f58d353ddfa20f85a4ccfac0f84eac23"
+    },
+    {
+      "name": "Gantry-1.0.0-rc.12-windows-x64.msi",
+      "bytes": 120177124,
+      "sha256": "507af4635422c27115965724b7841e6b7af43711021c13716d5e95331918ce43"
+    },
+    {
+      "name": "Gantry-1.0.0-rc.12.jar",
+      "bytes": 34540205,
+      "sha256": "1a3259b589d87a230e9dd9ad38cced603e19609c2e114882b2c24532237b817c"
+    },
+    {
+      "name": "Gantry-CLI-1.0.0-rc.12.jar",
+      "bytes": 33669548,
+      "sha256": "d53519eaaf9d754a1b1ee3200cf77ec85ad8f7b248f32aa5d28af619cbe3ec7a"
+    },
+    {
+      "name": "LICENSE",
+      "bytes": 35184,
+      "sha256": "e0eedba615d5cd1b986afb6c5b3a4b1ae33713e7e9dc74d19daec5e3221f9d2e"
+    },
+    {
+      "name": "README.md",
+      "bytes": 2430,
+      "sha256": "7872a7158a6aee77653354bc566e098b390dea1b053f8780282a230c45404396"
+    },
+    {
+      "name": "SHA256SUMS",
+      "bytes": 704,
+      "sha256": "be34dd6f42f46ff0b42477a678b4851892d2fdfef9b2a34403b6c38dbc6b4195"
+    },
+    {
+      "name": "VERSION.txt",
+      "bytes": 20,
+      "sha256": "177c953766442c5401ac37e7c9159ff7a8cc9675db367d4b4bdb164812bbbfa9"
+    }
+  ],
+  "nativeAcceptance": {
+    "Windows": {
+      "status": "PASS",
+      "javaTests": 597,
+      "seedVerify": "PASS",
+      "syntheticUpgrade": "1.0.0-rc.11 \u2192 1.0.0-rc.12",
+      "profilePreserved": true,
+      "packagedCli": "PASS"
+    },
+    "Linux": {
+      "status": "PASS",
+      "javaTests": 597,
+      "seedVerify": "PASS",
+      "syntheticUpgrade": "1.0.0-rc.11 \u2192 1.0.0-rc.12",
+      "profilePreserved": true,
+      "packagedCli": "PASS"
+    }
+  },
+  "releaseId": 453236890,
+  "targetCommitish": "8dcb772a88e49ff073a7646b5495655ac9791b5c"
+}

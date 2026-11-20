@@ -103,7 +103,7 @@ controlled-motion, shared-backend and scripted serial fault regressions. See
    complete saved recipes, overrides, batch failure status and collision/source
    protection. See the [verification record](release-results/2026-11-20-cli-reliability.md).
    Squiggle #85 retains its [quality/cost review](validation/image-art/squiggle-fix/README.md).
-   RC12 is now being prepared as a draft with current screenshots and an
+   RC12 is staged as a verified draft at `8dcb772`, with current screenshots and an
    [operator worksheet](release-results/1.0.0-rc.12-operator.md). Visual review found
    [#93](https://github.com/utrost/Gantry/issues/93), a document/workspace/export
    orientation mismatch. Public distribution is held for a compatibility-preserving
