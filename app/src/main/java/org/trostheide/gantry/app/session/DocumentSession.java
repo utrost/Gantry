@@ -131,6 +131,27 @@ public final class DocumentSession {
         clearSource();
     }
 
+    public void appendQuickArtwork(QuickArtwork spec) {
+        ProcessorOutput output = QuickArtworkGenerator.generate(spec);
+        appendArtwork(output, output.metadata().source());
+        List<CompositionArtwork> next = new ArrayList<>(artworks);
+        int last = next.size() - 1;
+        next.set(last, next.get(last).withQuickArtwork(spec));
+        artworks = List.copyOf(next);
+    }
+
+    public void editQuickArtwork(String artworkId, QuickArtwork spec) {
+        CompositionArtwork existing = artworks.stream().filter(a -> a.id().equals(artworkId)).findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("Unknown artwork"));
+        if (existing.quickArtwork() == null) throw new IllegalArgumentException("Artwork is not a quick drawing");
+        replaceArtwork(artworkId, QuickArtworkGenerator.generate(spec), null, null, null);
+        List<CompositionArtwork> next = new ArrayList<>(artworks);
+        for (int i = 0; i < next.size(); i++) {
+            if (next.get(i).id().equals(artworkId)) next.set(i, next.get(i).withQuickArtwork(spec));
+        }
+        artworks = List.copyOf(next);
+    }
+
     public void transformArtwork(String artworkId, CompositionArtwork.Transform transform) {
         Objects.requireNonNull(artworkId, "artworkId");
         Objects.requireNonNull(transform, "transform");

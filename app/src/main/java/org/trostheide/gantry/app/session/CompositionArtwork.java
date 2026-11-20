@@ -15,7 +15,15 @@ public record CompositionArtwork(String id, String label, String sourcePath,
                                  List<Integer> layerIndices, Bounds originalBounds,
                                  Bounds bounds, Transform transform,
                                  SvgImportOptions importOptions,
-                                 ProcessingRecipe processingRecipe) {
+                                 ProcessingRecipe processingRecipe,
+                                 QuickArtwork quickArtwork) {
+    public CompositionArtwork(String id, String label, String sourcePath,
+                              List<Integer> layerIndices, Bounds originalBounds,
+                              Bounds bounds, Transform transform,
+                              SvgImportOptions importOptions, ProcessingRecipe processingRecipe) {
+        this(id, label, sourcePath, layerIndices, originalBounds, bounds, transform,
+                importOptions, processingRecipe, null);
+    }
     public CompositionArtwork {
         layerIndices = layerIndices == null ? List.of() : List.copyOf(layerIndices);
         transform = transform == null ? Transform.identity() : transform;
@@ -23,23 +31,28 @@ public record CompositionArtwork(String id, String label, String sourcePath,
 
     public CompositionArtwork withLayerIndices(List<Integer> indices) {
         return new CompositionArtwork(id, label, sourcePath, indices, originalBounds, bounds, transform,
-                importOptions, processingRecipe);
+                importOptions, processingRecipe, quickArtwork);
     }
 
     public CompositionArtwork withLabel(String nextLabel) {
         return new CompositionArtwork(id, nextLabel == null || nextLabel.isBlank() ? label : nextLabel, sourcePath,
-                layerIndices, originalBounds, bounds, transform, importOptions, processingRecipe);
+                layerIndices, originalBounds, bounds, transform, importOptions, processingRecipe, quickArtwork);
     }
 
     public CompositionArtwork withBoundsAndTransform(Bounds nextBounds, Transform nextTransform) {
         return new CompositionArtwork(id, label, sourcePath, layerIndices, originalBounds, nextBounds, nextTransform,
-                importOptions, processingRecipe);
+                importOptions, processingRecipe, quickArtwork);
     }
 
     public CompositionArtwork withSource(String nextSourcePath, SvgImportOptions nextImportOptions,
             ProcessingRecipe nextRecipe) {
         return new CompositionArtwork(id, label, nextSourcePath, layerIndices, originalBounds, bounds, transform,
-                nextImportOptions, nextRecipe);
+                nextImportOptions, nextRecipe, quickArtwork);
+    }
+
+    public CompositionArtwork withQuickArtwork(QuickArtwork spec) {
+        return new CompositionArtwork(id, label, sourcePath, layerIndices, originalBounds, bounds, transform,
+                importOptions, processingRecipe, spec);
     }
 
     public record Transform(double x, double y, double scale, boolean mirror) {

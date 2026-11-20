@@ -466,6 +466,19 @@ Click empty canvas space to clear the group selection and return to positioning
 the whole composed job. This is not a full vector editor: individual path nodes
 are still edited with the existing line tools.
 
+### Quick artwork
+
+Use **Open / Add > Add text label...** for a short label. Enter its text and letter
+height in millimetres; the dialog shows the resulting label width before you add
+it. **Open / Add > Create quick artwork...** also creates lines, rectangles,
+ellipses, and text directly in physical millimetres. The new item is an artwork
+group, so you can drag, transform, assign its layer to a named pen, undo it, and
+include or exclude it from a plot like imported SVG. **Edit > Artwork Groups... >
+Edit quick artwork...** reopens its source dimensions or text after saving and
+reopening a `.gantry` project. Text uses Gantry's bundled single-stroke technical
+alphabet; lowercase is drawn uppercase, and unsupported characters are reported
+before the document changes. Quick artwork does not require an installed font.
+
 The importer flips the Y axis automatically: SVG uses a top-left origin with Y growing downward, while the plotter measures Y upward from the machine origin, so drawings are turned upright on import (they would otherwise appear upside down). The **Flip Y** setting remains available as a manual override for unusual hardware — leave it off for normal use.
 
 ### Process artwork tab (optional)
