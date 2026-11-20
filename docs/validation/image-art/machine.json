@@ -1,0 +1,14 @@
+{
+  "gcode": {
+    "machineWidth": 200,
+    "machineHeight": 200,
+    "feedRateDraw": 1200,
+    "feedRateTravel": 3000,
+    "penMode": "servo",
+    "servoPin": 0,
+    "penServoUp": 60,
+    "penServoDown": 30,
+    "penDownDelayMillis": 80
+  },
+  "stations": {}
+}

@@ -99,8 +99,10 @@ controlled-motion, shared-backend and scripted serial fault regressions. See
 [BACKEND_CONTRACT.md](BACKEND_CONTRACT.md) and the
 [verification record](release-results/2026-11-20-backend-contracts.md).
 
-1. Validate the existing four image-art modes on a licensed real-image corpus
-   (#80), using the existing CLI pipeline before new engines or defaults.
+1. Address the real-image findings: Squiggle subject retention/centre bias (#85)
+   and packaged CLI PNG export (#84). The [#80 corpus report](validation/image-art/README.md)
+   includes all twelve visual results, repeatable geometry, costs and a labelled
+   Squiggle adjustment. Valid artifacts did not imply decent quality; no defaults changed.
 2. Use [OPERATOR_ACCEPTANCE.md](OPERATOR_ACCEPTANCE.md) for hardware, native scaling
    and expert checks (#39/#43/#54). Keep the first independent tester and
    five-person study (#16) separate from mock evidence; #72 still needs a user task.

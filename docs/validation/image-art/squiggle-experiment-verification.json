@@ -1,0 +1,207 @@
+{
+  "jarSha256": "ba2d613a148404c97280564e68caa7f5c2b5a5f5a63d8ab31faa10b529e19bc6",
+  "recipes": {
+    "commonVectorize": [
+      "--tolerance",
+      "1.5",
+      "--detail",
+      "1",
+      "--stroke-color",
+      "#000000",
+      "--stroke-width",
+      "1",
+      "--format",
+      "svg"
+    ],
+    "modes": {
+      "squiggle": [
+        "--squiggle-density",
+        "1.5",
+        "--squiggle-amplitude",
+        "3.5",
+        "--squiggle-tone",
+        "1",
+        "--squiggle-background",
+        "0"
+      ]
+    },
+    "import": [
+      "--fit-to",
+      "180x180",
+      "--padding",
+      "10",
+      "--curve-step",
+      "0.1",
+      "--max-dist",
+      "0",
+      "--passes",
+      "1",
+      "--optimize-reorder"
+    ],
+    "randomSeed": null,
+    "seedNote": "These four processors use deterministic loops and no random generator. Hand-drawn styling is disabled. No crop, resize, per-image tuning, hatch, simplification or merge.",
+    "experiment": "Single global attempt to recover subject structure: more detail/tone/density, less background suppression. No per-image tuning; baseline remains unchanged."
+  },
+  "machine": {
+    "gcode": {
+      "machineWidth": 200,
+      "machineHeight": 200,
+      "feedRateDraw": 1200,
+      "feedRateTravel": 3000,
+      "penMode": "servo",
+      "servoPin": 0,
+      "penServoUp": 60,
+      "penServoDown": 30,
+      "penDownDelayMillis": 80
+    },
+    "stations": {}
+  },
+  "repetitions": 2,
+  "artifacts": [
+    {
+      "id": "astronaut-squiggle",
+      "metrics": {
+        "commandFile": "astronaut-squiggle.json",
+        "layers": 1,
+        "commands": 5804,
+        "strokes": 2902,
+        "points": 17486,
+        "drawDistanceMm": 15946.940957041586,
+        "travelDistanceMm": 19208.896541994163,
+        "travelRatio": 0.5463928015516918,
+        "tinySegments": 0,
+        "bounds": {
+          "minX": 10.0,
+          "minY": 10.470588235294116,
+          "maxX": 170.0,
+          "maxY": 169.52941176470588
+        },
+        "plotTime": {
+          "feedRateDraw": 1200,
+          "feedRateTravel": 3000,
+          "penDownDelayMillis": 80,
+          "estimatedSeconds": 1413.6849786919627,
+          "formatted": "23:34"
+        },
+        "warnings": [
+          {
+            "code": "HIGH_TRAVEL_RATIO",
+            "message": "Pen-up travel is at least half of all motion; try path reordering, merging, or a less scattered preset.",
+            "value": 0.5463928015516918,
+            "threshold": 0.5
+          }
+        ]
+      },
+      "checks": {
+        "commandReload": "passed",
+        "finiteInBedPoints": 17486,
+        "gcodePreflight": "passed",
+        "gcodeCommands": 26197
+      },
+      "repeatExact": true,
+      "sha256": {
+        "svg": "c529dec17a98d9d818995075bbe895e290cf4432fdccad8dc2a209abd6192d49",
+        "commands": "97eece1399f38a52f8d74eb990ddf564afc21f44a319d5b43d7eaaacaad2700d",
+        "metrics": "d9f0917ce25bc87c484ded3f6df81bf755f8815736c151e7c16f6665765edf2a",
+        "gcode": "5b81e646416eb5b17d61830edbf89d215131f7adbfa43564ec54bc4f1f00c465"
+      }
+    },
+    {
+      "id": "coffee-squiggle",
+      "metrics": {
+        "commandFile": "coffee-squiggle.json",
+        "layers": 1,
+        "commands": 5080,
+        "strokes": 2540,
+        "points": 14303,
+        "drawDistanceMm": 10866.097470631637,
+        "travelDistanceMm": 13876.47889577129,
+        "travelRatio": 0.5608340332178855,
+        "tinySegments": 0,
+        "bounds": {
+          "minX": 10.0,
+          "minY": 36.80067001675043,
+          "maxX": 170.0,
+          "maxY": 143.19932998324958
+        },
+        "plotTime": {
+          "feedRateDraw": 1200,
+          "feedRateTravel": 3000,
+          "penDownDelayMillis": 80,
+          "estimatedSeconds": 1024.0344514470078,
+          "formatted": "17:04"
+        },
+        "warnings": [
+          {
+            "code": "HIGH_TRAVEL_RATIO",
+            "message": "Pen-up travel is at least half of all motion; try path reordering, merging, or a less scattered preset.",
+            "value": 0.5608340332178855,
+            "threshold": 0.5
+          }
+        ]
+      },
+      "checks": {
+        "commandReload": "passed",
+        "finiteInBedPoints": 14303,
+        "gcodePreflight": "passed",
+        "gcodeCommands": 21928
+      },
+      "repeatExact": true,
+      "sha256": {
+        "svg": "45193a09b5239f00012d4ec95bc82ca3f8f5ae4b4936bf277558a783c86d7191",
+        "commands": "7378270a69fee434d56144cbfe4967c47b5019ea662425dbb244a960fb69e529",
+        "metrics": "4671a56661ae432a49d793f1718e3383d54f5ce188b1a8864a2c8998a407cf2d",
+        "gcode": "e414119e2586400f669a7f2e6ba5e10ed7a411117b0694e0f815f996c2bd25ed"
+      }
+    },
+    {
+      "id": "camera-squiggle",
+      "metrics": {
+        "commandFile": "camera-squiggle.json",
+        "layers": 1,
+        "commands": 4244,
+        "strokes": 2122,
+        "points": 11642,
+        "drawDistanceMm": 10438.261484022309,
+        "travelDistanceMm": 13439.874799214967,
+        "travelRatio": 0.5628527553320781,
+        "tinySegments": 0,
+        "bounds": {
+          "minX": 10.0,
+          "minY": 19.44881889763778,
+          "maxX": 170.0,
+          "maxY": 160.5511811023622
+        },
+        "plotTime": {
+          "feedRateDraw": 1200,
+          "feedRateTravel": 3000,
+          "penDownDelayMillis": 80,
+          "estimatedSeconds": 960.4705701854148,
+          "formatted": "16:00"
+        },
+        "warnings": [
+          {
+            "code": "HIGH_TRAVEL_RATIO",
+            "message": "Pen-up travel is at least half of all motion; try path reordering, merging, or a less scattered preset.",
+            "value": 0.5628527553320781,
+            "threshold": 0.5
+          }
+        ]
+      },
+      "checks": {
+        "commandReload": "passed",
+        "finiteInBedPoints": 11642,
+        "gcodePreflight": "passed",
+        "gcodeCommands": 18013
+      },
+      "repeatExact": true,
+      "sha256": {
+        "svg": "5b0bfa9b2cb6a16922a78b30f72149ce23f89b68975ff29e8c8a8427fb81d4a1",
+        "commands": "185831ee75ccf76c2124cafe8a3b924e1117c26066ff9fb290e7f37d0a7ffaec",
+        "metrics": "786cd328c8a951c756303b5ca1d314cb5d2363cd8022045b485b33dbff3fd2ca",
+        "gcode": "fd9eeab57acf8378e744384a6a6e90c7b1ebc1e7e91c4a2b6dcc8d1f5ba2fdb3"
+      }
+    }
+  ],
+  "javaVersion": "openjdk version \"21.0.13.1\" 2026-11-17\nOpenJDK Runtime Environment (build 21.0.13.1+2-1-24.04.1-Ubuntu)\nOpenJDK 64-Bit Server VM (build 21.0.13.1+2-1-24.04.1-Ubuntu, mixed mode, sharing)"
+}

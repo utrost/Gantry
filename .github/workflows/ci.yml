@@ -26,6 +26,19 @@ jobs:
       - name: Build
         run: mvn clean package -q
 
+      - name: Real-image art geometry and G-code validation
+        run: >-
+          python3 scripts/validate-image-art.py
+          --output dist/validation/image-art
+          --baseline docs/validation/image-art/verification.json
+
+      - name: Adjusted Squiggle quality recipe regression
+        run: >-
+          python3 scripts/validate-image-art.py
+          --recipes docs/validation/image-art/squiggle-experiment.json
+          --output dist/validation/squiggle-experiment
+          --baseline docs/validation/image-art/squiggle-experiment-verification.json
+
       - name: GUI mock workflow and recovery
         run: xvfb-run -a ./scripts/test-gui.sh
 

@@ -96,6 +96,22 @@ See the [post-RC11 integration record](release-results/2026-11-20-integration.md
 for local evidence and the [operator checklist](OPERATOR_ACCEPTANCE.md) for the
 physical/native/participant gates that automation cannot close.
 
+### Real-image quality and artifact regression
+
+The [licensed corpus and visual review](validation/image-art/README.md) compares
+Sketch, Squiggle, Needles and Isolines on three real photographs. It includes
+poor baseline cases and a separately labelled Squiggle adjustment, with exact
+recipes and all preview outputs. Quality verdicts are visual judgments, not hash
+checks or physical acceptance.
+
+`python3 scripts/validate-image-art.py --output /tmp/gantry-art-check --baseline
+docs/validation/image-art/verification.json` runs 12 combinations twice through
+the existing CLI chain. It checks input hashes, SVG geometry, typed command
+reload, finite in-bed points, metrics, production G-code replay preflight and
+exact repeated/baseline geometry. Use a new output directory. The adjusted
+recipe has a separate command in the report. Both run in Java 17/21 CI; bulk
+artifacts are uploaded under validation evidence, not committed.
+
 ### Test coverage by module
 
 | Module | Test classes | What is covered |

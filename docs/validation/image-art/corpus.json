@@ -1,0 +1,48 @@
+{
+  "upstreamRevision": "e8a42ba85aaf5fd9322ef9ca51bc21063b22fcae",
+  "licenseEvidence": "https://github.com/scikit-image/scikit-image/blob/e8a42ba85aaf5fd9322ef9ca51bc21063b22fcae/skimage/data/_fetchers.py",
+  "images": [
+    {
+      "id": "astronaut",
+      "file": "inputs/astronaut.png",
+      "source": "https://raw.githubusercontent.com/scikit-image/scikit-image/e8a42ba85aaf5fd9322ef9ca51bc21063b22fcae/skimage/data/astronaut.png",
+      "creator": "NASA",
+      "license": "Public domain (no known copyright restrictions)",
+      "role": "tonal portrait",
+      "sha256": "88431cd9653ccd539741b555fb0a46b61558b301d4110412b5bc28b5e3ea6cb5",
+      "dimensions": [
+        512,
+        512
+      ],
+      "modifications": "None; original upstream PNG bytes."
+    },
+    {
+      "id": "coffee",
+      "file": "inputs/coffee.png",
+      "source": "https://raw.githubusercontent.com/scikit-image/scikit-image/e8a42ba85aaf5fd9322ef9ca51bc21063b22fcae/skimage/data/coffee.png",
+      "creator": "Rachel Michetti",
+      "license": "CC0-1.0",
+      "role": "textured object",
+      "sha256": "cc02f8ca188b167c775a7101b5d767d1e71792cf762c33d6fa15a4599b5a8de7",
+      "dimensions": [
+        600,
+        400
+      ],
+      "modifications": "None; original upstream PNG bytes."
+    },
+    {
+      "id": "camera",
+      "file": "inputs/camera.png",
+      "source": "https://raw.githubusercontent.com/scikit-image/scikit-image/e8a42ba85aaf5fd9322ef9ca51bc21063b22fcae/skimage/data/camera.png",
+      "creator": "Lav Varshney",
+      "license": "CC0-1.0",
+      "role": "high-contrast scene",
+      "sha256": "b0793d2adda0fa6ae899c03989482bff9a42d3d5690fc7e3648f2795d730c23a",
+      "dimensions": [
+        512,
+        512
+      ],
+      "modifications": "None; original upstream PNG bytes."
+    }
+  ]
+}
