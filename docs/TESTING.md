@@ -19,9 +19,11 @@ covering both the automated test suite and manual acceptance checks.
   machine configuration are separate from document undo; verify those explicitly.
 - The **mock backend** provides timed XY interpolation and selected settings
   (`$$`, `$100`, `$101`, `$20`–`$23`) for workflow tests. The
-  [2026-11-20 audit](release-results/2026-11-20-mock-fidelity.md) confirmed Stop,
-  interruption, status, connection and raw-command fidelity defects, tracked in
-  #78/#79. Do not infer realistic stopping or controller behavior from GUI passes.
+  [2026-11-20 audit](release-results/2026-11-20-mock-fidelity.md) recorded historical
+  Stop, interruption, status, connection and raw-command defects. The #78/#79
+  fixes add deterministic cancellation, pen/connection state and supported raw
+  execution. See [BACKEND_CONTRACT.md](BACKEND_CONTRACT.md) for the current
+  contract and tests. GUI passes still do not establish physical stopping.
 - **Production GRBL tests use a separate fake serial transport.** They exercise
   actual command/response/recovery code for scripted cases, but neither fake
   emulates physical acceleration, planner timing, switches or pen mechanics.
@@ -70,6 +72,15 @@ or `xvfb-run -a ./scripts/test-gui.sh` on a headless host. It drives real Swing
 menus, file dialogs and buttons with an isolated mock profile, including a second
 process for recovery. See [the GUI evaluation](test-results-2026-09-26-gui.md) for
 coverage, findings and limitations. Java 17/21 CI runs this after the reactor build.
+
+### Backend contract and fault checks
+
+`MockMotionTest`, `MockOperationLifecycleTest` and `BackendContractTest` test
+cancellation with controlled interpolation, the actual app operation owners and
+common mock/production-backend behavior. `GrblFaultContractTest` uses scripted
+fake serial acknowledgements/status/failures; existing GRBL tests cover the
+remaining timeout, hold and homing paths. These tests use no real machine.
+See [the contract table](BACKEND_CONTRACT.md) before interpreting results.
 
 ### Integrated preparation checks
 

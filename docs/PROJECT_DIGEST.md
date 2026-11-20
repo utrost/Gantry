@@ -93,17 +93,19 @@ or the real-user-task criterion in #72. Drying-aware execution (#71) is deferred
 
 ## Recommended next work
 
-1. Fix mock Stop/interruption (#78), then define backend contracts and harden
-   simulated state/raw-command/failure behavior (#79). See the
-   [mock audit](release-results/2026-11-20-mock-fidelity.md).
-2. Finish the narrowed SVG export acceptance in #68. Its implementation is
+Mock Stop/interruption and backend contracts (#78/#79) are implemented with
+controlled-motion, shared-backend and scripted serial fault regressions. See
+[BACKEND_CONTRACT.md](BACKEND_CONTRACT.md) and the
+[verification record](release-results/2026-11-20-backend-contracts.md).
+
+1. Finish the narrowed SVG export acceptance in #68. Its implementation is
    delivered; file-count feedback and explicit excluded/empty-layer tests remain.
-3. Use [OPERATOR_ACCEPTANCE.md](OPERATOR_ACCEPTANCE.md) for hardware, native scaling
+2. Use [OPERATOR_ACCEPTANCE.md](OPERATOR_ACCEPTANCE.md) for hardware, native scaling
    and expert checks (#39/#43/#54). Keep the first independent tester and
    five-person study (#16) separate from mock evidence; #72 still needs a user task.
-4. Validate the existing four image-art modes on a licensed real-image corpus
+3. Validate the existing four image-art modes on a licensed real-image corpus
    (#80), using the existing CLI pipeline before new engines or defaults.
-5. Keep drying-aware execution (#71) deferred pending coverage review and
+4. Keep drying-aware execution (#71) deferred pending coverage review and
    physical pen/paper evidence. Preserve wider research in
    [FEATURE_CANDIDATES.md](FEATURE_CANDIDATES.md), rather than expanding the
    active roadmap with unscheduled algorithms.

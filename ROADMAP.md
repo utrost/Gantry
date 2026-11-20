@@ -57,15 +57,16 @@ See the [integration record](docs/release-results/2026-11-20-integration.md).
 
 | Priority | Work | Exit criteria |
 |---|---|---|
-| P1 | [#78 — Mock Stop/interruption](https://github.com/utrost/Gantry/issues/78) | Halt/interrupt freezes simulated position; no jump to destination; pen recovery and repeated Stop have deterministic tests |
-| P2 | [#79 — Backend contracts and simulation fidelity](https://github.com/utrost/Gantry/issues/79) | Coherent connection/Run/Idle/pen state, honest raw-command support and reusable production-backend/fake-serial failure checks; builds on #78 |
 | P2 | [#68 — Finish reviewed SVG export acceptance](https://github.com/utrost/Gantry/issues/68) | Success reports destination and output count; excluded/empty layers have explicit tests; atomic output and round-trip guarantees remain intact |
 
-The [mock audit](docs/release-results/2026-11-20-mock-fidelity.md) reproduced
-no-op halt, interruption advancing to the endpoint, false Idle reports, raw
-commands acknowledged without execution and unenforced disconnect state. GUI
-mock passes establish the tested workflows. Production-backend fake-serial tests
-cover scripted protocol scenarios. Neither establishes physical behavior.
+Mock hardening #78/#79 implements cancellable motion that freezes at the last
+reached point, explicit pen/connection/Run/Idle state, supported raw-command
+execution and shared production-backend/fake-serial fault tests. See the
+[backend contract](docs/BACKEND_CONTRACT.md) and
+[verification record](docs/release-results/2026-11-20-backend-contracts.md).
+The [original mock audit](docs/release-results/2026-11-20-mock-fidelity.md)
+remains historical evidence. Improved simulation and protocol tests still do not
+establish physical behavior.
 
 ## Operator and participant acceptance
 

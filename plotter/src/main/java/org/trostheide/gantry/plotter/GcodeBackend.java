@@ -154,6 +154,9 @@ public class GcodeBackend implements PlotterBackend {
         try {
             terminalFailure = null;
             aborting = false;
+            // A failed disconnected draw can leave the command cache down. A new session
+            // must send its first pen-down command instead of trusting the previous session.
+            penIsDown = false;
             ackQueue.clear();
             rawQueue.clear();
             updateMachineState(MachineState.UNKNOWN);

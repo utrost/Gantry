@@ -88,6 +88,18 @@ keeps it dead — keep it green.
 
 ### Post-RC11 integration guards
 
+- Mock cancellation invalidates the active operation before interrupting its
+  delay. Check cancellation again under the position lock before interpolation;
+  otherwise an interrupted sleep can advance a stopped job to its destination.
+  Keep pen-up cleanup callable on the interrupted owner. `MockMotionTest` and
+  `MockOperationLifecycleTest` cover actual mock motion and app lifecycle paths.
+- Reset the serial backend's cached pen state on connect. A rejected disconnected
+  draw must not suppress the first real pen-down command of the new session;
+  `BackendContractTest` asserts the emitted command via an independent fake.
+- A mock acknowledgement means its supported command executed. Reject unknown
+  raw syntax rather than reporting false replay success. Shared backend tests
+  use an independent fake serial transport and preserve the physical boundary.
+
 - Stroke-font definitions are Y-down; generated command geometry must flip them
   to Y-up. `QuickArtworkTest#strokeTextIsUprightInCommandCoordinates` checks an
   asymmetric glyph, since size-only and symmetric-glyph tests miss mirroring.

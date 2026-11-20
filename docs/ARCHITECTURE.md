@@ -331,11 +331,13 @@ Implementations:
   to `GcodeFormatter`.
 - **`MockPlotterBackend`** — logs calls and interpolates XY with feed-based
   sleeps for GUI/CI workflow testing without hardware (`--mock-backend` /
-  Settings checkbox). It is not a GRBL emulator. Its current halt/interruption,
-  status, connection and raw-command limitations are documented in the
-  [mock audit](release-results/2026-11-20-mock-fidelity.md) and tracked in #78/#79.
-  `FakeGrblTransport` separately drives production `GcodeBackend` tests; it also
-  simplifies firmware behavior and cannot establish physical acceptance.
+  Settings checkbox). It owns one cancellable operation, tracks pen/connection
+  and Run/Idle state, and executes a documented raw-command subset. Halt freezes
+  the last reached position; unsupported commands fail explicitly. See
+  [BACKEND_CONTRACT.md](BACKEND_CONTRACT.md) for #78/#79's shared and fault tests.
+  The [original audit](release-results/2026-11-20-mock-fidelity.md) records the
+  earlier defects. `FakeGrblTransport` separately drives production GRBL tests;
+  neither simulator establishes firmware equivalence or physical acceptance.
 - **`GcodeFileBackend`** — writes G-code to a `.gcode` file instead of a serial
   port (export). `GcodeFileReplay` streams an existing `.gcode` back through a
   backend for re-plotting.

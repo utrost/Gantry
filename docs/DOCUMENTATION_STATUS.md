@@ -39,3 +39,11 @@ run without hardware, operator/participant acceptance and deferred candidates.
 Detailed research is preserved in [FEATURE_CANDIDATES.md](FEATURE_CANDIDATES.md).
 The [mock fidelity audit](release-results/2026-11-20-mock-fidelity.md) qualifies
 simulation evidence and feeds #78/#79; it does not revise historical test passes.
+
+## Backend simulation contracts
+
+[BACKEND_CONTRACT.md](BACKEND_CONTRACT.md) records supported simulator/raw-command
+capabilities and the differences from serial and file backends. The #78/#79
+[follow-up record](release-results/2026-11-20-backend-contracts.md) tracks the
+corrected behavior; the original audit stays dated historical evidence. Physical
+acceptance and participant gates remain open.
