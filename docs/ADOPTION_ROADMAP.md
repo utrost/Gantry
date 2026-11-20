@@ -377,8 +377,11 @@ external people, or media production.
 2. **Done:** Create the first public pre-release artifact —
    [`v1.0.0-alpha.1`](https://github.com/utrost/Gantry/releases/tag/v1.0.0-alpha.1)
    is published and tracked in [#14](https://github.com/utrost/Gantry/issues/14).
-3. **Blocked/manual:** Run and record one real hardware acceptance pass — tracked
-   in [#15](https://github.com/utrost/Gantry/issues/15).
+3. **Done for RC2:** The primary Windows 11/iDraw H A1 hardware report is
+   recorded in [#15](https://github.com/utrost/Gantry/issues/15).
+   **Still manual:** recheck changed interactions on the current development
+   revision under [#39](https://github.com/utrost/Gantry/issues/39) and
+   [#54](https://github.com/utrost/Gantry/issues/54); RC2 evidence is revision-scoped.
 4. **Blocked/manual:** Recruit one external tester for the 2-user milestone.
 5. **Done:** Seed GitHub issue labels and issue templates.
 6. **Manual/adoption evidence:** Run the five-person novice study when testers
@@ -392,8 +395,11 @@ external people, or media production.
     Uuna Tek A1 H plotter is recorded as working; detailed acceptance evidence
     and external entries are still needed.
 
-Additional support hardening now tracked in
-[#17](https://github.com/utrost/Gantry/issues/17).
+**Done:** Copy Diagnostics support hardening is delivered; original tracking
+[#17](https://github.com/utrost/Gantry/issues/17) is closed. Mock confidence work is
+now tracked in [#78](https://github.com/utrost/Gantry/issues/78) and
+[#79](https://github.com/utrost/Gantry/issues/79). It does not replace external
+onboarding or physical acceptance.
 
 Native MSI/DEB candidates and portable JARs are published. Current delivery and
 validation are recorded in the [RC11 record](release-results/1.0.0-rc.11.md).
