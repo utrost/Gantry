@@ -104,7 +104,9 @@ Button colours describe the action's consequence in both themes:
   is not job readiness, and successful submission is not proof of physical completion.
 
 Disabled controls remain visible with muted labels and backgrounds. Tooltips explain
-connection or busy-state restrictions. Stop remains visible and is disabled when no
+missing artwork or included pen layers, connection or busy-state restrictions.
+Frame and plot-review actions stay disabled until their required artwork is
+loaded. Stop remains visible and is disabled when no
 Gantry operation is active. Labels, icons and explicit status text remain
 available so that colour is never the only way to understand the workspace.
 
@@ -243,7 +245,7 @@ compensate.
 |---|---|
 | **Connect** / **Disconnect** | Opens or closes the serial connection to the plotter (same as the **Connect** button). |
 | **Find Starting Corner (Home)** | Runs the homing cycle against the limit switches (`$H`) — the same action as **Find starting corner (Home)** under **Move pen manually**. |
-| **Check Before Plotting...** | Opens Check in the inspector. Review connection and size, use home/frame/pen lift as needed, then confirm the physical setup. Required confirmations are enforced when the preflight policy is on. |
+| **Check Before Plotting...** | Opens Check in the inspector. Review connection and size, optionally analyze ink overlap, use home/frame/pen lift as needed, then confirm the physical setup. Required confirmations are enforced when the preflight policy is on. |
 | **Setup Wizard...** | The guided first-time setup described in [First start](#first-start) — Connection, Machine geometry/origin/orientation, Pen/speed, in order, re-using the exact same fields as **Settings**. Its final step offers **"Continue to axis calibration now"** (ticked by default), so a first run flows straight from settings into calibration. Safe to re-run any time to revisit those settings step by step. |
 | **Calibrate Axes...** | A guided pass over machine motion. It **connects first** (a Connect step using your saved settings or mock — no need to connect manually beforehand), then: **Direction:** centre the head, jog each motor axis, and click the arrow for the way the pen *actually* moved — the wizard derives the correct swap/invert in one shot (it catches *swapped* axes, not just reversed ones, and applies the result to the live preview). **Scale:** for X and Y, jog a commanded distance, measure what actually moved with a ruler, and the wizard computes a corrected `$100`/`$101` and writes it on request. **Limit switches:** record whether the machine has them, enable the homing cycle (`$22`), and press each switch by hand to watch it register live (a real wiring test, nothing moves). **Pen lift:** pick the lift type (servo / Z-axis / M3-M5), set the up/down values, and **Test** them — edits apply on the next test with no reconnect. The scale, limit and pen steps are each optional (use **Skip**). |
 | **Test Color Stations...** | A guided test run over every configured refill station (watercolor). For each station you can **Move here** (pen-up dry visit so you can eyeball whether the brush lines up with the physical pot), run a **Wet test** (the station's real two-cycle dip/swirl using normal pen heights, so you can verify pot and swirl clearance), and **nudge** the position with the **−X/+X/−Y/+Y** buttons if it's off — a nudge moves the head *and* the stored coordinate, and corrected positions are saved when you click **Finish**. Each station step is optional (use **Skip**). Requires a real or mock connection and at least one configured station. See also [placing stations on the canvas](#placing-refill-stations) below. |
@@ -251,6 +253,16 @@ compensate.
 ---
 
 ## Workflow
+
+The Check view's **Analyze ink overlap...** opens an optional heatmap of the exact
+selected, placed and multipass job. Switch between all pens and one named pen;
+set the overlap count that turns cells red. Gold cells have coverage below that
+count, and white cells have none. The grid uses each pen's physical nib width
+after machine-coordinate transforms and soft limits. If artwork extends beyond
+the bed, the summary says that some geometry is clipped. This is geometric
+coverage only: real ink spread and drying depend on pen, paper, pressure and
+speed. Analysis runs in the background and does not change plotting or safety
+confirmations.
 
 ```
 SVG or image artwork
@@ -264,20 +276,23 @@ SVG or image artwork
 Alternatively, generate flattened command JSON or G-code headlessly with the
 CLI. Command JSON can be opened in the GUI as a new project.
 
-### The four file formats
+### Working and export file formats
 
-Gantry deals with four different kinds of file, and every menu item now names
+Gantry deals with several kinds of file, and every menu item now names
 which one it works on so you always know what you're handling:
 
 | Format | What it is | How Gantry uses it |
 |---|---|---|
 | **SVG** (`.svg`) | Vector *artwork* — the drawing you start from or append to a composition | **File > Open SVG or Vector Drawing…** fits it safely to the machine bed and converts it into Gantry's editable drawing, replacing the current artwork. **File > Append SVG to Current Artwork…** imports another SVG as additional layers. **Edit > Re-process Source SVG…** re-runs the conversion against the same file when the document still has one SVG source. |
+| **Reviewed-job SVG** (`.svg`) | The selected, placed drawing paths in machine-bed millimetres, with ordered colour layers | **File > Export Reviewed Job as SVG…** writes a combined SVG for inspection or use in another tool. It excludes pen-up travel, refill motion and machine commands. |
+| **SVG package** (`.zip`) | An atomic bundle of the combined SVG, one SVG per selected layer, and a short README | **File > Export Reviewed Job as SVG Package…** writes it for one-layer-at-a-time handoff. Layer files preserve the same bed dimensions and placement. |
 | **Gantry project** (`.gantry`) | The editable working session: commands, placement, selected layers, passes, and source/import/vectorizer provenance | **File > Open Project… / Save Project…** restores the state needed to continue the job later. This is the preferred working format. |
 | **Flattened commands — JSON** (`.json`) | Interchange output with the current placement, layer selection, and passes baked into commands | **File > Export Flattened Commands (JSON)…** writes it. **Open Commands (JSON)…** can still load existing command files, but JSON does not preserve the complete editable project. |
 | **G-code** (`.gcode`) | Machine instructions for the *plotter* | **File > Export G-code (for plotter)…** writes it; **File > Replay G-code…** streams an existing one straight to the machine. One-way output — G-code can't be reopened for editing. |
 
-Rule of thumb: **SVG comes in, `.gantry` is what you keep editing, flattened JSON
-integrates with other tools, and G-code goes to the plotter.** Hovering a
+Rule of thumb: **SVG comes in, `.gantry` is what you keep editing, exported SVG
+shares the reviewed drawing, flattened JSON integrates with command-model tools,
+and G-code goes to the plotter.** Hovering a
 File/Edit menu item shows a tooltip reminding you which format it touches.
 
 ---
@@ -450,6 +465,19 @@ dragging moves only that artwork. Right-click the selected group and choose
 Click empty canvas space to clear the group selection and return to positioning
 the whole composed job. This is not a full vector editor: individual path nodes
 are still edited with the existing line tools.
+
+### Quick artwork
+
+Use **Open / Add > Add text label...** for a short label. Enter its text and letter
+height in millimetres; the dialog shows the resulting label width before you add
+it. **Open / Add > Create quick artwork...** also creates lines, rectangles,
+ellipses, and text directly in physical millimetres. The new item is an artwork
+group, so you can drag, transform, assign its layer to a named pen, undo it, and
+include or exclude it from a plot like imported SVG. **Edit > Artwork Groups... >
+Edit quick artwork...** reopens its source dimensions or text after saving and
+reopening a `.gantry` project. Text uses Gantry's bundled single-stroke technical
+alphabet; lowercase is drawn uppercase, and unsupported characters are reported
+before the document changes. Quick artwork does not require an installed font.
 
 The importer flips the Y axis automatically: SVG uses a top-left origin with Y growing downward, while the plotter measures Y upward from the machine origin, so drawings are turned upright on import (they would otherwise appear upside down). The **Flip Y** setting remains available as a manual override for unusual hardware — leave it off for normal use.
 
@@ -734,12 +762,15 @@ position — is exactly what gets plotted and exported. The alignment offset sho
 in the live view is carried through to the plotter, so positioning is no longer
 overridden by the canvas-alignment re-centering at plot time.
 
-The preview also models the physical pen assigned to each layer. In the **Layers**
-list, the numbered rows show plot order and source-colour swatches; set the nib
-width beside each layer in millimetres. The canvas redraws immediately. Nib width
+The preview also models the physical pen assigned to each layer. Use **Edit > Manage Pens...**
+to name a pen, set its preview colour and nib width, add a pen, or assign one named
+pen to several artwork layers. Editing a shared pen updates every assigned layer.
+The **Layers** list shows plot order and assigned-pen swatches. You can also set nib
+width beside a layer in millimetres; when layers share a pen, this updates their
+shared width. The canvas redraws immediately. Nib width
 is a physical measurement: scaling a 100 mm drawing to 200 mm scales its geometry,
 but a configured 0.3 mm pen still previews as 0.3 mm on the bed. Save the drawing
-as a `.gantry` project to retain these width assignments.
+as a `.gantry` project to retain pen names, colours, widths, and assignments.
 
 The visualisation shows:
 - Dark background with the machine bed outline
@@ -953,6 +984,8 @@ Type any G-code command in the text field and press Enter to send it directly.
 
 ## Exporting and replaying G-code
 
+- **Export Reviewed Job as SVG** — save selected layers, placement and passes as one physical-size SVG. **Export Reviewed Job as SVG Package** writes the same combined SVG plus one file per layer in a ZIP. Out-of-bed points are clamped to the configured bed, with a warning before export. These files contain no pen-change gate, refill motion or controller commands. A stored historical job retains its geometry and colours. New job snapshots also retain named pens and widths, which are included in SVG metadata; layers from older histories without widths use a labelled 0.3 mm display-width assumption after confirmation.
+
 - **Export G-code (for plotter)** — save the current command model as a `.gcode` file without executing it.
 - **Replay G-code** — load and stream an existing `.gcode` file straight to the plotter (bypasses the command model).
 
@@ -960,12 +993,12 @@ Type any G-code command in the text field and press Enter to send it directly.
 
 ## Projects, recovery, and job history
 
-- **Open Project / Save Project** — use `.gantry` for an editable session. Save (Ctrl+S) reuses the current project path; Save Project As (Ctrl+Shift+S) chooses another file. Placement, pen widths, layer selection, pass count, and available source provenance are retained.
+- **Open Project / Save Project** — use `.gantry` for an editable session. Save (Ctrl+S) reuses the current project path; Save Project As (Ctrl+Shift+S) chooses another file. Placement, named pens and their layer assignments, layer selection, pass count, and available source provenance are retained. Older projects and command JSON gain one independent pen per layer when opened.
 - **Open Commands (JSON)** — imports an existing command model as a new project.
 - **Export Flattened Commands (JSON)** — writes the currently prepared commands with placement, selected layers, and passes baked in.
 - **Undo / Redo** — model-changing edits use multi-level history. Unsaved changes are marked in the window title and protected by the close prompt.
 - **Recovery autosave** — while a project is dirty, Gantry writes a recovery snapshot and offers it after an interrupted session. Recover restores it as an unsaved project; Later or closing the prompt preserves it. Only Discard recovery deletes a deferred copy.
-- **Recent Plot Jobs** — the ten most recent successful prepared jobs remain available from the File menu. Selecting a historical job opens its read-only stored preview and review before movement. The editable project stays intact; Return to artwork restores it. Changed machine geometry blocks replay. Re-plot uses the stored paths, transforms and stations with the **current pen-lift and speed settings**, stated in the review.
+- **Recent Plot Jobs** — the ten most recent successful prepared jobs remain available from the File menu. Selecting a historical job opens its read-only stored preview and review before movement. The editable project stays intact; Return to artwork restores it. Changed machine geometry blocks replay. Re-plot uses the stored paths, transforms, stations and pen assignments with the **current pen-lift and speed settings**, stated in the review.
 
 Placement fields commit with Enter or focus loss, with one Undo per completed
 edit. Escape restores the previous value. Incomplete or invalid numbers remain

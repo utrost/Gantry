@@ -9,7 +9,7 @@ import java.util.List;
 public record GantryProject(int formatVersion, ProcessorOutput output,
                             List<Integer> selectedLayers, Placement placement, int passes,
                             Source source, List<CompositionArtwork> artworks,
-                            List<Double> penWidthsMm) {
+                            List<Double> penWidthsMm, PenLibrary penLibrary) {
     public static final int CURRENT_VERSION = 1;
 
     public GantryProject(int formatVersion, ProcessorOutput output,
@@ -23,6 +23,12 @@ public record GantryProject(int formatVersion, ProcessorOutput output,
         this(formatVersion, output, selectedLayers, placement, passes, source, artworks, List.of());
     }
 
+    public GantryProject(int formatVersion, ProcessorOutput output,
+            List<Integer> selectedLayers, Placement placement, int passes, Source source,
+            List<CompositionArtwork> artworks, List<Double> penWidthsMm) {
+        this(formatVersion, output, selectedLayers, placement, passes, source, artworks, penWidthsMm, null);
+    }
+
     public GantryProject {
         selectedLayers = selectedLayers == null ? List.of() : List.copyOf(selectedLayers);
         placement = placement == null ? Placement.identity() : placement;
@@ -32,6 +38,8 @@ public record GantryProject(int formatVersion, ProcessorOutput output,
         penWidthsMm = penWidthsMm == null ? List.of() : penWidthsMm.stream()
                 .map(width -> width == null || !Double.isFinite(width) || width <= 0 ? 0.3 : width)
                 .toList();
+        penLibrary = (penLibrary == null ? PenLibrary.fromLegacy(output, penWidthsMm) : penLibrary)
+                .forOutput(output, penWidthsMm);
     }
 
     public record Placement(double offsetX, double offsetY, double scale,

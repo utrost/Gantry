@@ -1,0 +1,102 @@
+import org.trostheide.gantry.app.GantryApp;
+import org.trostheide.gantry.app.gui.PlotterPanel;
+import org.trostheide.gantry.app.plot.*;
+import javax.swing.*;
+import java.awt.*;
+import java.nio.file.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.zip.ZipFile;
+
+/** Integrated preparation actions through Swing; isolated mock profile, no hardware. */
+public class PreparationIntegrationAcceptance extends GuiAcceptance {
+    public static void main(String[] args) {
+        try {
+            Path results = Path.of(args[0]).toAbsolutePath();
+            Files.createDirectories(results);
+            profile = Files.createTempDirectory(results, "profile-");
+            System.setProperty("gantry.config.file", profile.resolve("config.json").toString());
+            GantryConfig config = new GantryConfig();
+            config.mock = true;
+            config.showWelcomeOnStartup = false;
+            config.gcode.machineWidth = 210;
+            config.gcode.machineHeight = 148;
+            ConfigStore.save(config, profile.resolve("config.json").toFile());
+            Thread.setDefaultUncaughtExceptionHandler((t, e) -> { e.printStackTrace(); System.exit(1); });
+            GantryApp.main(new String[0]);
+            await(() -> {
+                for (Window window : Window.getWindows()) {
+                    if (window instanceof JFrame f && f.isShowing()) {
+                        frame = f; panel = (PlotterPanel) f.getContentPane(); return true;
+                    }
+                }
+                return false;
+            });
+            click(panel, "Open / Add ▾");
+            JMenuItem[] labelAction = {null};
+            await(() -> {
+                for (MenuElement element : MenuSelectionManager.defaultManager().getSelectedPath()) {
+                    JMenuItem item = findMenu(element, "Add text label...");
+                    if (item != null) { labelAction[0] = item; return true; }
+                }
+                return false;
+            });
+            SwingUtilities.invokeLater(labelAction[0]::doClick);
+            JDialog create = dialog("Create quick artwork");
+            edt(() -> {
+                List<JTextField> fields = new ArrayList<>();
+                textFields(create, fields);
+                check(fields.size() == 3, "text, width and height inputs available");
+                fields.get(0).setText("Max Mustermann");
+                fields.get(2).setText("10");
+                return null;
+            });
+            click(create, "OK");
+            await(() -> project().output() != null && project().artworks().size() == 1);
+            check(edt(() -> project().artworks().get(0).quickArtwork().text()).equals("Max Mustermann"),
+                    "editable label source retained");
+            menu("Undo");
+            await(() -> project().output().layers().isEmpty());
+            menu("Redo");
+            await(() -> project().artworks().size() == 1);
+            Path saved = results.resolve("label.gantry");
+            menu("Save Project As..."); choose(saved); await(() -> Files.isRegularFile(saved));
+            Path svg = results.resolve("reviewed.svg");
+            menu("Export Reviewed Job as SVG..."); choose(svg); await(() -> Files.isRegularFile(svg));
+            String text = Files.readString(svg);
+            check(text.contains("data-gantry-pen-name="), "named pen retained in SVG metadata");
+            check(!text.contains("data-gantry-pen-width-assumed"), "current width is known");
+            Path zip = results.resolve("reviewed.zip");
+            menu("Export Reviewed Job as SVG Package..."); choose(zip); await(() -> Files.isRegularFile(zip));
+            try (ZipFile packageFile = new ZipFile(zip.toFile())) {
+                check(packageFile.getEntry("combined.svg") != null && packageFile.size() == 3,
+                        "atomic package contains combined, layer and README");
+            }
+            SwingUtilities.invokeLater(() -> {
+                try {
+                    var action = PlotterPanel.class.getDeclaredMethod("showInkCoverage");
+                    action.setAccessible(true); action.invoke(panel);
+                } catch (Exception e) { throw new RuntimeException(e); }
+            });
+            JDialog coverage = dialog("Ink overlap");
+            await(() -> hasAnalysis(coverage));
+            click(coverage, "Close");
+            check(!edt(() -> jobs().isConnected()), "preparation never connects a machine");
+            System.out.println("PASS editable label, first Undo/Redo, save, named-pen SVG/ZIP and overlap UI (mock only)");
+            System.exit(0);
+        } catch (Throwable e) { e.printStackTrace(); System.exit(1); }
+    }
+    static void textFields(Container root, List<JTextField> fields) {
+        for (Component c : root.getComponents()) {
+            if (c instanceof JTextField field) fields.add(field);
+            else if (c instanceof Container nested) textFields(nested, fields);
+        }
+    }
+    static boolean hasAnalysis(Container root) {
+        for (Component c : root.getComponents()) {
+            if (c instanceof JLabel label && label.getText() != null && label.getText().contains("max ")) return true;
+            if (c instanceof Container nested && hasAnalysis(nested)) return true;
+        }
+        return false;
+    }
+}

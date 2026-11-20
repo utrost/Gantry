@@ -4,6 +4,7 @@ import org.trostheide.gantry.model.Layer;
 import org.trostheide.gantry.model.ProcessorOutput;
 import javax.swing.*;
 import java.awt.*;
+import java.util.List;
 
 /** Current-job identity and pen instructions, separate from editable artwork selection. */
 final class JobContextPanel extends JPanel {
@@ -28,13 +29,17 @@ final class JobContextPanel extends JPanel {
         back=WorkspaceStyle.button("Return to artwork",returnToArtwork);add(back,BorderLayout.SOUTH);
     }
     void start(ProcessorOutput output,String name){
+        start(output,name,List.of());
+    }
+    void start(ProcessorOutput output,String name,List<String> penNames){
         title.setText(name);title.setToolTipText(name);pens.clear();total=output.layers().size();
-        for(int i=0;i<total;i++)pens.addElement((i+1)+". "+output.layers().get(i).id());
+        for(int i=0;i<total;i++)pens.addElement((i+1)+". "+(i<penNames.size()?penNames.get(i):output.layers().get(i).id()));
         pen.setText("Preparing job");swatch.setIcon(null);
     }
     void requestPen(int index,Layer layer){
-        pen.setText("Pen "+index+" of "+total+"\n"+layer.id());
-        pen.setToolTipText(layer.id());sequence.setSelectedIndex(index-1);sequence.ensureIndexIsVisible(index-1);
+        String name=index>0&&index<=pens.size()?pens.get(index-1).replaceFirst("^[0-9]+\\. ",""):layer.id();
+        pen.setText("Pen "+index+" of "+total+"\n"+name);
+        pen.setToolTipText(name);sequence.setSelectedIndex(index-1);sequence.ensureIndexIsVisible(index-1);
         Color color=CanvasPalette.parseHex(layer.color());
         swatch.setIcon(new Icon(){public int getIconWidth(){return 44;}public int getIconHeight(){return 44;}
             public void paintIcon(Component c,Graphics g,int x,int y){g.setColor(color==null?Color.GRAY:color);g.fillRoundRect(x,y,42,42,8,8);g.setColor(UIManager.getColor("Label.foreground"));g.drawRoundRect(x,y,42,42,8,8);}});

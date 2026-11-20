@@ -3,8 +3,8 @@ name: CI
 on:
   push:
     branches: [main, master]
+  # Also validate stacked PRs targeting feature branches.
   pull_request:
-    branches: [main, master]
 
 jobs:
   gantry:
@@ -32,6 +32,31 @@ jobs:
       - name: Workspace theme and scale layouts
         if: matrix.java == 21
         run: xvfb-run -a ./scripts/test-workspace-layouts.sh
+
+      - name: Capture documentation screenshots
+        if: matrix.java == 21
+        run: xvfb-run -a ./scripts/capture-screenshots.sh
+
+      - name: Upload documentation screenshots
+        if: matrix.java == 21
+        uses: actions/upload-artifact@v4
+        with:
+          name: documentation-screenshots-jdk-21
+          path: docs/images/
+
+      - name: Record mock first-plot walkthrough
+        if: matrix.java == 21
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg
+          xvfb-run -a ./scripts/record-demo.sh dist/demo
+
+      - name: Upload mock walkthrough
+        if: matrix.java == 21
+        uses: actions/upload-artifact@v4
+        with:
+          name: mock-first-plot-jdk-21
+          path: dist/demo/Gantry-first-plot-mock.mp4
 
       - name: Upload GUI acceptance evidence
         if: always()

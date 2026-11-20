@@ -15,6 +15,7 @@ final class HistoricalJobPreview extends JPanel {
         canvas.setEffectiveAxes(s.swapXY,s.invertX,s.invertY);canvas.setDataRotation(s.dataRotation);
         canvas.setFlipY(s.flipY);canvas.setPadding(s.paddingX,s.paddingY);canvas.setCanvasAlignment(s.canvasAlign);
         canvas.loadFromOutput(job.output());
+        canvas.setPenWidthsMm(job.pens().stream().map(PlotJobHistory.PenSnapshot::widthMm).toList());
         if(s.alignmentOffsetOverride!=null){canvas.alignOffsetX=s.alignmentOffsetOverride[0];canvas.alignOffsetY=s.alignmentOffsetOverride[1];}
         JPanel header=new JPanel(new BorderLayout());header.add(WorkspaceStyle.heading("Stored job · "+job.timestamp()),BorderLayout.CENTER);
         header.add(WorkspaceStyle.button("Return to artwork",back),BorderLayout.EAST);

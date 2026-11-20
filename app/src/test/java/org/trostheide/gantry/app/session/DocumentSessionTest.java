@@ -57,6 +57,40 @@ class DocumentSessionTest {
         session.redo();assertEquals(List.of(.8),session.penWidthsMm());
     }
 
+    @Test void sharedNamedPenUpdatesAllAssignedLayersAndSurvivesUndo() {
+        DocumentSession session = new DocumentSession();
+        session.replace(output("outline", "details"));
+        String sharedId = session.penLibrary().penForLayer(0).id();
+        session.assignPen(1, sharedId);
+        session.editPen(new PenLibrary.Pen(sharedId, "Blue fineliner", "#2244cc", .45));
+
+        assertEquals(List.of(.45, .45), session.penWidthsMm());
+        assertEquals(List.of("#2244cc", "#2244cc"),
+                session.selectedOutput().layers().stream().map(Layer::color).toList());
+        assertEquals(List.of("outline", "details"),
+                session.currentOutput().layers().stream().map(Layer::id).toList());
+        session.undo();
+        assertEquals(List.of(.3, .3), session.penWidthsMm());
+        session.undo();
+        assertFalse(session.penLibrary().layerPenIds().get(0).equals(session.penLibrary().layerPenIds().get(1)));
+        session.redo();
+        assertEquals(sharedId, session.penLibrary().penForLayer(1).id());
+    }
+
+    @Test void namedPenAssignmentSurvivesAppendAndMatchedReprocessing() {
+        DocumentSession session = new DocumentSession();
+        session.replace(output("outline", "details"));
+        String sharedId = session.penLibrary().penForLayer(0).id();
+        session.assignPen(1, sharedId);
+        String artworkId = session.artworks().get(0).id();
+        session.appendArtwork(output("accent"), "accent.svg");
+        assertEquals(sharedId, session.penLibrary().penForLayer(1).id());
+        assertFalse(sharedId.equals(session.penLibrary().penForLayer(2).id()));
+        session.replaceArtwork(artworkId, output("details", "outline"), null, null, null);
+        assertEquals(sharedId, session.penLibrary().penForLayer(0).id());
+        assertEquals(sharedId, session.penLibrary().penForLayer(1).id());
+    }
+
     @Test
     void replacementSelectsEveryLayerAndClearsUndo() {
         DocumentSession session = new DocumentSession();

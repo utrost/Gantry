@@ -14,9 +14,16 @@ import java.util.List;
 
 /** Bounded persistent history of immutable prepared plot jobs. */
 public final class PlotJobHistory {
-    public record Job(Instant timestamp, ProcessorOutput output, PlotSettings settings) {
+    public record PenSnapshot(String id, String name, String color, double widthMm) { }
+
+    public record Job(Instant timestamp, ProcessorOutput output, PlotSettings settings,
+                      List<PenSnapshot> pens) {
+        public Job(Instant timestamp, ProcessorOutput output, PlotSettings settings) {
+            this(timestamp, output, settings, List.of());
+        }
         public Job {
             settings = copySettings(settings);
+            pens = pens == null ? List.of() : List.copyOf(pens);
         }
 
         /** Returns a defensive copy because plotting adds transient runtime flags. */

@@ -15,12 +15,14 @@ GRBL cancellation/error handling. Its machine-aware preview also shows ordered
 layers with source pen colours, visibility, and physical nib widths that remain
 constant when artwork is scaled.
 
-Windows/Linux installers are published through GitHub Releases. RC10 verifies and completes independent GUI/workflow fixes, building on RC9’s pen-aware filling. Native installation,
-upgrade, bundled-runtime launch, and persisted state checks pass. Uwe reports
-Windows 11 / iDraw H A1 plotting, stop/alarm recovery, limits and calibration
-working. Remaining desktop checks and post-RC2 hardening are tracked separately. See the
-[current acceptance record](docs/release-results/1.0.0-rc.10.md). Beginner usability
-is closed as described in [`docs/USABILITY.md`](docs/USABILITY.md).
+Windows/Linux installers are published through GitHub Releases. RC11 adds stable
+manual-control layout and clearer unavailable-action feedback to the RC10
+workflow fixes and RC9 pen-aware filling. Native installation, upgrade,
+bundled-runtime launch, and persisted state checks pass in release CI. The
+maintainer reported Windows 11 / iDraw H A1 plotting, stop/alarm recovery,
+limits and calibration on RC2; the changed RC11 behavior still needs physical
+acceptance. See the [current acceptance record](docs/release-results/1.0.0-rc.11.md).
+Beginner usability is closed as described in [`docs/USABILITY.md`](docs/USABILITY.md).
 
 ## Delivery plan
 
@@ -30,11 +32,35 @@ is closed as described in [`docs/USABILITY.md`](docs/USABILITY.md).
 | 2 | Roadmap reconciliation | Active plan is concise; historical phase diary is explicitly deprecated and archived | Complete |
 | 3 | Project/session persistence | `.gantry` files preserve commands, placement, selected layers, passes, and source/vectorizer provenance; command JSON is clearly a flattened interchange export | Complete |
 | 4 | Undo/recovery | Multi-level undo/redo covers model edits; dirty state, close protection, and recovery autosave protect unsaved work | Complete for model/project state and artwork placement edits |
-| 5 | Release readiness | Non-SNAPSHOT version, repeatable release artifacts, checksums, and a recorded acceptance template/workflow | RC2 published; automated installer checks pass; Windows 11 / iDraw H A1 hardware report recorded; remaining desktop checks and post-RC2 hardening pending |
+| 5 | Release readiness | Non-SNAPSHOT version, repeatable release artifacts, checksums, and a recorded acceptance template/workflow | RC11 published; automated installer checks pass; RC2 Windows 11 / iDraw H A1 hardware report recorded; RC11 physical and external-user acceptance pending |
 | 6 | Focused polish | Full SVG colour discovery for hatch overrides, accurate travel accounting/labeling, and vectorizer crop restoration | Complete |
 | 7 | CLI batch artifacts | Post-import optimize, shared config/station mapping, and optional G-code output work headlessly with end-to-end tests | Complete |
 | 8 | Exact-job history | Re-plot uses an immutable prepared-job snapshot; recent successful jobs persist and can be reopened/replotted | Complete |
 | 9 | Beginner usability | A default basic workflow leads from artwork to a safe first plot with progressive disclosure, plain language, actionable guidance, safe import defaults, visible feedback, and novice acceptance evidence; advanced workflows remain available | Closed by product-owner decision; Slices A–C and processor-studio Slice E complete. Novice-study protocol remains available as adoption validation, not a blocker for this milestone. |
+
+## Current integration and acceptance — 2026-11-20
+
+RC11 remains the latest published candidate. The next development revision integrates
+reviewed-job SVG/ZIP export (#68), reusable named pens (#69), advisory whole-job
+ink overlap (#70), and editable stroke text/basic shapes (#72). These additions
+use the existing project, undo, review and export paths; their presence does not
+establish physical or external-user acceptance.
+
+| Work | Software state | Remaining evidence |
+|---|---|---|
+| Reviewed SVG export #68 | Combined SVG and atomic per-layer ZIP implemented | Real cross-tool handoff feedback |
+| Named pens #69 | Shared identity, width/colour/name, project migration and history snapshots implemented | Multi-pen operator feedback |
+| Ink overlap #70 | Optional, bounded, cancellable geometric coverage implemented | Real pen/paper usefulness; no drying claim |
+| Quick artwork #72 | Editable physical-mm shapes and bundled stroke text implemented | At least one actual user task before issue closure |
+| Manual operations #39 | Owned cancellation and halt/lift recovery implemented and mock-tested | Current Windows 11/iDraw H A1 run |
+| Workspace #43 / acceptance #54 | Automated layout and mock workflows available | Native scaling, operator benchmark and participant evidence |
+| Novice study #16 | Protocol available; usability milestone remains closed | Five actual participants |
+| Drying-aware planning #71 | Research proposal; no executable planner | Coverage review and physical evidence first |
+
+Use the [operator acceptance checklist](docs/OPERATOR_ACCEPTANCE.md) when hardware
+is available. Keep #33, #39, #43, #54, #16 and #72 open until their outstanding
+criteria have evidence. See the [integration record](docs/release-results/2026-11-20-integration.md)
+for software verification and limitations.
 
 ## Adoption roadmap
 
@@ -106,8 +132,10 @@ for machine-aware execution.
 - vpype-style optimization vocabulary in UI/docs: explain Gantry's native merge,
   sort, simplify, reloop, and two-opt-like improvements using plotter-community
   language while keeping the Java implementation and tests authoritative.
-- Multi-pen/layer job output: per-layer/per-colour SVG or G-code export, a
-  combined job with explicit pen-change pauses and generated setup notes.
+- Multi-pen/layer job output: reviewed combined SVG and per-layer SVG ZIP are
+  implemented in development; G-code remains the executable machine output.
+  SVG does not encode pen-change pauses or refill motion. Further per-pen
+  grouping and generated setup notes remain demand-driven.
   Ordered, physical-width layer previews are implemented. Prefer Gantry's
   station/layer model over literal CMYK
   unless the source is a colour image.

@@ -50,7 +50,7 @@ Additional regression tests cover manual cancellation races, durable disconnecte
 
 - Windows 11 native installer and 100%/125%/150%/200% DPI checks.
 - iDraw H A1 checks of changed jog, focus-loss, Stop, homing, calibration and disconnect interactions.
-- Uwe's expert workflow evaluation against the original benchmark.
+- the maintainer's expert workflow evaluation against the original benchmark.
 - The five-participant novice study tracked by #16.
 
 No physical hardware acceptance, novice-study result, native Windows acceptance, or new published installer is claimed by this record. Keep #54 and #16 open until the corresponding evidence exists. The previous audit evidence bundle remains local.

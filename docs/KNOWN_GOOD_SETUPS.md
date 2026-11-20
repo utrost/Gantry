@@ -10,12 +10,12 @@ example, a pen-plot acceptance run does not prove watercolor station behavior.
 ## Windows 11 — iDraw H A1 (RC2)
 
 - Date: 2026-10-04
-- Tester: Uwe (direct user report)
+- Tester: the maintainer (direct user report)
 - Gantry: published `v1.0.0-rc.2`, Windows x64 MSI, bundled Java 21
 - Operating system: Windows 11
 - Plotter: iDraw H A1
 - Reported working: physical plotting, stop/alarm recovery, limits, calibration.
-- Result: passed for those workflows on this configuration, as reported by Uwe.
+- Result: passed for those workflows on this configuration, as reported by the maintainer.
 - Not individually reported: serial enumeration/connect-disconnect, homing/jog,
   framing, offline-help/browser shortcuts, standard-user install context, and
   watercolor station/wet/refill behavior. Controller firmware, baud rate, origin,
@@ -58,14 +58,14 @@ example, a pen-plot acceptance run does not prove watercolor station behavior.
 - Linked release result or issue:
 ```
 
-## Uwe primary setup — Uuna Tek A1 H plotter
+## Maintainer-reported setup — Uuna Tek A1 H plotter
 
-Gantry has been reported working on this hardware by Uwe. This is the first
+Gantry has been reported working on this hardware by the maintainer. This is the first
 real-hardware compatibility entry, but the detailed release-acceptance checklist
 still needs to be filled before making broad hardware-readiness claims.
 
 - Date: 2026-08-17
-- Tester: Uwe
+- Tester: the maintainer
 - Gantry version or commit: `29f5c03`
 - Operating system: Linux 6.8.0-136-generic x86_64 GNU/Linux
 - Java version: OpenJDK 17.0.19
@@ -87,7 +87,7 @@ still needs to be filled before making broad hardware-readiness claims.
   - [ ] small real pen plot
   - [ ] watercolor station dry visit
   - [ ] watercolor wet/refill job
-- Result: Gantry works on this hardware per Uwe's report.
+- Result: Gantry works on this hardware per the maintainer's report.
 - Caveats: detailed acceptance evidence, controller/GRBL version, travel,
   origin, pen mode, and exact tested workflow list are still pending.
 - Linked release result or issue: [#15](https://github.com/utrost/Gantry/issues/15)

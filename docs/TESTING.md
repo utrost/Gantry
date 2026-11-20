@@ -66,6 +66,15 @@ menus, file dialogs and buttons with an isolated mock profile, including a secon
 process for recovery. See [the GUI evaluation](test-results-2026-09-26-gui.md) for
 coverage, findings and limitations. Java 17/21 CI runs this after the reactor build.
 
+### Integrated preparation checks
+
+`PreparationIntegrationAcceptance` in `scripts/test-gui.sh` exercises the actual
+Open / Add text-label action, first Undo/Redo, project save, named-pen SVG/ZIP
+export and advisory overlap UI using an isolated disconnected mock profile.
+See the [post-RC11 integration record](release-results/2026-11-20-integration.md)
+for local evidence and the [operator checklist](OPERATOR_ACCEPTANCE.md) for the
+physical/native/participant gates that automation cannot close.
+
 ### Test coverage by module
 
 | Module | Test classes | What is covered |
@@ -83,7 +92,9 @@ coverage, findings and limitations. Java 17/21 CI runs this after the reactor bu
 | `app` | `TimeEstimatorTest` | Travel/draw distances use their respective feed rates; refill travel + fixed dip overhead; unknown station falls back to default; pen-down settle overhead charged once per `DrawCommand` and driven by the configurable `penDownDelayMillis` (0 removes it); multi-layer totals; `H:MM:SS` formatting |
 | `app` | `HatchOverridesPanelTest`, `ToolboxOptionsPanelTest`, `SvgFillColorsTest` | Per-colour hatch table validation and mapping into `Config.overrides`; discovery of explicit SVG fill colours |
 | `app` | `DocumentSessionTest`, `DocumentCompositionTest`, `GantryProjectIOTest`, `CanvasContextMenuTest` | Multi-level model undo/redo, append-SVG composition with addressable artwork groups, side-by-side placement, unique command IDs, per-artwork move/scale/mirror transforms, canvas artwork action routing, and `.gantry` project round-trip |
+| `app` | `QuickArtworkTest` | Physical-mm primitives, bundled stroke text, unsupported glyphs, source persistence, pen assignment, edit and undo/redo, and G-code endpoint after project reload |
 | `app` | `PlotJobHistoryTest`, `VisualizationTravelTest` | Persistent prepared-job history and travel accounting across layer boundaries |
+| `app` | `InkCoverageAnalyzerTest` | Prepared machine-space stroke footprints, crossings, multipass, pen width, clipping, empty jobs and bounded grid allocation |
 | `vectorize` | `IntegrationTest`, `BoofcvBatikVectorTest`, `StrategiesTest`, `PaintByNumbersTest` | Raster→SVG engine: contour extraction, the vectorization strategies, including centerline and image-art modes, polyline/Bézier geometry, auto-Canny, crop, SVG optimisation, Paint-by-Numbers quantisation/regions/labels |
 | `cli` | `VectorizeCliTest` | `VectorizeCli` wiring: image→SVG, and the `--`-separated image→SVG→command-JSON chain (argument split, SVG-path derivation, `-i` injection) |
 | `cli` | `SvgImportCliTest`, `SampleGalleryDocsTest` | SVG→command CLI wiring: help, multipass and per-colour hatch overrides; batch config station mapping and G-code output; sample gallery contract covering committed parseable SVGs, tester safety metadata, and README/FIRST_PLOT links |

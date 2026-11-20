@@ -11,7 +11,7 @@ Java 17 / Maven multi-module project. Pen-plotting is the first-class, default
 path; watercolor (paint stations + refill) is an optional stage layered on top.
 
 The machine-aware Live View previews the configured workspace, final artwork
-placement, per-layer pen colour, plot inclusion, plot order, and physical nib width
+placement, assigned pen colour, plot inclusion, plot order, and physical nib width
 before paper or ink is committed.
 
 ![Gantry workspace with three colour layers](docs/images/workspace-layer-preview.png)
@@ -125,13 +125,13 @@ Windows (`.cmd`), all run from the repo root:
 | `build.sh` / `build.cmd` | `mvn clean install` everything (pass `--skip-tests` to skip tests) |
 | `start.sh` / `start.cmd` | Launch the Gantry GUI (`app/target/app-1.0.0.jar`), building it first if missing |
 | `test-gui.sh [GUI-JAR] [RESULTS]` | Exercise the GUI mock workflow and process-restart recovery (Linux/JDK/display) |
-| `capture-screenshots.sh [GUI-JAR]` | Refresh four real application UI captures using a temporary mock profile (Linux/JDK/display) |
+| `capture-screenshots.sh [GUI-JAR]` | Refresh the screenshot gallery using temporary mock profiles (Linux/JDK/display) |
 | `start-novice-study.sh` | Launch the GUI from an isolated clean profile for novice-study participants |
 | `release.sh` / `release.cmd` | Build versioned GUI/CLI artifacts under `dist/<version>/`; add `--installer` for the host installer |
 
 Release builds require Python 3.9+ as well as Java/Maven; native installers
 require JDK 21+ with jpackage. Portable JARs still run on Java 17+. For example:
-`./scripts/release.sh 1.0.0-rc.5 --installer` (Windows: `scripts\release.cmd 1.0.0-rc.5 --installer`).
+`./scripts/release.sh 1.0.0-rc.11 --installer` (Windows: `scripts\release.cmd 1.0.0-rc.11 --installer`).
 
 Tagged releases are staged as drafts by GitHub Actions after both installers pass. See
 [`docs/RELEASE_CHECKLIST.md`](docs/RELEASE_CHECKLIST.md) for the required mock

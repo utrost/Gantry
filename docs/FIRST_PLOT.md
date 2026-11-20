@@ -57,6 +57,8 @@ During practice the top bar says **Simulation • no physical hardware**. You
 can load, process, position, and save artwork while disconnected. That preview is
 not a hardware connection.
 
+![Empty RC11 workspace with simulation status and artwork prompt](images/workspace/empty.png)
+
 Do not connect a real plotter until the drawing size and bed position look
 reasonable.
 
