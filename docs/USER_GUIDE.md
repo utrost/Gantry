@@ -266,20 +266,23 @@ SVG or image artwork
 Alternatively, generate flattened command JSON or G-code headlessly with the
 CLI. Command JSON can be opened in the GUI as a new project.
 
-### The four file formats
+### Working and export file formats
 
-Gantry deals with four different kinds of file, and every menu item now names
+Gantry deals with several kinds of file, and every menu item now names
 which one it works on so you always know what you're handling:
 
 | Format | What it is | How Gantry uses it |
 |---|---|---|
 | **SVG** (`.svg`) | Vector *artwork* — the drawing you start from or append to a composition | **File > Open SVG or Vector Drawing…** fits it safely to the machine bed and converts it into Gantry's editable drawing, replacing the current artwork. **File > Append SVG to Current Artwork…** imports another SVG as additional layers. **Edit > Re-process Source SVG…** re-runs the conversion against the same file when the document still has one SVG source. |
+| **Reviewed-job SVG** (`.svg`) | The selected, placed drawing paths in machine-bed millimetres, with ordered colour layers | **File > Export Reviewed Job as SVG…** writes a combined SVG for inspection or use in another tool. It excludes pen-up travel, refill motion and machine commands. |
+| **SVG package** (`.zip`) | An atomic bundle of the combined SVG, one SVG per selected layer, and a short README | **File > Export Reviewed Job as SVG Package…** writes it for one-layer-at-a-time handoff. Layer files preserve the same bed dimensions and placement. |
 | **Gantry project** (`.gantry`) | The editable working session: commands, placement, selected layers, passes, and source/import/vectorizer provenance | **File > Open Project… / Save Project…** restores the state needed to continue the job later. This is the preferred working format. |
 | **Flattened commands — JSON** (`.json`) | Interchange output with the current placement, layer selection, and passes baked into commands | **File > Export Flattened Commands (JSON)…** writes it. **Open Commands (JSON)…** can still load existing command files, but JSON does not preserve the complete editable project. |
 | **G-code** (`.gcode`) | Machine instructions for the *plotter* | **File > Export G-code (for plotter)…** writes it; **File > Replay G-code…** streams an existing one straight to the machine. One-way output — G-code can't be reopened for editing. |
 
-Rule of thumb: **SVG comes in, `.gantry` is what you keep editing, flattened JSON
-integrates with other tools, and G-code goes to the plotter.** Hovering a
+Rule of thumb: **SVG comes in, `.gantry` is what you keep editing, exported SVG
+shares the reviewed drawing, flattened JSON integrates with command-model tools,
+and G-code goes to the plotter.** Hovering a
 File/Edit menu item shows a tooltip reminding you which format it touches.
 
 ---
@@ -954,6 +957,8 @@ Type any G-code command in the text field and press Enter to send it directly.
 ---
 
 ## Exporting and replaying G-code
+
+- **Export Reviewed Job as SVG** — save selected layers, placement and passes as one physical-size SVG. **Export Reviewed Job as SVG Package** writes the same combined SVG plus one file per layer in a ZIP. Out-of-bed points are clamped to the configured bed, with a warning before export. These files contain no pen-change gate, refill motion or controller commands. A stored historical job retains its geometry and colours; because older job-history snapshots do not retain pen widths, their SVG uses a labelled 0.3 mm display-width assumption.
 
 - **Export G-code (for plotter)** — save the current command model as a `.gcode` file without executing it.
 - **Replay G-code** — load and stream an existing `.gcode` file straight to the plotter (bypasses the command model).

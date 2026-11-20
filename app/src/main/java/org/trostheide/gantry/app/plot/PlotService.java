@@ -12,6 +12,7 @@ import org.trostheide.gantry.plotter.PlotterBackend;
 
 import java.util.List;
 import java.util.Map;
+import java.util.ArrayList;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
@@ -25,6 +26,52 @@ import java.util.function.Consumer;
  * implement it with a button instead of stdin.
  */
 public class PlotService {
+
+    /** Drawing paths in final machine millimetres, excluding pen-up travel and refill motions. */
+    public record ProjectedLayer(Layer layer, List<List<Point>> strokes) { }
+    public record ProjectedArtwork(double widthMm, double heightMm, List<ProjectedLayer> layers) { }
+
+    /**
+     * Projects the same prepared commands used for plotting without moving a machine.
+     * A stroke begins at the current head position, matching the first lineto in plot().
+     */
+    public ProjectedArtwork projectArtwork(ProcessorOutput output) {
+        double machineW = settings.resolveMachineWidth();
+        double machineH = settings.resolveMachineHeight();
+        double[] bounds = computeContentBounds(output.layers());
+        double[] offset = alignmentOffset(bounds, machineW, machineH);
+        List<ProjectedLayer> projected = new ArrayList<>();
+        StationConfig rinse = findRinseStation();
+        int layerIndex = 0;
+        for (Layer layer : output.layers()) {
+            Point cursor = layerIndex++ > 0 && rinse != null
+                    ? new Point(rinse.x(), rinse.y()) : new Point(0, 0);
+            List<List<Point>> strokes = new ArrayList<>();
+            for (Command command : layer.commands()) {
+                if (command instanceof MoveCommand move) {
+                    double[] p = transformAndClamp(move.x, move.y, machineW, machineH,
+                            offset[0], offset[1], bounds, new int[1]);
+                    cursor = new Point(p[0], p[1]);
+                } else if (command instanceof DrawCommand draw && !draw.points.isEmpty()) {
+                    List<Point> path = new ArrayList<>();
+                    path.add(cursor);
+                    for (Point point : draw.points) {
+                        double[] p = transformAndClamp(point.x(), point.y(), machineW, machineH,
+                                offset[0], offset[1], bounds, new int[1]);
+                        cursor = new Point(p[0], p[1]);
+                        if (!cursor.equals(path.get(path.size() - 1))) path.add(cursor);
+                    }
+                    strokes.add(List.copyOf(path));
+                } else if (command instanceof RefillCommand refill) {
+                    StationConfig station = settings.stations.get(refill.stationId);
+                    if (station == null) station = settings.stations.get("default_station");
+                    if (station != null) cursor = new Point(station.x(), station.y());
+                }
+            }
+            projected.add(new ProjectedLayer(layer, List.copyOf(strokes)));
+        }
+        return new ProjectedArtwork(machineW, machineH, List.copyOf(projected));
+    }
 
     /** Gates the start of each layer, e.g. waiting for an operator to press a "Start Layer" button. */
     @FunctionalInterface
@@ -163,23 +210,8 @@ public class PlotService {
         int totalCommands = layers.stream().mapToInt(l -> l.commands().size()).sum();
         int[] doneCommands = {0};
 
-        double offsetX = 0;
-        double offsetY = 0;
-        if (settings.alignmentOffsetOverride != null) {
-            offsetX = settings.alignmentOffsetOverride[0];
-            offsetY = settings.alignmentOffsetOverride[1];
-            logCallback.accept(String.format("Alignment offset (from preview) -> X=%.2f, Y=%.2f", offsetX, offsetY));
-        } else if (settings.canvasAlign != null && contentBounds != null) {
-            double[] offset = CoordinateTransform.calculateAlignmentOffset(
-                    settings.canvasAlign, contentBounds, machineW, machineH,
-                    settings.swapXY, settings.invertX, settings.invertY,
-                    settings.dataRotation, settings.originRight, settings.originBottom,
-                    settings.flipY,
-                    settings.paddingX, settings.paddingY);
-            offsetX = offset[0];
-            offsetY = offset[1];
-            logCallback.accept(String.format("Alignment offset -> X=%.2f, Y=%.2f", offsetX, offsetY));
-        }
+        double[] offset = alignmentOffset(contentBounds, machineW, machineH);
+        double offsetX = offset[0], offsetY = offset[1];
 
         checkPreflightBounds(contentBounds, machineW, machineH, offsetX, offsetY);
 
@@ -232,6 +264,24 @@ public class PlotService {
                 }
             }
         }
+    }
+
+    private double[] alignmentOffset(double[] bounds, double machineW, double machineH) {
+        if (settings.alignmentOffsetOverride != null) {
+            double[] offset = settings.alignmentOffsetOverride;
+            logCallback.accept(String.format("Alignment offset (from preview) -> X=%.2f, Y=%.2f", offset[0], offset[1]));
+            return offset;
+        }
+        if (settings.canvasAlign != null && bounds != null) {
+            double[] offset = CoordinateTransform.calculateAlignmentOffset(
+                    settings.canvasAlign, bounds, machineW, machineH,
+                    settings.swapXY, settings.invertX, settings.invertY,
+                    settings.dataRotation, settings.originRight, settings.originBottom,
+                    settings.flipY, settings.paddingX, settings.paddingY);
+            logCallback.accept(String.format("Alignment offset -> X=%.2f, Y=%.2f", offset[0], offset[1]));
+            return offset;
+        }
+        return new double[] {0, 0};
     }
 
     private void recover(Runnable action, String description, Throwable original) {
