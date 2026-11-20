@@ -1095,6 +1095,37 @@ The vectorize options (`-s` strategy and its parameters) mirror the standalone
 vectorizer; run `VectorizeCli` with no arguments for usage, and see the
 `vectorize` module for the full option list.
 
+### PNG export, saved recipes and batch outcomes
+
+The portable CLI bundles PNG support. `--format png` writes a PNG alongside the
+SVG and metadata; it can still chain into command import. PNG retains the SVG's
+transparent background; view black line art against a light background. PDF requires optional
+Apache FOP on a custom classpath and is not bundled. Unavailable or unknown
+formats fail with a nonzero exit code before generating the SVG.
+
+The metadata sidecar is a reusable vectorizer recipe:
+
+```bash
+java -cp cli/target/cli-1.0.0.jar org.trostheide.gantry.cli.VectorizeCli \
+  -i photo.png -o traced.svg -s squiggle --squiggle-density 1.2 --format png
+java -cp cli/target/cli-1.0.0.jar org.trostheide.gantry.cli.VectorizeCli \
+  --config traced.svg.json -o rerun.svg --squiggle-density 0.8
+```
+
+Saved parameters supply defaults; explicit CLI options override them, including
+source, strategy, style, crop and output. New sidecars retain common and strategy
+parameters, output format and crop. Older nested recipes remain readable;
+settings omitted by an old writer fall back to defaults and cannot be recovered.
+
+Batch vectorization processes independent files in filename order. A failed file
+does not discard successful files, but the overall process exits nonzero and
+reports failed filenames/counts. An empty input directory is an explicit no-op.
+Same-basename or case-insensitive output collisions are rejected before writing;
+rename ambiguous inputs or process them separately. Use a **separate output
+directory for PNG batch export**: outputs that would overwrite any source photo
+are rejected. Ordinary file exports may replace existing outputs; collision
+preflight does not provide an overwrite prompt for unrelated existing files.
+
 ### Comparing image-art validation runs
 
 For processor bake-offs, first run each image-art strategy through the chained

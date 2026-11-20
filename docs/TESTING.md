@@ -96,6 +96,16 @@ See the [post-RC11 integration record](release-results/2026-11-20-integration.md
 for local evidence and the [operator checklist](OPERATOR_ACCEPTANCE.md) for the
 physical/native/participant gates that automation cannot close.
 
+### Packaged CLI reliability
+
+`PackagedCliAcceptance.java` runs actual child CLI processes with only the shaded
+JAR on the classpath. It covers PNG decode/chaining, exact non-default recipe
+reruns on a real photograph, CLI overrides, failed-batch exit status and
+collision/source preservation. It runs on Java 17/21 and the native staged
+Windows/Linux portable JARs. See the [five-issue record](release-results/2026-11-20-cli-reliability.md)
+for commands and concrete before/after behavior. Unit checks cover legacy
+recipes, embedder overrides and atomic failed PNG overwrites.
+
 ### Real-image quality and artifact regression
 
 The [licensed corpus and visual review](validation/image-art/README.md) compares

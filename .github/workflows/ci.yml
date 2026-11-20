@@ -26,6 +26,13 @@ jobs:
       - name: Build
         run: mvn clean package -q
 
+      - name: Packaged CLI exports, recipes and batch failures
+        run: >-
+          java -Djava.awt.headless=true -cp cli/target/cli-1.0.0.jar
+          scripts/validation/PackagedCliAcceptance.java
+          cli/target/cli-1.0.0.jar dist/validation/packaged-cli
+          docs/validation/image-art/inputs/camera.png
+
       - name: Real-image art geometry and G-code validation
         run: >-
           python3 scripts/validate-image-art.py

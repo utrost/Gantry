@@ -56,9 +56,12 @@ See the [integration record](docs/release-results/2026-11-20-integration.md).
 
 ## Now — software work without a plotter
 
-| Priority | Work | Exit criteria |
-|---|---|---|
-| P2 | [#84 — Packaged CLI PNG export](https://github.com/utrost/Gantry/issues/84) | Advertised PNG export works from the packaged JAR, including chained import |
+The independently actionable tracked software issues #84 and #88–#91 are
+complete: packaged PNG support, honest export failures, reproducible recipes,
+explicit rerun overrides, failed-batch status and collision/source protection.
+See the [verification record](docs/release-results/2026-11-20-cli-reliability.md).
+The remaining tracked acceptance work needs native desktop, hardware or
+participant evidence as listed below.
 
 Mock hardening #78/#79 implements cancellable motion that freezes at the last
 reached point, explicit pen/connection/Run/Idle state, supported raw-command
@@ -99,7 +102,8 @@ and adds connected sketch contours: the unchanged standard recipe now retains
 recognizable subjects, at 8–13 minute feed/dwell estimates. See the
 [before/after quality and cost review](docs/validation/image-art/squiggle-fix/README.md).
 The actual Studio preset was reviewed too; flat dark suppression is explicitly
-content-based, not background segmentation. #84 remains the packaged PNG bug.
+content-based, not background segmentation. #84 packaged PNG export is fixed; recipe/batch reliability fixes also retain
+all reviewed geometry hashes.
 No beginner defaults were promoted; physical quality remains operator evidence.
 
 Recruit the first independent tester using only the release link and FIRST_PLOT;
