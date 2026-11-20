@@ -77,17 +77,10 @@ final class InkCoverageDialog {
 
     private static void render(InkCoverageAnalyzer.Result result, int penIndex, int threshold,
                                JLabel summary, JLabel image) {
-        byte[] counts = result.counts(penIndex);
-        BufferedImage bitmap = new BufferedImage(result.columns(), result.rows(), BufferedImage.TYPE_INT_RGB);
-        for (int y = 0; y < result.rows(); y++) {
-            for (int x = 0; x < result.columns(); x++) {
-                int count = Byte.toUnsignedInt(counts[(result.rows() - 1 - y) * result.columns() + x]);
-                int rgb = count == 0 ? 0xffffff : count >= threshold ? 0xd73524 : 0xf3ba4a;
-                bitmap.setRGB(x, y, rgb);
-            }
-        }
-        int targetWidth = Math.min(720, result.columns());
-        int targetHeight = Math.max(1, (int) Math.round((double) result.rows() * targetWidth / result.columns()));
+        BufferedImage bitmap = renderMap(result, penIndex, threshold);
+        int targetWidth = Math.min(720, bitmap.getWidth());
+        int targetHeight = Math.max(1, (int) Math.round(
+                result.page().heightMm() * targetWidth / result.page().widthMm()));
         image.setText(null);
         image.setIcon(new ImageIcon(bitmap.getScaledInstance(targetWidth, targetHeight, Image.SCALE_FAST)));
         String name = penIndex < 0 ? "all pens" : result.penNames().get(penIndex);
@@ -97,4 +90,21 @@ final class InkCoverageDialog {
                 name, result.maximum(penIndex), result.cellsAtLeast(penIndex, threshold), threshold,
                 result.cellMm(), warning));
     }
+    /** The actual dialog renderer, also exercised by asymmetric rendered-output regressions. */
+    static BufferedImage renderMap(InkCoverageAnalyzer.Result result, int penIndex, int threshold) {
+        byte[] counts = result.counts(penIndex);
+        var page = result.page();
+        BufferedImage bitmap = new BufferedImage(page.swapXY() ? result.rows() : result.columns(),
+                page.swapXY() ? result.columns() : result.rows(), BufferedImage.TYPE_INT_RGB);
+        for (int y = 0; y < result.rows(); y++) {
+            for (int x = 0; x < result.columns(); x++) {
+                int count = Byte.toUnsignedInt(counts[y * result.columns() + x]);
+                int rgb = count == 0 ? 0xffffff : count >= threshold ? 0xd73524 : 0xf3ba4a;
+                double[] cell = page.cell(x, y, result.columns(), result.rows());
+                bitmap.setRGB((int) cell[0], (int) cell[1], rgb);
+            }
+        }
+        return bitmap;
+    }
+
 }

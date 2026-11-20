@@ -24,7 +24,7 @@ public final class InkCoverageAnalyzer {
 
     public record Result(double cellMm, int columns, int rows, List<String> penNames,
                          byte[] aggregate, List<byte[]> perPen, boolean clipped,
-                         double[] artworkBounds) {
+                         double[] artworkBounds, MachinePageProjection page) {
         public byte[] counts(int penIndex) { return penIndex < 0 ? aggregate : perPen.get(penIndex); }
         public int maximum(int penIndex) {
             int max = 0;
@@ -106,7 +106,7 @@ public final class InkCoverageAnalyzer {
         if (Thread.currentThread().isInterrupted()) throw new CancellationException();
         flush.run();
         return new Result(cell, columns, rows, List.copyOf(names), aggregate, List.copyOf(perPen),
-                clipped[0], artworkBounds);
+                clipped[0], artworkBounds, MachinePageProjection.from(settings));
     }
 
     private static void stamp(PlotService.DrawSegment segment, double radius, double cell,
