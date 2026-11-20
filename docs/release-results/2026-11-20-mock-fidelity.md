@@ -71,3 +71,11 @@ Continue software work in #78/#79 without a plotter. Keep physical acceptance
 #39/#54, native scaling #43, actual participants #16 and the user task in #72 open.
 A stronger simulator still will not establish physical acceleration, braking,
 planner buffering, limit-switch mechanics, ink behavior or pen-lift safety.
+
+## Follow-up implementation
+
+The #78/#79 changes address the observed mock defects with operation cancellation,
+pen/connection/status state and supported raw execution. See the
+[current contract](../BACKEND_CONTRACT.md) and
+[follow-up verification](2026-11-20-backend-contracts.md). The observations above
+remain scoped to `3462659`; they are not current claims about the corrected code.

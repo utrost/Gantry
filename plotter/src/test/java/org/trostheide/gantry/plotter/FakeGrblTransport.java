@@ -2,6 +2,11 @@ package org.trostheide.gantry.plotter;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
+import java.util.Queue;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -23,6 +28,10 @@ class FakeGrblTransport implements SerialTransport {
     private final List<String> sentCommands = new CopyOnWriteArrayList<>();
     private final StringBuilder lineBuffer = new StringBuilder();
 
+    private final Map<String, Queue<List<String>>> scripts = new ConcurrentHashMap<>();
+    private final Map<String, CountDownLatch> commandSignals = new ConcurrentHashMap<>();
+    private volatile boolean absolute = true;
+    private volatile boolean penDown;
     private volatile boolean open = true;
     private volatile double x;
     private volatile double y;
@@ -33,6 +42,18 @@ class FakeGrblTransport implements SerialTransport {
     private volatile String buildInfo;
     private volatile IOException readFailure;
     private volatile IOException nextLineWriteFailure;
+
+    /** Replace one command's default acknowledgement; an empty script deliberately withholds it. */
+    void scriptNext(String command, String... responses) {
+        scripts.computeIfAbsent(command, key -> new ConcurrentLinkedQueue<>()).add(List.of(responses));
+    }
+
+    boolean awaitCommand(String command, long timeout, TimeUnit unit) throws InterruptedException {
+        return commandSignals.computeIfAbsent(command, key -> new CountDownLatch(1)).await(timeout, unit);
+    }
+
+    boolean isPenDown() { return penDown; }
+    double[] position() { return new double[] {x, y}; }
 
     List<String> sentCommands() {
         return sentCommands;
@@ -97,6 +118,7 @@ class FakeGrblTransport implements SerialTransport {
             nextLineWriteFailure = null;
             throw failure;
         }
+        if (!open) throw new IOException("serial port closed");
         for (byte b : data) {
             switch (b) {
                 case '\n' -> {
@@ -125,6 +147,17 @@ class FakeGrblTransport implements SerialTransport {
 
     private void handleCommand(String cmd) {
         sentCommands.add(cmd);
+        commandSignals.computeIfAbsent(cmd, key -> new CountDownLatch(1)).countDown();
+        Queue<List<String>> queued = scripts.get(cmd);
+        List<String> scripted = queued == null ? null : queued.poll();
+        if (scripted != null && scripted.stream().anyMatch(line -> line.startsWith("error") || line.startsWith("ALARM"))) {
+            scripted.forEach(toClient::add);
+            return; // A rejected command must not mutate the fake's position or modal state.
+        }
+        if ("G91".equals(cmd)) absolute = false;
+        if ("G90".equals(cmd)) absolute = true;
+        if (cmd.equals("M280 P0 S30")) penDown = true;
+        if (cmd.equals("M280 P0 S60")) penDown = false;
         if ("$I".equals(cmd) && buildInfo != null) {
             toClient.add(buildInfo);
         }
@@ -135,12 +168,13 @@ class FakeGrblTransport implements SerialTransport {
         }
         Matcher m = XY_MOVE.matcher(cmd);
         if (m.find()) {
-            x = Double.parseDouble(m.group(1));
-            y = Double.parseDouble(m.group(2));
+            double nx = Double.parseDouble(m.group(1)), ny = Double.parseDouble(m.group(2));
+            x = absolute ? nx : x + nx;
+            y = absolute ? ny : y + ny;
         }
-        if (autoAck) {
-            toClient.add("ok");
-        }
+        if (cmd.equals("G92 X0 Y0")) { x = 0; y = 0; }
+        if (scripted != null) scripted.forEach(toClient::add);
+        else if (autoAck) toClient.add("ok");
     }
 
     private String statusReport() {

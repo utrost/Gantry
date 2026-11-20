@@ -6,6 +6,9 @@ import java.util.List;
  * A plotter backend capable of absolute/relative moves and pen control.
  * {@code queryPosition} and {@code sendRaw} are optional capabilities with
  * safe defaults for backends that don't support them.
+ * High-level travel lifts the pen, drawing lowers it, and relative movement preserves it.
+ * A serial acknowledgement does not by itself establish physical motion completion.
+ * See docs/BACKEND_CONTRACT.md for per-backend capabilities and simulation limits.
  */
 public interface PlotterBackend {
 
