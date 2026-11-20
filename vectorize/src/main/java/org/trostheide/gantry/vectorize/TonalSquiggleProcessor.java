@@ -8,7 +8,10 @@ import java.util.List;
 
 /**
  * Raster-to-polyline image style that turns tonal image areas into modest horizontal squiggles
- * plus short contour strokes. It is intentionally deterministic so the live preview and final
+ * plus connected sketch contours, without a positional or portrait-specific foreground prior.
+ * Suppression attenuates locally flat dark areas, including subject interiors;
+ * zero disables it. This is a general stylization, not semantic background removal.
+ * It is intentionally deterministic so the live preview and final
  * import agree for the same image/options.
  */
 public final class TonalSquiggleProcessor {
@@ -60,20 +63,20 @@ public final class TonalSquiggleProcessor {
         double toneStrength = clamp01(safe.toneStrength());
         double detailStrength = clamp01(safe.detailStrength());
         double backgroundSuppression = clamp01(safe.backgroundSuppression());
-        double drawThreshold = 0.16 + 0.18 * backgroundSuppression;
+        double drawThreshold = 0.12 + 0.08 * backgroundSuppression;
 
         for (int y = spacing; y < height - spacing; y += spacing) {
             List<Point2D_I32> current = new ArrayList<>();
             for (int x = spacing; x < width - spacing; x += xStep) {
-                double foreground = foregroundWeight(x, y, width, height);
                 double darkness = 1.0 - gray[y][x];
                 double localContrast = Math.abs(gray[y][x] - local[y][x]);
                 double detail = Math.max(edges[y][x], localContrast * 2.0);
-                double desire = foreground * (toneStrength * darkness * 0.65 + detailStrength * detail * 1.35)
-                        - backgroundSuppression * (1.0 - foreground) * 0.35;
-                if (darkness > 0.70 && detail < 0.035 && foreground < 0.72) {
-                    desire = 0.0;
-                }
+                double desire = toneStrength * darkness * 0.65 + detailStrength * detail * 1.35;
+                // Suppress locally flat dark areas by their image content, never their position.
+                // Zero disables this suppression, including at the image edges.
+                double flatDark = clamp01((darkness - 0.65) / 0.20)
+                        * (1.0 - clamp01(detail / 0.08));
+                desire *= 1.0 - backgroundSuppression * flatDark;
                 if (desire > drawThreshold) {
                     double wiggle = Math.sin(x * 0.075 + y * 0.035) * amp * (0.35 + darkness);
                     current.add(new Point2D_I32(x, clamp((int) Math.round(y + wiggle), 0, height - 1)));
@@ -89,29 +92,14 @@ public final class TonalSquiggleProcessor {
             }
         }
 
-        addContourStrokes(geometry, edges, gray, detailStrength, backgroundSuppression);
-        return geometry;
-    }
-
-    private static void addContourStrokes(List<VectorGeometry> geometry, double[][] edges, double[][] gray,
-                                          double detailStrength, double backgroundSuppression) {
-        int height = gray.length;
-        int width = gray[0].length;
-        double threshold = 0.18 + 0.10 * backgroundSuppression - 0.06 * detailStrength;
-        int stride = Math.max(4, (int) Math.round(9 - 5 * detailStrength));
-        for (int y = 2; y < height - 2; y += stride) {
-            for (int x = 2; x < width - 2; x += stride) {
-                double darkness = 1.0 - gray[y][x];
-                double foreground = foregroundWeight(x, y, width, height);
-                if (edges[y][x] > threshold && (darkness > 0.08 || foreground > 0.35)) {
-                    int length = 4 + (int) Math.round(8 * edges[y][x]);
-                    List<Point2D_I32> stroke = List.of(
-                            new Point2D_I32(clamp(x - length / 2, 0, width - 1), y),
-                            new Point2D_I32(clamp(x + length / 2, 0, width - 1), y));
-                    geometry.add(new PolylineGeometry(stroke));
-                }
-            }
+        // Reuse the existing adaptive sketch tracer for structural contours. Short
+        // horizontal edge dashes obscure features and add lifts without following them.
+        if (detailStrength > 0) {
+            int minimumContourLength = Math.max(6, (int) Math.round(12 - 10 * detailStrength));
+            geometry.addAll(SketchTraceProcessor.process(image,
+                    new SketchTraceProcessor.Options(21, 0.04, minimumContourLength, true)));
         }
+        return geometry;
     }
 
     private static double[][] grayscale(BufferedImage image) {
@@ -178,12 +166,6 @@ public final class TonalSquiggleProcessor {
 
     private static double clamp01(double value) {
         return Math.max(0.0, Math.min(1.0, value));
-    }
-
-    private static double foregroundWeight(int x, int y, int width, int height) {
-        double nx = (x / (double) Math.max(1, width - 1) - 0.5) / 0.38;
-        double ny = (y / (double) Math.max(1, height - 1) - 0.52) / 0.50;
-        return Math.exp(-(nx * nx + ny * ny));
     }
 
     private static int clamp(int value, int min, int max) {

@@ -104,13 +104,22 @@ poor baseline cases and a separately labelled Squiggle adjustment, with exact
 recipes and all preview outputs. Quality verdicts are visual judgments, not hash
 checks or physical acceptance.
 
-`python3 scripts/validate-image-art.py --output /tmp/gantry-art-check --baseline
-docs/validation/image-art/verification.json` runs 12 combinations twice through
-the existing CLI chain. It checks input hashes, SVG geometry, typed command
-reload, finite in-bed points, metrics, production G-code replay preflight and
-exact repeated/baseline geometry. Use a new output directory. The adjusted
-recipe has a separate command in the report. Both run in Java 17/21 CI; bulk
-artifacts are uploaded under validation evidence, not committed.
+The current [Squiggle quality fix](validation/image-art/squiggle-fix/README.md)
+preserves the original failed examples alongside updated previews. The current
+standard and actual Studio preset run in Java 17/21 CI:
+
+```bash
+python3 scripts/validate-image-art.py --output /tmp/gantry-art-check \
+  --baseline docs/validation/image-art/squiggle-fix/verification.json
+```
+
+The runner checks input hashes, SVG geometry, typed command reload, finite
+in-bed points, metrics, production G-code replay preflight and exact repeated/
+baseline geometry. Use a new output directory. The Studio command is in the
+report. Bulk artifacts are uploaded under validation evidence, not committed.
+`TonalSquiggleProcessorTest` additionally checks shifted-subject retention,
+zero suppression across peripheral dark areas and connected vertical contours.
+The historical baseline is reproduced at `29e8ac4`, not against changed code.
 
 ### Test coverage by module
 

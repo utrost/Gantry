@@ -1,0 +1,694 @@
+{
+  "jarSha256": "d8601e3529183e5cde5ea6a9ff1e175491767453d2435f1533954d75bf627974",
+  "recipes": {
+    "commonVectorize": [
+      "--tolerance",
+      "2",
+      "--detail",
+      "0.6",
+      "--stroke-color",
+      "#000000",
+      "--stroke-width",
+      "1",
+      "--format",
+      "svg"
+    ],
+    "modes": {
+      "sketch": [
+        "--sketch-window",
+        "21",
+        "--sketch-offset",
+        "0.04",
+        "--sketch-min-length",
+        "6",
+        "--sketch-skeleton",
+        "true"
+      ],
+      "squiggle": [
+        "--squiggle-density",
+        "1",
+        "--squiggle-amplitude",
+        "3.5",
+        "--squiggle-tone",
+        "0.72",
+        "--squiggle-background",
+        "0.85"
+      ],
+      "needles": [
+        "--needle-spacing",
+        "6",
+        "--needle-length",
+        "10",
+        "--needle-threshold",
+        "0.12",
+        "--needle-gradient",
+        "0.04",
+        "--needle-tone",
+        "1"
+      ],
+      "isolines": [
+        "--isoline-levels",
+        "6",
+        "--isoline-smoothing",
+        "3",
+        "--isoline-min-length",
+        "8",
+        "--isoline-threshold",
+        "0.06"
+      ]
+    },
+    "import": [
+      "--fit-to",
+      "180x180",
+      "--padding",
+      "10",
+      "--curve-step",
+      "0.1",
+      "--max-dist",
+      "0",
+      "--passes",
+      "1",
+      "--optimize-reorder"
+    ],
+    "randomSeed": null,
+    "seedNote": "These four processors use deterministic loops and no random generator. Hand-drawn styling is disabled. No crop, resize, per-image tuning, hatch, simplification or merge."
+  },
+  "machine": {
+    "gcode": {
+      "machineWidth": 200,
+      "machineHeight": 200,
+      "feedRateDraw": 1200,
+      "feedRateTravel": 3000,
+      "penMode": "servo",
+      "servoPin": 0,
+      "penServoUp": 60,
+      "penServoDown": 30,
+      "penDownDelayMillis": 80
+    },
+    "stations": {}
+  },
+  "repetitions": 2,
+  "artifacts": [
+    {
+      "id": "astronaut-sketch",
+      "metrics": {
+        "commandFile": "astronaut-sketch.json",
+        "layers": 1,
+        "commands": 1192,
+        "strokes": 596,
+        "points": 1490,
+        "drawDistanceMm": 2691.7735364485097,
+        "travelDistanceMm": 3871.1133034732843,
+        "travelRatio": 0.5898491620982169,
+        "tinySegments": 0,
+        "bounds": {
+          "minX": 10.941176470588232,
+          "minY": 10.0,
+          "maxX": 169.05882352941177,
+          "maxY": 170.0
+        },
+        "plotTime": {
+          "feedRateDraw": 1200,
+          "feedRateTravel": 3000,
+          "penDownDelayMillis": 80,
+          "estimatedSeconds": 259.6909428918912,
+          "formatted": "4:20"
+        },
+        "warnings": [
+          {
+            "code": "HIGH_TRAVEL_RATIO",
+            "message": "Pen-up travel is at least half of all motion; try path reordering, merging, or a less scattered preset.",
+            "value": 0.5898491620982169,
+            "threshold": 0.5
+          }
+        ]
+      },
+      "checks": {
+        "commandReload": "passed",
+        "finiteInBedPoints": 1490,
+        "gcodePreflight": "passed",
+        "gcodeCommands": 3283
+      },
+      "repeatExact": true,
+      "sha256": {
+        "svg": "bd09224c28b289213acbba5de0be3195ad92d6e2fa1b12af40bcd46ab4582c8e",
+        "commands": "8e2c09883cede7627a6b6a4e9f91e154b28dc900c3514499f78940312ffd56c1",
+        "metrics": "e47e5fd3ab0761835be038ed17a676474029aa5b725e2ab3b3ece7b92d4da9ac",
+        "gcode": "7b46927cef9bcce7a469a12e6e105c31d55c570e9fefab706309a21aee8ba5fe"
+      }
+    },
+    {
+      "id": "astronaut-squiggle",
+      "metrics": {
+        "commandFile": "astronaut-squiggle.json",
+        "layers": 1,
+        "commands": 1598,
+        "strokes": 799,
+        "points": 7483,
+        "drawDistanceMm": 10145.39751092995,
+        "travelDistanceMm": 11026.262329911082,
+        "travelRatio": 0.5208029230018589,
+        "tinySegments": 0,
+        "bounds": {
+          "minX": 10.941176470588232,
+          "minY": 10.0,
+          "maxX": 169.05882352941177,
+          "maxY": 170.0
+        },
+        "plotTime": {
+          "feedRateDraw": 1200,
+          "feedRateTravel": 3000,
+          "penDownDelayMillis": 80,
+          "estimatedSeconds": 791.7151221447192,
+          "formatted": "13:12"
+        },
+        "warnings": [
+          {
+            "code": "HIGH_TRAVEL_RATIO",
+            "message": "Pen-up travel is at least half of all motion; try path reordering, merging, or a less scattered preset.",
+            "value": 0.5208029230018589,
+            "threshold": 0.5
+          }
+        ]
+      },
+      "checks": {
+        "commandReload": "passed",
+        "finiteInBedPoints": 7483,
+        "gcodePreflight": "passed",
+        "gcodeCommands": 9885
+      },
+      "repeatExact": true,
+      "sha256": {
+        "svg": "2be07970159f146e39636519abd8de1ca23d65ac3084fc9e646fa014adcdcfef",
+        "commands": "6c13c2ede9d0b58050c3e5e3e1d500d5f66a60464a7615939f37c009748024a0",
+        "metrics": "3e7892200404eaefa3b0c03561523474b3be516cae6648e767c824b7329f5a08",
+        "gcode": "884aa3e417697a8dbfd940976d5d013ffeb559f3b827c8a04f97250de3d22eed"
+      }
+    },
+    {
+      "id": "astronaut-needles",
+      "metrics": {
+        "commandFile": "astronaut-needles.json",
+        "layers": 1,
+        "commands": 6204,
+        "strokes": 3102,
+        "points": 6204,
+        "drawDistanceMm": 9610.357026889526,
+        "travelDistanceMm": 10095.840508597938,
+        "travelRatio": 0.51231804057668,
+        "tinySegments": 0,
+        "bounds": {
+          "minX": 10.0,
+          "minY": 10.0,
+          "maxX": 170.0,
+          "maxY": 170.0
+        },
+        "plotTime": {
+          "feedRateDraw": 1200,
+          "feedRateTravel": 3000,
+          "penDownDelayMillis": 80,
+          "estimatedSeconds": 930.594661516435,
+          "formatted": "15:31"
+        },
+        "warnings": [
+          {
+            "code": "HIGH_TRAVEL_RATIO",
+            "message": "Pen-up travel is at least half of all motion; try path reordering, merging, or a less scattered preset.",
+            "value": 0.51231804057668,
+            "threshold": 0.5
+          }
+        ]
+      },
+      "checks": {
+        "commandReload": "passed",
+        "finiteInBedPoints": 6204,
+        "gcodePreflight": "passed",
+        "gcodeCommands": 15515
+      },
+      "repeatExact": true,
+      "sha256": {
+        "svg": "a6bd22bda260a6bb6bcc58af22e94fc8dffae32e5b7c676b22842d6db3d59d83",
+        "commands": "af9f1eb95398f8dffa22307ea461053145c5a7a413faf99e637b567c5b909e2f",
+        "metrics": "3e14ce0886aeec03176567cef62c4352a73acc6ed16b9cfc9da3add8de68116c",
+        "gcode": "c8dcb0e1b833916cb07b8f8e03e18aaa8fcfdc24ad40654e2957c51cdc3eb574"
+      }
+    },
+    {
+      "id": "astronaut-isolines",
+      "metrics": {
+        "commandFile": "astronaut-isolines.json",
+        "layers": 1,
+        "commands": 576,
+        "strokes": 288,
+        "points": 30560,
+        "drawDistanceMm": 10884.017964914376,
+        "travelDistanceMm": 2499.478383212859,
+        "travelRatio": 0.18675825196923324,
+        "tinySegments": 30272,
+        "bounds": {
+          "minX": 10.0,
+          "minY": 10.0,
+          "maxX": 170.0,
+          "maxY": 170.0
+        },
+        "plotTime": {
+          "feedRateDraw": 1200,
+          "feedRateTravel": 3000,
+          "penDownDelayMillis": 80,
+          "estimatedSeconds": 617.2304659099759,
+          "formatted": "10:17"
+        },
+        "warnings": [
+          {
+            "code": "TINY_SEGMENTS",
+            "message": "Contains sub-0.5 mm draw segments that may chatter, blob, or vanish on paper.",
+            "value": 30272.0,
+            "threshold": 0.5
+          }
+        ]
+      },
+      "checks": {
+        "commandReload": "passed",
+        "finiteInBedPoints": 30560,
+        "gcodePreflight": "passed",
+        "gcodeCommands": 31429
+      },
+      "repeatExact": true,
+      "sha256": {
+        "svg": "6152e81204b681f57e0edcb968809d6b7483587b6a17a391ad81176785f8b5c4",
+        "commands": "8d57e9a7bd13db1ecd0ee74b932849afb2814403baa8d5386451260f59f5109e",
+        "metrics": "df41c34b221046fe7429237293fdfbfb6eba5d93e7982a457e4c78a7cea83230",
+        "gcode": "44f2453bd02ae9dbfbbfafeda0186dddce8b0074c01109570247d4cd6e82a3c5"
+      }
+    },
+    {
+      "id": "coffee-sketch",
+      "metrics": {
+        "commandFile": "coffee-sketch.json",
+        "layers": 1,
+        "commands": 1160,
+        "strokes": 580,
+        "points": 1334,
+        "drawDistanceMm": 1935.0284136635885,
+        "travelDistanceMm": 2910.3068746572158,
+        "travelRatio": 0.6006409673386729,
+        "tinySegments": 8,
+        "bounds": {
+          "minX": 10.0,
+          "minY": 36.97829716193657,
+          "maxX": 170.0,
+          "maxY": 143.02170283806345
+        },
+        "plotTime": {
+          "feedRateDraw": 1200,
+          "feedRateTravel": 3000,
+          "penDownDelayMillis": 80,
+          "estimatedSeconds": 201.35755817632375,
+          "formatted": "3:21"
+        },
+        "warnings": [
+          {
+            "code": "HIGH_TRAVEL_RATIO",
+            "message": "Pen-up travel is at least half of all motion; try path reordering, merging, or a less scattered preset.",
+            "value": 0.6006409673386729,
+            "threshold": 0.5
+          },
+          {
+            "code": "TINY_SEGMENTS",
+            "message": "Contains sub-0.5 mm draw segments that may chatter, blob, or vanish on paper.",
+            "value": 8.0,
+            "threshold": 0.5
+          }
+        ]
+      },
+      "checks": {
+        "commandReload": "passed",
+        "finiteInBedPoints": 1334,
+        "gcodePreflight": "passed",
+        "gcodeCommands": 3079
+      },
+      "repeatExact": true,
+      "sha256": {
+        "svg": "19a48541f280a1434902d1ddd6ed28f1e23c32658d7fbc7a4e80a26e7193f65b",
+        "commands": "0a7fcec612c509c8c965d7a15ea542911f41d52c93a4dd009614ddc0e65e11e6",
+        "metrics": "87eed444902f400488fc2fc4e90c6a050bc93df3d0ec21343c4cee11bf3c7eac",
+        "gcode": "ff37b8b4d419be6dba9bb6e519dc32c56a1039f4bf2b500e81128b6943213980"
+      }
+    },
+    {
+      "id": "coffee-squiggle",
+      "metrics": {
+        "commandFile": "coffee-squiggle.json",
+        "layers": 1,
+        "commands": 1488,
+        "strokes": 744,
+        "points": 7378,
+        "drawDistanceMm": 8360.755998713948,
+        "travelDistanceMm": 9331.307849744671,
+        "travelRatio": 0.5274290173080989,
+        "tinySegments": 8,
+        "bounds": {
+          "minX": 10.0,
+          "minY": 36.97829716193657,
+          "maxX": 170.0,
+          "maxY": 143.02170283806345
+        },
+        "plotTime": {
+          "feedRateDraw": 1200,
+          "feedRateTravel": 3000,
+          "penDownDelayMillis": 80,
+          "estimatedSeconds": 664.1839569305909,
+          "formatted": "11:04"
+        },
+        "warnings": [
+          {
+            "code": "HIGH_TRAVEL_RATIO",
+            "message": "Pen-up travel is at least half of all motion; try path reordering, merging, or a less scattered preset.",
+            "value": 0.5274290173080989,
+            "threshold": 0.5
+          },
+          {
+            "code": "TINY_SEGMENTS",
+            "message": "Contains sub-0.5 mm draw segments that may chatter, blob, or vanish on paper.",
+            "value": 8.0,
+            "threshold": 0.5
+          }
+        ]
+      },
+      "checks": {
+        "commandReload": "passed",
+        "finiteInBedPoints": 7378,
+        "gcodePreflight": "passed",
+        "gcodeCommands": 9615
+      },
+      "repeatExact": true,
+      "sha256": {
+        "svg": "637a79f946909fd4c193a0a81ab45cfd675ebdb915170ae952641e1d2a2b67dd",
+        "commands": "b6f1b6e4cb85a275fdb7775f494eeff7e0444575c2c89c0d9b63b40136b2f5a7",
+        "metrics": "b7bd9237077959582beb5e0239f927aa2363f356dddcf785af64a0c9a93eccc4",
+        "gcode": "5501568ea81137e04c18db5c558f15c6699c43e868c65fbc6f3893b27d8d2ed5"
+      }
+    },
+    {
+      "id": "coffee-needles",
+      "metrics": {
+        "commandFile": "coffee-needles.json",
+        "layers": 1,
+        "commands": 5112,
+        "strokes": 2556,
+        "points": 5112,
+        "drawDistanceMm": 6686.8134203217905,
+        "travelDistanceMm": 7016.573789721928,
+        "travelRatio": 0.5120320751484875,
+        "tinySegments": 0,
+        "bounds": {
+          "minX": 10.0,
+          "minY": 36.71118530884807,
+          "maxX": 170.0,
+          "maxY": 143.2888146911519
+        },
+        "plotTime": {
+          "feedRateDraw": 1200,
+          "feedRateTravel": 3000,
+          "penDownDelayMillis": 80,
+          "estimatedSeconds": 679.1521468105282,
+          "formatted": "11:19"
+        },
+        "warnings": [
+          {
+            "code": "HIGH_TRAVEL_RATIO",
+            "message": "Pen-up travel is at least half of all motion; try path reordering, merging, or a less scattered preset.",
+            "value": 0.5120320751484875,
+            "threshold": 0.5
+          }
+        ]
+      },
+      "checks": {
+        "commandReload": "passed",
+        "finiteInBedPoints": 5112,
+        "gcodePreflight": "passed",
+        "gcodeCommands": 12785
+      },
+      "repeatExact": true,
+      "sha256": {
+        "svg": "0caf300674c49c526db4d39c9cbc21bc0037a7c8b072e0c535432d696eaf5309",
+        "commands": "a256aaf8aea5300efefec15337fd621676a1308e6a71f2379a723a61cf0b52ed",
+        "metrics": "21d488872e765c3aa41b177b3afa9ccfbeaa3f83ada2710b59a670a65cd47a17",
+        "gcode": "b222c05416e3e7bd0d2748143880652ad7611d1fe81ebba25206ebf6e1e27b3f"
+      }
+    },
+    {
+      "id": "coffee-isolines",
+      "metrics": {
+        "commandFile": "coffee-isolines.json",
+        "layers": 1,
+        "commands": 366,
+        "strokes": 183,
+        "points": 17297,
+        "drawDistanceMm": 5414.992564432496,
+        "travelDistanceMm": 1831.6599332520475,
+        "travelRatio": 0.25275945463609595,
+        "tinySegments": 17114,
+        "bounds": {
+          "minX": 10.0,
+          "minY": 36.71118530884807,
+          "maxX": 170.0,
+          "maxY": 143.2888146911519
+        },
+        "plotTime": {
+          "feedRateDraw": 1200,
+          "feedRateTravel": 3000,
+          "penDownDelayMillis": 80,
+          "estimatedSeconds": 322.0228268866657,
+          "formatted": "5:22"
+        },
+        "warnings": [
+          {
+            "code": "TINY_SEGMENTS",
+            "message": "Contains sub-0.5 mm draw segments that may chatter, blob, or vanish on paper.",
+            "value": 17114.0,
+            "threshold": 0.5
+          }
+        ]
+      },
+      "checks": {
+        "commandReload": "passed",
+        "finiteInBedPoints": 17297,
+        "gcodePreflight": "passed",
+        "gcodeCommands": 17851
+      },
+      "repeatExact": true,
+      "sha256": {
+        "svg": "44116c64b8e83a4cb47b58346758363beedccd847ee5642a3780c5495eed0b71",
+        "commands": "ddffd5410deb3dd50cddb053635b26e900b3712157454e4bb1e374d465ccd354",
+        "metrics": "008ec4856040a48f3486873282980c1530dcc85872a65a5f91f7f1fcf88c1044",
+        "gcode": "c552b8ad72d0ce84eddabe4d3154a4e3c4dfb04571f2faf24b28dc38aa2de830"
+      }
+    },
+    {
+      "id": "camera-sketch",
+      "metrics": {
+        "commandFile": "camera-sketch.json",
+        "layers": 1,
+        "commands": 736,
+        "strokes": 368,
+        "points": 893,
+        "drawDistanceMm": 1406.9887319739823,
+        "travelDistanceMm": 2289.308485152255,
+        "travelRatio": 0.6193518406866981,
+        "tinySegments": 4,
+        "bounds": {
+          "minX": 10.0,
+          "minY": 21.29411764705884,
+          "maxX": 170.0,
+          "maxY": 158.7058823529412
+        },
+        "plotTime": {
+          "feedRateDraw": 1200,
+          "feedRateTravel": 3000,
+          "penDownDelayMillis": 80,
+          "estimatedSeconds": 145.57560630174422,
+          "formatted": "2:26"
+        },
+        "warnings": [
+          {
+            "code": "HIGH_TRAVEL_RATIO",
+            "message": "Pen-up travel is at least half of all motion; try path reordering, merging, or a less scattered preset.",
+            "value": 0.6193518406866981,
+            "threshold": 0.5
+          },
+          {
+            "code": "TINY_SEGMENTS",
+            "message": "Contains sub-0.5 mm draw segments that may chatter, blob, or vanish on paper.",
+            "value": 4.0,
+            "threshold": 0.5
+          }
+        ]
+      },
+      "checks": {
+        "commandReload": "passed",
+        "finiteInBedPoints": 893,
+        "gcodePreflight": "passed",
+        "gcodeCommands": 2002
+      },
+      "repeatExact": true,
+      "sha256": {
+        "svg": "b9d6ce7974213eb519d6f6cf4df448c155a1647a3b31238d13a11c1c6fd74ede",
+        "commands": "2e1aadbac4205c3f59dd858e3a1a39d17fc5af5d3edd8ce374e739660cdb7fb5",
+        "metrics": "97fb4143b18024988612af79bd3c4c87195227ea4bce2b5fe83d1c8b9359fd8f",
+        "gcode": "a8798d74a571248454f6e941170fe13eeb53ccde9b4b4a148139d8340bc6c4d0"
+      }
+    },
+    {
+      "id": "camera-squiggle",
+      "metrics": {
+        "commandFile": "camera-squiggle.json",
+        "layers": 1,
+        "commands": 1156,
+        "strokes": 578,
+        "points": 4398,
+        "drawDistanceMm": 5631.327192407306,
+        "travelDistanceMm": 6507.8309239900345,
+        "travelRatio": 0.536102327821184,
+        "tinySegments": 4,
+        "bounds": {
+          "minX": 10.0,
+          "minY": 19.882352941176464,
+          "maxX": 170.0,
+          "maxY": 160.11764705882354
+        },
+        "plotTime": {
+          "feedRateDraw": 1200,
+          "feedRateTravel": 3000,
+          "penDownDelayMillis": 80,
+          "estimatedSeconds": 457.962978100166,
+          "formatted": "7:38"
+        },
+        "warnings": [
+          {
+            "code": "HIGH_TRAVEL_RATIO",
+            "message": "Pen-up travel is at least half of all motion; try path reordering, merging, or a less scattered preset.",
+            "value": 0.536102327821184,
+            "threshold": 0.5
+          },
+          {
+            "code": "TINY_SEGMENTS",
+            "message": "Contains sub-0.5 mm draw segments that may chatter, blob, or vanish on paper.",
+            "value": 4.0,
+            "threshold": 0.5
+          }
+        ]
+      },
+      "checks": {
+        "commandReload": "passed",
+        "finiteInBedPoints": 4398,
+        "gcodePreflight": "passed",
+        "gcodeCommands": 6137
+      },
+      "repeatExact": true,
+      "sha256": {
+        "svg": "b2d0940ab12860c78e8bbd5eb27d651e44f465b98dc95f2a6c79105d68c44731",
+        "commands": "57af38848efab6332574ca4839b5a5bb21b2be33214ec218c7fa5bf80e106d47",
+        "metrics": "8b855a53b3360aad11738cb7589a6b7ec96f02320a45ec310f38eea7144511fb",
+        "gcode": "c90a20fe7a2d2d541012eb732fb28b9d66eaf471b1cbea664251275551adf922"
+      }
+    },
+    {
+      "id": "camera-needles",
+      "metrics": {
+        "commandFile": "camera-needles.json",
+        "layers": 1,
+        "commands": 3648,
+        "strokes": 1824,
+        "points": 3648,
+        "drawDistanceMm": 5404.83925763708,
+        "travelDistanceMm": 5786.269852211538,
+        "travelRatio": 0.5170416797312245,
+        "tinySegments": 0,
+        "bounds": {
+          "minX": 10.0,
+          "minY": 19.08023483365949,
+          "maxX": 170.0,
+          "maxY": 160.9197651663405
+        },
+        "plotTime": {
+          "feedRateDraw": 1200,
+          "feedRateTravel": 3000,
+          "penDownDelayMillis": 80,
+          "estimatedSeconds": 531.8873599260847,
+          "formatted": "8:52"
+        },
+        "warnings": [
+          {
+            "code": "HIGH_TRAVEL_RATIO",
+            "message": "Pen-up travel is at least half of all motion; try path reordering, merging, or a less scattered preset.",
+            "value": 0.5170416797312245,
+            "threshold": 0.5
+          }
+        ]
+      },
+      "checks": {
+        "commandReload": "passed",
+        "finiteInBedPoints": 3648,
+        "gcodePreflight": "passed",
+        "gcodeCommands": 9125
+      },
+      "repeatExact": true,
+      "sha256": {
+        "svg": "56274e3c0804224de50f39b40b4fcd297a3cf2ffd3d88aa06903e7313147820a",
+        "commands": "41f5b7902a4762073547b63cd977fc474c89a78c03e6c47c8b96c6dc7cec9ff4",
+        "metrics": "35372b030d6f0b08c52e98d08ac85e76ba6c3f28b1102de4664980046df2e019",
+        "gcode": "8731db100413e1338b4fa1d4847e5a5d2440ea8abb77f50b9c7d9c31dae37aaa"
+      }
+    },
+    {
+      "id": "camera-isolines",
+      "metrics": {
+        "commandFile": "camera-isolines.json",
+        "layers": 1,
+        "commands": 198,
+        "strokes": 99,
+        "points": 11609,
+        "drawDistanceMm": 4201.678374631207,
+        "travelDistanceMm": 1190.0320826730801,
+        "travelRatio": 0.22071513151469652,
+        "tinySegments": 11510,
+        "bounds": {
+          "minX": 10.0,
+          "minY": 19.706457925636016,
+          "maxX": 170.0,
+          "maxY": 160.293542074364
+        },
+        "plotTime": {
+          "feedRateDraw": 1200,
+          "feedRateTravel": 3000,
+          "penDownDelayMillis": 80,
+          "estimatedSeconds": 241.80456038502194,
+          "formatted": "4:02"
+        },
+        "warnings": [
+          {
+            "code": "TINY_SEGMENTS",
+            "message": "Contains sub-0.5 mm draw segments that may chatter, blob, or vanish on paper.",
+            "value": 11510.0,
+            "threshold": 0.5
+          }
+        ]
+      },
+      "checks": {
+        "commandReload": "passed",
+        "finiteInBedPoints": 11609,
+        "gcodePreflight": "passed",
+        "gcodeCommands": 11911
+      },
+      "repeatExact": true,
+      "sha256": {
+        "svg": "62647b7f88b0cdc7ab300ce98e6bb038f863a16b2832d4e673961200eac8b870",
+        "commands": "7c515c9e6b8d7f59a4590d4e5d857942f54655443a5dfac6c51384fa073b2840",
+        "metrics": "473aeeb3649e76a26c00f9abb269ffd130088c24f832e54d84b591c1b57660c8",
+        "gcode": "99c7132c1d3c576baa3da7693729a99b169de2a556de7e4f40e81dbe626f0ea4"
+      }
+    }
+  ],
+  "javaVersion": "openjdk version \"21.0.13.1\" 2026-11-17\nOpenJDK Runtime Environment (build 21.0.13.1+2-1-24.04.1-Ubuntu)\nOpenJDK 64-Bit Server VM (build 21.0.13.1+2-1-24.04.1-Ubuntu, mixed mode, sharing)"
+}

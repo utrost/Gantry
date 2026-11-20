@@ -1107,12 +1107,23 @@ java -cp cli/target/cli-1.0.0.jar org.trostheide.gantry.cli.ImageArtValidationCl
   sketch.metrics.json squiggle.metrics.json needles.metrics.json isolines.metrics.json
 ```
 
-For real-photo examples, see the [four-mode quality/cost review](validation/image-art/README.md).
-It shows both recognizable and poor results, fixed reproduction recipes and a
-labelled Squiggle adjustment. Valid output or a low estimated time does not
-establish visual quality. The baseline Squiggle settings lose subject structure
-on these photographs; the documented adjustment improves recognition at a much
-higher stroke/time cost. These findings do not change beginner defaults.
+For real-photo examples, see the [four-mode quality/cost review](validation/image-art/README.md)
+and the current [Squiggle before/after review](validation/image-art/squiggle-fix/README.md).
+The original Squiggle lost subject structure; the current implementation retains
+it with the unchanged standard parameters, using position-independent shading
+and connected sketch contours. More restored structure means more drawing and
+travel: roughly 8–13 minutes estimated for the reviewed standard recipe, or
+9–15 for the existing Studio preset. These are feed/dwell estimates, not measured
+plotting times. No beginner default was promoted.
+
+**Tonal squiggle shading** is a general stylization, not a portrait/background
+selector. **Flat dark suppression** (CLI `--squiggle-background`) attenuates
+locally flat dark areas wherever they occur, including dark subject interiors.
+Set it to 0 to keep those tonal areas; white regions still stay blank. Detail
+adds connected outlines; it does not guarantee facial likeness or tonal fidelity.
+Check subject recognition, clutter and motion cost in the preview. Reprocessing
+an older Squiggle source intentionally produces different geometry; previously
+saved command/project geometry stays intact until reprocessed.
 
 The report keeps one row per artifact with command/stroke/point counts,
 draw/travel distance, travel ratio, tiny segment count, plot-time estimate, and

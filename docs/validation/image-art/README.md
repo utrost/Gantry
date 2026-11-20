@@ -1,5 +1,10 @@
 # Real-image art comparison
 
+> Historical baseline at `29e8ac4`, before #85. For current Squiggle behavior,
+> visual comparisons and reproduction commands see the
+> [subject-retention fix](squiggle-fix/README.md). Reproduce the original
+> commands below on `29e8ac4`; current CI uses the reviewed fixed baseline.
+
 Sketch produces decent sparse outlines on this small corpus. Needles and Isolines
 produce recognizable stylizations with substantial detail/cost caveats. The
 baseline Squiggle recipe fails the visual quality bar on all three photographs;
