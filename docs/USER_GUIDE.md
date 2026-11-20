@@ -1107,6 +1107,13 @@ java -cp cli/target/cli-1.0.0.jar org.trostheide.gantry.cli.ImageArtValidationCl
   sketch.metrics.json squiggle.metrics.json needles.metrics.json isolines.metrics.json
 ```
 
+For real-photo examples, see the [four-mode quality/cost review](validation/image-art/README.md).
+It shows both recognizable and poor results, fixed reproduction recipes and a
+labelled Squiggle adjustment. Valid output or a low estimated time does not
+establish visual quality. The baseline Squiggle settings lose subject structure
+on these photographs; the documented adjustment improves recognition at a much
+higher stroke/time cost. These findings do not change beginner defaults.
+
 The report keeps one row per artifact with command/stroke/point counts,
 draw/travel distance, travel ratio, tiny segment count, plot-time estimate, and
 compact warning codes. Its summary identifies the lowest-travel, fastest
