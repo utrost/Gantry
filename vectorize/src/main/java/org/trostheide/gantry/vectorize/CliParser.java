@@ -357,7 +357,7 @@ public class CliParser {
                 .longOpt("squiggle-background")
                 .hasArg()
                 .type(Number.class)
-                .desc("Squiggle: flat background suppression, 0.0-1.0. Default: " + DEFAULT_SQUIGGLE_BACKGROUND)
+                .desc("Squiggle: suppress locally flat dark areas anywhere, 0.0-1.0; 0 disables. Not subject segmentation. Default: " + DEFAULT_SQUIGGLE_BACKGROUND)
                 .build());
 
         options.addOption(Option.builder()

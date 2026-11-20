@@ -58,7 +58,6 @@ See the [integration record](docs/release-results/2026-11-20-integration.md).
 
 | Priority | Work | Exit criteria |
 |---|---|---|
-| P2 | [#85 — Squiggle subject retention and centre bias](https://github.com/utrost/Gantry/issues/85) | Preserve recognizable subject structure at a reviewed stroke/time cost; explain controls and retain corpus regressions |
 | P2 | [#84 — Packaged CLI PNG export](https://github.com/utrost/Gantry/issues/84) | Advertised PNG export works from the packaged JAR, including chained import |
 
 Mock hardening #78/#79 implements cancellable motion that freezes at the last
@@ -95,10 +94,13 @@ is delivered: three licensed photographs, all four modes, exact repeated geometr
 production G-code preflight and per-image visual quality/cost review. See the
 [report and all previews](docs/validation/image-art/README.md). Sketch provides
 useful sparse outlines; Needles/Isolines have aesthetic and motion/detail costs.
-Baseline Squiggle fails the visual bar; a global adjustment restores subjects at
-16–24 minute feed/dwell estimates. #85 tracks the quality gap, and #84 tracks the
-packaged PNG failure discovered during validation. No defaults were promoted.
-Do not add another engine before addressing the observed quality gaps.
+The original Squiggle failed the visual bar. #85 removes the positional mask
+and adds connected sketch contours: the unchanged standard recipe now retains
+recognizable subjects, at 8–13 minute feed/dwell estimates. See the
+[before/after quality and cost review](docs/validation/image-art/squiggle-fix/README.md).
+The actual Studio preset was reviewed too; flat dark suppression is explicitly
+content-based, not background segmentation. #84 remains the packaged PNG bug.
+No beginner defaults were promoted; physical quality remains operator evidence.
 
 Recruit the first independent tester using only the release link and FIRST_PLOT;
 record completion, coaching and friction. User-count exit criteria belong in the

@@ -1,0 +1,219 @@
+{
+  "jarSha256": "d8601e3529183e5cde5ea6a9ff1e175491767453d2435f1533954d75bf627974",
+  "recipes": {
+    "commonVectorize": [
+      "--tolerance",
+      "2",
+      "--detail",
+      "0.7",
+      "--stroke-color",
+      "#000000",
+      "--stroke-width",
+      "1",
+      "--format",
+      "svg"
+    ],
+    "modes": {
+      "squiggle": [
+        "--squiggle-density",
+        "1.2",
+        "--squiggle-amplitude",
+        "3.5",
+        "--squiggle-tone",
+        "0.72",
+        "--squiggle-background",
+        "0.85"
+      ]
+    },
+    "import": [
+      "--fit-to",
+      "180x180",
+      "--padding",
+      "10",
+      "--curve-step",
+      "0.1",
+      "--max-dist",
+      "0",
+      "--passes",
+      "1",
+      "--optimize-reorder"
+    ],
+    "randomSeed": null,
+    "seedNote": "These four processors use deterministic loops and no random generator. Hand-drawn styling is disabled. No crop, resize, per-image tuning, hatch, simplification or merge.",
+    "profile": "Existing Processor Studio Squiggle preset; numeric values unchanged."
+  },
+  "machine": {
+    "gcode": {
+      "machineWidth": 200,
+      "machineHeight": 200,
+      "feedRateDraw": 1200,
+      "feedRateTravel": 3000,
+      "penMode": "servo",
+      "servoPin": 0,
+      "penServoUp": 60,
+      "penServoDown": 30,
+      "penDownDelayMillis": 80
+    },
+    "stations": {}
+  },
+  "repetitions": 2,
+  "artifacts": [
+    {
+      "id": "astronaut-squiggle",
+      "metrics": {
+        "commandFile": "astronaut-squiggle.json",
+        "layers": 1,
+        "commands": 1716,
+        "strokes": 858,
+        "points": 10899,
+        "drawDistanceMm": 11571.789758353341,
+        "travelDistanceMm": 12421.058726710506,
+        "travelRatio": 0.5176983772661644,
+        "tinySegments": 0,
+        "bounds": {
+          "minX": 10.941176470588232,
+          "minY": 10.0,
+          "maxX": 169.05882352941177,
+          "maxY": 170.0
+        },
+        "plotTime": {
+          "feedRateDraw": 1200,
+          "feedRateTravel": 3000,
+          "penDownDelayMillis": 80,
+          "estimatedSeconds": 895.6506624518771,
+          "formatted": "14:56"
+        },
+        "warnings": [
+          {
+            "code": "HIGH_TRAVEL_RATIO",
+            "message": "Pen-up travel is at least half of all motion; try path reordering, merging, or a less scattered preset.",
+            "value": 0.5176983772661644,
+            "threshold": 0.5
+          }
+        ]
+      },
+      "checks": {
+        "commandReload": "passed",
+        "finiteInBedPoints": 10899,
+        "gcodePreflight": "passed",
+        "gcodeCommands": 13478
+      },
+      "repeatExact": true,
+      "sha256": {
+        "svg": "cb1968ef890b25e68b4e7350858da53cd90666cc6e2697ac82578ba22e147888",
+        "commands": "389280a55d8d3f0db81816fd91ae73501ba6992fc2e697ee23046d312166535c",
+        "metrics": "814fefe9a9d277ec8e6b9faaaa24ce36730f146626904e99208488b6b22c871a",
+        "gcode": "297a1b9bff13693d9d424f03ef159ab4644a8cef6f8d164bf2a864d0ca11e264"
+      }
+    },
+    {
+      "id": "coffee-squiggle",
+      "metrics": {
+        "commandFile": "coffee-squiggle.json",
+        "layers": 1,
+        "commands": 1622,
+        "strokes": 811,
+        "points": 10900,
+        "drawDistanceMm": 9636.379291513127,
+        "travelDistanceMm": 10647.741316455187,
+        "travelRatio": 0.5249298957664638,
+        "tinySegments": 8,
+        "bounds": {
+          "minX": 10.0,
+          "minY": 36.97829716193657,
+          "maxX": 170.0,
+          "maxY": 143.02170283806345
+        },
+        "plotTime": {
+          "feedRateDraw": 1200,
+          "feedRateTravel": 3000,
+          "penDownDelayMillis": 80,
+          "estimatedSeconds": 759.6537909047601,
+          "formatted": "12:40"
+        },
+        "warnings": [
+          {
+            "code": "HIGH_TRAVEL_RATIO",
+            "message": "Pen-up travel is at least half of all motion; try path reordering, merging, or a less scattered preset.",
+            "value": 0.5249298957664638,
+            "threshold": 0.5
+          },
+          {
+            "code": "TINY_SEGMENTS",
+            "message": "Contains sub-0.5 mm draw segments that may chatter, blob, or vanish on paper.",
+            "value": 8.0,
+            "threshold": 0.5
+          }
+        ]
+      },
+      "checks": {
+        "commandReload": "passed",
+        "finiteInBedPoints": 10900,
+        "gcodePreflight": "passed",
+        "gcodeCommands": 13338
+      },
+      "repeatExact": true,
+      "sha256": {
+        "svg": "ee026c3d39f06396a9caaec757fe377350168398f9eeffcf7aa7c94261823e45",
+        "commands": "7ea178a19b4dccb0fb32361bac872f3417a93d173ab231c68b4811b045f73b66",
+        "metrics": "f8d8a098a08631b88ac4d5ac820b1955d18f79d169214b12a0756231e4d384e0",
+        "gcode": "98fcf2d7f50c6232ea0a3d2d2e76ccdf3457a326ea1938c5b1cc953756f2a2b9"
+      }
+    },
+    {
+      "id": "camera-squiggle",
+      "metrics": {
+        "commandFile": "camera-squiggle.json",
+        "layers": 1,
+        "commands": 1390,
+        "strokes": 695,
+        "points": 6581,
+        "drawDistanceMm": 6589.098223982309,
+        "travelDistanceMm": 7703.379378177959,
+        "travelRatio": 0.5389813853557214,
+        "tinySegments": 4,
+        "bounds": {
+          "minX": 10.0,
+          "minY": 18.627450980392155,
+          "maxX": 170.0,
+          "maxY": 161.37254901960785
+        },
+        "plotTime": {
+          "feedRateDraw": 1200,
+          "feedRateTravel": 3000,
+          "penDownDelayMillis": 80,
+          "estimatedSeconds": 539.1224987626747,
+          "formatted": "8:59"
+        },
+        "warnings": [
+          {
+            "code": "HIGH_TRAVEL_RATIO",
+            "message": "Pen-up travel is at least half of all motion; try path reordering, merging, or a less scattered preset.",
+            "value": 0.5389813853557214,
+            "threshold": 0.5
+          },
+          {
+            "code": "TINY_SEGMENTS",
+            "message": "Contains sub-0.5 mm draw segments that may chatter, blob, or vanish on paper.",
+            "value": 4.0,
+            "threshold": 0.5
+          }
+        ]
+      },
+      "checks": {
+        "commandReload": "passed",
+        "finiteInBedPoints": 6581,
+        "gcodePreflight": "passed",
+        "gcodeCommands": 8671
+      },
+      "repeatExact": true,
+      "sha256": {
+        "svg": "848c50631653c41a9a1c3ab6d0f8dd88c09a504d64d00b20bf481abcdaec707a",
+        "commands": "6a68e188f6a1f2fce933a50e8a56e07a41299b6831ad93b71913bcb894467b85",
+        "metrics": "a7d95f36fd717067e309f0383d979b53c38664947ce6ce643c0e95f64725963a",
+        "gcode": "fd473ca53e24680b9786befec3cb25a10a850eb016f6cc7654778e26dd8f521f"
+      }
+    }
+  ],
+  "javaVersion": "openjdk version \"21.0.13.1\" 2026-11-17\nOpenJDK Runtime Environment (build 21.0.13.1+2-1-24.04.1-Ubuntu)\nOpenJDK 64-Bit Server VM (build 21.0.13.1+2-1-24.04.1-Ubuntu, mixed mode, sharing)"
+}

@@ -48,7 +48,7 @@ public final class VectorizeStudioDialog extends JDialog {
         CENTERLINE("Centerline / single-stroke (skeleton)", "centerline", Group.CENTERLINE),
         BEZIER("Bézier outlines (DrPTrace)", "bezier", Group.BEZIER),
         BEZIER2("Colour fills (ImageTracer)", "bezier2", Group.BEZIER2),
-        SQUIGGLE("Tonal squiggle / portrait", "squiggle", Group.SQUIGGLE),
+        SQUIGGLE("Tonal squiggle shading", "squiggle", Group.SQUIGGLE),
         NEEDLES("Oriented needles / texture", "needles", Group.NEEDLES),
         ISOLINES("Tonal isolines / contours", "isolines", Group.ISOLINES),
         SKETCH("Sketch / blueprint trace", "sketch", Group.SKETCH),
@@ -246,7 +246,8 @@ public final class VectorizeStudioDialog extends JDialog {
         addRow(form, gbc, "Squiggle density", squiggleDensitySpinner);
         addRow(form, gbc, "Squiggle amplitude", squiggleAmplitudeSpinner);
         addRow(form, gbc, "Squiggle tone", squiggleToneSpinner);
-        addRow(form, gbc, "Background suppression", squiggleBackgroundSpinner);
+        addRow(form, gbc, "Flat dark suppression", squiggleBackgroundSpinner);
+        squiggleBackgroundSpinner.setToolTipText("Suppress locally flat dark areas anywhere in the image. 0 keeps them. This may remove dark subject interiors too; it does not identify the background.");
         addRow(form, gbc, "Needle spacing", needleSpacingSpinner);
         addRow(form, gbc, "Needle length", needleLengthSpinner);
         addRow(form, gbc, "Needle dark threshold", needleThresholdSpinner);
@@ -384,7 +385,7 @@ public final class VectorizeStudioDialog extends JDialog {
             strategyCombo.setSelectedItem(Strategy.BEZIER2);
             b2ColorsSpinner.setValue(8);
         }));
-        presetCombo.addItem(new Preset("Tonal squiggle portrait", () -> {
+        presetCombo.addItem(new Preset("Tonal squiggle shading", () -> {
             strategyCombo.setSelectedItem(Strategy.SQUIGGLE);
             toleranceSpinner.setValue(2.0);
             detailSpinner.setValue(0.7);

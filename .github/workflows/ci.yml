@@ -30,14 +30,14 @@ jobs:
         run: >-
           python3 scripts/validate-image-art.py
           --output dist/validation/image-art
-          --baseline docs/validation/image-art/verification.json
+          --baseline docs/validation/image-art/squiggle-fix/verification.json
 
-      - name: Adjusted Squiggle quality recipe regression
+      - name: Processor Studio Squiggle preset regression
         run: >-
           python3 scripts/validate-image-art.py
-          --recipes docs/validation/image-art/squiggle-experiment.json
-          --output dist/validation/squiggle-experiment
-          --baseline docs/validation/image-art/squiggle-experiment-verification.json
+          --recipes docs/validation/image-art/squiggle-fix/studio-recipe.json
+          --output dist/validation/squiggle-studio
+          --baseline docs/validation/image-art/squiggle-fix/studio-verification.json
 
       - name: GUI mock workflow and recovery
         run: xvfb-run -a ./scripts/test-gui.sh

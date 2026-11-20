@@ -1,0 +1,214 @@
+{
+  "artifacts" : [ {
+    "id" : "astronaut-sketch",
+    "metricsFile" : "astronaut-sketch.metrics.json",
+    "commandFile" : "astronaut-sketch.json",
+    "layers" : 1,
+    "commands" : 1192,
+    "strokes" : 596,
+    "points" : 1490,
+    "drawDistanceMm" : 2691.7735364485097,
+    "travelDistanceMm" : 3871.1133034732843,
+    "travelRatio" : 0.5898491620982169,
+    "tinySegments" : 0,
+    "plotTime" : {
+      "estimatedSeconds" : 259.6909428918912,
+      "formatted" : "4:20"
+    },
+    "warningCodes" : [ "HIGH_TRAVEL_RATIO" ]
+  }, {
+    "id" : "astronaut-squiggle",
+    "metricsFile" : "astronaut-squiggle.metrics.json",
+    "commandFile" : "astronaut-squiggle.json",
+    "layers" : 1,
+    "commands" : 1598,
+    "strokes" : 799,
+    "points" : 7483,
+    "drawDistanceMm" : 10145.39751092995,
+    "travelDistanceMm" : 11026.262329911082,
+    "travelRatio" : 0.5208029230018589,
+    "tinySegments" : 0,
+    "plotTime" : {
+      "estimatedSeconds" : 791.7151221447192,
+      "formatted" : "13:12"
+    },
+    "warningCodes" : [ "HIGH_TRAVEL_RATIO" ]
+  }, {
+    "id" : "astronaut-needles",
+    "metricsFile" : "astronaut-needles.metrics.json",
+    "commandFile" : "astronaut-needles.json",
+    "layers" : 1,
+    "commands" : 6204,
+    "strokes" : 3102,
+    "points" : 6204,
+    "drawDistanceMm" : 9610.357026889526,
+    "travelDistanceMm" : 10095.840508597938,
+    "travelRatio" : 0.51231804057668,
+    "tinySegments" : 0,
+    "plotTime" : {
+      "estimatedSeconds" : 930.594661516435,
+      "formatted" : "15:31"
+    },
+    "warningCodes" : [ "HIGH_TRAVEL_RATIO" ]
+  }, {
+    "id" : "astronaut-isolines",
+    "metricsFile" : "astronaut-isolines.metrics.json",
+    "commandFile" : "astronaut-isolines.json",
+    "layers" : 1,
+    "commands" : 576,
+    "strokes" : 288,
+    "points" : 30560,
+    "drawDistanceMm" : 10884.017964914376,
+    "travelDistanceMm" : 2499.478383212859,
+    "travelRatio" : 0.18675825196923324,
+    "tinySegments" : 30272,
+    "plotTime" : {
+      "estimatedSeconds" : 617.2304659099759,
+      "formatted" : "10:17"
+    },
+    "warningCodes" : [ "TINY_SEGMENTS" ]
+  }, {
+    "id" : "coffee-sketch",
+    "metricsFile" : "coffee-sketch.metrics.json",
+    "commandFile" : "coffee-sketch.json",
+    "layers" : 1,
+    "commands" : 1160,
+    "strokes" : 580,
+    "points" : 1334,
+    "drawDistanceMm" : 1935.0284136635885,
+    "travelDistanceMm" : 2910.3068746572158,
+    "travelRatio" : 0.6006409673386729,
+    "tinySegments" : 8,
+    "plotTime" : {
+      "estimatedSeconds" : 201.35755817632375,
+      "formatted" : "3:21"
+    },
+    "warningCodes" : [ "HIGH_TRAVEL_RATIO", "TINY_SEGMENTS" ]
+  }, {
+    "id" : "coffee-squiggle",
+    "metricsFile" : "coffee-squiggle.metrics.json",
+    "commandFile" : "coffee-squiggle.json",
+    "layers" : 1,
+    "commands" : 1488,
+    "strokes" : 744,
+    "points" : 7378,
+    "drawDistanceMm" : 8360.755998713948,
+    "travelDistanceMm" : 9331.307849744671,
+    "travelRatio" : 0.5274290173080989,
+    "tinySegments" : 8,
+    "plotTime" : {
+      "estimatedSeconds" : 664.1839569305909,
+      "formatted" : "11:04"
+    },
+    "warningCodes" : [ "HIGH_TRAVEL_RATIO", "TINY_SEGMENTS" ]
+  }, {
+    "id" : "coffee-needles",
+    "metricsFile" : "coffee-needles.metrics.json",
+    "commandFile" : "coffee-needles.json",
+    "layers" : 1,
+    "commands" : 5112,
+    "strokes" : 2556,
+    "points" : 5112,
+    "drawDistanceMm" : 6686.8134203217905,
+    "travelDistanceMm" : 7016.573789721928,
+    "travelRatio" : 0.5120320751484875,
+    "tinySegments" : 0,
+    "plotTime" : {
+      "estimatedSeconds" : 679.1521468105282,
+      "formatted" : "11:19"
+    },
+    "warningCodes" : [ "HIGH_TRAVEL_RATIO" ]
+  }, {
+    "id" : "coffee-isolines",
+    "metricsFile" : "coffee-isolines.metrics.json",
+    "commandFile" : "coffee-isolines.json",
+    "layers" : 1,
+    "commands" : 366,
+    "strokes" : 183,
+    "points" : 17297,
+    "drawDistanceMm" : 5414.992564432496,
+    "travelDistanceMm" : 1831.6599332520475,
+    "travelRatio" : 0.25275945463609595,
+    "tinySegments" : 17114,
+    "plotTime" : {
+      "estimatedSeconds" : 322.0228268866657,
+      "formatted" : "5:22"
+    },
+    "warningCodes" : [ "TINY_SEGMENTS" ]
+  }, {
+    "id" : "camera-sketch",
+    "metricsFile" : "camera-sketch.metrics.json",
+    "commandFile" : "camera-sketch.json",
+    "layers" : 1,
+    "commands" : 736,
+    "strokes" : 368,
+    "points" : 893,
+    "drawDistanceMm" : 1406.9887319739823,
+    "travelDistanceMm" : 2289.308485152255,
+    "travelRatio" : 0.6193518406866981,
+    "tinySegments" : 4,
+    "plotTime" : {
+      "estimatedSeconds" : 145.57560630174422,
+      "formatted" : "2:26"
+    },
+    "warningCodes" : [ "HIGH_TRAVEL_RATIO", "TINY_SEGMENTS" ]
+  }, {
+    "id" : "camera-squiggle",
+    "metricsFile" : "camera-squiggle.metrics.json",
+    "commandFile" : "camera-squiggle.json",
+    "layers" : 1,
+    "commands" : 1156,
+    "strokes" : 578,
+    "points" : 4398,
+    "drawDistanceMm" : 5631.327192407306,
+    "travelDistanceMm" : 6507.8309239900345,
+    "travelRatio" : 0.536102327821184,
+    "tinySegments" : 4,
+    "plotTime" : {
+      "estimatedSeconds" : 457.962978100166,
+      "formatted" : "7:38"
+    },
+    "warningCodes" : [ "HIGH_TRAVEL_RATIO", "TINY_SEGMENTS" ]
+  }, {
+    "id" : "camera-needles",
+    "metricsFile" : "camera-needles.metrics.json",
+    "commandFile" : "camera-needles.json",
+    "layers" : 1,
+    "commands" : 3648,
+    "strokes" : 1824,
+    "points" : 3648,
+    "drawDistanceMm" : 5404.83925763708,
+    "travelDistanceMm" : 5786.269852211538,
+    "travelRatio" : 0.5170416797312245,
+    "tinySegments" : 0,
+    "plotTime" : {
+      "estimatedSeconds" : 531.8873599260847,
+      "formatted" : "8:52"
+    },
+    "warningCodes" : [ "HIGH_TRAVEL_RATIO" ]
+  }, {
+    "id" : "camera-isolines",
+    "metricsFile" : "camera-isolines.metrics.json",
+    "commandFile" : "camera-isolines.json",
+    "layers" : 1,
+    "commands" : 198,
+    "strokes" : 99,
+    "points" : 11609,
+    "drawDistanceMm" : 4201.678374631207,
+    "travelDistanceMm" : 1190.0320826730801,
+    "travelRatio" : 0.22071513151469652,
+    "tinySegments" : 11510,
+    "plotTime" : {
+      "estimatedSeconds" : 241.80456038502194,
+      "formatted" : "4:02"
+    },
+    "warningCodes" : [ "TINY_SEGMENTS" ]
+  } ],
+  "summary" : {
+    "artifactCount" : 12,
+    "warningCount" : 16,
+    "lowestTravelRatio" : "astronaut-isolines",
+    "fastestByEstimatedTime" : "camera-sketch",
+    "fewestTinySegments" : "astronaut-sketch"
+  }
+}

@@ -40,7 +40,7 @@ class TonalSquiggleProcessorTest {
     }
 
     @Test
-    void flatDarkBackgroundDoesNotDominatePortraitOutput() {
+    void flatDarkAreasAreSuppressedWithoutRemovingSubjectBoundary() {
         BufferedImage image = new BufferedImage(100, 80, BufferedImage.TYPE_INT_RGB);
         Graphics2D g = image.createGraphics();
         g.setColor(Color.BLACK);
@@ -63,6 +63,69 @@ class TonalSquiggleProcessorTest {
         assertTrue(centralPaths > 0, "portrait subject boundary should still be drawn");
         assertTrue(farBackgroundPaths < centralPaths,
                 "flat dark background should be suppressed instead of becoming the dominant drawing");
+    }
+
+    @Test
+    void shiftedSubjectRetainsTheSameGeometryWithoutACentrePrior() {
+        for (double suppression : new double[] {0, .85}) {
+            String reference = null;
+            for (int shift : new int[] {0, 48, 96}) {
+                BufferedImage image = whiteImage(192, 144);
+                Graphics2D g = image.createGraphics();
+                g.setColor(Color.BLACK);
+                g.fillRect(24 + shift, 24 + shift / 2, 24, 32);
+                g.dispose();
+                // Translation aligns with all sampling grids; zero amplitude removes sine phase.
+                var options = new TonalSquiggleProcessor.Options(8, 0, .6, .72, suppression, 1);
+                var geometry = TonalSquiggleProcessor.process(image, options);
+                assertFalse(geometry.isEmpty(), "off-centre subject must survive suppression=" + suppression);
+                StringBuilder normalized = new StringBuilder();
+                for (var vector : geometry) {
+                    normalized.append('[');
+                    for (var point : ((PolylineGeometry) vector).points) {
+                        normalized.append(point.x - shift).append(',')
+                                .append(point.y - shift / 2).append(';');
+                    }
+                    normalized.append(']');
+                }
+                if (reference == null) reference = normalized.toString();
+                else assertEquals(reference, normalized.toString(),
+                        "moving a subject must not change its coverage or contours");
+            }
+        }
+    }
+
+    @Test
+    void zeroSuppressionPreservesFlatDarkToneAcrossTheWholeImage() {
+        BufferedImage image = new BufferedImage(160, 112, BufferedImage.TYPE_INT_RGB);
+        var options = new TonalSquiggleProcessor.Options(8, 0, .6, .72, 0, 1);
+        var geometry = TonalSquiggleProcessor.process(image, options);
+        assertFalse(geometry.isEmpty());
+        assertTrue(geometry.stream().map(PolylineGeometry.class::cast)
+                .allMatch(line -> line.points.get(0).x < 20
+                        && line.points.get(line.points.size() - 1).x > 140),
+                "zero suppression must shade peripheral dark areas as well as the centre");
+        assertTrue(TonalSquiggleProcessor.process(image,
+                new TonalSquiggleProcessor.Options(8, 0, .6, .72, 1, 1)).isEmpty(),
+                "maximum suppression intentionally omits uniformly dark areas everywhere");
+    }
+
+    @Test
+    void detailPreservesConnectedVerticalStructureRatherThanHorizontalEdgeDashes() {
+        BufferedImage image = whiteImage(80, 80);
+        Graphics2D g = image.createGraphics();
+        g.setColor(Color.BLACK);
+        g.fillRect(35, 8, 3, 56);
+        g.dispose();
+        var geometry = TonalSquiggleProcessor.process(image,
+                new TonalSquiggleProcessor.Options(8, 0, .6, 0, .85, 1));
+        assertTrue(geometry.stream().map(PolylineGeometry.class::cast).anyMatch(line -> {
+            int minX = line.points.stream().mapToInt(p -> p.x).min().orElseThrow();
+            int maxX = line.points.stream().mapToInt(p -> p.x).max().orElseThrow();
+            int minY = line.points.stream().mapToInt(p -> p.y).min().orElseThrow();
+            int maxY = line.points.stream().mapToInt(p -> p.y).max().orElseThrow();
+            return maxY - minY > 40 && maxX - minX <= 4;
+        }), "a long vertical feature should remain a connected contour");
     }
 
     @Test
