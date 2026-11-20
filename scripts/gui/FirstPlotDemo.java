@@ -45,7 +45,11 @@ public final class FirstPlotDemo extends GuiAcceptance {
             }
             await(()->!jobs().isPlotting());
             await(()->((PlotJobHistory)field(panel,"plotHistory")).jobs().size()==1);
-            capture(6, "6. Mock plot complete. Save your project, or export G-code for later use.");
+            // Backend/history completion precedes the EDT's terminal presentation.
+            // Capture the visible result, rather than a stale running frame.
+            await(() -> findButton(panel, "Plot another copy") != null);
+            check(edt(() -> !findButton(panel, "Stop").isEnabled()), "terminal Stop is disabled");
+            capture(6, "6. Mock job submitted. Save your project, or export G-code for later use.");
             System.out.println("Mock first-plot demo captures complete: " + output);
             System.exit(0);
         } catch(Throwable failure) { failure.printStackTrace(); System.exit(1); }

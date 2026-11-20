@@ -8,7 +8,8 @@ No physical plotter was connected. Root-pane captures exclude native borders.
 
 The [one-minute mock walkthrough](../demos/Gantry-first-plot-mock.mp4) was also
 refreshed from this build. It contains six captioned application states and no
-hardware motion. These captures do not establish native desktop or user acceptance.
+hardware motion. The final capture waits for the visible terminal state rather
+than capturing an earlier backend/history-complete moment. These captures do not establish native desktop or user acceptance.
 
 New preparation views: [text dialog](workspace/quick-artwork-dialog.png),
 [workspace/export feedback](workspace/quick-artwork.png) and
