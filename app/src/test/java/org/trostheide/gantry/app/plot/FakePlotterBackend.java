@@ -8,6 +8,7 @@ import java.util.Locale;
 
 /** Records every call made on it, for asserting the exact sequence/coordinates a test produced. */
 class FakePlotterBackend implements PlotterBackend {
+        public MotionCompletion awaitMotionComplete() { return MotionCompletion.SIMULATED_IDLE; }
 
     final List<String> calls = new ArrayList<>();
 

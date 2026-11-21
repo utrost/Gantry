@@ -4,7 +4,10 @@ This digest captures the current shape of Gantry so future documentation and roa
 
 ## Current position
 
-Post-RC13 software work fixes watercolor refill path accounting/order, palette
+Post-RC13 software work adds explicit motion-completion barriers and a selectable
+serial simulator through the production GRBL backend; see the
+[verification and limitations](release-results/2026-11-21-completion-serial-simulator.md).
+It also fixes watercolor refill path accounting/order, palette
 cleaning-pot exclusion, station nudges and homing fault waits. See the
 [fresh audit](release-results/2026-11-21-watercolor-homing.md). Published RC13
 assets remain unchanged and do not contain this follow-up.
@@ -43,11 +46,10 @@ The Maven reactor contains eight modules:
 - `cli` — headless SVG/image batch conversion and optional G-code output.
 - `app` — Swing GUI, orchestration, persistence, recovery, history, visualization, and help surface.
 
-RC11 stabilizes manual controls and clarifies disabled actions while retaining
-RC10's workflow fixes, pen-aware filling, coverage previews and calibration
-profiles. Its release notes record 554 passing Java tests. Release CI verifies
-Java 17/21, GUI workflows and native Windows/Linux packaging; see the
-[RC11 record](release-results/1.0.0-rc.11.md) for evidence and limitations.
+RC13 is the current public testing prerelease. Its exact-tag/native/asset evidence
+is in the [candidate record](release-results/1.0.0-rc.13.md). Later source fixes
+remain absent from those immutable downloads. CI verifies Java 17/21, GUI workflows
+and Windows/Linux installers; physical and participant gates remain separate.
 
 ## Roadmap state
 
@@ -60,9 +62,9 @@ Active product roadmap:
 
 Active adoption roadmap:
 
-- Native Windows MSI/Linux DEB releases and portable GUI/CLI JARs are published through GitHub Releases; RC11 is the current candidate.
+- Native Windows MSI/Linux DEB releases and portable GUI/CLI JARs are published through GitHub Releases; RC13 is the current testing prerelease.
 - Mock first-plot video, screenshots, offline help and SVG samples ship with the documented workflow.
-- Windows 11 / iDraw H A1 RC2 hardware success is recorded; changed RC11 behavior still needs physical confirmation.
+- Windows 11 / iDraw H A1 RC2 hardware success is recorded; current changed behavior still needs physical confirmation.
 - External tester recruitment, structured novice evidence and additional known-good setups remain adoption work.
 
 ## Documentation health

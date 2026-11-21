@@ -148,6 +148,7 @@ public class PlotterPanel extends JPanel {
     private final JButton toolbarUndo = new JButton("Undo"), toolbarRedo = new JButton("Redo");
     private boolean connecting, stopping, checking, replaying, pausing;
     private volatile int manualActions;
+    private boolean waitingForMotionCompletion;
     private GcodeBackend.MachineState controllerState = GcodeBackend.MachineState.UNKNOWN;
     private WorkspacePresentation.Phase outcome;
     private String projectName = "Untitled project";
@@ -401,7 +402,7 @@ public class PlotterPanel extends JPanel {
         if (workspace == null) return;
         boolean connected=plotJobController.isConnected();
         boolean simulation=isSimulation();
-        boolean idle=simulation || controllerState==GcodeBackend.MachineState.IDLE;
+        boolean idle=(!requiresControllerStatus() && simulation) || controllerState==GcodeBackend.MachineState.IDLE;
         String unavailable=!connected?"Connect a plotter first.":
                 plotting || plotJobController.isMachineBusy() || manualActions>0?"Wait for the current operation to finish, or use Stop.":
                 !idle?"Wait for the controller to report Idle (currently "+controllerState+").":null;
@@ -426,7 +427,12 @@ public class PlotterPanel extends JPanel {
         WorkspacePresentation.View view=WorkspacePresentation.of(new WorkspacePresentation.Snapshot(
                 reviewedJob()!=null||documentSession.currentOutput()!=null,connected,connecting,simulation,plotting,awaitingLayerConfirmation,
                 plotJobController.isPaused(),pausing,stopping,workspaceChecks.ready(),config.preflightBeforeStart,
-                reviewedJob()!=null||!selectedLayerIndices().isEmpty(),outcome,controllerState.name()));
+                reviewedJob()!=null||!selectedLayerIndices().isEmpty(),outcome,controllerState.name(),requiresControllerStatus()));
+        if (plotting && waitingForMotionCompletion && !stopping) {
+            view=new WorkspacePresentation.View(WorkspacePresentation.Phase.RUNNING,
+                    "Waiting for motion completion", "Returning pen-up to work origin before the next handoff.",
+                    "Waiting for Idle…", WorkspacePresentation.Action.NONE, false, true);
+        }
         if (plotJobController.isManualOperation()) {
             boolean halting=plotJobController.isStopping();
             view=new WorkspacePresentation.View(halting?WorkspacePresentation.Phase.STOPPING:WorkspacePresentation.Phase.MANUAL,
@@ -438,7 +444,7 @@ public class PlotterPanel extends JPanel {
         workspace.jobSummary.setText(summary+(boundsWarning.isBlank()?"":" · "+boundsWarning));
         workspace.jobSummary.setToolTipText(summary+(boundsWarning.isBlank()?"":" · "+boundsWarning));
         if(artworkInspector!=null)artworkInspector.updateSummary(summary);
-        safetyStatusLabel.setText(simulation ? "Simulation • no physical hardware" : connected ? "Controller: "+controllerState : "Not connected • physical state unknown");
+        safetyStatusLabel.setText(simulation ? simulationName() + (requiresControllerStatus() ? " • controller: " + controllerState : "") + " • no physical hardware" : connected ? "Controller: "+controllerState : "Not connected • physical state unknown");
         WorkspaceStyle.status(safetyStatusLabel, !simulation && connected && controllerState==GcodeBackend.MachineState.IDLE
                 ? "Gantry.success" : controllerState==GcodeBackend.MachineState.ALARM ? "Gantry.error" : "Label.foreground");
         for(ActionListener listener:guidanceActionBtn.getActionListeners())guidanceActionBtn.removeActionListener(listener);
@@ -972,7 +978,7 @@ public class PlotterPanel extends JPanel {
             b.moveto(maxX, maxY);
             b.moveto(minX, maxY);
             b.moveto(minX, minY);
-            log(String.format("Framed job bounds: (%.1f, %.1f) to (%.1f, %.1f)", minX, minY, maxX, maxY));
+            log(String.format("Submitted frame around job bounds: (%.1f, %.1f) to (%.1f, %.1f)", minX, minY, maxX, maxY));
         });
     }
 
@@ -987,8 +993,11 @@ public class PlotterPanel extends JPanel {
     }
 
     private boolean isSimulation() {
-        return plotJobController.isConnected() ? plotJobController.backend() instanceof MockPlotterBackend : config.mock;
+        return plotJobController.isConnected() ? plotJobController.backend().isSimulation() : config.mock;
     }
+
+    private boolean requiresControllerStatus() { return plotJobController.backend() instanceof GcodeBackend; }
+    private String simulationName() { return config.serialSimulator ? "Serial GRBL simulator" : "Mock simulator"; }
 
     private void onSetupWizard() {
         if(!connectionSettingsEditable()){blocked("Disconnect the plotter before running machine setup.");return;}
@@ -1612,7 +1621,7 @@ public class PlotterPanel extends JPanel {
         if(connecting || plotting || plotJobController.isMachineBusy()) {
             blocked("Wait for the active connection or operation before applying Preferences. Settings were not changed.");return;
         }
-        if(plotJobController.isConnected() && (updated.coordinateVersion!=config.coordinateVersion || updated.mock!=config.mock
+        if(plotJobController.isConnected() && (updated.coordinateVersion!=config.coordinateVersion || updated.mock!=config.mock || updated.serialSimulator!=config.serialSimulator
                 || !java.util.Objects.equals(updated.gcode.serialPort,config.gcode.serialPort)
                 || updated.gcode.baudRate!=config.gcode.baudRate)) {
             blocked("Disconnect the plotter before changing connection or artwork orientation settings. Settings were not changed.");return;
@@ -1651,11 +1660,11 @@ public class PlotterPanel extends JPanel {
         }
         setConnectButtonColor(!connected);
         setConnectionRequiredControlsEnabled(connected);
-        statusLabel.setText(connecting ? "Connecting..." : failed ? "Connection failed" : connected ? (isSimulation()?"Simulator connected":"Plotter connected") : (config.mock?"Simulation · disconnected":"Plotter disconnected"));
+        statusLabel.setText(connecting ? "Connecting..." : failed ? "Connection failed" : connected ? (isSimulation()?simulationName()+" connected":"Plotter connected") : (config.mock?"Simulation · disconnected":"Plotter disconnected"));
         if (connecting) localFeedback.showMessage("Connecting to the plotter…", LocalFeedbackPanel.Tone.INFO);
         else if (failed) localFeedback.showAction("Connection failed. Check the port or choose the mock plotter in Settings.",
                 LocalFeedbackPanel.Tone.ERROR, "Open settings", this::onOpenSettings);
-        else if (connected) localFeedback.showMessage(isSimulation()?"Simulator connected. No physical hardware is connected.":"Plotter connected. Manual movement is now enabled.", LocalFeedbackPanel.Tone.SUCCESS);
+        else if (connected) localFeedback.showMessage(isSimulation()?simulationName()+" connected. No physical hardware is connected.":"Plotter connected. Manual movement is now enabled.", LocalFeedbackPanel.Tone.SUCCESS);
         else localFeedback.showMessage("Disconnected. Gantry cannot confirm the physical machine state.", LocalFeedbackPanel.Tone.INFO);
         refreshGuidance();
     }
@@ -1754,7 +1763,7 @@ public class PlotterPanel extends JPanel {
 
     private void onStartPlot() {
         if(!historicalCompatible()){blocked("Stored job geometry no longer matches this machine. Return to artwork and prepare it for the current machine.");return;}
-        if(manualActions>0 || plotJobController.isMachineBusy() || (!isSimulation() && controllerState!=GcodeBackend.MachineState.IDLE)){blocked("Wait for the controller to report idle before starting.");return;}
+        if(manualActions>0 || plotJobController.isMachineBusy() || (requiresControllerStatus() && controllerState!=GcodeBackend.MachineState.IDLE)){blocked("Wait for the controller to report idle before starting.");return;}
         if(config.preflightBeforeStart && !workspaceChecks.ready()){onPreflightWizard();return;}
         stopping=false;outcome=null;jogPanel.stopContinuous();
         if (plotJobController.isPlotting()) {
@@ -1792,6 +1801,14 @@ public class PlotterPanel extends JPanel {
 
         PlotService service = new PlotService(backend, settings);
         service.setLogCallback(this::log);
+        service.setMotionWaitCallback(pending -> SwingUtilities.invokeLater(() -> {
+            waitingForMotionCompletion=pending;
+            if(pending && plotting && !stopping) {
+                workspace.jobDetail.setText("Returning to origin; waiting for motion completion");
+                localFeedback.showMessage("Returning pen-up to work origin; waiting for motion to finish.", LocalFeedbackPanel.Tone.INFO);
+            }
+            refreshGuidance();
+        }));
         service.setCommandedPositionCallback((x, y) -> {
             onJogPositionReport(x, y);
             SwingUtilities.invokeLater(() -> visPanel.updatePosition(x, y));
@@ -1857,7 +1874,7 @@ public class PlotterPanel extends JPanel {
                     log("--- Plot finished: " + TimeEstimator.format(actualSec) + " ---");
                 }
                 SwingUtilities.invokeLater(() -> {
-                    localFeedback.showMessage("Commands submitted. Check controller idle before removing paper.", LocalFeedbackPanel.Tone.SUCCESS);
+                    localFeedback.showMessage(PlotService.completionDescription(service.lastCompletion()) + ". Inspect the output before removing paper.", LocalFeedbackPanel.Tone.SUCCESS);
                     updateReplotMenuItem();
                     rebuildRecentJobsMenu();
                 });
@@ -1867,7 +1884,7 @@ public class PlotterPanel extends JPanel {
             SwingUtilities.invokeLater(() -> {
                 outcome=completed?WorkspacePresentation.Phase.COMPLETE:stopping?WorkspacePresentation.Phase.STOPPED:WorkspacePresentation.Phase.FAILED;
                 stopping=false;invalidateReadiness();setPlottingState(false);
-                workspace.jobDetail.setText(completed?"All commands submitted. Confirm controller idle before removing paper.":failure==null?"Job stopped.":"Job interrupted: "+failure.getMessage());
+                workspace.jobDetail.setText(completed?PlotService.completionDescription(service.lastCompletion()):failure==null?"Job stopped.":"Job interrupted: "+failure.getMessage());
             });
         });
     }
@@ -1884,6 +1901,8 @@ public class PlotterPanel extends JPanel {
     private void onConfirmLayer() {
         if(!plotting || !awaitingLayerConfirmation || stopping)return;
         awaitingLayerConfirmation = false;
+        workspace.jobDetail.setText("Submitting motion; completion pending");
+        localFeedback.showMessage("Plotting; progress counts submitted commands. Keep Stop within reach.", LocalFeedbackPanel.Tone.INFO);
         confirmGate.release();
         refreshGuidance();
     }
@@ -1900,6 +1919,7 @@ public class PlotterPanel extends JPanel {
 
     private void setPlottingState(boolean plotting) {
         this.plotting = plotting;
+        if(!plotting)waitingForMotionCompletion=false;
         visPanel.editingEnabled=!plotting;
         if(artworkInspector!=null)artworkInspector.setPlotting(plotting);
         if(plotting){jogPanel.stopContinuous();if(workspace!=null)workspace.showView("Plot");}

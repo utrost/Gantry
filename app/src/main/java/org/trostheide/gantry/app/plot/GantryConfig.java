@@ -29,6 +29,8 @@ public class GantryConfig {
     public GcodeOptions gcode = new GcodeOptions();
 
     public boolean mock;
+    /** When mock is enabled, run the production GRBL backend over an in-memory serial simulator. */
+    public boolean serialSimulator;
     public String uiTheme = "Dark";
     public String uiDensity = "Comfortable";
     public String canvasTheme = "Dark";

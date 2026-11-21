@@ -100,6 +100,7 @@ public final class WizardLifecycleAcceptance {
             public void moveto(double x, double y) { position[0]=x; position[1]=y; }
             public void move(double dx, double dy) { position[0]+=dx; position[1]+=dy; }
         };
+        backend.connect();
         Throwable[] failure = {null};
         SwingUtilities.invokeAndWait(() -> {
             var workflow = new StationTestWorkflow(config, () -> true, action -> action.accept(backend),

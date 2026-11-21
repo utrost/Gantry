@@ -17,15 +17,22 @@ final class BackendConnectionCoordinator {
     /** Guards toolbar, menu, preflight, and setup-wizard connection entry points. */
     private boolean connecting;
     BackendConnectionCoordinator(PlotJobController jobs,Component parent,Listener listener){this.jobs=jobs;this.parent=parent;this.listener=listener;}
+    /** The simulation branches cannot call the physical serial transport factory. */
+    static PlotterBackend createBackend(GantryConfig config, java.util.function.Consumer<String> log) {
+        if (!config.mock) return new GcodeBackend(config.gcode);
+        return config.serialSimulator ? GcodeBackend.serialSimulator(config.gcode) : new MockPlotterBackend(config.gcode,log);
+    }
     synchronized void toggle(GantryConfig config,boolean plotting){
         if(connecting){listener.log("Connection attempt already in progress.");return;}
-        if(!jobs.isConnected()){PlotterBackend candidate=config.mock?new MockPlotterBackend(config.gcode,listener::log):new GcodeBackend(config.gcode);
+        if(!jobs.isConnected()){PlotterBackend candidate=createBackend(config, listener::log);
             if(candidate instanceof GcodeBackend g){g.setPositionCallback(listener::position);g.setSpeedCallback(listener::speed);g.setSentCommandCallback(listener::sent);g.setStateCallback(listener::machineState);}
             connecting=true;listener.connectionState(true,false,false);
             new Thread(()->{boolean ok=false;try{ok=jobs.connect(candidate);}catch(RuntimeException failure){
                 listener.log("ERROR: Connection failed: "+failure.getMessage());candidate.disconnect();}
                 boolean connected=ok;SwingUtilities.invokeLater(()->{synchronized(BackendConnectionCoordinator.this){connecting=false;}
-                    listener.connectionState(false,connected,!connected);listener.log(connected?"Connected.":"ERROR: Connection failed.");listener.refreshGuidance();});},"backend-connect").start();
+                    listener.connectionState(false,connected,!connected);listener.log(connected ? candidate.isSimulation() ?
+                            (candidate instanceof GcodeBackend ? "Serial GRBL simulator connected; no physical hardware." : "Mock simulator connected; no physical hardware.")
+                            : "Connected." : "ERROR: Connection failed.");listener.refreshGuidance();});},"backend-connect").start();
         }else{
             if(plotting&&JOptionPane.showConfirmDialog(parent,"A plot is still running. Stop it and disconnect?","Plot in progress",JOptionPane.YES_NO_OPTION,JOptionPane.WARNING_MESSAGE)!=JOptionPane.YES_OPTION)return;
             if(plotting)listener.stopPlot();

@@ -41,6 +41,7 @@ class InitialDrawPositionTest {
         assertTrue(backend.drew); assertFalse(backend.halted);
     }
     private static class PositionBackend implements PlotterBackend {
+        public MotionCompletion awaitMotionComplete() { return MotionCompletion.SIMULATED_IDLE; }
         double x, y; int moves; boolean drew, halted, lifted;
         PositionBackend(double x, double y) { this.x = x; this.y = y; }
         public boolean connect() { return true; }

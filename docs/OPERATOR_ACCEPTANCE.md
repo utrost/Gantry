@@ -1,4 +1,4 @@
-# Operator acceptance after RC11
+# Operator acceptance for current candidates
 
 The [RC13 worksheet](release-results/1.0.0-rc.13-operator.md) is ready for session
 identity, task observations, scaling combinations and benchmark timings.
@@ -8,7 +8,10 @@ as a testing prerelease. Physical orientation #93, hardware Stop/recovery, nativ
 scaling and human acceptance remain open. See the
 [candidate record](release-results/1.0.0-rc.13.md) for artifact identity and checks.
 The held RC12 draft and older releases remain unchanged; do not use them to
-accept the later fixes. Record the exact RC13 artifact and hash for each session.
+accept the later fixes. Record the exact artifact and hash for each session. Later source changes need a
+new identified build: the [completion/simulator fixes](release-results/2026-11-21-completion-serial-simulator.md)
+and watercolor/station/homing follow-up are absent from RC13. Do not use RC13
+results to claim these later changes physically accepted.
 
 
 Record results in `docs/release-results/<version>-operator.md`. Use PASS, FAIL,
@@ -51,6 +54,8 @@ alarms until the stationary/pen-up tests are understood and controlled.
 | Modal calibration/station dry visit | Stop remains accessible; Close/Escape waits for cleanup; no orphan operation | NOT RUN |
 | Controlled controller error/alarm and recovery | Explicit failure, halted sequence, best-effort pen lift where controller permits, deliberate recovery | NOT RUN |
 | Small pen plot and layer confirmation | Only selected layers run, requested pen/order agree with review, no automatic continuation | NOT RUN |
+| Completion barrier (post-RC13 build) | Next pen prompt and final success wait for actual pen-up return and controller Idle; Stop stays reachable; record firmware compatibility with G4 P0 | NOT RUN |
+| Stop during completion wait (post-RC13 build) | No next handoff or successful history; inspect halt/lift and deliberately review before restarting | NOT RUN |
 | Stop mid-plot, then recheck/repeat | Halt/lift attempted; fresh review required; exact stored job is previewed before repeat | NOT RUN |
 
 Use [the sample gallery](SAMPLE_GALLERY.md) for a small suitable job. Record

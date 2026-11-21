@@ -27,7 +27,7 @@ final class SupportDiagnostics {
                 .append(' ').append(System.getProperty("os.version", "unknown"))
                 .append(' ').append(System.getProperty("os.arch", "unknown")).append('\n');
         report.append('\n');
-        report.append("Backend: ").append(config.mock ? "Mock backend" : "Serial GRBL").append('\n');
+        report.append("Backend: ").append(config.mock ? config.serialSimulator ? "Serial GRBL simulator (no physical hardware)" : "Mock backend (no physical hardware)" : "Serial GRBL").append('\n');
         report.append("Connected: ").append(snapshot.connected() ? "yes" : "no").append('\n');
         report.append("Serial port: ").append(value(config.gcode.serialPort, "not configured")).append('\n');
         report.append("Baud rate: ").append(config.gcode.baudRate).append('\n');

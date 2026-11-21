@@ -15,13 +15,14 @@ GRBL cancellation/error handling. Its machine-aware preview also shows ordered
 layers with source pen colours, visibility, and physical nib widths that remain
 constant when artwork is scaled.
 
-Windows/Linux installers are published through GitHub Releases. RC11 adds stable
-manual-control layout and clearer unavailable-action feedback to the RC10
-workflow fixes and RC9 pen-aware filling. Native installation, upgrade,
-bundled-runtime launch, and persisted state checks pass in release CI. The
-maintainer reported Windows 11 / iDraw H A1 plotting, stop/alarm recovery,
-limits and calibration on RC2; the changed RC11 behavior still needs physical
-acceptance. See the [current acceptance record](docs/release-results/1.0.0-rc.11.md).
+RC13 is the current public **testing prerelease**, with verified Windows/Linux
+installers and preserved assets. RC12 remains an unpublished immutable draft.
+Versioned upright profiles, complete previews and prepared-route estimates ship
+in RC13. Later watercolor/station/homing and completion/simulator fixes are
+source changes after that release. Native CI verifies install, upgrade and launch;
+physical and external-user acceptance remain open. See the
+[current candidate record](docs/release-results/1.0.0-rc.13.md) and
+[documentation status](docs/DOCUMENTATION_STATUS.md).
 Beginner usability is closed as described in [`docs/USABILITY.md`](docs/USABILITY.md).
 
 ## Delivery plan
@@ -32,7 +33,7 @@ Beginner usability is closed as described in [`docs/USABILITY.md`](docs/USABILIT
 | 2 | Roadmap reconciliation | Active plan is concise; historical phase diary is explicitly deprecated and archived | Complete |
 | 3 | Project/session persistence | `.gantry` files preserve commands, placement, selected layers, passes, and source/vectorizer provenance; command JSON is clearly a flattened interchange export | Complete |
 | 4 | Undo/recovery | Multi-level undo/redo covers model edits; dirty state, close protection, and recovery autosave protect unsaved work | Complete for model/project state and artwork placement edits |
-| 5 | Release readiness | Non-SNAPSHOT version, repeatable release artifacts, checksums, and a recorded acceptance template/workflow | RC11 published; automated installer checks pass; RC2 Windows 11 / iDraw H A1 hardware report recorded; RC11 physical and external-user acceptance pending |
+| 5 | Release readiness | Non-SNAPSHOT version, repeatable release artifacts, checksums, and a recorded acceptance template/workflow | RC13 testing prerelease published; automated installer checks pass; RC2 hardware report retained; current physical and external-user acceptance pending |
 | 6 | Focused polish | Full SVG colour discovery for hatch overrides, accurate travel accounting/labeling, and vectorizer crop restoration | Complete |
 | 7 | CLI batch artifacts | Post-import optimize, shared config/station mapping, and optional G-code output work headlessly with end-to-end tests | Complete |
 | 8 | Exact-job history | Re-plot uses an immutable prepared-job snapshot; recent successful jobs persist and can be reopened/replotted | Complete |
@@ -44,7 +45,7 @@ Beginner usability is closed as described in [`docs/USABILITY.md`](docs/USABILIT
 SVG/ZIP export, reusable named pens, advisory whole-job ink overlap and editable
 stroke text/basic shapes. Java 17/21 GUI checks and Windows/Linux installer/upgrade
 checks passed. Local evidence records 574 Java tests and nine packaging tests.
-RC11 remains the public download; these additions are not in its preserved assets.
+These additions ship in RC13; older release assets remain unchanged.
 See the [integration record](docs/release-results/2026-11-20-integration.md).
 
 - **Named pens #69 and advisory overlap #70:** software delivered; physical
@@ -54,30 +55,29 @@ See the [integration record](docs/release-results/2026-11-20-integration.md).
   [verification record](docs/release-results/2026-11-20-svg-export.md).
 - **Quick artwork #72:** software criteria complete; one actual user task remains.
 
-## Now — resolve RC12 orientation before public acceptance
+## Now — current acceptance and serial reliability
 
-RC12 (`1.0.0-rc.12`, native `1.0.12`) is staged as a draft at `8dcb772`.
-The tagged Windows/Linux builds, synthetic RC11 upgrades and all nine downloaded
-assets/checksums passed verification. RC11 remains the public download
-until a reviewed candidate is published. See the [candidate record](docs/release-results/1.0.0-rc.12.md)
-and [ready-to-fill operator worksheet](docs/release-results/1.0.0-rc.12-operator.md).
+RC13 packages the presentation-only page projection, versioned upright defaults,
+explicit legacy-profile migration and the later preview/route corrections. RC12
+assets predate these changes and remain unchanged. #93's software criteria are
+addressed; physical direction/frame/plot acceptance in #39/#54/#93 remains open.
+See [page projection](docs/release-results/2026-11-20-page-projection.md),
+[upright-profile verification](docs/release-results/2026-11-21-upright-profiles.md)
+and the [RC13 operator worksheet](docs/release-results/1.0.0-rc.13-operator.md).
 
-### Software work without a plotter
+Development after RC13 fixes #106–#109's watercolor route, cleaning-pot mapping,
+station nudge and homing fault waits. #111 adds an explicit planner-completion
+barrier before pen handoff/final success; #112 supplies a selectable serial
+simulator under the production backend, preserving the lightweight mock. See the
+[completion/simulator verification](docs/release-results/2026-11-21-completion-serial-simulator.md).
+Neither follow-up is in RC13 downloads, and neither closes physical acceptance.
 
-Visual review during RC12 preparation found [#93](https://github.com/utrost/Gantry/issues/93):
-Y-up document geometry, workspace mapping and SVG/overlap page orientation disagree.
-Public distribution is held pending a compatibility-preserving resolution; do not
-silently flip existing calibrated machine settings. The candidate record contains
-the failing captures. A presentation-only fix now maps SVG/ZIP and overlap onto
-the same physical page as the workspace, preserving all executable motion.
-[Verification](docs/release-results/2026-11-20-page-projection.md) covers 256
-legacy configurations. Fresh profiles now use versioned upright artwork defaults;
-unversioned calibrated profiles keep their exact mapping until a disconnected,
-reviewed opt-in. [Verification](docs/release-results/2026-11-21-upright-profiles.md)
-covers 512 actual SVG/heatmap renderings and historical mapping preservation with
-replay guards. The #93 software criteria are addressed; physical direction/frame/plot
-acceptance in #39/#54 remains open. RC12 assets predate both fixes and stay unchanged;
-a new candidate and physical acceptance are needed before public distribution.
+Next independently actionable software issues from the Nib review are
+[#113](https://github.com/utrost/Gantry/issues/113) firmware/work-origin envelope
+validation and [#114](https://github.com/utrost/Gantry/issues/114) nine-point
+placement. [#115](https://github.com/utrost/Gantry/issues/115) reviewed partial
+restart/reverse depends on completion, simulator and origin/envelope evidence.
+These remain planned, not delivered.
 
 Follow-up #100/#101/#103 fixes route estimates and controller-space preview starts
 (initial origin, refill and rinse). Known non-origin initial DRAWs are rejected

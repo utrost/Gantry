@@ -330,10 +330,17 @@ Implementations:
   **reader** loop (drains responses → `ackQueue`/`rawQueue`) and a **poller**
   loop (periodic `?` status → position/speed callbacks). Pen control via
   `GcodeOptions.penMode` (`servo` / `zaxis` / `m3m5`). `home()` performs the
-  acknowledged safety order `$X` → pen-up → `$H` → `G92 X0 Y0`, so homing
+  safety order `$X` → pen-up/barrier → `$H` → pen-up/barrier → `G92 X0 Y0`, so homing
   motion cannot begin with the pen down; `haltMotion()` sends a realtime
   soft-reset to abort buffered motion (used by Stop). Formatting is delegated
   to `GcodeFormatter`.
+- **`SerialSimulatorTransport`** — selectable in Settings with simulation enabled;
+  `GcodeBackend.serialSimulator` injects it beneath the production sender, reader
+  and poller, never calling the OS serial factory. A separate planner worker
+  acknowledges moves before execution and delays G4 acknowledgements until queued
+  work completes. Realtime status reports observed XYZ/work offsets and
+  Run/Hold/Idle. Deterministic controls inject ack/status and controller faults.
+  Its subset and 20x simulation timing are documented in [BACKEND_CONTRACT.md](BACKEND_CONTRACT.md).
 - **`MockPlotterBackend`** — logs calls and interpolates XY with feed-based
   sleeps for GUI/CI workflow testing without hardware (`--mock-backend` /
   Settings checkbox). It owns one cancellable operation, tracks pen/connection
@@ -346,6 +353,16 @@ Implementations:
 - **`GcodeFileBackend`** — writes G-code to a `.gcode` file instead of a serial
   port (export). `GcodeFileReplay` streams an existing `.gcode` back through a
   backend for re-plotting.
+
+`PlotterBackend.awaitMotionComplete()` returns explicit controller Idle, simulated
+Idle or output-written evidence. The default fails closed. GRBL submits `G4 P0`
+(planner synchronization), requires its acknowledgement, then requests fresh Idle,
+all within one response-timeout deadline. Resets invalidate pending waits.
+PlotService parks through this barrier at layer handoffs/final completion; manual
+workers and replay wait before releasing ownership. It is not inserted after each
+drawing point. File export flushes without injecting firmware barriers or claiming
+physical feedback. Stop-related interruption remains a stopped outcome, while
+cleanup errors stay visible.
 
 `GcodeOptions` holds serial + machine + pen + feed-rate config (`serialPort`,
 `baudRate`, `penMode`, `feedRateDraw/Travel`, `penServoUp/Down`, `zUp/zDown`,

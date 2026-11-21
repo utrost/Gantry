@@ -30,4 +30,6 @@ final class InterruptibleBackend implements PlotterBackend {
     public void adjustSpeed(String direction){check();backend.adjustSpeed(direction);}
     public void home(){check();backend.home();}
     public void haltMotion(){check();backend.haltMotion();}
+    public MotionCompletion awaitMotionComplete(){check();var result=backend.awaitMotionComplete();check();return result;}
+    public boolean isSimulation(){return backend.isSimulation();}
 }

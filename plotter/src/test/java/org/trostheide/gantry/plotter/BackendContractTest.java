@@ -24,10 +24,16 @@ class BackendContractTest {
             assertArrayEquals(new double[] {x, y}, backend.queryPosition(), .001);
         }
     }
-    private Rig rig(boolean serial) {
+    private Rig rig(String kind) {
         GcodeOptions o = new GcodeOptions(); o.bootDelayMillis = 0; o.penDownDelayMillis = 0;
         o.positionPollIntervalSeconds = .01; o.feedRateTravel = 6000; o.feedRateDraw = 6000;
-        if (serial) {
+        if (kind.equals("serial simulator")) {
+            var transport = new SerialSimulatorTransport(o);
+            var backend = new GcodeBackend(o, (port, baud) -> transport);
+            assertTrue(backend.connect());
+            return new Rig(backend, () -> transport.snapshot().penDown(), () -> {});
+        }
+        if (kind.equals("fake serial")) {
             FakeGrblTransport transport = new FakeGrblTransport();
             GcodeBackend backend = new GcodeBackend(o, (port, baud) -> transport);
             assertTrue(backend.connect());
@@ -54,24 +60,24 @@ class BackendContractTest {
     }
 
     @TestFactory Stream<DynamicTest> sharedMotionAndPenContract() {
-        return Stream.of(false, true).map(serial -> DynamicTest.dynamicTest(
-                serial ? "production GRBL with fake serial" : "GUI mock", () -> {
-            try (Rig r = rig(serial)) {
+        return Stream.of("mock", "fake serial", "serial simulator").map(kind -> DynamicTest.dynamicTest(
+                kind, () -> {
+            try (Rig r = rig(kind)) {
                 r.backend.moveto(10, 20); r.at(10, 20); assertFalse(r.penDown.getAsBoolean());
                 r.backend.lineto(12, 24); r.at(12, 24); assertTrue(r.penDown.getAsBoolean());
                 r.backend.move(3, -2); r.at(15, 22); assertTrue(r.penDown.getAsBoolean());
                 r.backend.moveto(1, 2); r.at(1, 2); assertFalse(r.penDown.getAsBoolean());
                 assertEquals(List.of("ok"), r.backend.sendRaw("G1 X4 Y5 F6000"));
                 r.at(4, 5); // move() restored G90; this raw command is absolute, not relative.
-                r.backend.pendown(); assertTrue(r.penDown.getAsBoolean());
-                r.backend.haltMotion(); r.backend.penup(); assertFalse(r.penDown.getAsBoolean());
+                r.backend.pendown(); r.backend.awaitMotionComplete(); assertTrue(r.penDown.getAsBoolean());
+                r.backend.haltMotion(); r.backend.penup(); r.backend.awaitMotionComplete(); assertFalse(r.penDown.getAsBoolean());
                 r.backend.moveto(2, 3); r.at(2, 3);
                 r.backend.disconnect(); assertNull(r.backend.queryPosition());
                 assertThrows(RuntimeException.class, () -> r.backend.moveto(4, 5));
                 assertNotEquals(List.of("ok"), r.backend.sendRaw("G1 X4 Y5 F6000"));
             }
             // Both implementations can establish a separate fresh connection after a completed session.
-            try (Rig next = rig(serial)) { next.backend.moveto(3, 4); next.at(3, 4); }
+            try (Rig next = rig(kind)) { next.backend.moveto(3, 4); next.at(3, 4); }
         }));
     }
 }

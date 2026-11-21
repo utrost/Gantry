@@ -98,4 +98,22 @@ class SettingsPanelTest {
 
         assertEquals(1200, panel.toConfig().gcode.responseTimeoutSeconds);
     }
+
+    @Test void serialSimulationIsExplicitPersistedAndLockedWhileConnected() throws Exception {
+        javax.swing.SwingUtilities.invokeAndWait(() -> {
+            try {
+                var panel = new SettingsPanel(); var config = new GantryConfig();
+                config.mock=true; config.serialSimulator=true;panel.loadConfig(config);
+                var field=SettingsPanel.class.getDeclaredField("simulationMode");field.setAccessible(true);
+                var mode=(javax.swing.JComboBox<?>)field.get(panel);
+                assertEquals("Serial GRBL simulator",mode.getSelectedItem());assertTrue(mode.isEnabled());
+                assertTrue(panel.toConfig().mock);assertTrue(panel.toConfig().serialSimulator);
+                panel.setConnectionEditable(false);assertFalse(mode.isEnabled());
+                panel.setConnectionEditable(true);mode.setSelectedIndex(0);
+                assertTrue(panel.toConfig().mock);assertFalse(panel.toConfig().serialSimulator);
+                config.mock=false;panel.loadConfig(config);assertFalse(mode.isEnabled());
+                assertFalse(panel.toConfig().mock);
+            } catch (ReflectiveOperationException e) {throw new AssertionError(e);}
+        });
+    }
 }

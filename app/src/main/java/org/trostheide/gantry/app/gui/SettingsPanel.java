@@ -33,7 +33,9 @@ public class SettingsPanel extends JPanel {
     private final JComboBox<String> serialPortCombo = new JComboBox<>();
     private final JButton refreshPortsButton = new JButton("Refresh");
     private final JSpinner baudRateSpinner = new JSpinner(new SpinnerNumberModel(115200, 9600, 250000, 100));
-    private final JCheckBox mockCheckBox = new JCheckBox("Mock backend (no serial port)");
+    private final JCheckBox mockCheckBox = new JCheckBox("Simulation (no physical hardware)");
+    private final JComboBox<String> simulationMode = new JComboBox<>(new String[]{"Lightweight mock", "Serial GRBL simulator"});
+    private boolean connectionEditable = true;
     private final JCheckBox preflightCheckBox = new JCheckBox("Run Pre-Plot Checklist before Start");
     private final JCheckBox showWelcomeCheckBox = new JCheckBox("Show welcome choices when Gantry starts");
 
@@ -96,11 +98,13 @@ public class SettingsPanel extends JPanel {
     }
 
     void setConnectionEditable(boolean editable) {
+        connectionEditable = editable;
         String reason = editable ? null : "Disconnect the plotter before changing connection settings.";
         for (JComponent control : new JComponent[]{serialPortCombo, baudRateSpinner, mockCheckBox, refreshPortsButton}) {
             control.setEnabled(editable);
             control.setToolTipText(reason);
         }
+        simulationMode.setEnabled(editable && mockCheckBox.isSelected());
         artworkOrientation.setEnabled(editable);
         if (!editable) artworkOrientation.setToolTipText("Disconnect the plotter before changing artwork orientation.");
     }
@@ -147,6 +151,10 @@ public class SettingsPanel extends JPanel {
 
         gbc.gridx = 0; gbc.gridy++; gbc.gridwidth = 2;
         panel.add(mockCheckBox, gbc);
+        gbc.gridy++; gbc.gridwidth = 1;
+        addRow(panel, gbc, "Simulation type", simulationMode);
+        simulationMode.setToolTipText("Lightweight practice or production GRBL serial handling; neither opens a physical serial port.");
+        mockCheckBox.addActionListener(event -> simulationMode.setEnabled(connectionEditable && mockCheckBox.isSelected()));
 
         gbc.gridx = 0; gbc.gridy++; gbc.gridwidth = 2;
         panel.add(preflightCheckBox, gbc);
@@ -297,6 +305,8 @@ public class SettingsPanel extends JPanel {
         serialPortCombo.getEditor().setItem(config.gcode.serialPort);
         baudRateSpinner.setValue(config.gcode.baudRate);
         mockCheckBox.setSelected(config.mock);
+        simulationMode.setSelectedIndex(config.serialSimulator ? 1 : 0);
+        simulationMode.setEnabled(connectionEditable && config.mock);
         preflightCheckBox.setSelected(config.preflightBeforeStart);
         showWelcomeCheckBox.setSelected(config.showWelcomeOnStartup);
         theme.setSelectedItem(config.uiTheme);density.setSelectedItem(config.uiDensity);canvasTheme.setSelectedItem(config.canvasTheme);guidance.setSelected(config.showGuidance);
@@ -338,6 +348,7 @@ public class SettingsPanel extends JPanel {
         config.gcode.serialPort = extractPortName((String) serialPortCombo.getEditor().getItem());
         config.gcode.baudRate = (Integer) baudRateSpinner.getValue();
         config.mock = mockCheckBox.isSelected();
+        config.serialSimulator = simulationMode.getSelectedIndex() == 1;
         config.preflightBeforeStart = preflightCheckBox.isSelected();
         config.showWelcomeOnStartup = showWelcomeCheckBox.isSelected();
         config.uiTheme=(String)theme.getSelectedItem();config.uiDensity=(String)density.getSelectedItem();config.canvasTheme=(String)canvasTheme.getSelectedItem();config.showGuidance=guidance.isSelected();

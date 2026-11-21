@@ -37,6 +37,7 @@ public class GcodeBackend implements PlotterBackend {
 
     private final GcodeOptions options;
     private final SerialTransportFactory transportFactory;
+    private final boolean simulation;
 
     private volatile SerialTransport transport;
     private volatile boolean running;
@@ -48,6 +49,7 @@ public class GcodeBackend implements PlotterBackend {
     private volatile GcodeBackendException terminalFailure;
     /** True while $H is intentionally recovering GRBL from its normal alarm lock. */
     private volatile boolean homingFromAlarm;
+    private volatile long resetRevision;
     private volatile MachineState machineState = MachineState.UNKNOWN;
     /** Incremented for every fresh realtime status report, including repeated states. */
     private long stateRevision;
@@ -79,9 +81,21 @@ public class GcodeBackend implements PlotterBackend {
     }
 
     public GcodeBackend(GcodeOptions options, SerialTransportFactory transportFactory) {
+        this(options, transportFactory, false);
+    }
+
+    private GcodeBackend(GcodeOptions options, SerialTransportFactory transportFactory, boolean simulation) {
         this.options = options;
         this.transportFactory = transportFactory;
+        this.simulation = simulation;
     }
+
+    /** Guaranteed no-hardware path: the serial-port name is never passed to an OS transport. */
+    public static GcodeBackend serialSimulator(GcodeOptions options) {
+        return new GcodeBackend(options, (port, baud) -> new SerialSimulatorTransport(options), true);
+    }
+
+    @Override public boolean isSimulation() { return simulation || transport instanceof SerialSimulatorTransport; }
 
     public GcodeOptions getOptions() {
         return options;
@@ -161,7 +175,7 @@ public class GcodeBackend implements PlotterBackend {
             rawQueue.clear();
             updateMachineState(MachineState.UNKNOWN);
             transport = transportFactory.open(options.serialPort, options.baudRate);
-            Thread.sleep(options.bootDelayMillis);
+            Thread.sleep(simulation ? 0 : options.bootDelayMillis);
 
             // Drain and display the GRBL boot banner before the reader starts.
             String banner;
@@ -331,9 +345,8 @@ public class GcodeBackend implements PlotterBackend {
             // ordinary pen commands while alarm-locked, but unlocking itself causes no motion.
             penup();
             // GRBL acknowledges a G0/G1 when it accepts it into the planner, not when motion has
-            // completed. $H requires Idle, so wait for a fresh status report confirming the lift
-            // has physically finished before starting the homing cycle.
-            awaitFreshIdle(30);
+            // completed. Synchronize the planner, then require fresh Idle before $H can start.
+            awaitMotionComplete(30);
             // Use the firmware's configured homing cycle as one atomic operation. In particular,
             // DrawCore documents $H for homing; splitting it into generic $HX/$HY cycles can
             // disturb its Z-axis pen actuator and draw during the first axis move.
@@ -343,7 +356,7 @@ public class GcodeBackend implements PlotterBackend {
             // the configured absolute pen-up height; Home must always finish safely clear.
             awaitFreshIdle(120);
             penup();
-            awaitFreshIdle(30);
+            awaitMotionComplete(30);
         } finally {
             homingFromAlarm = false;
         }
@@ -374,6 +387,7 @@ public class GcodeBackend implements PlotterBackend {
         // motion stops *now*. This byte is safe to write even while the plot thread is mid-command;
         // setting `aborting` makes that thread's remaining send()/waitForOk() calls no-ops so the
         // two threads don't fight over the write lock or the ack queue.
+        resetRevision++;
         aborting = true;
         synchronized (writeLock) {
             try {
@@ -449,14 +463,16 @@ public class GcodeBackend implements PlotterBackend {
 
     // --- Internal serial plumbing ---------------------------------------
 
-    private void send(String cmd) {
+    private void send(String cmd) { send(cmd, Long.MAX_VALUE); }
+
+    private void send(String cmd, long deadline) {
         if (aborting) {
             // Halt in progress: drop the plot thread's straggler commands rather than write them
             // into a machine that's being soft-reset.
             return;
         }
         throwIfFailed();
-        awaitNotHeld();
+        awaitNotHeld(deadline);
         SerialTransport t = transport;
         if (t == null || !t.isOpen()) {
             throw recordSerialFailure("Lost connection to plotter",
@@ -482,25 +498,25 @@ public class GcodeBackend implements PlotterBackend {
     }
 
     private void waitForOk(long timeoutSeconds) {
-        if (transport == null || aborting) {
-            return;
-        }
+        if (transport == null || aborting) return;
+        awaitAck(System.nanoTime() + TimeUnit.SECONDS.toNanos(timeoutSeconds),
+                "G-code response timeout after " + timeoutSeconds + "s");
+        awaitNotHeld();
+    }
+
+    private void awaitAck(long deadline, String timeoutMessage) {
         throwIfFailed();
         String line;
         try {
-            line = ackQueue.poll(timeoutSeconds, TimeUnit.SECONDS);
+            line = ackQueue.poll(Math.max(0, deadline - System.nanoTime()), TimeUnit.NANOSECONDS);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new GcodeBackendException("Interrupted while waiting for GRBL response", e);
         }
         if (line == null) {
-            // No ack within the timeout. Distinguish a genuine lost connection (port closed) from a
-            // slow machine, so a mid-plot disconnect reads as an ERROR rather than a soft warning
-            // that the plot loop quietly plows through.
             SerialTransport t = transport;
             String message = t == null || !t.isOpen()
-                    ? "Lost connection to plotter (serial port closed)"
-                    : "G-code response timeout after " + timeoutSeconds + "s";
+                    ? "Lost connection to plotter (serial port closed)" : timeoutMessage;
             GcodeBackendException failure = new GcodeBackendException(message);
             terminalFailure = failure;
             throw failure;
@@ -509,7 +525,24 @@ public class GcodeBackend implements PlotterBackend {
         if (line.toLowerCase(Locale.ROOT).startsWith("error")) {
             throw new GcodeBackendException("GRBL rejected a command: " + line);
         }
-        awaitNotHeld();
+    }
+
+    @Override
+    public MotionCompletion awaitMotionComplete() {
+        return awaitMotionComplete(options.responseTimeoutSeconds);
+    }
+
+    private MotionCompletion awaitMotionComplete(long timeoutSeconds) {
+        long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(Math.max(1, timeoutSeconds));
+        long revision = resetRevision;
+        checkIdleWait(deadline, revision);
+        // GRBL's zero dwell synchronizes its planner before acknowledging (mc_dwell).
+        // A fresh Idle report alone cannot disambiguate old status reports already in transit.
+        send("G4 P0", deadline);
+        awaitAck(deadline, "Timed out waiting for motion-completion barrier acknowledgement");
+        checkIdleWait(deadline, revision);
+        awaitFreshIdleUntil(deadline, revision);
+        return isSimulation() ? MotionCompletion.SIMULATED_IDLE : MotionCompletion.CONTROLLER_IDLE;
     }
 
     /**
@@ -537,7 +570,14 @@ public class GcodeBackend implements PlotterBackend {
                 continue;
             }
             String low = line.toLowerCase(Locale.ROOT);
-            if (low.startsWith("alarm:")) {
+            if (low.startsWith("grbl ")) {
+                resetRevision++;
+                if (!aborting) {
+                    if (terminalFailure == null) terminalFailure = new GcodeBackendException("Controller restarted unexpectedly; review work origin before recovery");
+                    updateMachineState(MachineState.UNKNOWN);
+                    ackQueue.offer(FAILURE_SENTINEL); rawQueue.offer(FAILURE_SENTINEL); wakeStateWaiters();
+                }
+            } else if (low.startsWith("alarm:")) {
                 handleAlarm(line);
             } else if (low.startsWith("ok") || low.startsWith("error")) {
                 if (collectRaw) {
@@ -688,12 +728,15 @@ public class GcodeBackend implements PlotterBackend {
     }
 
     /** A controller feed-hold pauses plot progression until GRBL reports a resumable state. */
-    private void awaitNotHeld() {
+    private void awaitNotHeld() { awaitNotHeld(Long.MAX_VALUE); }
+
+    private void awaitNotHeld(long deadline) {
         synchronized (stateLock) {
             while (isPausedMachineState(machineState) && !aborting) {
                 throwIfFailed();
+                if (deadline != Long.MAX_VALUE) checkIdleWait(deadline);
                 try {
-                    stateLock.wait(250);
+                    stateLock.wait(50);
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
                     throw new GcodeBackendException("Interrupted while waiting for GRBL Hold to clear", e);
@@ -731,16 +774,19 @@ public class GcodeBackend implements PlotterBackend {
 
     /** Waits for a newly requested realtime report to say Idle, never trusting a stale cached state. */
     private void awaitFreshIdle(long timeoutSeconds) {
-        long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(timeoutSeconds);
+        awaitFreshIdleUntil(System.nanoTime() + TimeUnit.SECONDS.toNanos(timeoutSeconds), -1);
+    }
+
+    private void awaitFreshIdleUntil(long deadline, long revision) {
         while (true) {
-            checkIdleWait(deadline);
+            checkIdleWait(deadline, revision);
             long observedRevision;
             synchronized (stateLock) {
                 observedRevision = stateRevision;
             }
             SerialTransport t = transport;
             if (t == null || !t.isOpen()) {
-                throw new GcodeBackendException("Lost connection while waiting for pen-up motion to finish");
+                throw new GcodeBackendException("Lost connection while waiting for motion completion");
             }
             synchronized (writeLock) {
                 try {
@@ -751,21 +797,21 @@ public class GcodeBackend implements PlotterBackend {
             }
             synchronized (stateLock) {
                 while (stateRevision <= observedRevision) {
-                    checkIdleWait(deadline);
+                    checkIdleWait(deadline, revision);
                     long remaining = deadline - System.nanoTime();
                     if (remaining <= 0) {
                         throw new GcodeBackendException(
-                                "Timed out waiting for pen-up motion to finish before homing");
+                                "Timed out waiting for fresh GRBL Idle status");
                     }
                     try {
                         TimeUnit.NANOSECONDS.timedWait(stateLock, remaining);
                     } catch (InterruptedException e) {
                         Thread.currentThread().interrupt();
                         throw new GcodeBackendException(
-                                "Interrupted while waiting for pen-up motion to finish", e);
+                                "Interrupted while waiting for GRBL Idle", e);
                     }
                 }
-                checkIdleWait(deadline);
+                checkIdleWait(deadline, revision);
                 if (machineState == MachineState.IDLE) {
                     return;
                 }
@@ -775,14 +821,20 @@ public class GcodeBackend implements PlotterBackend {
         }
     }
 
-    private void checkIdleWait(long deadline) {
+    private void checkIdleWait(long deadline) { checkIdleWait(deadline, -1); }
+
+    private void checkIdleWait(long deadline, long revision) {
         throwIfFailed();
+        if (revision >= 0 && (resetRevision != revision || aborting)) {
+            throw new GcodeBackendException("Controller reset during motion-completion wait",
+                    new java.util.concurrent.CancellationException("Motion stopped"));
+        }
         if (Thread.currentThread().isInterrupted()) {
-            throw new GcodeBackendException("Interrupted while waiting for GRBL Idle during homing",
+            throw new GcodeBackendException("Interrupted while waiting for GRBL Idle/motion completion",
                     new InterruptedException());
         }
         if (System.nanoTime() >= deadline) {
-            throw new GcodeBackendException("Timed out waiting for GRBL Idle during homing");
+            throw new GcodeBackendException("Timed out waiting for GRBL Idle/motion completion");
         }
     }
 

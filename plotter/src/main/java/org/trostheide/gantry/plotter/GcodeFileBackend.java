@@ -129,6 +129,14 @@ public class GcodeFileBackend implements PlotterBackend {
     }
 
     @Override
+    public MotionCompletion awaitMotionComplete() {
+        if (writer == null) throw new GcodeBackendException("G-code output is not open");
+        try { writer.flush(); }
+        catch (IOException failure) { throw new GcodeBackendException("Failed to flush G-code output", failure); }
+        return MotionCompletion.OUTPUT_WRITTEN;
+    }
+
+    @Override
     public double[] queryPosition() {
         return new double[] { x, y };
     }
