@@ -770,6 +770,8 @@ public class GcodeBackend implements PlotterBackend {
                     return;
                 }
             }
+            // Bound realtime polling while motion is active; do not flood the serial link.
+            sleepQuietly(50);
         }
     }
 

@@ -1,6 +1,6 @@
 # Watercolor, stations and homing audit — 2026-11-21
 
-Status: **local software verification PASS; cross-platform CI pending; physical acceptance NOT RUN**.
+Status: **local software verification PASS; physical acceptance NOT RUN**.
 This audit starts from the published RC13 source. Its assets/tag remain unchanged;
 the fixes below are later development changes, absent from RC13 downloads.
 
@@ -25,7 +25,8 @@ These are executable regressions rather than conclusions from code inspection al
 
 - Full reactor tests plus focused CLI/export additions: **634 Java tests**, zero
   failures/errors/skips. **12 Python tests** pass. All **78 Markdown files / 321
-  local references** pass the offline checker. Cross-platform CI is pending.
+  local references** pass the offline checker. Cross-platform results are tracked
+  in [PR #110](https://github.com/utrost/Gantry/pull/110).
 - Planner tests cover MOVE-to-DRAW, single endpoints, DRAW-only origin, exact
   boundaries, diagonal paths, pen-up gaps, seven budgets and repeated settings
   edits. Command IDs remain unique and drawn geometry stays on the original paths.
@@ -42,7 +43,7 @@ These are executable regressions rather than conclusions from code inspection al
 
 Code cleanup supports the fixes: refill planning has explicit route state and
 flush points; one shared rinse identity rule serves execution and color mapping;
-homing has a shared wait guard. Obsolete mapping imports and a Python-era class
+homing has a shared wait guard and bounded realtime polling. Obsolete mapping imports and a Python-era class
 comment were removed, and station metadata documentation now matches the code.
 
 ## Limits and release identity
