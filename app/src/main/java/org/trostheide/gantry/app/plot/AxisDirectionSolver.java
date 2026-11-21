@@ -95,4 +95,14 @@ public final class AxisDirectionSolver {
                 originRight ^ effective.invertX(),
                 originBottom ^ effective.invertY());
     }
+    /** Reverse all profile baselines, including portrait, after an explicit direction calibration. */
+    public static AxisConfig toStoredExtra(AxisConfig effective, GantryConfig config) {
+        boolean swap = effective.swapXY(), x = effective.invertX(), y = effective.invertY();
+        if ("Portrait".equals(config.orientation) && config.gcode.machineWidth > config.gcode.machineHeight) {
+            boolean previousX = x; x = y; y = previousX; swap = !swap;
+        }
+        boolean right = config.machineOrigin.contains("Right"), bottom = config.machineOrigin.contains("Bottom");
+        return new AxisConfig(swap, right ^ x, (config.coordinateVersion == 1 ? bottom : !bottom) ^ y);
+    }
+
 }

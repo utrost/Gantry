@@ -106,8 +106,11 @@ controlled-motion, shared-backend and scripted serial fault regressions. See
    RC12 is staged as a verified draft at `8dcb772`, with current screenshots and an
    [operator worksheet](release-results/1.0.0-rc.12-operator.md). Visual review found
    [#93](https://github.com/utrost/Gantry/issues/93), a document/workspace/export
-   orientation mismatch. Public distribution is held for a compatibility-preserving
-   resolution; do not silently change calibrated motion defaults. See the
+   orientation mismatch. Versioned upright defaults now address the software
+   criteria while preserving unversioned profiles and recorded jobs. See the
+   [upright-profile verification](release-results/2026-11-21-upright-profiles.md).
+   Physical direction/frame/plot acceptance remains open. RC12 assets predate the
+   fixes and remain unchanged; public distribution stays held. See the
    [candidate record](release-results/1.0.0-rc.12.md).
 2. Use [OPERATOR_ACCEPTANCE.md](OPERATOR_ACCEPTANCE.md) for hardware, native scaling
    and expert checks (#39/#43/#54). Keep the first independent tester and

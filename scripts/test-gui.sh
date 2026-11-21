@@ -20,6 +20,7 @@ timeout 90s java -cp "$GUI_TEMP:$JAR" org.trostheide.gantry.app.gui.PenFillAccep
 timeout 90s java -Dsun.java2d.uiScale=1 -cp "$GUI_TEMP:$JAR" org.trostheide.gantry.app.gui.VectorizeLifecycleAcceptance 2>&1 | tee "$RESULTS/trace-lifecycle.log"
 timeout 180s java -Dsun.java2d.uiScale=1 -cp "$GUI_TEMP:$JAR" WorkflowIssueAcceptance "$RESULTS/workflows" 2>&1 | tee "$RESULTS/workflows.log"
 timeout 90s java -Dsun.java2d.uiScale=1 -cp "$GUI_TEMP:$JAR" PreparationIntegrationAcceptance "$RESULTS/preparation" 2>&1 | tee "$RESULTS/preparation.log"
+timeout 120s java -Dsun.java2d.uiScale=1 -cp "$GUI_TEMP:$JAR" PreparationIntegrationAcceptance "$RESULTS/upright-migration" legacy 2>&1 | tee "$RESULTS/upright-migration.log"
 if [[ "${GANTRY_GUI_REAL_KEYBOARD:-false}" == true ]]; then
     timeout 90s java -Dsun.java2d.uiScale=1 -cp "$GUI_TEMP:$JAR" org.trostheide.gantry.app.gui.ButtonStateAcceptance "$RESULTS/button-states" 2>&1 | tee "$RESULTS/button-states.log"
     timeout 180s java -Dsun.java2d.uiScale=1 -cp "$GUI_TEMP:$JAR" KeyboardWorkflowAcceptance "$PWD" 2>&1 | tee "$RESULTS/keyboard.log"

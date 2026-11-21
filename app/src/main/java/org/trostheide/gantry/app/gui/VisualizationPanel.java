@@ -8,6 +8,7 @@ import org.trostheide.gantry.model.Layer;
 import org.trostheide.gantry.model.ProcessorOutput;
 import org.trostheide.gantry.model.command.Command;
 import org.trostheide.gantry.model.command.DrawCommand;
+import org.trostheide.gantry.model.command.MoveCommand;
 
 import javax.swing.*;
 import javax.swing.border.TitledBorder;
@@ -37,6 +38,8 @@ public class VisualizationPanel extends JPanel {
 
 
     List<List<Point2D>> allPaths = new ArrayList<>();
+    // Display the MOVE-to-first-DRAW segment without changing the DRAW-only alignment bounds.
+    List<Boolean> pathHasAddedStart = new ArrayList<>();
 
     /**
      * Layer index (into the loaded {@code ProcessorOutput.layers()}) that produced each entry in
@@ -372,6 +375,7 @@ public class VisualizationPanel extends JPanel {
     /** Clears the loaded drawing and resets the overlay transform, leaving an empty bed. */
     public void clearDrawing() {
         allPaths.clear();
+        pathHasAddedStart.clear();
         pathLayer.clear();
         pathCommandId.clear();
         pathLayerId.clear();
@@ -679,6 +683,7 @@ public class VisualizationPanel extends JPanel {
      */
     public void loadPathsPreservingOverlay(ProcessorOutput output) {
         allPaths.clear();
+        pathHasAddedStart.clear();
         pathLayer.clear();
         pathCommandId.clear();
         pathLayerId.clear();
@@ -693,18 +698,29 @@ public class VisualizationPanel extends JPanel {
             layerColors.add(CanvasPalette.displayColor(layers.get(li).color(), li));
             layerPenWidthsMm.add(li < previousWidths.size()
                     ? previousWidths.get(li) : DEFAULT_PEN_WIDTH_MM);
+            Point2D previous = null;
             for (Command cmd : layers.get(li).commands()) {
-                if (cmd instanceof DrawCommand draw) {
+                if (cmd instanceof MoveCommand move) {
+                    previous = new Point2D(move.x, move.y);
+                } else if (cmd instanceof DrawCommand draw) {
                     List<Point2D> stroke = new ArrayList<>();
+                    boolean addedStart = previous != null && !draw.points.isEmpty()
+                            && (previous.x() != draw.points.get(0).x() || previous.y() != draw.points.get(0).y());
+                    if (addedStart) stroke.add(previous);
                     for (org.trostheide.gantry.model.Point p : draw.points) {
                         stroke.add(new Point2D(p.x(), p.y()));
                     }
                     if (!stroke.isEmpty()) {
                         allPaths.add(stroke);
+                        pathHasAddedStart.add(addedStart);
+                        previous = stroke.get(stroke.size() - 1);
                         pathLayer.add(li);
                         pathCommandId.add(draw.id);
                         pathLayerId.add(layers.get(li).id());
                     }
+                } else {
+                    // Refill/station commands can move the controller outside document space.
+                    previous = null;
                 }
             }
         }
@@ -950,8 +966,11 @@ public class VisualizationPanel extends JPanel {
         this.rawMinY = Double.MAX_VALUE;
         this.rawMaxY = -Double.MAX_VALUE;
 
-        for (List<Point2D> path : allPaths) {
-            for (Point2D p : path) {
+        for (int pathIndex = 0; pathIndex < allPaths.size(); pathIndex++) {
+            List<Point2D> path = allPaths.get(pathIndex);
+            int firstDrawPoint = pathHasAddedStart.get(pathIndex) ? 1 : 0;
+            for (int pointIndex = firstDrawPoint; pointIndex < path.size(); pointIndex++) {
+                Point2D p = path.get(pointIndex);
                 this.rawMinX = Math.min(this.rawMinX, p.x());
                 this.rawMaxX = Math.max(this.rawMaxX, p.x());
                 this.rawMinY = Math.min(this.rawMinY, p.y());

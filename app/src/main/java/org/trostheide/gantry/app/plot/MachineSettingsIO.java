@@ -10,7 +10,7 @@ public final class MachineSettingsIO {
     private static final ObjectMapper JSON = new ObjectMapper()
             .enable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS)
             .disable(MapperFeature.ALLOW_COERCION_OF_SCALARS);
-    private static final Set<String> FIELDS = Set.of("gcode", "machineOrigin", "orientation",
+    private static final Set<String> FIELDS = Set.of("coordinateVersion", "gcode", "machineOrigin", "orientation",
             "invertX", "invertY", "swapXY", "flipY", "canvasAlignment", "dataRotation",
             "paddingX", "paddingY", "stations", "softLimits", "hasLimitSwitches");
     private MachineSettingsIO() { }
@@ -34,10 +34,14 @@ public final class MachineSettingsIO {
                 if(field.matches("serialPort|baudRate|responseTimeoutSeconds|bootDelayMillis|positionPollIntervalSeconds"))group="Connection";
                 if(field.matches("pen.*|servo.*|zUp|zDown|feedRate.*"))group="Pen & speeds";
             }
-            String name=path.replaceFirst("^gcode\\.","").replaceAll("([a-z])([A-Z])","$1 $2");
-            result.add(new Change(group,name,before.getOrDefault(path,"Not configured"),after.getOrDefault(path,"Not configured")));
+            String name=path.equals("coordinateVersion") ? "Artwork orientation" : path.replaceFirst("^gcode\\.","").replaceAll("([a-z])([A-Z])","$1 $2");
+            result.add(new Change(group,name,path.equals("coordinateVersion") ? orientationName(current) : before.getOrDefault(path,"Not configured"),path.equals("coordinateVersion") ? orientationName(incoming) : after.getOrDefault(path,"Not configured")));
         }
         return java.util.List.copyOf(result);
+    }
+
+    private static String orientationName(GantryConfig config) {
+        return config.coordinateVersion == 1 ? "Legacy (preserve existing plots)" : "Upright artwork";
     }
 
     private static void flatten(String prefix,JsonNode node,java.util.Map<String,String> values){
@@ -48,7 +52,7 @@ public final class MachineSettingsIO {
     public static void exportSettings(GantryConfig config, File file) throws IOException {
         validate(config);
         ObjectNode root = JSON.createObjectNode();
-        root.put("format", "gantry-machine-settings");root.put("version", 1);
+        root.put("format", "gantry-machine-settings");root.put("version", config.coordinateVersion);
         root.set("settings", machineFields(JSON.valueToTree(config)));
         org.trostheide.gantry.model.io.AtomicFiles.write(file,
                 temp -> JSON.writerWithDefaultPrettyPrinter().writeValue(temp, root));
@@ -61,9 +65,15 @@ public final class MachineSettingsIO {
         JsonNode settings = root;
         if (root.has("format")) {
             require("gantry-machine-settings".equals(root.path("format").asText()), "Not a Gantry machine-settings file.");
-            require(root.path("version").isIntegralNumber() && root.path("version").canConvertToInt() && root.path("version").intValue() == 1,
+            require(root.path("version").isIntegralNumber() && root.path("version").canConvertToInt() && (root.path("version").intValue() == 1 || root.path("version").intValue() == 2),
                     "Unsupported machine-settings version.");
             settings = root.get("settings");
+            if (root.path("version").intValue() == 2)
+                require(settings != null && settings.path("coordinateVersion").isIntegralNumber(),
+                        "Version 2 machine settings must specify artwork orientation.");
+            else require(settings == null || !settings.has("coordinateVersion")
+                            || settings.path("coordinateVersion").asInt() == 1,
+                    "Upright artwork requires machine-settings format version 2.");
         }
         require(settings != null && settings.isObject() && settings.path("gcode").isObject(),
                 "Machine settings must contain a gcode configuration.");
@@ -84,6 +94,7 @@ public final class MachineSettingsIO {
     }
 
     private static void validate(GantryConfig c) throws IOException {
+        require(c.coordinateVersion == 1 || c.coordinateVersion == 2, "Unknown artwork coordinate version.");
         require(c.gcode != null, "Missing G-code settings.");
         var g = c.gcode;
         require(g.serialPort != null && !g.serialPort.isBlank(), "Serial port must not be empty.");

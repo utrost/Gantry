@@ -45,6 +45,7 @@ final class SetupWorkflow {
         wizard.setVisible(true);
         if (wizard.finishedSuccessfully()) {
             try { saveAndApply.accept(settings.toConfig()); }
+            catch (java.util.concurrent.CancellationException cancelled) { return false; }
             catch (RuntimeException failure) {
                 JOptionPane.showMessageDialog(owner, failure.getMessage(), "Machine setup was not saved", JOptionPane.ERROR_MESSAGE);
                 return false;

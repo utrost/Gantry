@@ -67,7 +67,8 @@ public class ConfigStore {
             return MAPPER.readValue(file, GantryConfig.class);
         } catch (IOException e) {
             System.out.println("WARNING: Failed to load config " + file + ": " + e.getMessage());
-            return new GantryConfig();
+            // A damaged existing file must not opt into a different motion convention.
+            return new GantryConfig((com.fasterxml.jackson.databind.JsonNode) null);
         }
     }
 

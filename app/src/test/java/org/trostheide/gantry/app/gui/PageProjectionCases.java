@@ -12,14 +12,14 @@ import java.util.*;
 final class PageProjectionCases {
     record Case(String id, GantryConfig config) { }
 
-    static List<Case> all() {
+    static List<Case> all() throws Exception {
         List<Case> result = new ArrayList<>();
         for (String origin : List.of("Top-Left", "Top-Right", "Bottom-Left", "Bottom-Right"))
             for (boolean portrait : List.of(false, true))
                 for (int mask = 0; mask < 8; mask++)
                     for (boolean flip : List.of(false, true))
                         for (int rotation : List.of(0, 90)) {
-                            GantryConfig c = new GantryConfig();
+                            GantryConfig c = new com.fasterxml.jackson.databind.ObjectMapper().readValue("{}", GantryConfig.class);
                             c.mock = true; c.machineOrigin = origin;
                             c.orientation = portrait ? "Portrait" : "Landscape";
                             c.swapXY = (mask & 1) != 0;

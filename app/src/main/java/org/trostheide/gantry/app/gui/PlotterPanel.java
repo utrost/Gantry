@@ -1023,10 +1023,14 @@ public class PlotterPanel extends JPanel {
 
     private void saveSetupConfig(GantryConfig updated) {
         if(!connectionSettingsEditable())throw new IllegalStateException("Disconnect the plotter before applying machine setup. Settings were not changed.");
+        boolean orientationChanged = updated.coordinateVersion != config.coordinateVersion;
+        if (!reviewArtworkOrientationChange(updated))
+            throw new java.util.concurrent.CancellationException("Artwork orientation change cancelled.");
         updated.inspectorWidth=config.inspectorWidth;updated.diagnosticsOpen=config.diagnosticsOpen;updated.machinePanelPinned=config.machinePanelPinned;
         try { ConfigStore.save(updated, configFile); }
         catch (IOException ex) { throw new java.io.UncheckedIOException("Machine setup could not be saved. Settings were not applied: " + ex.getMessage(), ex); }
         config = updated;
+        if (orientationChanged) resetReplot();
         WorkspaceStyle.install(config);for(Window window:Window.getWindows())SwingUtilities.updateComponentTreeUI(window);visPanel.setBackground(CanvasPalette.BACKGROUND);refreshCanvasPalette();
         applyConfigToVis();
         log("Machine setup saved and applied.");
@@ -1596,15 +1600,26 @@ public class PlotterPanel extends JPanel {
         dialogs.settings();
     }
 
+    private boolean reviewArtworkOrientationChange(GantryConfig updated) {
+        return updated.coordinateVersion == config.coordinateVersion || JOptionPane.showConfirmDialog(this,
+                "Changing artwork orientation changes plotted output and jog direction mapping.\n"
+                + "Existing paths and projects are not rewritten. Review the preview, then recheck\n"
+                + "direction and frame with the pen raised before plotting. Apply this change?",
+                "Review artwork orientation change", JOptionPane.OK_CANCEL_OPTION,
+                JOptionPane.WARNING_MESSAGE) == JOptionPane.OK_OPTION;
+    }
+
     private void saveSettings(GantryConfig updated) {
         if(connecting || plotting || plotJobController.isMachineBusy()) {
             blocked("Wait for the active connection or operation before applying Preferences. Settings were not changed.");return;
         }
-        if(plotJobController.isConnected() && (updated.mock!=config.mock
+        if(plotJobController.isConnected() && (updated.coordinateVersion!=config.coordinateVersion || updated.mock!=config.mock
                 || !java.util.Objects.equals(updated.gcode.serialPort,config.gcode.serialPort)
                 || updated.gcode.baudRate!=config.gcode.baudRate)) {
-            blocked("Disconnect the plotter before changing connection settings. Settings were not changed.");return;
+            blocked("Disconnect the plotter before changing connection or artwork orientation settings. Settings were not changed.");return;
         }
+        boolean orientationChanged = updated.coordinateVersion != config.coordinateVersion;
+        if (!reviewArtworkOrientationChange(updated)) return;
         updated.inspectorWidth=config.inspectorWidth;updated.diagnosticsOpen=config.diagnosticsOpen;updated.machinePanelPinned=config.machinePanelPinned;
         try { ConfigStore.save(updated, configFile); }
         catch (IOException ex) {
@@ -1616,9 +1631,10 @@ public class PlotterPanel extends JPanel {
         config.gcode.copyFrom(updated.gcode);
         updated.gcode = config.gcode;
         config = updated;
+        if (orientationChanged) resetReplot();
         WorkspaceStyle.install(config);for(Window window:Window.getWindows())SwingUtilities.updateComponentTreeUI(window);visPanel.setBackground(CanvasPalette.BACKGROUND);refreshCanvasPalette();
         applyConfigToVis();
-        showFeedback("Preferences saved and applied.");
+        showFeedback(orientationChanged ? "Artwork orientation saved. Review the preview and recheck direction/frame with the pen raised." : "Preferences saved and applied.");
     }
 
     private void onConnectToggle() { connections.toggle(config, plotting); }

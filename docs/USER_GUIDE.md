@@ -24,6 +24,25 @@ preflight policy, and file history remain local. No movement or controller comma
 are sent by import. GRBL firmware settings, including `$100`/`$101` calibration,
 are not part of this profile.
 
+## Artwork orientation and existing profiles
+
+Fresh profiles use **Upright artwork** so ordinary text reads upright. Existing
+profiles stay **Legacy (preserve existing plots)**, including profiles imported
+from earlier Gantry releases. Updating Gantry does not flip calibrated settings.
+
+To opt in, disconnect and open **Settings > Preferences > Machine geometry >
+Artwork orientation**. Review the change, inspect the preview, then recheck jog
+directions and frame with the pen raised before plotting. Cancel leaves the saved
+profile unchanged. Extra axis corrections, Flip Y and rotation still apply.
+
+Paths and saved projects are not rewritten. Preparing an old project with a new
+profile uses that profile's mapping; use its original legacy profile to retain the
+old output. Historical jobs keep their recorded mapping; replay is blocked when the current
+machine mapping differs. Restore the original profile or return to artwork to
+prepare for the new profile. Upright portable profiles
+require a Gantry version that supports machine-settings format 2; older releases
+reject them. Legacy portable profiles retain format 1.
+
 ## Quick start
 
 ### Prerequisites

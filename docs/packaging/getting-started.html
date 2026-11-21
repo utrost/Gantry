@@ -88,6 +88,7 @@ nav{display:flex;flex-wrap:wrap;gap:16px}section{margin-top:36px}.note{border-le
 <section id="hardware">
 <h2>Prepare for your real plotter</h2>
 <p>Before connecting hardware, set the machine's actual travel area, origin, pen-lift mode and feeds in <strong>Settings &gt; Preferences…</strong>. Verify jogging directions with the pen raised. Use homing only with a properly configured controller and limit switches, then frame a small drawing before putting the pen down.</p>
+<p>Fresh machine profiles use <strong>Upright artwork</strong>. Existing profiles remain <strong>Legacy (preserve existing plots)</strong>. To change this, disconnect and use <strong>Preferences &gt; Machine geometry &gt; Artwork orientation</strong>, review the motion change, then recheck directions and frame with the pen raised. Saved paths are not rewritten; projects use the selected machine profile. Historical jobs retain their recorded mapping; replay is blocked if the current machine mapping differs. Upright machine-settings exports require format 2 support; older Gantry releases reject them.</p>
 <img src="images/preferences-geometry.png" alt="Machine geometry preferences with travel dimensions, origin, orientation and soft limits">
 <p>Watercolor stations and refill operations are optional. Layer settings include physical nib width and refill parameters:</p>
 <img src="images/layer-watercolor-settings.png" alt="Per-layer watercolor settings including refill station and pen width">

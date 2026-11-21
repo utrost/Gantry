@@ -11,6 +11,7 @@ class GantryConfigTest {
 
     private static GantryConfig landscape(String origin) {
         GantryConfig c = new GantryConfig();
+        c.coordinateVersion = 1; // Pin the historical baseline for these compatibility tests.
         c.gcode.machineWidth = 841.0;
         c.gcode.machineHeight = 594.0;
         c.orientation = "Landscape";

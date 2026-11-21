@@ -71,8 +71,13 @@ silently flip existing calibrated machine settings. The candidate record contain
 the failing captures. A presentation-only fix now maps SVG/ZIP and overlap onto
 the same physical page as the workspace, preserving all executable motion.
 [Verification](docs/release-results/2026-11-20-page-projection.md) covers 256
-configurations. Default workspace text readability remains unresolved; #93 and
-the public-distribution hold stay open.
+legacy configurations. Fresh profiles now use versioned upright artwork defaults;
+unversioned calibrated profiles keep their exact mapping until a disconnected,
+reviewed opt-in. [Verification](docs/release-results/2026-11-21-upright-profiles.md)
+covers 512 actual SVG/heatmap renderings and historical mapping preservation with
+replay guards. The #93 software criteria are addressed; physical direction/frame/plot
+acceptance in #39/#54 remains open. RC12 assets predate both fixes and stay unchanged;
+a new candidate and physical acceptance are needed before public distribution.
 
 The independently actionable tracked software issues #84 and #88–#91 are
 complete: packaged PNG support, honest export failures, reproducible recipes,

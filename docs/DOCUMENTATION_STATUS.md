@@ -1,4 +1,4 @@
-# Documentation status — RC11 public / RC12 draft, 2026-11-20
+# Documentation status — RC11 public / RC12 draft, 2026-11-21
 
 The public entry points, release links, offline help links and screenshot
 references were checked against RC11. Current validation is recorded in
@@ -50,3 +50,12 @@ capabilities and the differences from serial and file backends. The #78/#79
 [follow-up record](release-results/2026-11-20-backend-contracts.md) tracks the
 corrected behavior; the original audit stays dated historical evidence. Physical
 acceptance and participant gates remain open.
+
+## Versioned upright profiles
+
+The source and offline guides explain fresh upright defaults, unchanged legacy
+profiles, explicit disconnected migration and machine-settings format 2. New
+[actual captures](validation/orientation/upright-profiles/README.md) show readable
+text and matching SVG/overlap. These development fixes are absent from immutable
+RC12 assets. #93 still needs physical direction/frame/plot acceptance; the older
+RC12 gallery remains historical evidence rather than current visual acceptance.

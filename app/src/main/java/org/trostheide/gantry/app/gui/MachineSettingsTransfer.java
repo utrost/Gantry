@@ -37,7 +37,7 @@ final class MachineSettingsTransfer {
         var comparison=MachineSettingsIO.comparison(current,incoming);
         JPanel panel=new JPanel(new BorderLayout(8,8));
         long count=comparison.stream().filter(MachineSettingsIO.Change::changed).count();
-        panel.add(WorkspaceStyle.note(count+" machine values will change. Check the local serial port before connecting. Simulation, preflight policy and appearance stay local. No firmware settings are written."),BorderLayout.NORTH);
+        panel.add(WorkspaceStyle.note(count+" machine values will change. Check the local serial port before connecting. Simulation, preflight policy and appearance stay local. No firmware settings are written. If artwork orientation changes, review the preview and recheck direction/frame with the pen raised."),BorderLayout.NORTH);
         JTabbedPane groups=new JTabbedPane();
         for(String group:new String[]{"Connection","Machine geometry","Pen & speeds","Limits","Watercolor stations"}){
             var rows=comparison.stream().filter(c->c.group().equals(group)).toList();
