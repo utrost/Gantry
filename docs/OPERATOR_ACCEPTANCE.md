@@ -1,17 +1,14 @@
 # Operator acceptance after RC11
 
-The [RC12 worksheet](release-results/1.0.0-rc.12-operator.md) is ready for session
+The [RC13 worksheet](release-results/1.0.0-rc.13-operator.md) is ready for session
 identity, task observations, scaling combinations and benchmark timings.
 
-Status: **not run**. This is a checklist for the next available operator session,
-not evidence of a pass. RC11 remains the latest public download. The RC12 draft
-at `8dcb772` contains the integrated features, with verified Windows/Linux assets;
-public distribution is held for orientation issue #93. See the
-[candidate record](release-results/1.0.0-rc.12.md) for artifact identity and hashes.
-Never replace published RC11 assets with changed code.
-The upright-profile and prepared-route fixes are later source changes. The RC12
-worksheet is a template, not the right artifact for accepting those fixes: create
-a worksheet for a new immutable candidate and record its exact identity.
+Status: **not run**. RC13 packages the upright-profile and prepared-route fixes
+as a testing prerelease. Physical orientation #93, hardware Stop/recovery, native
+scaling and human acceptance remain open. See the
+[candidate record](release-results/1.0.0-rc.13.md) for artifact identity and checks.
+The held RC12 draft and older releases remain unchanged; do not use them to
+accept the later fixes. Record the exact RC13 artifact and hash for each session.
 
 
 Record results in `docs/release-results/<version>-operator.md`. Use PASS, FAIL,

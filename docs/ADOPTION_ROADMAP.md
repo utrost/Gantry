@@ -39,8 +39,8 @@ then use either exported G-code or a real GRBL connection without verbal coachin
 
 ## November 2026 update
 
-RC11 remains public. RC12 is an immutable unpublished draft; later development
-fixes versioned upright profiles, preview strokes and prepared-route estimates.
+RC13 packages versioned upright profiles, complete preview strokes and prepared-route
+estimates as a testing prerelease. RC12 remains an immutable unpublished draft.
 Current software evidence is linked from [documentation status](DOCUMENTATION_STATUS.md).
 The adoption gates still need real people, native desktop observations and current
 hardware acceptance. No user-count or physical-output milestone is inferred from CI.
