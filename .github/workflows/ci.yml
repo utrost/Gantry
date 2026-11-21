@@ -5,6 +5,8 @@ on:
     branches: [main, master]
   # Also validate stacked PRs targeting feature branches.
   pull_request:
+  # Allow release validation when an automation token suppresses PR events.
+  workflow_dispatch:
 
 jobs:
   gantry:
