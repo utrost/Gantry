@@ -1299,3 +1299,14 @@ controller or serial connection is unavailable. Failed recovery is logged.
 
 Help > Copy Diagnostics omits console/error lines that look like paths or
 credentials. Review the copied report before posting it in an issue.
+
+### Initial DRAW and the work origin
+
+A disconnected preview/export plans an initial DRAW from work origin (0,0).
+Include an explicit initial MOVE in command files to establish the intended start.
+Before an initial DRAW without MOVE or a known refill, execution checks reported
+position. A known non-origin/nonfinite position rejects the job with instructions
+to add MOVE or deliberately return pen-up to origin and review again; it does not
+silently position the machine. Halt/pen-up recovery still applies. If the backend
+cannot report position, a warning records the origin assumption; this does not
+establish actual position. Mock results cannot substitute for physical checks.

@@ -83,6 +83,8 @@ rendered offline guide and its linked resources.
 `PreparedEstimateRegressionTest` uses independent numeric expectations for the
 actual route, configured dips/swirl, park/rinse, clipping, pen transitions and
 fixed-vs-motion feed override; estimation must never connect or sleep.
+`InitialDrawPositionTest` checks known non-origin rejection/recovery without
+automatic positioning, and accepted explicit-MOVE/origin/refill starts.
 `ControllerStartPreviewTest` checks actual canvas pixels, machine-space starts,
 placement invariance and station fallback across 128 combinations. Existing
 `PageProjectionTest` retains 512 renderings and 256 unchanged legacy G-code hashes.

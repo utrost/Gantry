@@ -79,8 +79,9 @@ replay guards. The #93 software criteria are addressed; physical direction/frame
 acceptance in #39/#54 remains open. RC12 assets predate both fixes and stay unchanged;
 a new candidate and physical acceptance are needed before public distribution.
 
-Follow-up #100/#101 fixes route estimates and controller-space preview starts
-(initial origin, refill and rinse). Full station metadata reaches current and
+Follow-up #100/#101/#103 fixes route estimates and controller-space preview starts
+(initial origin, refill and rinse). Known non-origin initial DRAWs are rejected
+without automatic positioning; unknown position keeps an explicit warning. Full station metadata reaches current and
 historical views; commands and alignment bounds remain unchanged. Current guides,
 all 47 gallery PNGs and the mock walkthrough are refreshed. See
 [verification/documentation audit](docs/release-results/2026-11-21-prepared-route.md).

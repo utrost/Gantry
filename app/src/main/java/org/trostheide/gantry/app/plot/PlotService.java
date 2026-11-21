@@ -280,6 +280,7 @@ public class PlotService {
                 if (cancelled || Thread.currentThread().isInterrupted()) {
                     return;
                 }
+                if (layerIndex == 1) verifyInitialDrawPosition(layer);
                 layerStartedCallback.accept(layer);
                 logCallback.accept(String.format("=== Layer '%s' (%d/%d): %d commands ===",
                         layer.id(), layerIndex, layers.size(), layer.commands().size()));
@@ -307,6 +308,26 @@ public class PlotService {
                 } finally {
                     if (interrupted) Thread.currentThread().interrupt();
                 }
+            }
+        }
+    }
+
+    /** Projection/export assume origin until a MOVE or known station establishes the start. */
+    private void verifyInitialDrawPosition(Layer layer) {
+        for (Command command : layer.commands()) {
+            if (command instanceof MoveCommand) return;
+            if (command instanceof RefillCommand refill && resolveStation(settings.stations, refill.stationId) != null) return;
+            if (command instanceof DrawCommand draw && !draw.points.isEmpty()) {
+                double[] position = backend.queryPosition();
+                if (position == null || position.length < 2) {
+                    logCallback.accept("WARNING: Initial DRAW has no initial MOVE; controller position is unavailable. "
+                            + "Preview/export assume work origin (0,0). Verify the starting position before plotting.");
+                } else if (!Double.isFinite(position[0]) || !Double.isFinite(position[1])
+                        || Math.abs(position[0]) > .001 || Math.abs(position[1]) > .001) {
+                    throw new IllegalStateException("This job draws before an initial MOVE, but the controller is not at work origin (0,0). "
+                            + "Add an initial MOVE, or deliberately return to work origin with the pen raised, then review again.");
+                }
+                return;
             }
         }
     }

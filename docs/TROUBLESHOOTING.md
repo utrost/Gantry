@@ -220,3 +220,14 @@ waiting; elapsed time includes pauses and pen-change confirmations. The progress
 remaining-time display extrapolates command counts, which may have unequal costs.
 See [time estimation](USER_GUIDE.md#time-estimate). Compare the same prepared job,
 profile, speeds and dwell settings; do not treat the estimate as a completion promise.
+
+### Initial DRAW and the work origin
+
+A disconnected preview/export plans an initial DRAW from work origin (0,0).
+Include an explicit initial MOVE in command files to establish the intended start.
+Before an initial DRAW without MOVE or a known refill, execution checks reported
+position. A known non-origin/nonfinite position rejects the job with instructions
+to add MOVE or deliberately return pen-up to origin and review again; it does not
+silently position the machine. Halt/pen-up recovery still applies. If the backend
+cannot report position, a warning records the origin assumption; this does not
+establish actual position. Mock results cannot substitute for physical checks.

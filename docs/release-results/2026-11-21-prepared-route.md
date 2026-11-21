@@ -1,6 +1,6 @@
 # Prepared-route software fixes and documentation audit — 2026-11-21
 
-Scope: independently reproduced #100 and #101, plus reconciliation of current
+Scope: independently reproduced #100, #101 and #103, plus reconciliation of current
 guides, reference documentation, screenshots and walkthrough. No physical
 machine, native fractional-scaling acceptance or participant study was run.
 RC11 public assets and immutable RC12 draft assets remain unchanged.
@@ -15,7 +15,12 @@ RC11 public assets and immutable RC12 draft assets remain unchanged.
 | Feed override scales fixed dwell/settle | Only motion seconds scale; fixed time stays fixed in summary, tooltip and live estimate |
 | Initial/post-refill/rinse DRAW lacks its preview start | Controller-space start is displayed without changing editable geometry or alignment bounds |
 
-The three initial regression assertions failed before implementation. The timing
+The three initial route/preview assertions failed before implementation. A fourth
+reproduction (#103) confirmed that a known non-origin controller could execute an
+initial DRAW from a different start than review. Execution now rejects that known
+mismatch and applies existing halt/pen-up recovery, with no automatic positioning
+move. Explicit MOVE, known refill and origin-start jobs remain supported. Unknown
+reported position retains a logged origin assumption, not a physical guarantee. The timing
 backend records `PlotService.plot`; it never connects or sleeps. Prepared settings
 include current alignment offsets or the historical snapshot. Preview painting
 and stroke hit testing use synthetic controller starts, separate from commands.
@@ -29,7 +34,7 @@ inspected together for completeness and placement, independently of green tests.
 
 ## Verification
 
-- Java reactor and focused tests cover 619 tests, with zero failures/errors/skips
+- Java reactor and focused tests cover 623 tests, with zero failures/errors/skips
   on the completed run. Java 17/21 and Windows/Linux installed-upgrade CI run on
   the implementation PR.
 - Twelve Python tests pass: nine existing packaging regressions and three new
@@ -41,6 +46,9 @@ inspected together for completeness and placement, independently of green tests.
   post-refill, unknown/fallback station and between-layer-rinse starts are covered;
   changing placement leaves machine-space starts fixed. Historical station starts
   are hit-testable, and station refresh preserves excluded-layer selection.
+- Immediate fake-position checks cover rejection from (5,5) without drawing or
+  automatic positioning, halt/pen-up recovery, and accepted explicit-MOVE,
+  origin-start and known-refill cases. No new automatic machine motion is added.
 - Existing 512 SVG/overlap renderings and 256 tagged-RC12 G-code baselines pass.
 - Independent numerical expectations cover first endpoints, clipping, park/rinse,
   both configured dips, polygon swirl distance, skipped/fallback stations,

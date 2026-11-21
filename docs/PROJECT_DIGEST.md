@@ -122,7 +122,7 @@ controlled-motion, shared-backend and scripted serial fault regressions. See
 
 ## Current software/documentation follow-up
 
-#100/#101 correct prepared-route timing and initial/refill/rinse preview starts,
+#100/#101/#103 correct prepared-route timing and initial/refill/rinse preview starts,
 with actual canvas/SVG evidence and unchanged executable baselines. The current
 gallery and mock walkthrough are refreshed from development source; preserved
 RC11/RC12 artifacts retain their old payloads. The repository-wide link/anchor check

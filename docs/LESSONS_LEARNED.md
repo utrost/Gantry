@@ -263,3 +263,7 @@ hardware-marked ones still need a real machine before a hardware release.
   coordinate tests cannot establish a complete visible stroke.
 - Keep archived release observations dated. Refresh the current screenshot gallery
   and guides without rewriting immutable release assets or claiming human acceptance.
+
+- #103: projection's origin assumption does not establish the controller position.
+  Reject a reported non-origin initial DRAW without auto-positioning; require
+  explicit MOVE or deliberate pen-up return/review. Qualify unknown-position cases.
