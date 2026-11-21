@@ -34,7 +34,7 @@ final class GcodeFileWorkflow {
         new Thread(()->exportAtomically(output,settings,options,file),"gcode-export").start();
     }
     void replay(){
-        if(!(jobs.backend() instanceof GcodeBackend real)){log.accept("ERROR: Connect to a real G-code backend first (not available in mock mode).");return;}
+        if(!(jobs.backend() instanceof GcodeBackend real)){log.accept("ERROR: Connect to a GRBL backend first (hardware or serial simulator; lightweight mock replay is unavailable).");return;}
         JFileChooser chooser=chooser();if(chooser.showOpenDialog(parent)!=JFileChooser.APPROVE_OPTION)return;File file=chooser.getSelectedFile();remember(file);
         GcodeOptions options = new GcodeOptions(); options.copyFrom(config.get().gcode);
         new SwingWorker<GcodeFileReplay.Plan, Void>() {
@@ -50,8 +50,8 @@ final class GcodeFileWorkflow {
                     try {
                         jobs.startReplay(plan, log, (completed, failure) -> SwingUtilities.invokeLater(() -> {
                             plotting.accept(false);
-                            if (completed) info.accept("Replay finished.");
-                            else if (failure instanceof java.util.concurrent.CancellationException || failure instanceof InterruptedIOException)
+                            if (completed) info.accept(real.isSimulation() ? "Simulated replay finished; no physical hardware." : "Replay finished; controller reports Idle.");
+                            else if (failure == null || failure instanceof java.util.concurrent.CancellationException || failure instanceof InterruptedIOException)
                                 info.accept("Replay stopped; safety recovery attempted.");
                             else if (failure != null) error.accept("Replay failed: " + failure.getMessage());
                         }));

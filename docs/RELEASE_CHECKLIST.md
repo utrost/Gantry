@@ -53,7 +53,9 @@ Record these on Windows 10/11 and Ubuntu 22.04/24.04 x86-64:
 - Windows current-user registration, GUI/help Start menu entries, native CLI
   conversion, complete offline guide/images/samples, and no CLI shortcut.
 - About and Copy Diagnostics report the candidate version.
-- Guided first plot, SVG/raster import, mock plotting and G-code export.
+- Guided first plot, SVG/raster import, lightweight mock and serial simulator
+  selection, completed/stopped serial-simulator workflows, and G-code export.
+  Record simulation separately from real-machine evidence.
 - Settings/history persist across launch directories and upgrades; recovery
   works after an interrupted session and does not reappear after dismissal.
 - Upgrade an earlier installer candidate while preserving the user profile.

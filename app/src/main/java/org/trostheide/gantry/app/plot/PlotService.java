@@ -143,6 +143,9 @@ public class PlotService {
     private final PlotSettings settings;
 
     private LayerGate layerGate = LayerGate.IMMEDIATE;
+    private volatile boolean awaitingMotionCompletion;
+    private Consumer<Boolean> motionWaitCallback = pending -> { };
+
     private Consumer<String> logCallback = line -> { };
     private BiConsumer<Double, Double> commandedPositionCallback = (x, y) -> { };
     private Consumer<Layer> layerStartedCallback = layer -> { };
@@ -156,6 +159,13 @@ public class PlotService {
     public PlotService(PlotterBackend backend, PlotSettings settings) {
         this.backend = backend;
         this.settings = settings;
+    }
+
+    public boolean isAwaitingMotionCompletion() { return awaitingMotionCompletion; }
+
+    /** Observes an operator-handoff barrier; callbacks run on the plotting worker. */
+    public void setMotionWaitCallback(Consumer<Boolean> callback) {
+        motionWaitCallback = callback == null ? pending -> { } : callback;
     }
 
     /** Registers the gate used to pause before each layer until the operator confirms. */
@@ -363,8 +373,30 @@ public class PlotService {
     private void parkAtOrigin() {
         backend.penup();
         backend.moveto(0, 0);
+        checkCancellation();
+        awaitingMotionCompletion = true;
+        try {
+            motionWaitCallback.accept(true);
+            lastCompletion = backend.awaitMotionComplete();
+        } finally {
+            awaitingMotionCompletion = false;
+            motionWaitCallback.accept(false);
+        }
+        checkCancellation();
         reportPosition(0, 0);
-        logCallback.accept("--- Layer complete: parked at origin (0, 0), pen up ---");
+        logCallback.accept("--- Layer complete: " + completionDescription(lastCompletion) + " ---");
+    }
+
+    private volatile PlotterBackend.MotionCompletion lastCompletion;
+    public PlotterBackend.MotionCompletion lastCompletion() { return lastCompletion; }
+
+    public static String completionDescription(PlotterBackend.MotionCompletion completion) {
+        if (completion == null) return "No motion completion reported";
+        return switch (completion) {
+            case CONTROLLER_IDLE -> "Controller reports Idle; parked at origin (0, 0), pen-up commands completed";
+            case SIMULATED_IDLE -> "Simulated motion complete; parked at origin (0, 0), no physical hardware";
+            case OUTPUT_WRITTEN -> "Commands written; no physical motion feedback";
+        };
     }
 
     /**
@@ -630,6 +662,9 @@ public class PlotService {
     public void dryVisitStation(StationConfig station) {
         backend.penup();
         backend.moveto(station.x(), station.y());
+        checkCancellation();
+        backend.awaitMotionComplete();
+        checkCancellation();
         commandedPositionCallback.accept(station.x(), station.y());
         logCallback.accept(String.format("--- Over station (%.1f mm / %.1f mm), pen up ---",
                 station.x(), station.y()));
@@ -646,7 +681,10 @@ public class PlotService {
                 station.x(), station.y(), station.behavior()));
         dip(station, station.behavior());
         backend.penup();
-        logCallback.accept("--- Wet test complete ---");
+        checkCancellation();
+        backend.awaitMotionComplete();
+        checkCancellation();
+        logCallback.accept("--- Wet test commands completed (controller or simulation) ---");
     }
 
     /** Number of straight segments used to approximate one full swirl circle. */

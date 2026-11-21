@@ -10,6 +10,9 @@ are unchanged. See [RC13 candidate evidence](release-results/1.0.0-rc.13.md),
 Later [watercolor/station/homing fixes](release-results/2026-11-21-watercolor-homing.md)
 are development source changes, absent from the immutable RC13 downloads. Current
 guides describe these corrected paths; preserve the release/source distinction.
+The [completion/simulator audit](release-results/2026-11-21-completion-serial-simulator.md)
+adds #111/#112 evidence, supported serial subset and physical boundaries. Settings,
+offline help, testing, backend contract and active roadmap describe these source additions.
 
 | Area | Current state |
 |---|---|

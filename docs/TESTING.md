@@ -24,9 +24,11 @@ covering both the automated test suite and manual acceptance checks.
   fixes add deterministic cancellation, pen/connection state and supported raw
   execution. See [BACKEND_CONTRACT.md](BACKEND_CONTRACT.md) for the current
   contract and tests. GUI passes still do not establish physical stopping.
-- **Production GRBL tests use a separate fake serial transport.** They exercise
-  actual command/response/recovery code for scripted cases, but neither fake
-  emulates physical acceleration, planner timing, switches or pen mechanics.
+- **Serial GRBL simulator** is selectable alongside the lightweight mock. It uses
+  production `GcodeBackend` with queued in-memory execution, acknowledgements,
+  status polling and fault injection. Scripted fake transport tests remain useful
+  for exact protocol cases. Neither establishes actual firmware, switches,
+  acceleration or pen mechanics. See the [completion/simulator audit](release-results/2026-11-21-completion-serial-simulator.md).
 
 ---
 
@@ -202,7 +204,7 @@ results can be recorded (e.g. in a spreadsheet) and referenced in bug reports.
 - **Pass/fail:** a script passes only if **every** checkbox in it is satisfied.
   Record `PASS` / `FAIL` / `BLOCKED` / `N/A` per script ID, with notes.
 - **Mock vs hardware:** scripts marked *(mock OK)* can be run end-to-end with the
-  **Mock backend** (Settings → Mock backend) and need no plotter. Scripts marked
+  **Simulation (no physical hardware)** (Settings → Simulation (no physical hardware)) and need no plotter. Scripts marked
   *(hardware)* exercise real serial/motion and should be repeated on a real
   plotter before a hardware release; the mock can stand in for a smoke test.
 - **Order:** scripts are grouped by area. Within a release run, do the groups
@@ -306,8 +308,8 @@ a `testdata/` folder.
 1. Open **Machine > Setup Wizard...** (or continue from TS-B1).
    - [ ] Step 1 **Welcome** shows an intro that wraps cleanly (no horizontal scrollbar).
 2. Click **Next**.
-   - [ ] Step 2 **Connection** shows the real connection fields (serial port, baud, **Mock backend**) — the same widgets as Settings.
-   - [ ] Tick **Mock backend**.
+   - [ ] Step 2 **Connection** shows the real connection fields (serial port, baud, **Simulation (no physical hardware)**) — the same widgets as Settings.
+   - [ ] Tick **Simulation (no physical hardware)**.
 3. **Next** → Step 3 **Geometry & origin**.
    - [ ] Shows machine width/height, origin corner, orientation, alignment, data rotation, padding, the invert/swap overrides.
    - [ ] Set width = 250, height = 180, origin = Bottom-Left.
@@ -343,7 +345,7 @@ a `testdata/` folder.
    - [ ] Persisted at 0. (Hardware: lines start clean with no ink dot.)
 
 #### TS-C2 — Mock backend toggle *(mock OK)*
-1. In Settings, tick **Mock backend**, Save.
+1. In Settings, tick **Simulation (no physical hardware)**, Save.
    - [ ] **Connect** no longer requires a serial port; clicking it connects to the simulated backend.
 2. Untick Mock backend, Save (leave disconnected).
    - [ ] Connect now expects a real serial port (don't connect unless hardware present).
@@ -1000,3 +1002,23 @@ native focus, DPI or hardware acceptance.
 `NumericEditSupportTest` covers full-string and locale-sensitive numeric parsing;
 `WorkspaceNoteLayoutTest` covers bounds guidance that grows after initial layout.
 The five external acceptance gates remain listed in the release record.
+
+
+### Completion barrier and serial simulator regressions (#111/#112)
+
+`MotionHandoffTest` holds the first parking barrier and checks that the next pen
+and final success cannot advance. `MotionCompletionTest` checks queued Run,
+stale Idle, barrier rejection/missing acknowledgement, Hold timeout, alarm,
+disconnect, interruption, Stop and truthful file output. `SerialSimulatorTest`
+runs production serial handling with independent acknowledgement/execution,
+manual delayed acknowledgements, stale/missing status, faults, relative/absolute
+coordinates, offsets, all three lift modes, custom dip depth, Home (including
+frozen-Idle pre-lift ordering), Hold, Stop and reconnect.
+`BackendContractTest` includes this simulator alongside mock and scripted serial.
+Controller tests verify retained ownership and cancellation without false success.
+
+`scripts/test-gui.sh` includes `SerialSimulatorAcceptance`: actual Swing Connect,
+Home, station dry/wet checks, two-layer plotting, parked handoff, Stop during the
+barrier, reconnect and rejected command feedback. Screenshots/logs are written to
+`RESULTS/serial-simulator`. The profile uses an invalid physical port name and the
+simulator-only connection factory. Hardware acceptance #39/#54/#93 remains open.

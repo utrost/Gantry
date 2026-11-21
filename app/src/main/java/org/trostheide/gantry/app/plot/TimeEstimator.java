@@ -82,6 +82,7 @@ public final class TimeEstimator {
         }
         public boolean connect() { throw new UnsupportedOperationException("Estimation never connects."); }
         public void disconnect() { }
+        public MotionCompletion awaitMotionComplete() { return MotionCompletion.OUTPUT_WRITTEN; }
         public double[] queryPosition() { return new double[]{x, y}; }
         public void moveto(double nextX, double nextY) {
             penup(); current.travel += Math.hypot(nextX - x, nextY - y); x = nextX; y = nextY;

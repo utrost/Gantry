@@ -12,7 +12,7 @@ supported common behavior, not firmware or physical equivalence.
 | Pen-up travel / drawing | `moveto` lifts; `lineto` lowers; pen state observable with `isPenDown()` | Same high-level intent; configured servo/Z/M3 commands | Same high-level intent in emitted commands |
 | Run/Idle | Run while an operation owns the mock; Idle afterward; status is not a firmware planner | Controller-reported states via reader/poller; unknown/alarm/hold/disconnected are distinct | No controller state |
 | Position | Simulated work XY, in mm | Last controller-reported work XY, asynchronous | Last emitted XY; not physical feedback |
-| Dwell | Interruptible simulated delay | Queued controller G4; acknowledgement is not completion | Emits G4 |
+| Dwell | Interruptible simulated delay | Queued G4; GRBL synchronizes preceding motion before acknowledging | Emits G4 |
 | Stop | Invalidates active motion, interrupts its wait, freezes last reached XY and lifts simulated pen; repeated halt does not interrupt cleanup again | Realtime reset and best-effort recovery/pen lift; physical result needs acceptance | No running machine; inherited halt has no physical effect |
 | Raw commands | Explicit subset below; unsupported lines fail | Sent to firmware; replies/rejections depend on that controller | Written verbatim; “written to file” is not acknowledgement/execution |
 | Reconnect | After prior worker exits, resets simulated work origin and modal defaults | New serial connection/initialization; prior workers must be cleaned up first | Reopening starts a new output file, not a machine resume |
@@ -52,7 +52,8 @@ interruption before continuing.
   the mock, checks no subsequent stroke/park after Stop, pen-up cleanup, repeated
   Stop and a deliberate new operation afterward.
 - `BackendContractTest` runs the same motion/pen/raw-mode/disconnect checks against
-  the mock and actual `GcodeBackend` with fake serial. Reconnect is checked after
+  the mock and actual `GcodeBackend` with both scripted fake serial and the
+  serial simulator. Reconnect is checked after
   a rejected disconnected draw: the fresh serial session must send pen-down,
   rather than trusting stale command-cache state.
 - `FakeGrblTransport` models relative/absolute XY and default servo pen state,
@@ -66,8 +67,8 @@ interruption before continuing.
 
 ## Physical boundary
 
-Feed override is sampled when a simulated move starts; it is not a continuous
-firmware override. Feed-based interpolation omits acceleration, braking, controller queues,
+The lightweight mock samples feed override when a move starts. The serial
+simulator samples it during interpolation; neither reproduces firmware timing. Feed-based interpolation omits acceleration, braking, controller queues,
 mechanical play, physical limits, real homing, serial-adapter latency and pen/ink
 behavior. A stronger mock still cannot close hardware acceptance #39/#54 or
 participant study #16. Preserve the dated [original mock audit](release-results/2026-11-20-mock-fidelity.md)
@@ -90,6 +91,71 @@ Development after RC13 checks terminal controller failure, deadline and thread
 interruption on every fresh-Idle polling iteration, including before accepting
 Idle. Continuous non-Idle reports cannot extend the deadline. An explicit alarm
 during the initial lift fails Home without submitting $H. The existing controlled
-unlock and pre/post-home lift ordering is retained. Scripted transport tests verify
+unlock and pre/post-home lift ordering is retained. #111 now also synchronizes
+the planner before accepting Idle for either lift; a frozen old Idle report
+cannot start `$H` while the lift is still queued. Scripted transport tests verify
 these commands; physical endstop/lift behavior still needs operator acceptance.
 See the [watercolor/homing audit](release-results/2026-11-21-watercolor-homing.md).
+
+
+## Explicit motion-completion capability (#111)
+
+`awaitMotionComplete()` is separate from command submission. Its result states
+what was established: `CONTROLLER_IDLE`, `SIMULATED_IDLE` or `OUTPUT_WRITTEN`.
+The default throws, so a new backend cannot silently enable an unverified handoff.
+
+Production GRBL sends `G4 P0`, requires its acknowledgement, then waits for a
+newly requested Idle status. This is a planner barrier: upstream GRBL
+[`gc_execute_line`](https://github.com/gnea/grbl/blob/master/grbl/gcode.c) calls
+[`mc_dwell`](https://github.com/gnea/grbl/blob/master/grbl/motion_control.c), which
+synchronizes the planner before dwelling, including zero dwell. An old Idle
+report alone cannot bypass queued motion. A missing acknowledgement is always a
+failure, even if status says Idle. Unsupported firmware rejects the barrier and
+the job fails closed; this is not a claim about all GRBL-derived firmware.
+
+One response-timeout deadline covers Hold, barrier acknowledgement and fresh
+Idle. Alarm, disconnection, unexpected reset and interruption fail the wait.
+Stop invalidates the pending barrier. Layer parking waits before the next pen
+prompt and final success/history; manual sequences and replay retain their worker
+until completion. Ordinary drawing points do not receive per-point Idle barriers.
+The synchronous mock verifies it is connected and idle. File export flushes its
+writer, emits no extra G4 and reports only `OUTPUT_WRITTEN`.
+
+## Selectable serial simulator (#112)
+
+Enable **Simulation (no physical hardware)** in disconnected Settings and choose
+**Serial GRBL simulator**. Existing profiles retain **Lightweight mock**. Both
+modes are identified visibly and in diagnostics; their factories never open an
+OS serial port. The serial simulator is a `SerialTransport` beneath the actual
+`GcodeBackend`, so production formatting, reader, queues, polling, parsing,
+initialization and recovery run unchanged. Its separate daemon planner worker
+acknowledges moves before executing them. G4, G92 and Home acknowledge after
+execution; a 16-entry planner window delays further move acknowledgements until
+space becomes available. Work coordinates reflect observed position and offsets.
+
+Supported subset (one explicit command per line):
+
+- G0/G1 XYZ and positive modal F; G90/G91, G21/G94; G92 XYZ; G4 P0–3600.
+- Configured servo M280/M3 up/down values and M5; other servo values reject.
+  XYZ moves include custom Z dip depths. The binary lowered flag follows travel
+  from the configured up height toward the down height; it is not contact sensing.
+- `$H`, `$X`, `$$`, `$I`, `$G`; reads/writes for `$20`–`$23`, `$100/$101`,
+  `$110/$111/$112`, `$130/$131`, with finite/range validation.
+- Realtime `?`, Hold `!`, resume `~`, reset, jog cancel and feed overrides
+  reset/+10/−10. Reports include Run/Hold/Idle/Alarm, XYZ MPos/WCO and override.
+- Selected `$20` XY soft-limit checks; `$22=0` rejects Home. No switch contacts
+  or actual firmware safety envelope are modeled.
+
+Unknown syntax is rejected, including duplicate/unsupported words; invalid or
+oversized lines discard their remaining tail. Deterministic test controls pause
+execution, freeze/suppress status, withhold/release acknowledgements and inject
+rejection, alarm, reset or disconnect. They are acceptance seams, not a physical
+machine diagnostic.
+
+Motion and dwell use 20x nominal speed (minimum 2 ms move), with simple straight
+interpolation. There is no acceleration, braking distance, mechanical play,
+endstop wiring, firmware buffer/USB timing, servo dynamics, pigment or pot model.
+The simulator is intentionally a documented subset, not a firmware-equivalence
+claim. Shared backend, serial fault, controller and actual Swing tests are linked
+in the [verification record](release-results/2026-11-21-completion-serial-simulator.md).
+Physical acceptance #39/#54/#93 remains open. These changes are after RC13.

@@ -357,6 +357,7 @@ class PlotJobControllerTest {
     }
 
     private static final class RecordingBackend implements PlotterBackend {
+        public MotionCompletion awaitMotionComplete() { return MotionCompletion.SIMULATED_IDLE; }
         private final boolean connectResult;
         private boolean connectCalled;
         private boolean disconnected;

@@ -50,6 +50,22 @@ public interface PlotterBackend {
         }
     }
 
+    /** Evidence returned by an explicit motion-completion barrier, never by an ordinary ack. */
+    enum MotionCompletion { CONTROLLER_IDLE, SIMULATED_IDLE, OUTPUT_WRITTEN }
+
+    /**
+     * Waits for all previously submitted motion to finish, or throws on failure/cancellation.
+     * Implementations must bound controller waits and require fresh completion evidence.
+     * OUTPUT_WRITTEN means only that a file/recorder accepted the commands, never physical Idle.
+     * Unsupported backends fail closed rather than enabling an unverified operator handoff.
+     */
+    default MotionCompletion awaitMotionComplete() {
+        throw new UnsupportedOperationException("This backend cannot confirm motion completion");
+    }
+
+    /** Whether this backend is explicitly a no-hardware simulation. */
+    default boolean isSimulation() { return false; }
+
     /** Returns the last known {x, y} work position in mm, or null if unsupported. */
     default double[] queryPosition() {
         return null;

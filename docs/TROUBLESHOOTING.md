@@ -248,3 +248,25 @@ new candidate's controlled station dry/wet checks before physical watercolor use
 The same audit fixes homing waiting for Idle after an explicit controller alarm.
 Record the alarm and diagnostics, use Stop and the controlled recovery procedure,
 and inspect the hardware cause; do not repeatedly retry Home past an alarm.
+
+
+## Waiting for motion completion (development after RC13)
+
+A layer may reach 100% submitted progress while the controller is still executing
+queued travel. Gantry waits for an acknowledged `G4 P0` planner barrier and a fresh
+Idle report before the next pen prompt or final success. Stop remains available;
+Pause cannot add commands during this handoff wait. The configured response timeout
+bounds the wait, including a controller Hold.
+
+A timeout, rejected barrier, alarm, unexpected startup/reset or disconnect is a
+failure requiring review, even if another status report says Idle. Do not infer a
+missing acknowledgement from position or status. Preserve Copy Diagnostics and
+check the actual firmware's command support, connection and controller state.
+
+To reproduce software flow without hardware, disconnect, open Settings, enable
+**Simulation (no physical hardware)** and choose **Serial GRBL simulator**. The
+workspace and diagnostics identify it; its invalid/unused port name is never
+opened. Its faster simulated execution and synthetic Home do not establish real
+motion, lift, switches or pot clearance. See the [backend contract](BACKEND_CONTRACT.md)
+and [verification](release-results/2026-11-21-completion-serial-simulator.md).
+RC13 downloads do not contain these later source changes.

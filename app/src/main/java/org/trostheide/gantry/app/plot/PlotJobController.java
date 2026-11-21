@@ -46,11 +46,15 @@ public final class PlotJobController {
             boolean completed = false;
             Throwable failure = null;
             try {
-                action.accept(new InterruptibleBackend(current, this::isStopping));
+                var guarded = new InterruptibleBackend(current, this::isStopping);
+                action.accept(guarded);
+                guarded.awaitMotionComplete();
                 completed = !isStopping() && !Thread.currentThread().isInterrupted();
             } catch (java.util.concurrent.CancellationException cancelled) {
                 // Cancellation is an interrupted outcome, not a failed cleanup.
-            } catch (Throwable thrown) { failure = thrown; }
+            } catch (Throwable thrown) {
+                if (!isStopping() || !isCancellationFailure(thrown)) failure = thrown;
+            }
             finally {
                 // Ignore the original cancellation during cleanup. Repeated Stop is idempotent.
                 Thread.interrupted();
@@ -151,7 +155,7 @@ public final class PlotJobController {
                 service.plot(output);
                 completed = !service.isCancelled() && !Thread.currentThread().isInterrupted();
             } catch (Throwable thrown) {
-                failure = thrown;
+                if (!(isStopping() || service.isCancelled()) || !isCancellationFailure(thrown)) failure = thrown;
             } finally {
                 finishPlot(completed);
                 listener.onComplete(completed, failure);
@@ -182,7 +186,9 @@ public final class PlotJobController {
                 try {
                     org.trostheide.gantry.plotter.GcodeFileReplay.replay(plan, current, log);
                     completed = !Thread.currentThread().isInterrupted();
-                } catch (Throwable thrown) { failure = thrown; }
+                } catch (Throwable thrown) {
+                    if (!isStopping() || !isCancellationFailure(thrown)) failure = thrown;
+                }
                 finally {
                     synchronized (this) { activeWorker = null; exclusiveOperation = null; }
                     listener.onComplete(completed, failure);
@@ -192,6 +198,15 @@ public final class PlotJobController {
             worker.start();
         }
         return worker;
+    }
+
+    private static boolean isCancellationFailure(Throwable failure) {
+        // Cleanup errors must remain visible even when cancellation triggered the original exit.
+        if (failure.getSuppressed().length != 0) return false;
+        for (Throwable cause = failure; cause != null; cause = cause.getCause()) {
+            if (cause instanceof InterruptedException || cause instanceof java.util.concurrent.CancellationException) return true;
+        }
+        return false;
     }
 
     public synchronized void finishPlot(boolean successful) {
@@ -261,6 +276,7 @@ public final class PlotJobController {
         boolean next;
         synchronized(this){
             if(activeService==null || stopping)return false;
+            if(activeService.isAwaitingMotionCompletion())return paused;
             service=activeService;next=!paused;paused=next;
         }
         // Pen lift may wait on serial I/O. Never hold the controller monitor here:

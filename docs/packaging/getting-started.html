@@ -93,6 +93,8 @@ nav{display:flex;flex-wrap:wrap;gap:16px}section{margin-top:36px}.note{border-le
 <img src="images/preferences-geometry.png" alt="Machine geometry preferences with travel dimensions, origin, orientation and soft limits">
 <p>Watercolor stations and refill operations are optional. Layer settings include physical nib width and refill parameters:</p>
 <img src="images/layer-watercolor-settings.png" alt="Per-layer watercolor settings including refill station and pen width">
+<p>Development after RC13 adds <strong>Settings → Simulation (no physical hardware) → Serial GRBL simulator</strong>. Choose it while disconnected, save, then Connect. It uses the production serial backend over an in-memory connection; no physical port is opened. The workspace and diagnostics identify this mode. The existing <strong>Lightweight mock</strong> remains available. Simulated motion runs faster than real travel and does not model endstops, acceleration, pen mechanics or ink.</p>
+<p>Layer handoffs and final success now wait for a planner barrier acknowledgement and fresh Idle status. Missing acknowledgements, alarms, reset or disconnect prevent success; Stop remains available. Simulation reports simulated completion; file export reports commands written. Physical pen lift and pot clearance still need observation. These source changes are absent from the preserved RC13 downloads.</p>
 <p>Mock success is useful workflow evidence but does not establish physical calibration or hardware readiness. Keep emergency stop or power within reach during a first physical test.</p>
 </section>
 <section id="support">

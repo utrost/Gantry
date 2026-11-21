@@ -47,6 +47,11 @@ version information and checksums. Portable GUI/CLI JARs and the complete offlin
 documentation ZIP are a separate download. See [installer contents](docs/packaging/README.md).
 
 Start with the [guided mock first plot](docs/FIRST_PLOT.md) before using hardware.
+Development after RC13 also offers **Settings → Simulation → Serial GRBL simulator**:
+normal GUI workflows use the production serial backend without opening hardware.
+Layer changes and final success now wait for an explicit completion barrier. See
+the [verification and simulation limits](docs/release-results/2026-11-21-completion-serial-simulator.md);
+these changes are absent from RC13 downloads.
 Watch the [one-minute mock walkthrough](docs/demos/Gantry-first-plot-mock.mp4):
 actual app screens show import, preview, the pre-plot checklist, pen confirmation,
 and completion. This captioned walkthrough simulates plotting; no hardware moves.
@@ -111,7 +116,7 @@ requests.
 | `svgtoolbox-core` | SVG→SVG processors: path optimize, simplify, hatch, palette, crop, rotate |
 | `pipeline-core` | Flatten, position, multipass, command model, output orchestration — pen plotting works end-to-end with just this module |
 | `watercolor` | Optional: paint station mapping and refill-split |
-| `plotter` | G-code backend (jSerialComm), mock backend, `.gcode` file writer |
+| `plotter` | GRBL backend (jSerialComm or serial simulator), lightweight mock, `.gcode` writer |
 | `vectorize` | Optional front stage: raster image (JPG/PNG)→SVG (BoofCV/Batik tracing) feeding the SVG pipeline |
 | `cli` | Headless entry point |
 | `app` | Swing/FlatLaf GUI and orchestration service |
@@ -137,7 +142,7 @@ Windows (`.cmd`), all run from the repo root:
 | `update.sh` / `update.cmd` | `git pull` the current branch |
 | `build.sh` / `build.cmd` | `mvn clean install` everything (pass `--skip-tests` to skip tests) |
 | `start.sh` / `start.cmd` | Launch the Gantry GUI (`app/target/app-1.0.0.jar`), building it first if missing |
-| `test-gui.sh [GUI-JAR] [RESULTS]` | Exercise the GUI mock workflow and process-restart recovery (Linux/JDK/display) |
+| `test-gui.sh [GUI-JAR] [RESULTS]` | Exercise mock/recovery and production-backend serial-simulator GUI workflows (Linux/JDK/display) |
 | `capture-screenshots.sh [GUI-JAR]` | Refresh the screenshot gallery using temporary mock profiles (Linux/JDK/display) |
 | `start-novice-study.sh` | Launch the GUI from an isolated clean profile for novice-study participants |
 | `release.sh` / `release.cmd` | Build versioned GUI/CLI artifacts under `dist/<version>/`; add `--installer` for the host installer |

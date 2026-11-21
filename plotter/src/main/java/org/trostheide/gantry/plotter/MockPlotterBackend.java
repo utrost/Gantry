@@ -137,6 +137,18 @@ public class MockPlotterBackend implements PlotterBackend {
         }
     }
 
+    @Override public boolean isSimulation() { return true; }
+
+    @Override public MotionCompletion awaitMotionComplete() {
+        synchronized (state) {
+            if (!connected) throw new IllegalStateException("Mock plotter is disconnected");
+            if (Thread.currentThread().isInterrupted()) throw new CancellationException("Mock wait interrupted");
+            // High-level mock operations return only after their simulated motion finishes.
+            if (activeWorker != null) throw new IllegalStateException("Mock motion is still running");
+            return MotionCompletion.SIMULATED_IDLE;
+        }
+    }
+
     @Override public List<String> sendRaw(String command) {
         String cmd = command == null ? "" : command.trim().toUpperCase(Locale.ROOT).replaceAll("\\s+", "");
         synchronized (state) {

@@ -185,8 +185,11 @@ bottom, then **Save**:
 
 ### 1. Connection
 
-- Set **Mock backend** checked if you just want to explore the GUI without
-  hardware connected.
+- Check **Simulation (no physical hardware)** to practice without a plotter.
+  Choose **Lightweight mock** for the existing simple workflow, or **Serial GRBL
+  simulator** to exercise the production serial sender, reader and status handling
+  over an in-memory connection. Neither mode opens a physical serial port.
+  Disconnect before changing simulation mode.
 - Otherwise pick your **Serial Port** from the dropdown (click **Refresh**
   after plugging the cable in if it's not listed yet) and leave **Baud Rate**
   at 115200 unless your GRBL firmware was built with a different rate.
@@ -231,7 +234,7 @@ rate (`G0` would use the controller's maximum seek rate instead).
 
 ### 6. Verify jogging before your first real plot
 
-With the plotter connected (or Mock backend), open the **Machine** controls and use
+With the plotter connected (or simulation), open the **Machine** controls and use
 the **Move pen manually** ▲▼◄► buttons.
 Each one should move the pen toward that side of the *bed as you're looking
 at it*. If any direction is wrong, **don't** ignore it — fix it now via the
@@ -330,7 +333,8 @@ sensible size; pick a tab to edit that group. Changes take effect after clicking
 |---|---|
 | Serial port | A dropdown of detected ports (click **Refresh** to rescan), or type one manually. On Windows this is `COM3`, `COM4`, etc. (check Device Manager → Ports (COM & LPT) if unsure); on Linux/macOS it's a device path such as `/dev/ttyUSB0` or `/dev/ttyACM0`. The field is editable so a port not yet plugged in can still be typed in. |
 | Baud rate | Default 115200 |
-| Mock backend | Simulates the plotter without a serial connection — useful for testing |
+| Simulation (no physical hardware) | Enables practice without opening a physical serial port |
+| Simulation mode | Lightweight mock, or Serial GRBL simulator using the production serial backend. Both are visibly identified in the workspace and Copy Diagnostics. Disconnect before changing mode. |
 | Run Pre-Plot Checklist before Start | When on (default), the Check view requires current physical confirmations before Start. Turning this off removes mandatory operator confirmations; connection, controller state and active-job gates still apply. |
 
 ### Application
@@ -894,7 +898,7 @@ Station **Z Down** is reserved for future/custom patterns.
 3. Click **Start plotting** (or **Check before plotting...** to run the checklist on demand without
    starting). By default **Check before plotting** opens the Check inspector first — see
    [Machine menu](#machine-menu); disable that in Settings to skip straight to plotting.
-4. For each layer, the plotter pauses for **Pen ready — continue** (allowing brush/pen changes). When a layer finishes, the head automatically raises the pen and returns to the origin (0, 0), so it's parked clear for a pen swap while you confirm the next layer.
+4. For each layer, the plotter pauses for **Pen ready — continue** (allowing brush/pen changes). When a layer finishes, Gantry submits pen-up and a return to work origin (0, 0), then waits for its planner barrier and fresh controller Idle before offering the next pen. The final job uses the same wait. Observe actual pen lift and clearance on hardware; simulation reports simulated completion.
 5. Click **Pause** at any time to halt motion and raise the pen; click **Resume** (same button) to continue from where it left off.
 6. Click **Stop** at any time to cancel. This immediately halts the plotter (including any motion already queued on the controller) and raises the pen, rather than just stopping new commands from being sent.
 
@@ -1219,7 +1223,7 @@ one — just toggle whichever flips the direction you see:
 
 1. Set **Machine Origin** to the corner the machine actually treats as
    (0,0), and **Orientation** to match the physical bed (see next section).
-2. With the plotter connected (or **Mock backend**), jog ▲. If the pen
+2. With the plotter connected (or **Simulation (no physical hardware)**), jog ▲. If the pen
    moves toward the wrong bed edge, the X/Y axes are swapped on this
    hardware — check **Extra Swap X/Y** and try again.
 3. Jog ◄ and ►. If left/right are reversed, check **Extra Invert X**.
@@ -1319,3 +1323,30 @@ to add MOVE or deliberately return pen-up to origin and review again; it does no
 silently position the machine. Halt/pen-up recovery still applies. If the backend
 cannot report position, a warning records the origin assumption; this does not
 establish actual position. Mock results cannot substitute for physical checks.
+
+
+### Motion completion and serial simulation (development after RC13)
+
+At a layer boundary Gantry submits the pen-up return to work origin, then waits
+for a planner synchronization acknowledgement and newly requested **Idle** status
+before offering the next pen. The final successful job/history entry waits for the
+same barrier. Home synchronizes its pre/post-cycle pen lifts through this barrier
+as well, so an old Idle report cannot permit a still-queued lift to be skipped. Station checks, manual sequences and replay also retain ownership
+until their completion wait finishes. Ordinary drawing acknowledgements and
+submitted progress still mean command acceptance, not measured physical progress.
+
+The wait shares the configured response timeout; Stop remains available. A missing
+acknowledgement, rejected barrier, alarm, reset or lost connection prevents successful
+completion. An Idle report cannot replace a missing acknowledgement. Unsupported
+firmware fails the barrier explicitly; validate the actual firmware before use.
+File export reports commands written, and simulations report simulated completion.
+Neither provides physical feedback. Pen lift mechanics and actual pot clearance
+still require observation on your machine.
+
+The serial simulator models queued XYZ moves, work offsets, Run/Hold/Idle,
+configured pen commands, dwell, Home and reset using a documented GRBL subset.
+Motion and dwell run at 20 times nominal speed for practice; this is not an estimate
+of physical performance. It has no physical endstops, acceleration, actuator or
+ink model. See the [backend contract](BACKEND_CONTRACT.md) and
+[verification record](release-results/2026-11-21-completion-serial-simulator.md).
+These additions are source changes after RC13 and are absent from its downloads.

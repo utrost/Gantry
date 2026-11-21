@@ -318,7 +318,8 @@ class GcodeBackendTest {
         assertTrue(recovery.size() >= 4, "expected unlock, pen-up, home, and origin reset: " + recovery);
         assertEquals("$X", recovery.get(0));
         assertEquals("M280 P0 S60", recovery.get(1));
-        assertEquals("$H", recovery.get(2));
+        assertEquals("G4 P0", recovery.get(2));
+        assertEquals("$H", recovery.get(3));
         assertEquals("G92 X0 Y0", lastNonStatus());
     }
 
@@ -338,9 +339,11 @@ class GcodeBackendTest {
         assertTrue(homing.size() >= 5, "expected unlock, pen-up, home, final pen-up, and origin reset: " + homing);
         assertEquals("$X", homing.get(0)); // unlock only; it cannot move an axis
         assertEquals("G0 Z7.50", homing.get(1)); // first motion must lift the pen
-        assertEquals("$H", homing.get(2)); // homing motion may only start after the lift is acknowledged
-        assertEquals("G0 Z7.50", homing.get(3)); // $H may home/pull off Z; restore safe pen-up
-        assertEquals("G92 X0 Y0", homing.get(4));
+        assertEquals("G4 P0", homing.get(2)); // synchronize completed lift before $H
+        assertEquals("$H", homing.get(3));
+        assertEquals("G0 Z7.50", homing.get(4)); // restore safe pen-up after Z pull-off
+        assertEquals("G4 P0", homing.get(5));
+        assertEquals("G92 X0 Y0", homing.get(6));
     }
 
     @Test
@@ -357,7 +360,7 @@ class GcodeBackendTest {
         b.home();
 
         List<String> homing = fake.sentCommands().subList(beforeHome, fake.sentCommands().size());
-        assertEquals(List.of("$X", "G0 Z7.50", "$H", "G0 Z7.50", "G92 X0 Y0"), homing,
+        assertEquals(List.of("$X", "G0 Z7.50", "G4 P0", "$H", "G0 Z7.50", "G4 P0", "G92 X0 Y0"), homing,
                 "Home must establish pen-up before $H and restore it after firmware Z pull-off");
     }
 
@@ -400,7 +403,7 @@ class GcodeBackendTest {
         b.home();
 
         List<String> homing = fake.sentCommands().subList(beforeHome, fake.sentCommands().size());
-        assertEquals(List.of("$X", "G0 Z3.00", "$H", "G0 Z3.00", "G92 X0 Y0"), homing);
+        assertEquals(List.of("$X", "G0 Z3.00", "G4 P0", "$H", "G0 Z3.00", "G4 P0", "G92 X0 Y0"), homing);
         assertFalse(homing.contains("$HX"), "DrawCore homing must not be split into generic axis cycles");
         assertFalse(homing.contains("$HY"), "DrawCore homing must not be split into generic axis cycles");
     }

@@ -39,6 +39,10 @@ then use either exported G-code or a real GRBL connection without verbal coachin
 
 ## November 2026 update
 
+The [completion barrier and serial simulator](release-results/2026-11-21-completion-serial-simulator.md)
+add deterministic software evidence after RC13. Neither changes physical or
+participant acceptance requirements or the preserved download assets.
+
 The later [watercolor/station/homing audit](release-results/2026-11-21-watercolor-homing.md)
 adds verified software fixes after RC13; these do not close any physical or human
 acceptance gate and are absent from RC13's preserved assets.

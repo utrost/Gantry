@@ -111,6 +111,7 @@ public final class GcodeFileReplay {
                 if (!acknowledged) throw new IOException("Replay stopped: no controller acknowledgement");
             }
             backend.penup();
+            backend.awaitMotionComplete();
             completed = true;
         } catch (IOException | RuntimeException | Error thrown) { failure = thrown; throw thrown; }
         finally {

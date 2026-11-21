@@ -54,6 +54,7 @@ class GcodeFileReplayTest {
         } finally { Thread.interrupted(); }
     }
     static class RecordingBackend implements PlotterBackend {
+        public MotionCompletion awaitMotionComplete() { return MotionCompletion.SIMULATED_IDLE; }
         final List<String> calls = new ArrayList<>(); String failure;
         public boolean connect(){return true;} public void disconnect(){}
         public void moveto(double x,double y){} public void lineto(double x,double y){} public void move(double x,double y){}

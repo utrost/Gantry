@@ -52,4 +52,13 @@ class WorkspacePresentationTest {
             assertNotEquals(Action.START, view.action());
         }
     }
+
+    @Test void serialSimulatorStillRequiresActualControllerIdle() {
+        for(String state:new String[]{"UNKNOWN","ALARM","RUN","HOLD","DISCONNECTED"}) {
+            var snapshot=new Snapshot(true,true,false,true,false,false,false,false,false,true,false,true,null,state,true);
+            assertNotEquals(Action.START,of(snapshot).action(),state);
+        }
+        var idle=new Snapshot(true,true,false,true,false,false,false,false,false,true,false,true,null,"IDLE",true);
+        assertEquals(Action.START,of(idle).action());
+    }
 }
