@@ -1,9 +1,9 @@
 # Documentation status — 2026-11-21
 
-RC11 remains the public download. RC12 is an immutable unpublished draft at
-`8dcb772`; later source fixes are absent from both sets of artifacts. Current
-guides, screenshots and offline-help source describe development behavior.
-See [RC12 artifact identity](release-results/1.0.0-rc.12.md) and the
+RC13 packages the current software fixes and matching guides/gallery. RC12 remains
+an immutable unpublished draft at `8dcb772`; its assets and older public releases
+are unchanged. See [RC13 candidate evidence](release-results/1.0.0-rc.13.md),
+[RC12 historical identity](release-results/1.0.0-rc.12.md) and the
 [current software/audit record](release-results/2026-11-21-prepared-route.md).
 
 | Area | Current state |
@@ -28,7 +28,7 @@ records preserved legacy output and explicit opt-in. [Prepared-route follow-up](
 records the later complete preview and time-estimate fixes. The [backend contract](BACKEND_CONTRACT.md)
 qualifies mock/fake-serial evidence; neither establishes firmware or physical fidelity.
 
-The [operator checklist](OPERATOR_ACCEPTANCE.md) still requires a new candidate
+The [operator checklist](OPERATOR_ACCEPTANCE.md) uses the RC13 worksheet
 for #93 direction/frame/plot checks, current manual Stop/recovery #39, actual
 native scaling #43, operator benchmark #54, a real artwork task #72 and novice
 participants #16. #33 stays open for its acceptance dependencies; #71 remains

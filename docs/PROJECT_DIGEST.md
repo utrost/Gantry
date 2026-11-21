@@ -86,8 +86,8 @@ Reviewed SVG/ZIP export, shared named pens, advisory ink overlap and editable
 quick artwork are merged on main at `3462659`. SVG export #68 now also has
 destination/count feedback and explicit excluded/empty-layer acceptance; see the
 [verification record](release-results/2026-11-20-svg-export.md). #69/#70 remain
-software-complete. RC11 remains
-the public download. See the [integration evidence](release-results/2026-11-20-integration.md)
+software-complete. These features and later coordinate/route fixes are packaged
+in the RC13 testing prerelease. See the [integration evidence](release-results/2026-11-20-integration.md)
 and [operator checklist](OPERATOR_ACCEPTANCE.md). Software verification does not
 close the hardware/native-scaling/participant gates in #39, #43, #54 and #16,
 or the real-user-task criterion in #72. Drying-aware execution (#71) is deferred.
@@ -103,15 +103,13 @@ controlled-motion, shared-backend and scripted serial fault regressions. See
    complete saved recipes, overrides, batch failure status and collision/source
    protection. See the [verification record](release-results/2026-11-20-cli-reliability.md).
    Squiggle #85 retains its [quality/cost review](validation/image-art/squiggle-fix/README.md).
-   RC12 is staged as a verified draft at `8dcb772`, with current screenshots and an
-   [operator worksheet](release-results/1.0.0-rc.12-operator.md). Visual review found
-   [#93](https://github.com/utrost/Gantry/issues/93), a document/workspace/export
-   orientation mismatch. Versioned upright defaults now address the software
-   criteria while preserving unversioned profiles and recorded jobs. See the
-   [upright-profile verification](release-results/2026-11-21-upright-profiles.md).
-   Physical direction/frame/plot acceptance remains open. RC12 assets predate the
-   fixes and remain unchanged; public distribution stays held. See the
-   [candidate record](release-results/1.0.0-rc.12.md).
+   RC13 packages versioned upright defaults, complete controller-start previews,
+   initial-position validation and prepared-route estimates. Legacy profiles and
+   recorded jobs retain their mapping. See the
+   [upright-profile verification](release-results/2026-11-21-upright-profiles.md) and
+   [RC13 candidate record](release-results/1.0.0-rc.13.md). Physical direction/frame/plot
+   acceptance #93 remains open. RC12 stays an unchanged held draft.
+
 2. Use [OPERATOR_ACCEPTANCE.md](OPERATOR_ACCEPTANCE.md) for hardware, native scaling
    and expert checks (#39/#43/#54). Keep the first independent tester and
    five-person study (#16) separate from mock evidence; #72 still needs a user task.

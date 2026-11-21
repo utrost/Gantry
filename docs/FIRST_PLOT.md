@@ -3,8 +3,8 @@
 This guide is the shortest path from a fresh Gantry checkout or release artifact
 to a safe first practice plot. Use it before connecting a real machine.
 
-The current screenshots come from development source. RC11 remains the public
-release; the unchanged RC12 draft predates the profile/preview fixes. See
+RC13 packages the software fixes and current guide/gallery. RC11 and the unchanged
+RC12 draft predate the profile/preview fixes. See
 [documentation status](DOCUMENTATION_STATUS.md) before comparing an older download.
 
 ## What you need

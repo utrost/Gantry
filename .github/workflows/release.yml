@@ -10,7 +10,7 @@ on:
       version:
         description: 'Release version (MAJOR.MINOR.PATCH or MAJOR.MINOR.PATCH-rc.N)'
         required: true
-        default: '1.0.0-rc.12'
+        default: '1.0.0-rc.13'
 
 permissions:
   contents: read
@@ -41,7 +41,7 @@ jobs:
           if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
             VERSION="${GITHUB_REF_NAME#v}"
           else
-            VERSION="${REQUESTED_VERSION:-1.0.0-rc.12}"
+            VERSION="${REQUESTED_VERSION:-1.0.0-rc.13}"
           fi
           echo "VERSION=$VERSION" >> "$GITHUB_ENV"
       - name: Linux packaging prerequisites

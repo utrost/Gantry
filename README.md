@@ -34,10 +34,10 @@ Other distributions and architectures are not yet validated.
   `sudo apt install ./Gantry-<version>-linux-x64.deb`, then open **Gantry** from
   the applications menu.
 
-The [1.0.0-rc.11 candidate](https://github.com/utrost/Gantry/releases/tag/v1.0.0-rc.11)
-improves numeric editing, historical-job review, import cleanup, settings
-persistence and actionable feedback. It includes pen-width-aware area filling,
-coverage previews and saved pen/paper calibration profiles.
+The [1.0.0-rc.13 candidate](https://github.com/utrost/Gantry/releases/tag/v1.0.0-rc.13)
+adds versioned upright profiles, complete stroke previews, prepared-route timing,
+editable artwork, SVG/ZIP export and image-art reliability fixes. It is a testing
+prerelease; physical-machine and human acceptance are still pending.
 Dark is the default theme. Earlier releases remain available unchanged. Portable users can download the GUI JAR and run
 `java -jar Gantry-<version>.jar` with Java 17 or newer, or build from source with
 `./scripts/build.sh`.
@@ -51,15 +51,13 @@ Watch the [one-minute mock walkthrough](docs/demos/Gantry-first-plot-mock.mp4):
 actual app screens show import, preview, the pre-plot checklist, pen confirmation,
 and completion. This captioned walkthrough simulates plotting; no hardware moves.
 
-RC12 is staged as a verified draft; public distribution is held for orientation
-defect [#93](https://github.com/utrost/Gantry/issues/93). See the
-[candidate evidence](docs/release-results/1.0.0-rc.12.md) and
-[operator worksheet](docs/release-results/1.0.0-rc.12-operator.md).
-Source development now fixes upright artwork with versioned profile compatibility,
-complete preview starts and prepared-route time estimates. These fixes are absent
-from the immutable RC12 draft and public RC11 artifacts. See the
+RC13 packages the current software fixes and refreshed offline guides. Existing
+calibrated profiles keep their mapping; upright migration requires explicit review
+and new pen-up direction/frame checks. See the
+[candidate evidence](docs/release-results/1.0.0-rc.13.md),
+[operator worksheet](docs/release-results/1.0.0-rc.13-operator.md) and
 [current software verification](docs/release-results/2026-11-21-prepared-route.md).
-A new candidate and the remaining physical/native/user checks are still required.
+The held RC12 draft remains unchanged and predates these fixes.
 
 
 ## Start here
@@ -142,7 +140,7 @@ Windows (`.cmd`), all run from the repo root:
 
 Release builds require Python 3.9+ as well as Java/Maven; native installers
 require JDK 21+ with jpackage. Portable JARs still run on Java 17+. For example:
-`./scripts/release.sh 1.0.0-rc.12 --installer` (Windows: `scripts\release.cmd 1.0.0-rc.12 --installer`).
+`./scripts/release.sh 1.0.0-rc.13 --installer` (Windows: `scripts\release.cmd 1.0.0-rc.13 --installer`).
 
 Tagged releases are staged as drafts by GitHub Actions after both installers pass. See
 [`docs/RELEASE_CHECKLIST.md`](docs/RELEASE_CHECKLIST.md) for the required mock

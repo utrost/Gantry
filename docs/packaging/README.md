@@ -77,8 +77,6 @@ settings exports.
 
 ## Source documentation versus preserved releases
 
-The current source guide/gallery describe later development behavior, including
-versioned upright profiles and prepared-route previews/estimates. Published RC11
-and the immutable RC12 draft retain their original payloads. A new candidate must
-package matching docs, screenshots and source under a new tag; do not replace
-older release assets. See [documentation status](../DOCUMENTATION_STATUS.md).
+RC13 packages matching guides/gallery, versioned upright profiles and prepared-route
+previews/estimates under a new immutable tag. Published RC11 and the held RC12 draft
+retain their original payloads; do not replace older release assets. See [documentation status](../DOCUMENTATION_STATUS.md).
