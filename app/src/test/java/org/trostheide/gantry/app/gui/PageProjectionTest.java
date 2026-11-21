@@ -33,8 +33,9 @@ class PageProjectionTest {
 
     @Test void actualSvgAndHeatmapRenderingMatchWorkspacePhysicalPage() throws Exception {
         var output = QuickArtworkGenerator.generate(new QuickArtwork(QuickArtwork.Kind.TEXT, "F", 0, 7));
-        for (var sample : PageProjectionCases.all()) {
+        for (var sample : PageProjectionCases.all()) for (int version : List.of(1, 2)) {
             var c = sample.config();
+            c.coordinateVersion = version;
             var settings = c.toPlotSettings();
             var service = new PlotService(null, settings);
             var projected = service.projectArtwork(output);
@@ -49,6 +50,8 @@ class PageProjectionTest {
                 panel.setMachineSize(20, 12); panel.setOrientation(c.orientation);
                 panel.setMachineOrigin(c.machineOrigin);
                 panel.setEffectiveAxes(settings.swapXY, settings.invertX, settings.invertY);
+                panel.setCanvasAlignment(c.canvasAlignment); panel.setDataRotation(c.dataRotation);
+                panel.setFlipY(c.flipY); panel.loadFromOutput(output);
                 workspace[0] = panel;
             });
             assertEquals((int) Math.round(workspace[0].displayWidth() * 20), svgImage.getWidth(), sample.id());
@@ -66,6 +69,16 @@ class PageProjectionTest {
                                 (int) (page[1] / coverage.cellMm()), 1),
                                 sample.id() + " heatmap differs from workspace");
                     }
+                }
+            }
+            // Exercise the loaded document paths, not only the motor-to-page helper.
+            // A MOVE followed by DRAW endpoints includes its first drawn segment in the canvas.
+            for (var path : workspace[0].allPaths) {
+                for (int i = 1; i < path.size(); i++) {
+                    double[] a = workspace[0].transformPoint(path.get(i - 1));
+                    double[] b = workspace[0].transformPoint(path.get(i));
+                    assertTrue(inkNear(svgImage, (int) ((a[0] + b[0]) * 10),
+                            (int) ((a[1] + b[1]) * 10), 2), sample.id() + " loaded canvas path differs from SVG");
                 }
             }
             // Every occupied heatmap cell must cover rendered SVG ink nearby as well:

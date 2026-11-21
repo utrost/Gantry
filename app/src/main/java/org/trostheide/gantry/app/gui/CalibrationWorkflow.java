@@ -154,10 +154,8 @@ final class CalibrationWorkflow {
                 result.setText("Those two directions can't both be right (the axes are perpendicular) — re-check.");
                 return;
             }
-            boolean originRight = config.machineOrigin.toLowerCase().contains("right");
-            boolean originBottom = config.machineOrigin.toLowerCase().contains("bottom");
             AxisDirectionSolver.AxisConfig stored =
-                    AxisDirectionSolver.toStoredExtra(solved.get(), originRight, originBottom);
+                    AxisDirectionSolver.toStoredExtra(solved.get(), config);
             config.swapXY = stored.swapXY();
             config.invertX = stored.invertX();
             config.invertY = stored.invertY();

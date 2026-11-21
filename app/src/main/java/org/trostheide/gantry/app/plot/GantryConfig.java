@@ -12,6 +12,20 @@ import java.util.Map;
  */
 public class GantryConfig {
 
+    /** 1 preserves earlier calibrated profiles; 2 uses Y-up document artwork by default. */
+    public int coordinateVersion = 2;
+
+    public GantryConfig() { }
+
+    @com.fasterxml.jackson.annotation.JsonCreator
+    public GantryConfig(@com.fasterxml.jackson.annotation.JsonProperty("coordinateVersion")
+                        com.fasterxml.jackson.databind.JsonNode version) {
+        if (version == null || version.isNull()) coordinateVersion = 1;
+        else if (version.isIntegralNumber() && (version.intValue() == 1 || version.intValue() == 2)
+                && version.canConvertToInt()) coordinateVersion = version.intValue();
+        else throw new IllegalArgumentException("Unsupported artwork coordinate version; expected 1 or 2.");
+    }
+
     public GcodeOptions gcode = new GcodeOptions();
 
     public boolean mock;
@@ -71,7 +85,7 @@ public class GantryConfig {
      * portrait-mode axis derivation rules used throughout the plot pipeline:
      * <ul>
      *   <li>{@code invertX}/{@code originRight} default from "Right" in {@link #machineOrigin}</li>
-     *   <li>{@code invertY} defaults from "Bottom" in {@link #machineOrigin}</li>
+     *   <li>{@code invertY} defaults from "Bottom" for legacy profiles or "Top" for upright profiles</li>
      *   <li>extra {@link #invertX}/{@link #invertY} flags correct the origin baseline via XOR;
      *       {@link #swapXY} is composed with the orientation-derived swap</li>
      *   <li>if {@link #orientation} is "Portrait" and the bed is wider than it is tall, invertX/invertY
@@ -79,6 +93,8 @@ public class GantryConfig {
      * </ul>
      */
     public PlotSettings toPlotSettings() {
+        if (coordinateVersion != 1 && coordinateVersion != 2)
+            throw new IllegalStateException("Unsupported artwork coordinate version; expected 1 or 2.");
         PlotSettings settings = new PlotSettings();
         settings.machineWidth = gcode.machineWidth;
         settings.machineHeight = gcode.machineHeight;
@@ -97,7 +113,7 @@ public class GantryConfig {
         // with OR the checkbox (and the Calibrate Axes wizard) could never un-invert a bottom/right
         // origin's axis.
         boolean effInvertX = originRight ^ invertX;
-        boolean effInvertY = originBottom ^ invertY;
+        boolean effInvertY = (coordinateVersion == 1 ? originBottom : !originBottom) ^ invertY;
         boolean effSwapXY = swapXY;
 
         boolean needsAxisSwap = "Portrait".equals(orientation) && gcode.machineWidth > gcode.machineHeight;

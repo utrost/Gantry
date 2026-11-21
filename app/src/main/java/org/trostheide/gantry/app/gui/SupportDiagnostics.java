@@ -35,6 +35,7 @@ final class SupportDiagnostics {
                 .append(config.gcode.machineHeight).append(" mm\n");
         report.append("Origin: ").append(value(config.machineOrigin, "unknown")).append('\n');
         report.append("Orientation: ").append(value(config.orientation, "unknown")).append('\n');
+        report.append("Artwork orientation: ").append(config.coordinateVersion == 1 ? "Legacy" : "Upright").append(" (profile ").append(config.coordinateVersion).append(")\n");
         report.append("Canvas alignment: ").append(value(config.canvasAlignment, "none")).append('\n');
         report.append("Axis corrections: invertX=").append(config.invertX)
                 .append(", invertY=").append(config.invertY)

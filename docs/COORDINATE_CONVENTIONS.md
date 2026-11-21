@@ -23,16 +23,38 @@ Stored-job export uses stored settings, never the current document's mapping.
 The older three-argument ProjectedArtwork constructor retains its canonical
 X-right/Y-up contract for direct callers.
 
-## Remaining legacy orientation finding
+## Versioned artwork orientation
 
-The current ordinary workspace displays Y-up document text vertically reflected
-under the existing origin-derived baseline. Making exported SVG and overlap agree
-with that workspace does **not** make the text readable. This remains #93 and
-holds public RC12 distribution. Existing calibrated profiles, projects, history,
-manual axis settings, G-code and serial execution must not be silently flipped.
-A complete fix needs an explicit compatibility strategy and physical direction /
-frame / plot acceptance if executable mapping changes.
+Fresh profiles use `coordinateVersion: 2`: origin-derived Y inversion uses Top
+rather than Bottom, so Y-up text reads upright in the ordinary workspace and an
+Up jog moves up on the physical-page view. Extra inversions, swap, Flip Y and
+rotation remain explicit adjustments. Portrait derivation composes after the
+versioned baseline; axis calibration reverses both operations when saving extras.
 
-[RC12 diagnosis](validation/orientation/README.md) retains the original failing
-observations. The [page-projection record](release-results/2026-11-20-page-projection.md)
-separates the fixed view disagreement from the still-open readability problem.
+An existing profile without the marker loads as version 1, preserving its exact
+axis flags and executable output. Loading never rewrites the file. A damaged or
+unsupported existing profile falls back to legacy defaults with a warning; it
+cannot opt into new motion defaults. Missing files create fresh version 2 profiles.
+
+**Preferences > Machine geometry > Artwork orientation** exposes Legacy and
+Upright artwork. Changing it requires disconnection and an explicit review of the
+motion change. Cancel preserves settings; cancelling setup also prevents the
+follow-on calibration connection. Applying clears prior job confirmations.
+Machine-settings imports include orientation in their existing disconnected review.
+New upright portable profiles use format version 2, so older Gantry releases reject
+them instead of interpreting them as legacy. Legacy exports remain format version 1.
+
+Project geometry and placement are never migrated. A saved project uses the
+selected machine profile when preparing motion: an old project with an unchanged
+legacy profile retains its output; choosing upright changes that output explicitly.
+Historical jobs retain their already-derived effective axis/origin flags, with no history
+schema migration. The existing replay guard blocks framing and execution when
+the current machine mapping differs; return to artwork to prepare under the new
+profile, or restore the original machine profile before replay.
+
+[Original RC12 diagnosis](validation/orientation/README.md) and the
+[page-projection record](release-results/2026-11-20-page-projection.md) retain the
+historical failures. [Upright-profile verification](release-results/2026-11-21-upright-profiles.md)
+records the software fix and unchanged legacy G-code baselines. Physical direction,
+frame and plot acceptance remains required in #39/#54; simulation does not establish
+actual motor direction. The immutable RC12 draft predates these fixes.

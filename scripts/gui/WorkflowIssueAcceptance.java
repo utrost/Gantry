@@ -20,6 +20,7 @@ public final class WorkflowIssueAcceptance extends GuiAcceptance {
             profile = Files.createTempDirectory("gantry-issue-review-");
             System.setProperty("gantry.config.file", profile.resolve("config.json").toString());
             GantryConfig config = new GantryConfig();
+            config.coordinateVersion=1; // This fixture replays an established calibrated profile.
             config.mock=true; config.showWelcomeOnStartup=false; config.preflightBeforeStart=true;
             config.gcode.machineWidth=210; config.gcode.machineHeight=148;
             config.machineOrigin="Top-Left"; config.canvasAlignment=null;

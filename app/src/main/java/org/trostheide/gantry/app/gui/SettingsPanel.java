@@ -41,6 +41,8 @@ public class SettingsPanel extends JPanel {
     private final JSpinner machineHeightSpinner = new JSpinner(new SpinnerNumberModel(200.0, 1.0, 5000.0, 1.0));
     private final JComboBox<String> originCombo = new JComboBox<>(ORIGINS);
     private final JComboBox<String> orientationCombo = new JComboBox<>(ORIENTATIONS);
+    private final JComboBox<String> artworkOrientation = new JComboBox<>(new String[]{
+            "Legacy (preserve existing plots)", "Upright artwork"});
     private final JComboBox<String> alignmentCombo = new JComboBox<>(ALIGNMENTS);
     private final JComboBox<Integer> rotationCombo = new JComboBox<>(ROTATIONS);
     private final JSpinner paddingXSpinner = new JSpinner(new SpinnerNumberModel(0.0, 0.0, 1000.0, 1.0));
@@ -99,6 +101,8 @@ public class SettingsPanel extends JPanel {
             control.setEnabled(editable);
             control.setToolTipText(reason);
         }
+        artworkOrientation.setEnabled(editable);
+        if (!editable) artworkOrientation.setToolTipText("Disconnect the plotter before changing artwork orientation.");
     }
 
     /** The "Connection" section panel, for the Setup Wizard to host as its own step. */
@@ -159,6 +163,9 @@ public class SettingsPanel extends JPanel {
         addRow(panel, gbc, "Machine Height (mm)", machineHeightSpinner);
         addRow(panel, gbc, "Machine Origin", originCombo);
         addRow(panel, gbc, "Orientation", orientationCombo);
+        artworkOrientation.setToolTipText("Changing this changes artwork and jog direction mapping. Disconnect first, review the preview, then recheck direction and frame with the pen raised.");
+        artworkOrientation.getAccessibleContext().setAccessibleName("Artwork orientation");
+        addRow(panel, gbc, "Artwork orientation", artworkOrientation);
         addRow(panel, gbc, "Canvas Alignment", alignmentCombo);
         addRow(panel, gbc, "Data Rotation (deg)", rotationCombo);
         addRow(panel, gbc, "Padding X (mm)", paddingXSpinner);
@@ -298,6 +305,7 @@ public class SettingsPanel extends JPanel {
         machineHeightSpinner.setValue(config.gcode.machineHeight);
         originCombo.setSelectedItem(config.machineOrigin);
         orientationCombo.setSelectedItem(config.orientation);
+        artworkOrientation.setSelectedIndex(config.coordinateVersion - 1);
         alignmentCombo.setSelectedItem(config.canvasAlignment == null ? "None" : config.canvasAlignment);
         rotationCombo.setSelectedItem(config.dataRotation);
         paddingXSpinner.setValue(config.paddingX);
@@ -338,6 +346,7 @@ public class SettingsPanel extends JPanel {
         config.gcode.machineHeight = (Double) machineHeightSpinner.getValue();
         config.machineOrigin = (String) originCombo.getSelectedItem();
         config.orientation = (String) orientationCombo.getSelectedItem();
+        config.coordinateVersion = artworkOrientation.getSelectedIndex() + 1;
         String align = (String) alignmentCombo.getSelectedItem();
         config.canvasAlignment = "None".equals(align) ? null : align;
         config.dataRotation = (Integer) rotationCombo.getSelectedItem();
