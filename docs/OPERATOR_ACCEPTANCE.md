@@ -9,6 +9,10 @@ at `8dcb772` contains the integrated features, with verified Windows/Linux asset
 public distribution is held for orientation issue #93. See the
 [candidate record](release-results/1.0.0-rc.12.md) for artifact identity and hashes.
 Never replace published RC11 assets with changed code.
+The upright-profile and prepared-route fixes are later source changes. The RC12
+worksheet is a template, not the right artifact for accepting those fixes: create
+a worksheet for a new immutable candidate and record its exact identity.
+
 
 Record results in `docs/release-results/<version>-operator.md`. Use PASS, FAIL,
 BLOCKED or N/A per row, with a short observation. Record version/commit, installer
@@ -42,6 +46,7 @@ alarms until the stationary/pen-up tests are understood and controlled.
 | Check | Expected result | Result |
 |---|---|---|
 | Connect/disconnect, home and small jogs | Correct identity, directions and limits; no unexpected automatic movement | NOT RUN |
+| Fresh upright profile, explicit legacy opt-in, unchanged legacy profile | Record coordinate convention and axis extras; verify pen-up directions, frame and a small asymmetric label separately for each (#93) | NOT RUN |
 | Pen up/down test | Configured lift works; state and feedback agree | NOT RUN |
 | Frame a small in-bed drawing | Pen-up bounds agree with review; visible, keyboard-reachable Stop throughout | NOT RUN |
 | Stop during Frame/home/calibration move | No later movement in that sequence; halt/lift attempted; conflicting actions wait until cleanup finishes | NOT RUN |
@@ -64,6 +69,8 @@ controlled run if hardware readiness for watercolor is claimed.
 | Position/exclude layers, add passes, export SVG/ZIP | Reviewed geometry/order/inclusion match exports; package opens in another SVG tool with usable layer separation | NOT RUN |
 | Review an older historical job | Stored geometry is used; missing widths are explicitly assumed, never borrowed from the current document | NOT RUN |
 | Review a new historical job | Stored named pen and width survive reopening and SVG export | NOT RUN |
+| Initial DRAW and refill/rinse followed by DRAW | Visible start agrees with reviewed/exported route; verify physical result separately | NOT RUN |
+| Prepared-route estimate | Compare like-for-like job/settings; record pauses/pen waiting separately; do not equate feed/dwell approximation with firmware timing | NOT RUN |
 | Ink-overlap analysis and Cancel | Crossings/repeated passes are identified; per-pen views agree with assignments; no machine commands occur | NOT RUN |
 | Pen/paper swatch and dense sample | Record measured coverage/usefulness separately; geometric heatmap does not prove spread or drying | NOT RUN |
 

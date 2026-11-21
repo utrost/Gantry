@@ -109,8 +109,7 @@ public class PlotService {
                         startClamped = clampedCount[0] != before;
                     }
                 } else if (command instanceof RefillCommand refill) {
-                    StationConfig station = settings.stations.get(refill.stationId);
-                    if (station == null) station = settings.stations.get("default_station");
+                    StationConfig station = resolveStation(settings.stations, refill.stationId);
                     if (station != null) {
                         x = station.x(); y = station.y(); startClamped = false;
                     }
@@ -666,8 +665,16 @@ public class PlotService {
     }
 
     /** Finds the configured rinse/clean pot (a station whose behavior or id marks it as such), if any. */
-    private StationConfig findRinseStation() {
-        for (Map.Entry<String, StationConfig> e : settings.stations.entrySet()) {
+    private StationConfig findRinseStation() { return rinseStation(settings.stations); }
+
+    public static StationConfig resolveStation(Map<String, StationConfig> stations, String id) {
+        StationConfig station = stations.get(id);
+        return station == null ? stations.get("default_station") : station;
+    }
+
+    /** The same between-layer station used by execution, preview and estimation. */
+    public static StationConfig rinseStation(Map<String, StationConfig> stations) {
+        for (Map.Entry<String, StationConfig> e : stations.entrySet()) {
             StationConfig s = e.getValue();
             if ("rinse".equals(s.behavior()) || "rinse".equalsIgnoreCase(e.getKey())
                     || "water".equalsIgnoreCase(e.getKey())) {

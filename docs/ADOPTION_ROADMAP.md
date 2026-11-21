@@ -37,6 +37,14 @@ The main adoption gap is not core capability. It is confidence: can someone who
 is not the maintainer download Gantry, understand the safe path, complete a mock plot, and
 then use either exported G-code or a real GRBL connection without verbal coaching?
 
+## November 2026 update
+
+RC11 remains public. RC12 is an immutable unpublished draft; later development
+fixes versioned upright profiles, preview strokes and prepared-route estimates.
+Current software evidence is linked from [documentation status](DOCUMENTATION_STATUS.md).
+The adoption gates still need real people, native desktop observations and current
+hardware acceptance. No user-count or physical-output milestone is inferred from CI.
+
 ## Positioning
 
 Gantry should not be introduced primarily as another SVG-to-G-code converter.

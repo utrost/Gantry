@@ -79,6 +79,12 @@ replay guards. The #93 software criteria are addressed; physical direction/frame
 acceptance in #39/#54 remains open. RC12 assets predate both fixes and stay unchanged;
 a new candidate and physical acceptance are needed before public distribution.
 
+Follow-up #100/#101 fixes route estimates and controller-space preview starts
+(initial origin, refill and rinse). Full station metadata reaches current and
+historical views; commands and alignment bounds remain unchanged. Current guides,
+all 47 gallery PNGs and the mock walkthrough are refreshed. See
+[verification/documentation audit](docs/release-results/2026-11-21-prepared-route.md).
+
 The independently actionable tracked software issues #84 and #88–#91 are
 complete: packaged PNG support, honest export failures, reproducible recipes,
 explicit rerun overrides, failed-batch status and collision/source protection.

@@ -263,7 +263,7 @@ int nearestStrokeIndex(int px, int py) {
     int best = -1;
     double bestD = STROKE_HIT_PX;
     for (int i = 0; i < panel.allPaths.size(); i++) {
-        List<VisualizationPanel.Point2D> path = panel.allPaths.get(i);
+        List<VisualizationPanel.Point2D> path = panel.displayPath(i);
         if (path.isEmpty()) {
             continue;
         }

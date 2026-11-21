@@ -55,6 +55,12 @@ RC12 is staged as a verified draft; public distribution is held for orientation
 defect [#93](https://github.com/utrost/Gantry/issues/93). See the
 [candidate evidence](docs/release-results/1.0.0-rc.12.md) and
 [operator worksheet](docs/release-results/1.0.0-rc.12-operator.md).
+Source development now fixes upright artwork with versioned profile compatibility,
+complete preview starts and prepared-route time estimates. These fixes are absent
+from the immutable RC12 draft and public RC11 artifacts. See the
+[current software verification](docs/release-results/2026-11-21-prepared-route.md).
+A new candidate and the remaining physical/native/user checks are still required.
+
 
 ## Start here
 

@@ -73,6 +73,21 @@ menus, file dialogs and buttons with an isolated mock profile, including a secon
 process for recovery. See [the GUI evaluation](test-results-2026-09-26-gui.md) for
 coverage, findings and limitations. Java 17/21 CI runs this after the reactor build.
 
+### Documentation and prepared-route regressions
+
+Run `python3 scripts/check_doc_links.py` to validate local file/image/heading
+references across all repository Markdown. CI runs it and the twelve Python
+checker/packaging regressions. Installed payload checks separately validate the
+rendered offline guide and its linked resources.
+
+`PreparedEstimateRegressionTest` uses independent numeric expectations for the
+actual route, configured dips/swirl, park/rinse, clipping, pen transitions and
+fixed-vs-motion feed override; estimation must never connect or sleep.
+`ControllerStartPreviewTest` checks actual canvas pixels, machine-space starts,
+placement invariance and station fallback across 128 combinations. Existing
+`PageProjectionTest` retains 512 renderings and 256 unchanged legacy G-code hashes.
+[Verification and documentation audit](release-results/2026-11-21-prepared-route.md).
+
 ### Backend contract and fault checks
 
 `MockMotionTest`, `MockOperationLifecycleTest` and `BackendContractTest` test
@@ -145,7 +160,7 @@ The historical baseline is reproduced at `29e8ac4`, not against changed code.
 | `app` | `BusyOverlayTest` | Cancellable background-work overlay exposes animated progress, invokes Cancel, and changes to a disabled Cancelling state |
 | `app` | `StartupWelcomeDialogTest`, `SettingsPanelTest` | First-launch/show-again policy; guided/setup/close action mapping; window-close dismissal; remembered startup checkbox and Settings round-trip |
 | `app` | `SoftLimitsTest` | Orientation-aware jog soft-limit clamp: within-bounds passthrough, clamp at 0/width/height, inverted-X negative bed, top-right origin (negative both axes), swapped-axis bounds, at-wall returns same point (stops continuous jog) |
-| `app` | `TimeEstimatorTest` | Travel/draw distances use their respective feed rates; refill travel + fixed dip overhead; unknown station falls back to default; pen-down settle overhead charged once per `DrawCommand` and driven by the configurable `penDownDelayMillis` (0 removes it); multi-layer totals; `H:MM:SS` formatting |
+| `app` | `TimeEstimatorTest` | Travel/draw distances use their respective feed rates; refill travel + configured two-cycle dip/swirl/rinse overhead; unknown station falls back to default; pen-down settle overhead charged once per `DrawCommand` and driven by the configurable `penDownDelayMillis` (0 removes it); multi-layer totals; `H:MM:SS` formatting |
 | `app` | `HatchOverridesPanelTest`, `ToolboxOptionsPanelTest`, `SvgFillColorsTest` | Per-colour hatch table validation and mapping into `Config.overrides`; discovery of explicit SVG fill colours |
 | `app` | `DocumentSessionTest`, `DocumentCompositionTest`, `GantryProjectIOTest`, `CanvasContextMenuTest` | Multi-level model undo/redo, append-SVG composition with addressable artwork groups, side-by-side placement, unique command IDs, per-artwork move/scale/mirror transforms, canvas artwork action routing, and `.gantry` project round-trip |
 | `app` | `QuickArtworkTest` | Physical-mm primitives, bundled stroke text, unsupported glyphs, source persistence, pen assignment, edit and undo/redo, and G-code endpoint after project reload |

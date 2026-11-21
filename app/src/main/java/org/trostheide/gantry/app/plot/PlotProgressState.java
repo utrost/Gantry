@@ -47,7 +47,7 @@ public final class PlotProgressState {
             text.append("  ·  ~").append(TimeEstimator.format(remaining)).append(" remaining");
         } else if (estimate != null) {
             text.append(" / Est: ").append(TimeEstimator.format(
-                    estimate.totalSeconds() * (100.0 / speedPercent)));
+                    estimate.atSpeedPercent(speedPercent)));
         }
         return text.toString();
     }

@@ -85,6 +85,7 @@ nav{display:flex;flex-wrap:wrap;gap:16px}section{margin-top:36px}.note{border-le
 /opt/gantry/bin/gantry-cli -i /opt/gantry/lib/app/docs/samples/simple-line.svg -o "$HOME/gantry-commands.json"</code></pre>
 <p>For a portable download, run <code>java -jar Gantry-CLI-@VERSION@.jar --help</code>. The native CLI requires no separate Java installation. Both forms prepare files; they do not connect a physical plotter.</p>
 </section>
+<p>The plot time estimate uses the prepared route, clipping, return-to-origin and configured refill/rinse/dip behavior. Speed overrides scale motion time; dip dwell and pen settling stay fixed. Estimation never connects or moves hardware. Acceleration, serial latency and operator waiting are outside this approximation; elapsed time includes pauses and pen changes.</p>
 <section id="hardware">
 <h2>Prepare for your real plotter</h2>
 <p>Before connecting hardware, set the machine's actual travel area, origin, pen-lift mode and feeds in <strong>Settings &gt; Preferences…</strong>. Verify jogging directions with the pen raised. Use homing only with a properly configured controller and limit switches, then frame a small drawing before putting the pen down.</p>

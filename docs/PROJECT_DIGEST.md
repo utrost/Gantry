@@ -120,6 +120,14 @@ controlled-motion, shared-backend and scripted serial fault regressions. See
    [FEATURE_CANDIDATES.md](FEATURE_CANDIDATES.md), rather than expanding the
    active roadmap with unscheduled algorithms.
 
+## Current software/documentation follow-up
+
+#100/#101 correct prepared-route timing and initial/refill/rinse preview starts,
+with actual canvas/SVG evidence and unchanged executable baselines. The current
+gallery and mock walkthrough are refreshed from development source; preserved
+RC11/RC12 artifacts retain their old payloads. The repository-wide link/anchor check
+now runs in CI. [Verification and audit](release-results/2026-11-21-prepared-route.md).
+
 ## Decision frame for incoming work
 
 Favor work that helps another person complete a safe first plot:

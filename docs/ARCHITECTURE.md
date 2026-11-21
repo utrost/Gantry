@@ -74,8 +74,8 @@ depends on nothing internal. Never introduce a back-edge (e.g. `model` importing
 
 ## 3. The command model (`model` module)
 
-This is the data that flows through the whole system. All of these are Java
-`record`s except `Command` (a `sealed abstract class`).
+This is the data that flows through the whole system. The root geometry/data types are Java `record`s. `Command` is a sealed abstract
+class; its MOVE/DRAW/REFILL implementations are immutable final classes.
 
 ```
 ProcessorOutput
@@ -99,8 +99,9 @@ ProcessorOutput
   `REFILL`). Every command has an `int getId()` (sequential).
   - **`MoveCommand(id, x, y)`** — pen-up travel to an absolute (x,y) in mm.
   - **`DrawCommand(id, List<Point> points)`** — pen-down polyline; the points are
-    already flattened (no curves). A single `DrawCommand` is one continuous
-    stroke.
+    already flattened (no curves). Drawing begins at the current controller position,
+    which may come from MOVE, a preceding DRAW, origin parking or a refill/rinse.
+    Endpoints need not repeat that start. Consecutive DRAWs do not implicitly lift the pen.
   - **`RefillCommand(id, stationId)`** — request to refill/dip the brush at a
     logical station; inserted by import when `maxDrawDistance > 0`, and the
     `stationId` may be rewritten by the watercolor `StationMapper`.
@@ -547,20 +548,22 @@ Swing + FlatLaf dark theme. `GantryApp#main` sets up `FlatDarkLaf`, builds a
     canvas and the `SettingsPanel` station table never diverge.
 - **`SettingsPanel`** — machine/serial/pen/feed/station configuration; persisted
   via `plot/ConfigStore` (+ `GantryConfig`, `StationConfig`, `PlotSettings`,
-  `PlotService`-facing settings). `TimeEstimator` estimates plot duration —
-  per layer it sums `travelDist/feedRateTravel + drawDist/feedRateDraw` plus
-  fixed overheads: `REFILL_SECONDS` (0.5s) per `RefillCommand`, matching
-  `PlotService.performRefill`'s dwell, and `gcode.penDownDelayMillis / 1000`
-  per `DrawCommand`, matching `GcodeBackend.pendown()`'s settle sleep (charged
-  once per pen-down regardless of `penMode` — servo and Z-axis moves both
-  pay it). On hatch-dense drawings with many short strokes, the pen-down
-  overhead can dominate the distance-based terms, so it must not be dropped
-  when re-deriving this formula. The dwell is configurable via
-  `GcodeOptions.penDownDelayMillis` (default 80ms, settable to 0): it lets a
-  slow servo/Z finish lowering before drawing, but kept short because a long
-  dwell leaves a wet pen pooling an ink dot at each line's start — the
-  `OptimizeStage` weld pass (§6) is the structural fix, this is the per-pen
-  tuning knob. `CommandFile` handles command-JSON load/save plumbing.
+  `PlotService`-facing settings). `TimeEstimator` runs `PlotService.plot` against a
+  private recording backend: no connection, sleeping, file writes or machine commands.
+  The recorder accumulates transformed/clipped travel and drawing, return-to-origin,
+  both configured dips and polygon swirls, between-layer rinse, actual pen-state
+  transitions and explicit dwell. Prepared settings include the live alignment
+  override or historical snapshot. Feed overrides scale motion seconds; fixed
+  dwell/settle seconds remain unchanged. This estimates feed/dwell cost, not firmware
+  acceleration, transport latency or operator waiting. `CommandFile` handles
+  command-JSON load/save plumbing.
+
+Controller-space preview starts are stored separately from editable DRAW geometry.
+`VisualizationPanel.displayPath` maps origin/refill/rinse starts back through the
+current affine transform for painting and hit testing. These synthetic points do
+not enter saved commands or DRAW-only alignment bounds. Full station metadata is
+supplied to current and historical views; an unknown skipped refill retains the
+previous position. [Coordinate/profile conventions](COORDINATE_CONVENTIONS.md).
 
 The GUI runs long operations off the EDT (a `runBusy(...)` helper) and the plot on
 its own thread, marshaling UI updates back via Swing.

@@ -9,6 +9,9 @@ import org.trostheide.gantry.model.ProcessorOutput;
 import org.trostheide.gantry.model.command.Command;
 import org.trostheide.gantry.model.command.DrawCommand;
 import org.trostheide.gantry.model.command.MoveCommand;
+import org.trostheide.gantry.model.command.RefillCommand;
+import org.trostheide.gantry.app.plot.PlotService;
+import org.trostheide.gantry.app.plot.StationConfig;
 
 import javax.swing.*;
 import javax.swing.border.TitledBorder;
@@ -40,6 +43,10 @@ public class VisualizationPanel extends JPanel {
     List<List<Point2D>> allPaths = new ArrayList<>();
     // Display the MOVE-to-first-DRAW segment without changing the DRAW-only alignment bounds.
     List<Boolean> pathHasAddedStart = new ArrayList<>();
+    private final Map<Integer, Point2D> pathMachineStarts = new HashMap<>();
+    private final Set<Integer> pathStartsLayer = new HashSet<>();
+    private Map<String, StationConfig> refillStations = Map.of();
+    private ProcessorOutput loadedOutput;
 
     /**
      * Layer index (into the loaded {@code ProcessorOutput.layers()}) that produced each entry in
@@ -374,7 +381,10 @@ public class VisualizationPanel extends JPanel {
 
     /** Clears the loaded drawing and resets the overlay transform, leaving an empty bed. */
     public void clearDrawing() {
+        loadedOutput = null;
         allPaths.clear();
+        pathMachineStarts.clear();
+        pathStartsLayer.clear();
         pathHasAddedStart.clear();
         pathLayer.clear();
         pathCommandId.clear();
@@ -682,7 +692,10 @@ public class VisualizationPanel extends JPanel {
      * without disturbing the user's current pan/scale/rotation/mirror placement.
      */
     public void loadPathsPreservingOverlay(ProcessorOutput output) {
+        loadedOutput = output;
         allPaths.clear();
+        pathMachineStarts.clear();
+        pathStartsLayer.clear();
         pathHasAddedStart.clear();
         pathLayer.clear();
         pathCommandId.clear();
@@ -699,9 +712,13 @@ public class VisualizationPanel extends JPanel {
             layerPenWidthsMm.add(li < previousWidths.size()
                     ? previousWidths.get(li) : DEFAULT_PEN_WIDTH_MM);
             Point2D previous = null;
+            boolean initialControllerPosition = true;
+            StationConfig rinse = li > 0 ? PlotService.rinseStation(refillStations) : null;
+            Point2D machineStart = rinse == null ? new Point2D(0, 0) : new Point2D(rinse.x(), rinse.y());
             for (Command cmd : layers.get(li).commands()) {
                 if (cmd instanceof MoveCommand move) {
                     previous = new Point2D(move.x, move.y);
+                    initialControllerPosition = false;
                 } else if (cmd instanceof DrawCommand draw) {
                     List<Point2D> stroke = new ArrayList<>();
                     boolean addedStart = previous != null && !draw.points.isEmpty()
@@ -711,6 +728,11 @@ public class VisualizationPanel extends JPanel {
                         stroke.add(new Point2D(p.x(), p.y()));
                     }
                     if (!stroke.isEmpty()) {
+                        if (previous == null) {
+                            pathMachineStarts.put(allPaths.size(), machineStart);
+                            if (initialControllerPosition) pathStartsLayer.add(allPaths.size());
+                        }
+                        initialControllerPosition = false;
                         allPaths.add(stroke);
                         pathHasAddedStart.add(addedStart);
                         previous = stroke.get(stroke.size() - 1);
@@ -718,9 +740,14 @@ public class VisualizationPanel extends JPanel {
                         pathCommandId.add(draw.id);
                         pathLayerId.add(layers.get(li).id());
                     }
-                } else {
-                    // Refill/station commands can move the controller outside document space.
-                    previous = null;
+                } else if (cmd instanceof RefillCommand refill) {
+                    StationConfig station = PlotService.resolveStation(refillStations, refill.stationId);
+                    if (station != null) {
+                        previous = null;
+                        initialControllerPosition = false;
+                        machineStart = new Point2D(station.x(), station.y());
+                    }
+                    // Unknown refills are skipped by execution and retain the previous position.
                 }
             }
         }
@@ -733,6 +760,39 @@ public class VisualizationPanel extends JPanel {
         computeTravelStats();
         recalculateTransform();
         repaint();
+    }
+
+    /** Display controller-space starts without adding them to editable geometry/alignment bounds. */
+    List<Point2D> displayPath(int index) {
+        List<Point2D> path = allPaths.get(index);
+        Point2D start = pathMachineStarts.get(index);
+        if (start == null) return path;
+        if (pathStartsLayer.contains(index)) {
+            int layer = pathLayer.get(index);
+            boolean followsIncludedLayer = selectedLayers.stream().anyMatch(included -> included < layer);
+            StationConfig rinse = followsIncludedLayer ? PlotService.rinseStation(refillStations) : null;
+            start = rinse == null ? new Point2D(0, 0) : new Point2D(rinse.x(), rinse.y());
+        }
+        try {
+            var raw = modelToPhysicalTransform().inverseTransform(
+                    new java.awt.geom.Point2D.Double(start.x(), start.y()), null);
+            List<Point2D> displayed = new ArrayList<>(path.size() + 1);
+            displayed.add(new Point2D(raw.getX(), raw.getY())); displayed.addAll(path);
+            return displayed;
+        } catch (java.awt.geom.NoninvertibleTransformException invalidPlacement) {
+            return path;
+        }
+    }
+
+    /** Full station metadata is needed for post-refill and between-layer drawing starts. */
+    public void setRefillStations(Map<String, StationConfig> stations) {
+        if (refillStations.equals(stations)) return;
+        refillStations = new java.util.LinkedHashMap<>(stations);
+        if (loadedOutput != null) {
+            var included = Set.copyOf(selectedLayers);
+            loadPathsPreservingOverlay(loadedOutput);
+            setSelectedLayers(included);
+        }
     }
 
     /** Initializes canvas progress against the exact selected/multipass output being plotted. */

@@ -947,20 +947,25 @@ head position, so you can see the effect of the Speed buttons at a glance.
 
 ### Time estimate
 
-As soon as commands are loaded, imported, or optimized, the Plot section shows
-**Est: M:SS** (or **H:MM:SS**) — the predicted total plot duration, computed from each
-stroke's draw/travel distance and the configured feed rates (Settings → Pen / speed),
-plus a fixed dip time per refill. Hover over it for a per-layer breakdown. The estimate
-scales with the realtime feed-rate override (the Speed +/-/Reset controls), so it tracks
-whatever speed the machine is actually running at, not just the configured feed rates.
+The Plot section shows **Est: M:SS** (or **H:MM:SS**) for the selected,
+placed, multipass-expanded job. It uses the same transforms, bed clipping,
+return-to-origin, configured refill/swirl and between-layer rinse route as plotting.
+Every drawn segment is counted, including MOVE-to-first-endpoint strokes. Pen
+settling is charged when the pen actually lowers; consecutive DRAW commands
+without intervening travel keep the pen down. Unknown stations without a fallback
+are skipped, as in execution. Hover for a per-layer breakdown.
 
-Once a plot starts, the label switches to live tracking: **Elapsed: … / Est: …**, plus
-the current layer's own elapsed/estimated time once it starts drawing (layers spent
-waiting at **Pen ready — continue** don't count against their estimate). It reverts to the
-pre-plot estimate when the plot finishes or is stopped.
+Speed +/-/Reset changes the motion part of the estimate. Configured dip dwell and
+pen-settle time remain fixed. Estimation never connects, moves a machine or waits
+through a dip. This is a feed-and-dwell approximation: it excludes acceleration,
+serial latency, pen mechanics and operator waiting. Exported G-code/replay timing
+can differ from a live plot's host-side pen settling.
 
-Note: the live "Elapsed" clock is wall-clock time and keeps running while a plot is
-paused, so a long pause will make elapsed time exceed the estimate until resumed.
+During plotting, live text shows elapsed wall-clock time and the current layer
+number. Once commands complete, remaining time is extrapolated from command
+progress; unequal command lengths, pauses and pen-change waiting can make that
+approximation inaccurate. There is no separate measured per-layer clock. The
+elapsed clock includes pauses and time spent awaiting operator confirmation.
 
 ### Live plot log
 
