@@ -1,0 +1,3 @@
+Draw mm: 0.0
+Travel mm: 32.897476762103366
+Feed/dwell seconds: 1.1289747676210338

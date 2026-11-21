@@ -469,7 +469,7 @@ public class PlotterPanel extends JPanel {
     }
     private String estimateSummary() {
         var estimate = plotProgress.estimate();
-        return estimate == null ? "" : " · Est. " + TimeEstimator.format(estimate.totalSeconds() * (100.0 / speedPercent));
+        return estimate == null ? "" : " · Est. " + TimeEstimator.format(estimate.atSpeedPercent(speedPercent));
     }
     private void refreshCanvasPalette(){
         ProcessorOutput output=documentSession.currentOutput();if(output==null)return;
@@ -1197,16 +1197,17 @@ public class PlotterPanel extends JPanel {
             plotControls.setTime("Est: --:--");
             return;
         }
-        TimeEstimator.PlotEstimate currentEstimate =
-                TimeEstimator.estimate(output, config.gcode, reviewed == null ? config.stations : reviewed.settings().stations);
+        PlotSettings settings = reviewed == null ? config.toPlotSettings() : reviewed.settings();
+        if (reviewed == null) settings.alignmentOffsetOverride = new double[] {
+                visPanel.getAlignOffsetX(), visPanel.getAlignOffsetY() };
+        TimeEstimator.PlotEstimate currentEstimate = TimeEstimator.estimate(output, config.gcode, settings);
         plotProgress.setEstimate(currentEstimate);
-        double speedFactor = 100.0 / speedPercent;
-        String estimateText = "Est: " + TimeEstimator.format(currentEstimate.totalSeconds() * speedFactor);
+        String estimateText = "Est: " + TimeEstimator.format(currentEstimate.atSpeedPercent(speedPercent));
         StringBuilder tooltip = new StringBuilder("<html>" + (reviewed == null ? "" : "Stored job, current pen and speeds.<br>") + "Per-layer estimate:<br>");
         for (TimeEstimator.LayerEstimate le : currentEstimate.layers()) {
-            tooltip.append(WorkspaceStyle.escape(le.layerId())).append(": ").append(TimeEstimator.format(le.estimatedSeconds() * speedFactor)).append("<br>");
+            tooltip.append(WorkspaceStyle.escape(le.layerId())).append(": ").append(TimeEstimator.format(le.atSpeedPercent(speedPercent))).append("<br>");
         }
-        tooltip.append("Total: ").append(TimeEstimator.format(currentEstimate.totalSeconds() * speedFactor));
+        tooltip.append("Total: ").append(TimeEstimator.format(currentEstimate.atSpeedPercent(speedPercent)));
         if (speedPercent != 100) {
             tooltip.append(" (at ").append(speedPercent).append("% speed)");
         }
@@ -1837,7 +1838,7 @@ public class PlotterPanel extends JPanel {
                         progress.phase() == PlotService.StrokeProgressPhase.ACCEPTED)));
 
         confirmGate.drainPermits();
-        plotProgress.setEstimate(TimeEstimator.estimate(toPlot, config.gcode, settings.stations));
+        plotProgress.setEstimate(TimeEstimator.estimate(toPlot, config.gcode, settings));
         plotProgress.start(totalLayersCount, System.currentTimeMillis());
         visPanel.beginPlotProgress(toPlot);
         setPlottingState(true);
@@ -1851,7 +1852,7 @@ public class PlotterPanel extends JPanel {
                 double actualSec = plotProgress.elapsedSeconds(System.currentTimeMillis());
                 TimeEstimator.PlotEstimate est = plotProgress.estimate();
                 if (est != null) {
-                    String estFmt = TimeEstimator.format(est.totalSeconds() * (100.0 / speedPercent));
+                    String estFmt = TimeEstimator.format(est.atSpeedPercent(speedPercent));
                     log("--- Plot finished: actual " + TimeEstimator.format(actualSec)
                             + " / estimated " + estFmt + " ---");
                 } else {
@@ -2115,6 +2116,7 @@ public class PlotterPanel extends JPanel {
             stations.add(new VisualizationPanel.Station(entry.getKey(), s.x(), s.y()));
         }
         visPanel.setStations(stations);
+        visPanel.setRefillStations(config.stations);
     }
 
     private void log(String line) {

@@ -1,61 +1,37 @@
-# Documentation status — RC11 public / RC12 draft, 2026-11-21
+# Documentation status — 2026-11-21
 
-The public entry points, release links, offline help links and screenshot
-references were checked against RC11. Current validation is recorded in
-[the RC11 release record](release-results/1.0.0-rc.11.md). A full human review of
-every operator-guide instruction remains open.
-All 47 gallery screenshots and the one-minute mock walkthrough were refreshed
-locally from the versioned RC12 development build on 2026-11-20. Visual review
-found orientation defect #93; these captures are not blanket visual acceptance.
-The published RC11 payload remains unchanged. See the [RC12 record](release-results/1.0.0-rc.12.md).
+RC11 remains the public download. RC12 is an immutable unpublished draft at
+`8dcb772`; later source fixes are absent from both sets of artifacts. Current
+guides, screenshots and offline-help source describe development behavior.
+See [RC12 artifact identity](release-results/1.0.0-rc.12.md) and the
+[current software/audit record](release-results/2026-11-21-prepared-route.md).
 
-| Area | Current documentation |
+| Area | Current state |
 |---|---|
-| Install and first plot | README, FIRST_PLOT, packaging help; Windows MSI/Linux DEB include Java |
-| Daily operation | USER_GUIDE, SAMPLE_GALLERY, TROUBLESHOOTING; Dark default and visible disabled actions |
-| Pen-aware filling | Effective width/overlap, physical scale, boundary inset, coverage preview, profiles and calibration |
-| Developer reference | ARCHITECTURE, TESTING, REFACTORING and PROJECT_DIGEST |
-| Release and adoption | ROADMAP, ADOPTION_ROADMAP, RELEASE_CHECKLIST and RC11 notes/results |
-| Visuals | 47 actual Swing screenshots and mock walkthrough from RC12 preparation; #93 remains open |
-| Historical evidence | Dated prior release/test records retain their original observations; they are not current acceptance claims |
-| Future work | TRACER_CAPTURE_IMPORT remains a proposed handoff contract |
+| Repository-wide references | All Markdown local file/image/heading links checked offline; CI now repeats the check |
+| User and offline guides | Versioned upright profiles, explicit migration, complete controller-start preview, known initial-position rejection, prepared-route estimates and timing limits |
+| First plot and support | Source-vs-release distinction, migration troubleshooting, estimate discrepancies |
+| Developer reference | Actual command classes, shared plot-based estimation, controller-space starts, compatibility and regression coverage |
+| Roadmap and adoption | Delivered software separated from native/hardware/participant acceptance and deferred research |
+| Gallery | All 47 actual Swing PNGs regenerated 2026-11-21 from this development JAR; [provenance](images/README.md) |
+| Walkthrough | New 60-second/six-state mock video from the same JAR; no physical movement |
+| Historical evidence | Dated failures/counts retained; original RC12 image links pinned to immutable tag |
+| Packaging | Existing payload checks still validate installed offline links, screenshots and samples; older release assets unchanged |
 
-The [image gallery](images/README.md) describes provenance and reproduction.
-The mock demo contains no hardware motion. Earlier Windows 11 / iDraw H A1
-reports do not establish physical acceptance of RC11. Pen/paper swatch evaluation,
-external novice/expert studies and broader hardware coverage require operators.
+The initial scan covered 72 Markdown files and 286 local references; the final
+scan includes the new audit/evidence pages. `python3 scripts/check_doc_links.py`
+reports the exact current count. External URL availability is not checked by that
+offline script. Twelve Python regressions include checker and packaging coverage.
 
-## Development changes after RC11
+[Upright-profile verification](release-results/2026-11-21-upright-profiles.md)
+records preserved legacy output and explicit opt-in. [Prepared-route follow-up](release-results/2026-11-21-prepared-route.md)
+records the later complete preview and time-estimate fixes. The [backend contract](BACKEND_CONTRACT.md)
+qualifies mock/fake-serial evidence; neither establishes firmware or physical fidelity.
 
-The source guide now also covers named pens, quick artwork, reviewed SVG/ZIP
-exports and advisory whole-job overlap. These changes are for the next revision;
-the preserved public RC11 artifacts do not contain them. See the
-[integration evidence](release-results/2026-11-20-integration.md) and
-[operator checklist](OPERATOR_ACCEPTANCE.md). The bundled offline guide now covers these flows and ships the new text/overlap
-dialog images. The [RC12 operator worksheet](release-results/1.0.0-rc.12-operator.md)
-is ready for actual observations; all human/hardware results remain NOT RUN.
-
-## Roadmap and tracker reconciliation
-
-The active roadmap now separates delivered main changes, software work that can
-run without hardware, operator/participant acceptance and deferred candidates.
-Detailed research is preserved in [FEATURE_CANDIDATES.md](FEATURE_CANDIDATES.md).
-The [mock fidelity audit](release-results/2026-11-20-mock-fidelity.md) qualifies
-simulation evidence and feeds #78/#79; it does not revise historical test passes.
-
-## Backend simulation contracts
-
-[BACKEND_CONTRACT.md](BACKEND_CONTRACT.md) records supported simulator/raw-command
-capabilities and the differences from serial and file backends. The #78/#79
-[follow-up record](release-results/2026-11-20-backend-contracts.md) tracks the
-corrected behavior; the original audit stays dated historical evidence. Physical
-acceptance and participant gates remain open.
-
-## Versioned upright profiles
-
-The source and offline guides explain fresh upright defaults, unchanged legacy
-profiles, explicit disconnected migration and machine-settings format 2. New
-[actual captures](validation/orientation/upright-profiles/README.md) show readable
-text and matching SVG/overlap. These development fixes are absent from immutable
-RC12 assets. #93 still needs physical direction/frame/plot acceptance; the older
-RC12 gallery remains historical evidence rather than current visual acceptance.
+The [operator checklist](OPERATOR_ACCEPTANCE.md) still requires a new candidate
+for #93 direction/frame/plot checks, current manual Stop/recovery #39, actual
+native scaling #43, operator benchmark #54, a real artwork task #72 and novice
+participants #16. #33 stays open for its acceptance dependencies; #71 remains
+deferred pending physical ink/drying assumptions. A full human walkthrough of
+every guide instruction remains uncollected. Documentation refresh and CI passes
+do not replace those observations or authorize a stable-readiness claim.

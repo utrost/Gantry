@@ -58,3 +58,30 @@ historical failures. [Upright-profile verification](release-results/2026-11-21-u
 records the software fix and unchanged legacy G-code baselines. Physical direction,
 frame and plot acceptance remains required in #39/#54; simulation does not establish
 actual motor direction. The immutable RC12 draft predates these fixes.
+
+## Controller-space starts and route estimates
+
+DRAW endpoints do not have to repeat the preceding head position. For an initial
+DRAW that position is the plot's origin; a configured refill or between-layer
+rinse changes it to the station center. Unknown refills with no default station
+are skipped and retain the previous position. The canvas now paints and hit-tests
+these synthetic starts separately from editable geometry, under the current
+placement transform. DRAW-only alignment bounds and executable commands remain
+unchanged. Historical previews use their recorded station metadata.
+
+Time estimation records `PlotService.plot` with the same prepared settings,
+including alignment override and clipping. It includes first segments, parking,
+configured dip/swirl/rinse and actual pen transitions, without sleeping or
+connecting. Feed overrides scale motion, while configured dwell/settle remains
+fixed. [Prepared-route verification](release-results/2026-11-21-prepared-route.md).
+
+### Initial DRAW and the work origin
+
+A disconnected preview/export plans an initial DRAW from work origin (0,0).
+Include an explicit initial MOVE in command files to establish the intended start.
+Before an initial DRAW without MOVE or a known refill, execution checks reported
+position. A known non-origin/nonfinite position rejects the job with instructions
+to add MOVE or deliberately return pen-up to origin and review again; it does not
+silently position the machine. Halt/pen-up recovery still applies. If the backend
+cannot report position, a warning records the origin assumption; this does not
+establish actual position. Mock results cannot substitute for physical checks.

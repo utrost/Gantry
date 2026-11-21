@@ -102,7 +102,7 @@ final class CanvasRenderer {
         // both the visible paths and the layers sent to plot; there is no separate visibility state.
         for (int pass = 0; pass < 1; pass++) {
             for (int i = 0; i < panel.allPaths.size(); i++) {
-                List<VisualizationPanel.Point2D> path = panel.allPaths.get(i);
+                List<VisualizationPanel.Point2D> path = panel.displayPath(i);
                 if (path.isEmpty()) {
                     continue;
                 }
@@ -139,8 +139,8 @@ final class CanvasRenderer {
         if (panel.showTravelOverlay) {
             float[] dash = {8.0f / (float) scale, 5.0f / (float) scale};
             for (int i = 0; i < panel.allPaths.size() - 1; i++) {
-                List<VisualizationPanel.Point2D> cur = panel.allPaths.get(i);
-                List<VisualizationPanel.Point2D> nxt = panel.allPaths.get(i + 1);
+                List<VisualizationPanel.Point2D> cur = panel.displayPath(i);
+                List<VisualizationPanel.Point2D> nxt = panel.displayPath(i + 1);
                 if (cur.isEmpty() || nxt.isEmpty()) {
                     continue;
                 }
@@ -197,7 +197,7 @@ final class CanvasRenderer {
         //     (red = delete, cyan = move) ---
         if ((panel.interactionMode == VisualizationPanel.InteractionMode.DELETE_STROKE || panel.interactionMode == VisualizationPanel.InteractionMode.MOVE_STROKE)
                 && panel.hoverStrokeIndex >= 0 && panel.hoverStrokeIndex < panel.allPaths.size()) {
-            List<VisualizationPanel.Point2D> hp = panel.allPaths.get(panel.hoverStrokeIndex);
+            List<VisualizationPanel.Point2D> hp = panel.displayPath(panel.hoverStrokeIndex);
             if (!hp.isEmpty()) {
                 Path2D hi = new Path2D.Double();
                 double[] h0 = panel.transformPoint(hp.get(0));

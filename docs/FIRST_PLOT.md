@@ -3,6 +3,10 @@
 This guide is the shortest path from a fresh Gantry checkout or release artifact
 to a safe first practice plot. Use it before connecting a real machine.
 
+The current screenshots come from development source. RC11 remains the public
+release; the unchanged RC12 draft predates the profile/preview fixes. See
+[documentation status](DOCUMENTATION_STATUS.md) before comparing an older download.
+
 ## What you need
 
 - A Windows/Linux installer (includes Java), or Java 17+ for JAR downloads.
@@ -57,7 +61,7 @@ During practice the top bar says **Simulation • no physical hardware**. You
 can load, process, position, and save artwork while disconnected. That preview is
 not a hardware connection.
 
-![Empty RC11 workspace with simulation status and artwork prompt](images/workspace/empty.png)
+![Empty development workspace with simulation status and artwork prompt](images/workspace/empty.png)
 
 Do not connect a real plotter until the drawing size and bed position look
 reasonable.
@@ -74,6 +78,11 @@ Follow the primary action in the fixed job strip below the canvas:
 
 A successful mock run proves the basic workflow, not the physical calibration of
 a real machine.
+
+Fresh development profiles use Upright artwork; existing profiles retain Legacy
+mapping. Updating software does not migrate calibrated axes. Any explicit change
+requires disconnection, review and new pen-up direction/frame checks. See
+[artwork orientation](USER_GUIDE.md#artwork-orientation-and-existing-profiles).
 
 ## 5. Prepare for a real plot
 

@@ -187,3 +187,12 @@ Keep physical fill calculations in `PenFillGeometry`, SVG coordinate resolution
 in `SvgImportStage`, and profile storage in `PenFillProfiles`. Preview cancellation
 and freshness belong to the dedicated preview panels. Do not duplicate spacing
 formulas or introduce machine commands into calibration/artwork creation.
+
+## Prepared-route consistency — November 2026
+
+`TimeEstimator` records the actual `PlotService` orchestration with a private
+nonconnecting, nonsleeping backend. Do not restore a second route/dip calculator.
+Keep independent arithmetic regressions for first segments, clipping, park/rinse,
+configured dips/swirl and pen-state transitions. Synthetic controller-space preview
+starts remain separate from editable geometry and alignment bounds; current and
+historical views receive the correct station metadata.

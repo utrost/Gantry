@@ -1,24 +1,25 @@
-# Gantry screenshots — RC12 preparation
+# Gantry screenshots — current development
 
-All 47 PNGs were captured locally on 2026-11-20 from the versioned RC12 JAR
-(implementation baseline `b972370`, JDK 21 / Linux / Xvfb, requested/effective
-scale 1). They render actual Swing components using isolated mock profiles.
-Dark is the default; Light remains available. Canvas appearance is independent.
-No physical plotter was connected. Root-pane captures exclude native borders.
+All 47 PNGs were regenerated on 2026-11-21 from the
+`fix/prepared-preview-and-estimates` development JAR (based on `c9b1d38`),
+JDK 21 / Linux / Xvfb, requested/effective scale 1. They render actual Swing
+components with isolated mock profiles. Dark is the default; Light remains
+available. No physical plotter was connected. Root-pane captures exclude native
+borders. Current source screenshots do not describe the preserved public RC11
+payload or immutable RC12 draft.
 
-The [one-minute mock walkthrough](../demos/Gantry-first-plot-mock.mp4) was also
-refreshed from this build. It contains six captioned application states and no
-hardware motion. The final capture waits for the visible terminal state rather
-than capturing an earlier backend/history-complete moment. These captures do not establish native desktop or user acceptance.
+The [60-second mock walkthrough](../demos/Gantry-first-plot-mock.mp4) was regenerated
+from the same JAR: six captioned application states, including the visible terminal
+state. It demonstrates the application workflow and no hardware motion.
 
-New preparation views: [text dialog](workspace/quick-artwork-dialog.png),
+[Text dialog](workspace/quick-artwork-dialog.png),
 [workspace/export feedback](workspace/quick-artwork.png) and
-[advisory overlap](workspace/ink-overlap.png). **Visual review found reversed
-text and inconsistent view orientation**, tracked in
-[#93](https://github.com/utrost/Gantry/issues/93). These three images are current
-defect evidence, not accepted examples of readable output. The workspace also
-retains an intentionally triggered empty-selection error alongside successful
-export feedback. See the [candidate record](../release-results/1.0.0-rc.12.md).
+[overlap](workspace/ink-overlap.png) now show complete upright text. The workflow
+intentionally triggers an empty-selection error, retained beside later successful
+export feedback. Original RC12 failures remain available through the
+[immutable candidate evidence](../release-results/1.0.0-rc.12.md) and
+[orientation audit](../validation/orientation/README.md). [Current verification](../release-results/2026-11-21-prepared-route.md)
+separates these software results from physical/native/user acceptance.
 
 ## Daily workspace
 

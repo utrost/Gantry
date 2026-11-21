@@ -208,11 +208,12 @@ SVG-DOM level *during import* (`svgtoolbox-core`). `OptimizeStage` runs at the
 keep them straight.
 
 **Q: Why is the time estimate "too high" on hatch-dense drawings?**
-Because the per-pen-down settle overhead (`penDownDelayMillis`) is charged once per
-`DrawCommand` and dominates the distance terms when there are thousands of tiny
-strokes. That's correct, and it matches `GcodeBackend.pendown()`'s real dwell —
-don't drop it when re-deriving `TimeEstimator`. Weld strokes (`OptimizeStage`) or
-lower the dwell to actually reduce it.
+Actual pen-down transitions incur `penDownDelayMillis`; many short hatch strokes
+separated by MOVE can make settling dominate. Consecutive DRAW commands without
+travel keep the pen down and must not each incur another settle. The estimator
+now records the production plot route rather than duplicating motion/dip rules.
+Feed overrides change motion time, not fixed dwell. Weld suitable strokes or tune
+the configured settle time after observing the real pen.
 
 **Q: Where does the CLI lag the GUI (and vice-versa)?**
 The GUI and CLI now both support per-colour hatch overrides. The CLI also has
@@ -250,3 +251,19 @@ hardware-marked ones still need a real machine before a hardware release.
   Configure calibration previews explicitly instead of inheriting a machine origin.
 - Apply only the current preview generation, and snapshot pen width with geometry.
   Calibration/profile UI must never construct a backend or issue machine commands.
+
+## Prepared route regressions — 2026-11-21
+
+- #100: raw endpoint-only estimates omitted first segments, park/rinse, configured
+  dip cycles and swirls. Record production orchestration without connecting or
+  sleeping; retain independent numerical expectations and fixed-vs-motion timing.
+- #101: an origin/refill/rinse is a controller-space start, not document geometry.
+  Render it under the current placement without baking it into saved paths or
+  changing alignment bounds. Check actual pixels and hit testing; endpoint-only
+  coordinate tests cannot establish a complete visible stroke.
+- Keep archived release observations dated. Refresh the current screenshot gallery
+  and guides without rewriting immutable release assets or claiming human acceptance.
+
+- #103: projection's origin assumption does not establish the controller position.
+  Reject a reported non-origin initial DRAW without auto-positioning; require
+  explicit MOVE or deliberate pen-up return/review. Qualify unknown-position cases.

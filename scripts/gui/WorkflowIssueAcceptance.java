@@ -69,7 +69,7 @@ public final class WorkflowIssueAcceptance extends GuiAcceptance {
             check(java.util.Arrays.equals(connectedConfig,Files.readAllBytes(profile.resolve("config.json"))),"rejected backend change is not persisted");
             System.out.println("PASS connected backend preferences cannot change machine identity or persisted configuration");
             edt(() -> { invoke(panel,"reviewHistoricalJob",PlotJobHistory.Job.class,job); return null; });
-            double expected = TimeEstimator.estimate(historical,config.gcode,stored.stations).totalSeconds();
+            double expected = TimeEstimator.estimate(historical,config.gcode,stored).totalSeconds();
             edt(() -> {
                 check(Math.abs(((PlotProgressState)field(panel,"plotProgress")).estimate().totalSeconds()-expected)<.0001,"historical estimate belongs to A");
                 check(((String)field(panel,"boundsWarning")).isEmpty(),"B's overflow must not appear in A's review");
@@ -107,7 +107,12 @@ public final class WorkflowIssueAcceptance extends GuiAcceptance {
                 check(project().equals(before),"return restores B unchanged");
                 check(!((String)field(panel,"boundsWarning")).isEmpty(),"B overflow returns with B");
                 double actual = ((PlotProgressState)field(panel,"plotProgress")).estimate().totalSeconds();
-                double currentExpected = TimeEstimator.estimate((ProcessorOutput)invoke(panel,"preparePlotOutput"),((GantryConfig)field(panel,"config")).gcode,config.stations).totalSeconds();
+                var active = (GantryConfig) field(panel, "config");
+                var prepared = active.toPlotSettings();
+                var canvas = field(panel, "visPanel");
+                prepared.alignmentOffsetOverride = new double[] {
+                        (double) invoke(canvas, "getAlignOffsetX"), (double) invoke(canvas, "getAlignOffsetY") };
+                double currentExpected = TimeEstimator.estimate((ProcessorOutput)invoke(panel,"preparePlotOutput"),active.gcode,prepared).totalSeconds();
                 check(Math.abs(actual-currentExpected)<.0001,"return restores B estimate: " + actual + " vs " + currentExpected);
                 return null;
             });

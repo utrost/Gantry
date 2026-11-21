@@ -40,28 +40,28 @@ class TimeEstimatorTest {
 
         assertEquals(1, est.layers().size());
         TimeEstimator.LayerEstimate le = est.layers().get(0);
-        assertEquals(100.0, le.travelDistanceMm(), 1e-9);
+        assertEquals(250.0, le.travelDistanceMm(), 1e-9);
         assertEquals(50.0, le.drawDistanceMm(), 1e-9);
-        // 100mm travel @ 100mm/s = 1s, 50mm draw @ 50mm/s = 1s, +1 pen-down @ 0.15s
-        assertEquals(2.15, le.estimatedSeconds(), 1e-6);
-        assertEquals(2.15, est.totalSeconds(), 1e-6);
+        // 100mm approach + 150mm park @100mm/s, 50mm draw @50mm/s, .15s settle
+        assertEquals(3.65, le.estimatedSeconds(), 1e-6);
+        assertEquals(3.65, est.totalSeconds(), 1e-6);
     }
 
     @Test
-    void penDownOverheadIsChargedOncePerDrawCommand() {
+    void consecutiveDrawCommandsKeepThePenDown() {
         GcodeOptions gcode = new GcodeOptions();
         gcode.feedRateDraw = 6000; // 100 mm/s, so distance-driven time is negligible/zero here
         gcode.penDownDelayMillis = 150; // pin the dwell so the expected total is independent of the default
 
-        // Two separate strokes (e.g. two hatch lines), each its own DrawCommand/pen-down cycle.
+        // Consecutive DRAW commands without MOVE remain one pen-down run.
         Layer layer = new Layer("L1", "default_station", List.of(
                 new DrawCommand(1, List.of(new Point(0, 0), new Point(0, 0))),
                 new DrawCommand(2, List.of(new Point(0, 0), new Point(0, 0)))));
 
         TimeEstimator.PlotEstimate est = TimeEstimator.estimate(output(layer), gcode, Map.of());
 
-        // 2 pen-downs @ 0.15s each, zero-length strokes contribute no draw distance.
-        assertEquals(0.30, est.layers().get(0).estimatedSeconds(), 1e-6);
+        // One pen-down; zero-length endpoints contribute no distance.
+        assertEquals(0.15, est.layers().get(0).estimatedSeconds(), 1e-6);
     }
 
     @Test
@@ -80,7 +80,7 @@ class TimeEstimatorTest {
     }
 
     @Test
-    void refillAddsTravelToStationAndFixedOverhead() {
+    void refillIncludesBothDipsAndReturnToOrigin() {
         GcodeOptions gcode = new GcodeOptions();
         gcode.feedRateTravel = 6000; // 100 mm/s
 
@@ -91,10 +91,10 @@ class TimeEstimatorTest {
         TimeEstimator.PlotEstimate est = TimeEstimator.estimate(output(layer), gcode, stations);
 
         TimeEstimator.LayerEstimate le = est.layers().get(0);
-        assertEquals(50.0, le.travelDistanceMm(), 1e-9);
+        assertEquals(100.0, le.travelDistanceMm(), 1e-9);
         assertEquals(1, le.refillCount());
-        // 50mm @ 100mm/s = 0.5s travel + 0.5s dip overhead
-        assertEquals(1.0, le.estimatedSeconds(), 1e-6);
+        // 100mm travel @100mm/s + two .5s dips + two .08s settles + two .001s gaps
+        assertEquals(2.162, le.estimatedSeconds(), 1e-6);
     }
 
     @Test
@@ -105,7 +105,7 @@ class TimeEstimatorTest {
 
         TimeEstimator.PlotEstimate est = TimeEstimator.estimate(output(layer), gcode, stations);
 
-        assertEquals(10.0, est.layers().get(0).travelDistanceMm(), 1e-9);
+        assertEquals(20.0, est.layers().get(0).travelDistanceMm(), 1e-9);
     }
 
     @Test

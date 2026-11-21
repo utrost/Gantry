@@ -26,6 +26,8 @@ Build and test:
 ```bash
 mvn clean package
 mvn test
+python3 scripts/check_doc_links.py
+python3 -m unittest discover -s scripts -p 'test_*.py'
 ```
 
 Run the GUI from source:
