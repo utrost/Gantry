@@ -1,6 +1,7 @@
 # Documentation status — 2026-11-21
 
-RC13 packages the current software fixes and matching guides/gallery. RC12 remains
+RC13 is a public testing prerelease containing the current software fixes and
+matching guides/gallery. Its exact-tag builds and all nine assets are verified. RC12 remains
 an immutable unpublished draft at `8dcb772`; its assets and older public releases
 are unchanged. See [RC13 candidate evidence](release-results/1.0.0-rc.13.md),
 [RC12 historical identity](release-results/1.0.0-rc.12.md) and the
