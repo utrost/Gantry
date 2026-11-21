@@ -9,7 +9,7 @@ See [RC12 artifact identity](release-results/1.0.0-rc.12.md) and the
 | Area | Current state |
 |---|---|
 | Repository-wide references | All Markdown local file/image/heading links checked offline; CI now repeats the check |
-| User and offline guides | Versioned upright profiles, explicit migration, complete controller-start preview, prepared-route estimates and timing limits |
+| User and offline guides | Versioned upright profiles, explicit migration, complete controller-start preview, known initial-position rejection, prepared-route estimates and timing limits |
 | First plot and support | Source-vs-release distinction, migration troubleshooting, estimate discrepancies |
 | Developer reference | Actual command classes, shared plot-based estimation, controller-space starts, compatibility and regression coverage |
 | Roadmap and adoption | Delivered software separated from native/hardware/participant acceptance and deferred research |

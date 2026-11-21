@@ -72,3 +72,14 @@ mechanical play, physical limits, real homing, serial-adapter latency and pen/in
 behavior. A stronger mock still cannot close hardware acceptance #39/#54 or
 participant study #16. Preserve the dated [original mock audit](release-results/2026-11-20-mock-fidelity.md)
 as historical evidence; the regression tests above specify the corrected behavior.
+
+## Initial drawing position
+
+Projection/export assume work origin until an explicit MOVE or known refill
+establishes the start. PlotService checks reported position before an initial
+nonempty DRAW: a known non-origin/nonfinite position rejects the job with existing
+halt/pen-up recovery and no automatic positioning. Origin, explicit-MOVE and
+known-refill starts remain supported. If position is unavailable, execution logs
+the origin assumption; neither the disconnected preview nor that warning proves
+actual controller position. Command files should establish their start with MOVE.
+The new check does not turn mock/fake-serial evidence into physical acceptance.
