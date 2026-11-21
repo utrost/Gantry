@@ -1,0 +1,69 @@
+{
+  "version": "1.0.0-rc.13",
+  "sourceCommit": "a9deb3fae20e78276f7c20fad057ec945a06b17e",
+  "tag": "v1.0.0-rc.13",
+  "draft": false,
+  "prerelease": true,
+  "releaseId": 453703564,
+  "releaseUrl": "https://github.com/utrost/Gantry/releases/tag/v1.0.0-rc.13",
+  "tagBuild": "https://github.com/utrost/Gantry/actions/runs/44907611691",
+  "automatedAssetVerification": "PASS",
+  "debianVersion": "1.0.13",
+  "checksummedAssets": 8,
+  "assets": [
+    {
+      "name": "Gantry-1.0.0-rc.13-docs.zip",
+      "bytes": 303069,
+      "sha256": "de0ad3a34ccbaed96d0afed34b927b6193acc61dbb7b338cac6d232b1e4bccc9",
+      "assetId": 775643265
+    },
+    {
+      "name": "Gantry-1.0.0-rc.13-linux-x64.deb",
+      "bytes": 100100712,
+      "sha256": "593776a4578765c096018ba153980f8081563035ca5642891adbbd7cba68789e",
+      "assetId": 775643267
+    },
+    {
+      "name": "Gantry-1.0.0-rc.13-windows-x64.msi",
+      "bytes": 120209892,
+      "sha256": "1b8be4d43bd143d942951f58e936df5f24830d1f2691df7f8283b8c10f26234a",
+      "assetId": 775643269
+    },
+    {
+      "name": "Gantry-1.0.0-rc.13.jar",
+      "bytes": 34552630,
+      "sha256": "31d5ec2c2cbc6b51f65eac75a4d5ee65c4b2f0ad3ebe605960dc7fcd4b32dae9",
+      "assetId": 775643263
+    },
+    {
+      "name": "Gantry-CLI-1.0.0-rc.13.jar",
+      "bytes": 33669548,
+      "sha256": "386df778976501f2e93ea95022499bf4c8f3e0202696a7c5818c412ef22b65a9",
+      "assetId": 775643260
+    },
+    {
+      "name": "LICENSE",
+      "bytes": 35184,
+      "sha256": "e0eedba615d5cd1b986afb6c5b3a4b1ae33713e7e9dc74d19daec5e3221f9d2e",
+      "assetId": 775643268
+    },
+    {
+      "name": "README.md",
+      "bytes": 2430,
+      "sha256": "1c92494f2d4c95ee13841e791d3c81eafe871cc814f91b11fa7a460bda1b6128",
+      "assetId": 775643258
+    },
+    {
+      "name": "SHA256SUMS",
+      "bytes": 704,
+      "sha256": "87eac468f3c9b02a51889f6038b30328da6f1cd6be22837d856f3ae3a1725b46",
+      "assetId": 775643264
+    },
+    {
+      "name": "VERSION.txt",
+      "bytes": 20,
+      "sha256": "ce76640f897fca7696fbf14d2f4f0e6abafd1f3503e2d223ccdb28383b34c592",
+      "assetId": 775643261
+    }
+  ]
+}
