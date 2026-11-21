@@ -60,4 +60,17 @@ class StationMapperTest {
 
         assertEquals("Layer1", mapped.layers().get(0).stationId());
     }
+
+    @Test void reservedWaterAndRinsePotsAreNotPaintCandidates() {
+        List<PaintStation> pots = List.of(new PaintStation("water", "#ffffff"),
+                new PaintStation("RINSE", "#ffffff"), new PaintStation("paint", "#eeeeee"));
+        assertEquals("paint", StationMapper.nearestStation("#ffffff", pots));
+        assertNull(StationMapper.nearestStation("#ffffff", pots.subList(0, 2)));
+    }
+
+    @Test void explicitlyMarkedCleaningPotIsExcludedEvenWithAnArbitraryName() {
+        assertEquals("paint", StationMapper.nearestStation("#ffffff", List.of(
+                new PaintStation("cleaning-cup", "#ffffff", "rinse"),
+                new PaintStation("paint", "#eeeeee", "simple_dip"))));
+    }
 }

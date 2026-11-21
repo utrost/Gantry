@@ -37,8 +37,6 @@ import org.trostheide.gantry.plotter.GcodeFileReplay;
 import org.trostheide.gantry.plotter.GrblSettings;
 import org.trostheide.gantry.plotter.MockPlotterBackend;
 import org.trostheide.gantry.plotter.PlotterBackend;
-import org.trostheide.gantry.watercolor.PaintStation;
-import org.trostheide.gantry.watercolor.StationMapper;
 import org.trostheide.gantry.watercolor.LayerRefillPlanner;
 
 import javax.swing.*;

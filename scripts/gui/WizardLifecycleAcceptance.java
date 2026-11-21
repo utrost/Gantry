@@ -86,7 +86,52 @@ public final class WizardLifecycleAcceptance {
             button(wizard, "Finish").doClick();
             System.out.println("PASS wizard Back/Next revisits and clears resolved skipped steps");
         });
+        stationNudgeStartsFromStoredStation();
         System.exit(0);
+    }
+    private static void stationNudgeStartsFromStoredStation() throws Exception {
+        var config = new org.trostheide.gantry.app.plot.GantryConfig();
+        config.stations.clear();
+        config.stations.put("paint", new org.trostheide.gantry.app.plot.StationConfig(100, 100, 0, "simple_dip"));
+        double[] position = {250, 150}; // deliberately nowhere near the configured station
+        AtomicBoolean penUp = new AtomicBoolean(), persisted = new AtomicBoolean();
+        var backend = new org.trostheide.gantry.plotter.MockPlotterBackend() {
+            public void penup() { penUp.set(true); }
+            public void moveto(double x, double y) { position[0]=x; position[1]=y; }
+            public void move(double dx, double dy) { position[0]+=dx; position[1]+=dy; }
+        };
+        Throwable[] failure = {null};
+        SwingUtilities.invokeAndWait(() -> {
+            var workflow = new StationTestWorkflow(config, () -> true, action -> action.accept(backend),
+                    () -> persisted.set(true), line -> {}, () -> false, () -> {});
+            int[] stage = {0}, polls = {0};
+            Timer driver = new Timer(30, null);
+            driver.addActionListener(event -> {
+                WizardDialog wizard = null;
+                for (var window : java.awt.Window.getWindows())
+                    if (window instanceof WizardDialog d && d.isVisible() && d.getTitle().equals("Test Color Stations")) wizard=d;
+                try {
+                    if (++polls[0]>100) throw new AssertionError("Station wizard did not complete");
+                    if (wizard==null) return;
+                    if (stage[0]==0) { button(wizard,"Next >").doClick(); stage[0]++; }
+                    else if (stage[0]==1) { button(wizard,"+X").doClick(); stage[0]++; }
+                    else {
+                        if (!penUp.get() || position[0]!=101 || position[1]!=100)
+                            throw new AssertionError("Nudge moved relative to the machine instead of the station: " + java.util.Arrays.toString(position));
+                        button(wizard,"Next >").doClick(); button(wizard,"Finish").doClick(); driver.stop();
+                    }
+                } catch (Throwable error) {
+                    failure[0]=error; driver.stop(); if(wizard!=null)wizard.dispose();
+                }
+            });
+            driver.start();
+            workflow.show(null, null);
+            driver.stop();
+        });
+        if (failure[0]!=null) throw new AssertionError("Station nudge regression", failure[0]);
+        var station=config.stations.get("paint");
+        if (!persisted.get() || station.x()!=101 || station.y()!=100) throw new AssertionError("Nudged station was not saved");
+        System.out.println("PASS station nudge starts at stored coordinates, raises pen, and saves the submitted target");
     }
     private static JButton button(java.awt.Container root, String text) {
         for (java.awt.Component child : root.getComponents()) {

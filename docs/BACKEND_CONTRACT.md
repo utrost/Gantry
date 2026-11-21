@@ -83,3 +83,13 @@ known-refill starts remain supported. If position is unavailable, execution logs
 the origin assumption; neither the disconnected preview nor that warning proves
 actual controller position. Command files should establish their start with MOVE.
 The new check does not turn mock/fake-serial evidence into physical acceptance.
+
+## Homing wait failures
+
+Development after RC13 checks terminal controller failure, deadline and thread
+interruption on every fresh-Idle polling iteration, including before accepting
+Idle. Continuous non-Idle reports cannot extend the deadline. An explicit alarm
+during the initial lift fails Home without submitting $H. The existing controlled
+unlock and pre/post-home lift ordering is retained. Scripted transport tests verify
+these commands; physical endstop/lift behavior still needs operator acceptance.
+See the [watercolor/homing audit](release-results/2026-11-21-watercolor-homing.md).

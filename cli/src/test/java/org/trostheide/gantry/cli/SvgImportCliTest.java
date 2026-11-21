@@ -183,6 +183,26 @@ class SvgImportCliTest {
         assertEquals(0.5, travelWarning.get("threshold").asDouble(), 0.001);
     }
 
+    @Test
+    void stationMappingExcludesAnExplicitRinseCupEvenWhenItsColorIsTheClosest() throws Exception {
+        Path input = writeSvg("<path d=\"M10,10 L90,10\" fill=\"none\" stroke=\"#ff0000\"/>");
+        Path output = tmp.resolve("mapped-paint.json"), config = tmp.resolve("palette.json");
+        Files.writeString(config, """
+                {"stations":{
+                  "cleaning-cup":{"color":"#ff0000","behavior":"rinse"},
+                  "paint":{"color":"#ee0000","behavior":"simple_dip"}}}
+                """);
+        SvgImportCli.main(new String[] {"-i",input.toString(),"-o",output.toString(),
+                "--config",config.toString(),"--map-stations","--max-dist","10"});
+        ProcessorOutput result = ProcessorOutputIO.load(output.toFile());
+        assertTrue(result.layers().stream().allMatch(layer -> layer.stationId().equals("paint")));
+        var refills = result.layers().stream().flatMap(layer -> layer.commands().stream())
+                .filter(org.trostheide.gantry.model.command.RefillCommand.class::isInstance)
+                .map(org.trostheide.gantry.model.command.RefillCommand.class::cast).toList();
+        assertTrue(!refills.isEmpty());
+        assertTrue(refills.stream().allMatch(refill -> refill.stationId.equals("paint")));
+    }
+
     private Path writeSvg(String body) throws Exception {
         Path input = tmp.resolve("input-" + System.nanoTime() + ".svg");
         Files.writeString(input, """

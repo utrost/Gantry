@@ -1,11 +1,15 @@
 # Documentation status — 2026-11-21
 
-RC13 is a public testing prerelease containing the current software fixes and
+RC13 is a public testing prerelease containing the coordinate/preview/estimate fixes and
 matching guides/gallery. Its exact-tag builds and all nine assets are verified. RC12 remains
 an immutable unpublished draft at `8dcb772`; its assets and older public releases
 are unchanged. See [RC13 candidate evidence](release-results/1.0.0-rc.13.md),
 [RC12 historical identity](release-results/1.0.0-rc.12.md) and the
 [current software/audit record](release-results/2026-11-21-prepared-route.md).
+
+Later [watercolor/station/homing fixes](release-results/2026-11-21-watercolor-homing.md)
+are development source changes, absent from the immutable RC13 downloads. Current
+guides describe these corrected paths; preserve the release/source distinction.
 
 | Area | Current state |
 |---|---|

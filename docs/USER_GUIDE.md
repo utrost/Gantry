@@ -267,7 +267,7 @@ compensate.
 | **Check Before Plotting...** | Opens Check in the inspector. Review connection and size, optionally analyze ink overlap, use home/frame/pen lift as needed, then confirm the physical setup. Required confirmations are enforced when the preflight policy is on. |
 | **Setup Wizard...** | The guided first-time setup described in [First start](#first-start) — Connection, Machine geometry/origin/orientation, Pen/speed, in order, re-using the exact same fields as **Settings**. Its final step offers **"Continue to axis calibration now"** (ticked by default), so a first run flows straight from settings into calibration. Safe to re-run any time to revisit those settings step by step. |
 | **Calibrate Axes...** | A guided pass over machine motion. It **connects first** (a Connect step using your saved settings or mock — no need to connect manually beforehand), then: **Direction:** centre the head, jog each motor axis, and click the arrow for the way the pen *actually* moved — the wizard derives the correct swap/invert in one shot (it catches *swapped* axes, not just reversed ones, and applies the result to the live preview). **Scale:** for X and Y, jog a commanded distance, measure what actually moved with a ruler, and the wizard computes a corrected `$100`/`$101` and writes it on request. **Limit switches:** record whether the machine has them, enable the homing cycle (`$22`), and press each switch by hand to watch it register live (a real wiring test, nothing moves). **Pen lift:** pick the lift type (servo / Z-axis / M3-M5), set the up/down values, and **Test** them — edits apply on the next test with no reconnect. The scale, limit and pen steps are each optional (use **Skip**). |
-| **Test Color Stations...** | A guided test run over every configured refill station (watercolor). For each station you can **Move here** (pen-up dry visit so you can eyeball whether the brush lines up with the physical pot), run a **Wet test** (the station's real two-cycle dip/swirl using normal pen heights, so you can verify pot and swirl clearance), and **nudge** the position with the **−X/+X/−Y/+Y** buttons if it's off — a nudge moves the head *and* the stored coordinate, and corrected positions are saved when you click **Finish**. Each station step is optional (use **Skip**). Requires a real or mock connection and at least one configured station. See also [placing stations on the canvas](#placing-refill-stations) below. |
+| **Test Color Stations...** | A guided test run over every configured refill station (watercolor). For each station you can **Move here** (pen-up dry visit so you can eyeball whether the brush lines up with the physical pot), run a **Wet test** (the station's real two-cycle dip/swirl using normal pen heights, so you can verify pot and swirl clearance), and **nudge** the position with the **−X/+X/−Y/+Y** buttons if it's off — a nudge submits a pen-up absolute move to the nudged station coordinate, regardless of the previous head position, and corrected positions are saved when you click **Finish**. Each station step is optional (use **Skip**). Requires a real or mock connection and at least one configured station. See also [placing stations on the canvas](#placing-refill-stations) below. |
 
 ---
 
@@ -380,6 +380,15 @@ Used for watercolor painting. Each station has:
 | Color | Hex colour associated with this station and shown in the watercolor setup. |
 | Dwell (ms) | How long to pause at the station while dipping. |
 | Swirl (mm) | Radius of the circular swirl motion for `dip_swirl` / `rinse` behaviours. |
+
+Development after RC13 excludes water/rinse pots from automatic paint-color
+matching, even if a cleaning pot has a color. Layer refill settings count actual
+pen-down travel from the preceding MOVE or DRAW endpoint, including a single
+endpoint. Refills return to the interrupted artwork point before drawing resumes;
+a DRAW-only layer gets an explicit origin return after its initial refill.
+These fixes are not in the RC13 downloads; see the
+[watercolor/homing audit](release-results/2026-11-21-watercolor-homing.md).
+
 
 ---
 

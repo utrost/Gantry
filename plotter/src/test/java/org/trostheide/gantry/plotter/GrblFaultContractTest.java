@@ -82,4 +82,44 @@ class GrblFaultContractTest {
             assertEquals(GcodeBackend.MachineState.ALARM, b.getMachineState());
         } finally { worker.interrupt(); worker.join(2000); b.disconnect(); }
     }
+
+    @Test void homingAbortsPromptlyOnAlarmDuringTheInitialLiftWait() throws Exception {
+        GcodeBackend b = connect();
+        fake.holdZMotionUntilReleased();
+        b.getOptions().penMode = "zaxis";
+        var lifting = new java.util.concurrent.CountDownLatch(1);
+        b.setStateCallback(state -> { if (state == GcodeBackend.MachineState.RUN) lifting.countDown(); });
+        AtomicReference<Throwable> failure = new AtomicReference<>();
+        Thread worker = new Thread(() -> { try { b.home(); } catch (Throwable e) { failure.set(e); } });
+        try {
+            worker.start();
+            assertTrue(fake.awaitCommand("G0 Z5.00", 2, TimeUnit.SECONDS));
+            assertTrue(lifting.await(2, TimeUnit.SECONDS), "Home must have entered its fresh-Idle lift wait");
+            fake.injectLine("ALARM:9");
+            worker.join(1000);
+            assertFalse(worker.isAlive(), "Home must fail promptly instead of waiting for Idle after an alarm");
+            assertInstanceOf(GcodeBackendException.class, failure.get());
+            assertTrue(failure.get().getMessage().contains("ALARM:9"));
+            assertFalse(fake.sentCommands().contains("$H"));
+        } finally { worker.interrupt(); worker.join(2000); b.disconnect(); }
+    }
+
+    @Test void homingIdleWaitHonorsDeadlineAndInterruptionWithContinuousRunReports() throws Exception {
+        GcodeBackend b = connect();
+        fake.setMachineState("Run");
+        var wait = GcodeBackend.class.getDeclaredMethod("awaitFreshIdle", long.class);
+        wait.setAccessible(true);
+        try {
+            assertTimeoutPreemptively(Duration.ofSeconds(2), () -> {
+                var error = assertThrows(java.lang.reflect.InvocationTargetException.class, () -> wait.invoke(b, 1L));
+                assertInstanceOf(GcodeBackendException.class, error.getCause());
+                assertTrue(error.getCause().getMessage().contains("Timed out"));
+            });
+            Thread.currentThread().interrupt();
+            var error = assertThrows(java.lang.reflect.InvocationTargetException.class, () -> wait.invoke(b, 30L));
+            assertInstanceOf(GcodeBackendException.class, error.getCause());
+            assertTrue(error.getCause().getMessage().contains("Interrupted"));
+            assertTrue(Thread.currentThread().isInterrupted());
+        } finally { Thread.interrupted(); b.disconnect(); }
+    }
 }

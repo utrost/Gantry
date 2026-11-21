@@ -231,3 +231,20 @@ to add MOVE or deliberately return pen-up to origin and review again; it does no
 silently position the machine. Halt/pen-up recovery still applies. If the backend
 cannot report position, a warning records the origin assumption; this does not
 establish actual position. Mock results cannot substitute for physical checks.
+
+## Watercolor refill or station-nudge discrepancies in RC13
+
+RC13 can undercount refill distances for a MOVE followed by a single-endpoint
+DRAW, reorder buffered ink at exact refill boundaries, or begin a DRAW-only
+layer from its initial pot. Its automatic color mapping can also select a
+colored rinse/water cup, and a station-wizard nudge can move relative to the
+head's previous position instead of the saved station coordinate. Development
+fixes and reproduction evidence are in the
+[watercolor/station/homing audit](release-results/2026-11-21-watercolor-homing.md).
+Those fixes are absent from the immutable RC13 artifacts; do not treat an old
+artifact as evidence for accepting them. Inspect exported paths and complete a
+new candidate's controlled station dry/wet checks before physical watercolor use.
+
+The same audit fixes homing waiting for Idle after an explicit controller alarm.
+Record the alarm and diagnostics, use Stop and the controlled recovery procedure,
+and inspect the hardware cause; do not repeatedly retry Home past an alarm.

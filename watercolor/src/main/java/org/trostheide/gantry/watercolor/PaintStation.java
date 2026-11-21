@@ -1,9 +1,13 @@
 package org.trostheide.gantry.watercolor;
 
-/**
- * A physical paint pot available for colour-to-station mapping: its logical id and the paint
- * colour loaded in it as a {@code #rrggbb} hex string. Decoupled from the app's full
- * {@code StationConfig} so the watercolor module need not depend on the app.
- */
-public record PaintStation(String id, String colorHex) {
+/** Paint palette entry with enough metadata to exclude water/cleaning pots. */
+public record PaintStation(String id, String colorHex, String behavior) {
+    public PaintStation(String id, String colorHex) { this(id, colorHex, null); }
+
+    /** Shared legacy-name and explicit-behavior rule for mapping and between-layer rinsing. */
+    public static boolean isRinse(String id, String behavior) {
+        return "rinse".equals(behavior) || "rinse".equalsIgnoreCase(id) || "water".equalsIgnoreCase(id);
+    }
+
+    public boolean isRinse() { return isRinse(id, behavior); }
 }

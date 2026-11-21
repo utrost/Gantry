@@ -72,7 +72,14 @@ final class StationTestWorkflow {
         double step(){return ((Number)amount.getValue()).doubleValue();}
         void nudge(double dx,double dy){
             if(busy.getAsBoolean() || !connected.getAsBoolean())return;
-            backendAction.accept(b->{b.penup();b.move(dx,dy);SwingUtilities.invokeLater(()->{x+=dx;y+=dy;updateLabel();});});
+            // Nudge the stored station, regardless of where the previous operation left the head.
+            double targetX = round(x + dx), targetY = round(y + dy);
+            StationConfig target = new StationConfig(targetX, targetY, base.zDown(), base.behavior(),
+                    base.color(), base.dwellMs(), base.swirlRadius());
+            service(s -> {
+                s.dryVisitStation(target);
+                SwingUtilities.invokeLater(() -> { x = targetX; y = targetY; updateLabel(); });
+            });
         }
         void service(Consumer<PlotService> action){backendAction.accept(b->{PlotService s=new PlotService(b,config.toPlotSettings());s.setLogCallback(log);action.accept(s);});}
         StationConfig current(){return new StationConfig(round(x),round(y),base.zDown(),base.behavior(),base.color(),base.dwellMs(),base.swirlRadius());}

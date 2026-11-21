@@ -4,6 +4,11 @@ This digest captures the current shape of Gantry so future documentation and roa
 
 ## Current position
 
+Post-RC13 software work fixes watercolor refill path accounting/order, palette
+cleaning-pot exclusion, station nudges and homing fault waits. See the
+[fresh audit](release-results/2026-11-21-watercolor-homing.md). Published RC13
+assets remain unchanged and do not contain this follow-up.
+
 Gantry is a Java 17 / Maven multi-module plotting studio for GRBL pen plotters. It combines SVG preparation, raster-to-SVG vectorization, editable project/session state, safe pre-plot checks, G-code export/streaming/replay, optional watercolor station workflows, and a beginner-aware Swing/FlatLaf GUI.
 
 The project has moved past core capability discovery. The active challenge is adoption confidence: can a person outside the primary development context download Gantry, launch it, complete the guided mock first plot, and report useful friction without verbal coaching?

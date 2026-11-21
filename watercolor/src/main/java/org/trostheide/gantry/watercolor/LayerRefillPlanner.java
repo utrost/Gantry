@@ -10,10 +10,8 @@ import org.trostheide.gantry.model.command.RefillCommand;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Rebuilds the automatic refill commands for an already imported layer. */
+/** Rebuilds automatic refills while preserving the executable pen-down path. */
 public final class LayerRefillPlanner {
-    private static final double EPSILON = 1e-9;
-
     private LayerRefillPlanner() { }
 
     public static Layer configure(Layer layer, String stationId, double maxDrawDistance) {
@@ -24,66 +22,86 @@ public final class LayerRefillPlanner {
         if (maxDrawDistance < 0 || !Double.isFinite(maxDrawDistance)) {
             throw new IllegalArgumentException("maxDrawDistance must be a finite non-negative value");
         }
-        String targetStation = stationId == null ? "" : stationId.trim();
+        String target = stationId == null ? "" : stationId.trim();
         List<Command> source = layer.commands().stream()
                 .filter(command -> !(command instanceof RefillCommand)).toList();
-        List<Command> result = new ArrayList<>();
+        if (maxDrawDistance == 0 || source.stream().noneMatch(c -> c instanceof DrawCommand d && !d.points.isEmpty())) {
+            return new Layer(layer.id(), target, layer.color(), maxDrawDistance, dipBehavior, source);
+        }
         int nextId = layer.commands().stream().mapToInt(Command::getId).max().orElse(0) + 1;
-        boolean hasDrawing = source.stream().anyMatch(DrawCommand.class::isInstance);
-        if (maxDrawDistance > 0 && hasDrawing) {
-            result.add(new RefillCommand(nextId++, targetStation));
+        Route route = new Route(target, maxDrawDistance, nextId);
+        for (Command command : source) {
+            if (command instanceof MoveCommand move) {
+                route.current = new Point(move.x, move.y);
+                route.needsReturn = false;
+                route.commands.add(move);
+            } else if (command instanceof DrawCommand draw) {
+                route.draw(draw);
+            } else {
+                route.commands.add(command);
+            }
+        }
+        return new Layer(layer.id(), target, layer.color(), maxDrawDistance, dipBehavior, route.commands);
+    }
+
+    /** Tracks actual DRAW endpoints, including the segment from the preceding MOVE. */
+    private static final class Route {
+        final List<Command> commands = new ArrayList<>();
+        final String station;
+        final double limit, tolerance;
+        int nextId;
+        Point current = new Point(0, 0);
+        double painted;
+        boolean needsReturn = true;
+
+        Route(String station, double limit, int nextId) {
+            this.station = station;
+            this.limit = limit;
+            this.tolerance = Math.min(1e-9, limit * 1e-6);
+            this.nextId = nextId;
+            commands.add(new RefillCommand(this.nextId++, station));
         }
 
-        double painted = 0;
-        for (Command command : source) {
-            if (!(command instanceof DrawCommand draw) || maxDrawDistance == 0 || draw.points.size() < 2) {
-                result.add(command);
-                continue;
-            }
+        void draw(DrawCommand draw) {
+            if (draw.points.isEmpty()) { commands.add(draw); return; }
+            if (needsReturn) returnToArtwork();
             List<Point> segment = new ArrayList<>();
-            Point current = draw.points.get(0);
-            segment.add(current);
-            boolean firstPiece = true;
-            for (int i = 1; i < draw.points.size(); i++) {
-                Point target = draw.points.get(i);
-                double remainingSegment = distance(current, target);
-                while (remainingSegment > EPSILON && painted + remainingSegment > maxDrawDistance + EPSILON) {
-                    double allowance = maxDrawDistance - painted;
-                    if (allowance <= EPSILON) {
-                        result.add(new RefillCommand(nextId++, targetStation));
-                        result.add(new MoveCommand(nextId++, current.x(), current.y()));
-                        painted = 0;
-                        continue;
+            int id = draw.id;
+            for (Point target : draw.points) {
+                double remaining = distance(current, target);
+                while (remaining > tolerance && painted + remaining > limit + tolerance) {
+                    double allowance = limit - painted;
+                    if (allowance > tolerance) {
+                        Point split = new Point(current.x() + (target.x() - current.x()) * allowance / remaining,
+                                current.y() + (target.y() - current.y()) * allowance / remaining);
+                        segment.add(split);
+                        current = split;
                     }
-                    Point split = interpolate(current, target, allowance / remainingSegment);
-                    segment.add(split);
-                    result.add(new DrawCommand(firstPiece ? draw.id : nextId++, segment));
-                    firstPiece = false;
-                    result.add(new RefillCommand(nextId++, targetStation));
-                    result.add(new MoveCommand(nextId++, split.x(), split.y()));
-                    segment = new ArrayList<>();
-                    segment.add(split);
+                    // Submit all buffered artwork before leaving for the pot, even at an exact boundary.
+                    if (!segment.isEmpty()) {
+                        commands.add(new DrawCommand(id, segment));
+                        id = nextId++;
+                        segment = new ArrayList<>();
+                    }
+                    commands.add(new RefillCommand(nextId++, station));
+                    returnToArtwork();
                     painted = 0;
-                    current = split;
-                    remainingSegment = distance(current, target);
+                    remaining = distance(current, target);
                 }
                 segment.add(target);
-                painted += remainingSegment;
+                painted += remaining;
                 current = target;
             }
-            if (segment.size() > 1) {
-                result.add(new DrawCommand(firstPiece ? draw.id : nextId++, segment));
-            }
+            if (!segment.isEmpty()) commands.add(new DrawCommand(id, segment));
         }
-        return new Layer(layer.id(), targetStation, layer.color(), maxDrawDistance, dipBehavior, result);
+
+        void returnToArtwork() {
+            commands.add(new MoveCommand(nextId++, current.x(), current.y()));
+            needsReturn = false;
+        }
     }
 
     private static double distance(Point a, Point b) {
         return Math.hypot(b.x() - a.x(), b.y() - a.y());
-    }
-
-    private static Point interpolate(Point a, Point b, double fraction) {
-        return new Point(a.x() + (b.x() - a.x()) * fraction,
-                a.y() + (b.y() - a.y()) * fraction);
     }
 }

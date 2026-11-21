@@ -304,9 +304,13 @@ walks each layer, finds the nearest paint station to the layer's `color`
 (CIELAB distance via `ColorUtil`), and returns a new `ProcessorOutput` with each
 layer's `stationId` (and its `RefillCommand`s) rewritten to that station.
 `LayerRefillPlanner` applies explicit layer station/distance/pattern settings and
-rebuilds refill commands, splitting drawing segments at the configured distance.
-`PaintStation` describes a physical pot (id, colour, location, dip depth, etc.).
-Nothing else depends on `watercolor`, so pen-only builds ignore it entirely.
+rebuilds refills from actual MOVE/DRAW endpoints, flushing pending ink before
+station visits and returning to the interrupted artwork point. Single-endpoint
+DRAWs and initial origin returns are explicit.
+`PaintStation` carries id, color and behavior; its shared rinse identity rule keeps
+water/cleaning pots out of paint matching. GUI/CLI callers retain behavior metadata.
+App `StationConfig` carries physical station geometry, timing and reserved depth.
+Pen-only jobs use zero refill distance and skip optional station preparation.
 
 ---
 

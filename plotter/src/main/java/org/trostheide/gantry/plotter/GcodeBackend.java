@@ -733,6 +733,7 @@ public class GcodeBackend implements PlotterBackend {
     private void awaitFreshIdle(long timeoutSeconds) {
         long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(timeoutSeconds);
         while (true) {
+            checkIdleWait(deadline);
             long observedRevision;
             synchronized (stateLock) {
                 observedRevision = stateRevision;
@@ -750,6 +751,7 @@ public class GcodeBackend implements PlotterBackend {
             }
             synchronized (stateLock) {
                 while (stateRevision <= observedRevision) {
+                    checkIdleWait(deadline);
                     long remaining = deadline - System.nanoTime();
                     if (remaining <= 0) {
                         throw new GcodeBackendException(
@@ -763,10 +765,24 @@ public class GcodeBackend implements PlotterBackend {
                                 "Interrupted while waiting for pen-up motion to finish", e);
                     }
                 }
+                checkIdleWait(deadline);
                 if (machineState == MachineState.IDLE) {
                     return;
                 }
             }
+            // Bound realtime polling while motion is active; do not flood the serial link.
+            sleepQuietly(50);
+        }
+    }
+
+    private void checkIdleWait(long deadline) {
+        throwIfFailed();
+        if (Thread.currentThread().isInterrupted()) {
+            throw new GcodeBackendException("Interrupted while waiting for GRBL Idle during homing",
+                    new InterruptedException());
+        }
+        if (System.nanoTime() >= deadline) {
+            throw new GcodeBackendException("Timed out waiting for GRBL Idle during homing");
         }
     }
 
