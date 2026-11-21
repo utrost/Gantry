@@ -5,11 +5,11 @@ import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 /**
- * A refill station's position, dip depth, refill behavior and (for watercolor) paint colour.
+ * A refill station's position, reserved dip depth, refill behavior and paint colour.
  *
  * @param x station X in mm.
  * @param y station Y in mm.
- * @param zDown dip depth (Z-axis machines only; informational on servo setups).
+ * @param zDown reserved depth for custom patterns; built-ins use the normal machine pen-down height.
  * @param behavior "simple_dip" (two dips using the machine's default pen heights),
  *                 "dip_swirl" (dip, then swirl the brush in a
  *                 circle of {@code swirlRadius} before lifting), or "rinse" (a water/clean pot

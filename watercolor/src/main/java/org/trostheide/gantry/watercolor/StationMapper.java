@@ -31,6 +31,7 @@ public final class StationMapper {
         String best = null;
         double bestDistance = Double.MAX_VALUE;
         for (PaintStation station : stations) {
+            if (station.isRinse()) continue;
             double d = ColorUtil.distance(layerColorHex, station.colorHex());
             if (d < bestDistance) {
                 bestDistance = d;

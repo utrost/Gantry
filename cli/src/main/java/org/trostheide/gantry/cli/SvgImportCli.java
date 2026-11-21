@@ -194,7 +194,7 @@ public final class SvgImportCli {
                 List<PaintStation> stations = new ArrayList<>();
                 for (Map.Entry<String, CliBatchConfig.Station> entry : batch.stations.entrySet()) {
                     if (entry.getValue().color != null) {
-                        stations.add(new PaintStation(entry.getKey(), entry.getValue().color));
+                        stations.add(new PaintStation(entry.getKey(), entry.getValue().color, entry.getValue().behavior));
                     }
                 }
                 output = StationMapper.assignByColor(output, stations);

@@ -250,9 +250,16 @@ final class DocumentFileWorkflow {
     private void loaded(boolean preservePagePlacement){clearProjectPath();actions.resetReplot().run();visualization.loadFromOutput(session.currentOutput());
         if(preservePagePlacement)visualization.setSuppressAlignment(true);else visualization.setContentMotorMin(0,0);
         session.setPlacement(visualization.placement());actions.refresh().run();}
-    private ProcessorOutput map(ProcessorOutput output){List<PaintStation>s=stations();return s.isEmpty()?output:StationMapper.assignByColor(output,s);}
-    private List<PaintStation> stations(){List<PaintStation> result=new ArrayList<>();for(Map.Entry<String,StationConfig> e:actions.config().get().stations.entrySet())
-        if(e.getValue().color()!=null&&!e.getValue().color().isBlank())result.add(new PaintStation(e.getKey(),e.getValue().color()));return result;}
+    private ProcessorOutput map(ProcessorOutput output) {
+        List<PaintStation> stations = new ArrayList<>();
+        for (Map.Entry<String, StationConfig> entry : actions.config().get().stations.entrySet()) {
+            StationConfig station = entry.getValue();
+            if (station.color() != null && !station.color().isBlank()) {
+                stations.add(new PaintStation(entry.getKey(), station.color(), station.behavior()));
+            }
+        }
+        return stations.isEmpty() ? output : StationMapper.assignByColor(output, stations);
+    }
     private JFileChooser chooser(String description,String...ext){JFileChooser c=new JFileChooser();String d=actions.config().get().lastDirectory;
         if(d!=null&&!d.isBlank()){File f=new File(d);if(f.isDirectory())c.setCurrentDirectory(f);}c.setFileFilter(new javax.swing.filechooser.FileNameExtensionFilter(description,ext));return c;}
     private void remember(File file){File p=file.getAbsoluteFile().getParentFile();if(p==null)return;actions.config().get().lastDirectory=p.getAbsolutePath();

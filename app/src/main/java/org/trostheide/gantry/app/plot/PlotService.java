@@ -9,6 +9,7 @@ import org.trostheide.gantry.model.command.DrawCommand;
 import org.trostheide.gantry.model.command.MoveCommand;
 import org.trostheide.gantry.model.command.RefillCommand;
 import org.trostheide.gantry.plotter.PlotterBackend;
+import org.trostheide.gantry.watercolor.PaintStation;
 
 import java.util.List;
 import java.util.Map;
@@ -17,7 +18,7 @@ import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
 /**
- * In-process port of {@code driver.py}'s plot orchestration: applies the
+ * In-process plot orchestration: applies the
  * coordinate transform/alignment pipeline to each command, soft-clamps to the
  * machine bed, drives a {@link PlotterBackend}, and performs station refills.
  *
@@ -697,8 +698,7 @@ public class PlotService {
     public static StationConfig rinseStation(Map<String, StationConfig> stations) {
         for (Map.Entry<String, StationConfig> e : stations.entrySet()) {
             StationConfig s = e.getValue();
-            if ("rinse".equals(s.behavior()) || "rinse".equalsIgnoreCase(e.getKey())
-                    || "water".equalsIgnoreCase(e.getKey())) {
+            if (PaintStation.isRinse(e.getKey(), s.behavior())) {
                 return s;
             }
         }

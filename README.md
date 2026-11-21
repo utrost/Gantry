@@ -51,13 +51,17 @@ Watch the [one-minute mock walkthrough](docs/demos/Gantry-first-plot-mock.mp4):
 actual app screens show import, preview, the pre-plot checklist, pen confirmation,
 and completion. This captioned walkthrough simulates plotting; no hardware moves.
 
-RC13 packages the current software fixes and refreshed offline guides. Existing
+RC13 packages the coordinate, preview and estimate fixes and refreshed offline guides. Existing
 calibrated profiles keep their mapping; upright migration requires explicit review
 and new pen-up direction/frame checks. See the
 [candidate evidence](docs/release-results/1.0.0-rc.13.md),
 [operator worksheet](docs/release-results/1.0.0-rc.13-operator.md) and
 [current software verification](docs/release-results/2026-11-21-prepared-route.md).
 The held RC12 draft remains unchanged and predates these fixes.
+
+Later development fixes watercolor refill geometry, rinse-pot color mapping,
+station nudges and homing fault waits. These fixes are absent from RC13 downloads;
+see the [fresh audit](docs/release-results/2026-11-21-watercolor-homing.md).
 
 
 ## Start here
