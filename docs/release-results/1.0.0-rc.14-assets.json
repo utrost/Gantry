@@ -1,0 +1,69 @@
+{
+  "version": "1.0.0-rc.14",
+  "sourceCommit": "4311a8000ca86239802269e738842e60003930a8",
+  "tag": "v1.0.0-rc.14",
+  "draft": false,
+  "prerelease": true,
+  "releaseId": 454324530,
+  "releaseUrl": "https://github.com/utrost/Gantry/releases/tag/untagged-955242c7ba6fd5d8b9ca",
+  "tagBuild": "https://github.com/utrost/Gantry/actions/runs/45005531703",
+  "automatedAssetVerification": "PASS",
+  "debianVersion": "1.0.14",
+  "checksummedAssets": 8,
+  "assets": [
+    {
+      "name": "Gantry-1.0.0-rc.14-docs.zip",
+      "bytes": 307277,
+      "sha256": "12fb319fc175fe9e41b8be565725ee67a78a04e62ee3abad5cd3eab2bf485e02",
+      "assetId": 778487985
+    },
+    {
+      "name": "Gantry-1.0.0-rc.14-linux-x64.deb",
+      "bytes": 100198804,
+      "sha256": "590e51f0847167870df497712b9151f88217fa783ce0bb1980e6733a9be653ff",
+      "assetId": 778487986
+    },
+    {
+      "name": "Gantry-1.0.0-rc.14-windows-x64.msi",
+      "bytes": 120316388,
+      "sha256": "151933b5cfca063eea03ca296069ef17e7c35e20d6c466f3830a45fee8db1b1a",
+      "assetId": 778487991
+    },
+    {
+      "name": "Gantry-1.0.0-rc.14.jar",
+      "bytes": 34630636,
+      "sha256": "e2b139838a7ccf9e097e18b0cae11921a19c2e7ba083616c96020af21579e171",
+      "assetId": 778487989
+    },
+    {
+      "name": "Gantry-CLI-1.0.0-rc.14.jar",
+      "bytes": 33701852,
+      "sha256": "7904e786c70025da719956233fa66b3d660974b0f647c4712b031a5236181c97",
+      "assetId": 778487983
+    },
+    {
+      "name": "LICENSE",
+      "bytes": 35184,
+      "sha256": "e0eedba615d5cd1b986afb6c5b3a4b1ae33713e7e9dc74d19daec5e3221f9d2e",
+      "assetId": 778487988
+    },
+    {
+      "name": "README.md",
+      "bytes": 2430,
+      "sha256": "d6ea1c17cdb827f3113bbff350aeb1bb23b5adadad155f65235f15fe2a47a3d4",
+      "assetId": 778487982
+    },
+    {
+      "name": "SHA256SUMS",
+      "bytes": 704,
+      "sha256": "f6fc6d28bba1839b539f1ebebecfa0fc6ee6c36b934fc34cc509d9d9037717d6",
+      "assetId": 778487984
+    },
+    {
+      "name": "VERSION.txt",
+      "bytes": 20,
+      "sha256": "02a60ac784cda3310eac6fdd3f89faa166e110c846058cec61c298a68d954390",
+      "assetId": 778487987
+    }
+  ]
+}
