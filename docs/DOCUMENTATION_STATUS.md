@@ -1,6 +1,6 @@
 # Documentation status — 2026-11-22
 
-RC14 is the current testing candidate and includes all post-RC13 software fixes:
+RC14 is the current published testing prerelease and includes all post-RC13 software fixes:
 watercolor/stations/homing, completion barriers and serial simulation, read-only
 firmware/reference review, nine-point placement and reviewed pen-only partial restart.
 See the [candidate record](release-results/1.0.0-rc.14.md) for publication and

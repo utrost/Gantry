@@ -50,7 +50,7 @@ The Maven reactor contains eight modules:
 - `cli` — headless SVG/image batch conversion and optional G-code output.
 - `app` — Swing GUI, orchestration, persistence, recovery, history, visualization, and help surface.
 
-RC14 is the current testing candidate. Its exact-tag/native/asset evidence
+RC14 is the current published testing prerelease. Its exact-tag/native/asset evidence
 is in the [candidate record](release-results/1.0.0-rc.14.md). All post-RC13 fixes are included in RC14. CI verifies Java 17/21, GUI workflows
 and Windows/Linux installers; physical and participant gates remain separate.
 
@@ -65,7 +65,7 @@ Active product roadmap:
 
 Active adoption roadmap:
 
-- Native Windows MSI/Linux DEB releases and portable GUI/CLI JARs are published through GitHub Releases; RC14 is the current testing candidate.
+- Native Windows MSI/Linux DEB releases and portable GUI/CLI JARs are published through GitHub Releases; RC14 is the current published testing prerelease.
 - Mock first-plot video, screenshots, offline help and SVG samples ship with the documented workflow.
 - Windows 11 / iDraw H A1 RC2 hardware success is recorded; current changed behavior still needs physical confirmation.
 - External tester recruitment, structured novice evidence and additional known-good setups remain adoption work.

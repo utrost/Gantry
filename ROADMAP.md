@@ -15,7 +15,7 @@ GRBL cancellation/error handling. Its machine-aware preview also shows ordered
 layers with source pen colours, visibility, and physical nib widths that remain
 constant when artwork is scaled.
 
-RC14 is the current testing candidate, combining the RC13 coordinate/preview/timing
+RC14 is the current published testing prerelease, combining the RC13 coordinate/preview/timing
 baseline with station/homing corrections, completion barriers, serial simulation
 and #113–#115 firmware review, placement anchors and reviewed partial restart.
 The release process verifies Windows/Linux installers and upgrades. Physical,
@@ -33,7 +33,7 @@ Beginner usability is closed as described in [`docs/USABILITY.md`](docs/USABILIT
 | 2 | Roadmap reconciliation | Active plan is concise; historical phase diary is explicitly deprecated and archived | Complete |
 | 3 | Project/session persistence | `.gantry` files preserve commands, placement, selected layers, passes, and source/vectorizer provenance; command JSON is clearly a flattened interchange export | Complete |
 | 4 | Undo/recovery | Multi-level undo/redo covers model edits; dirty state, close protection, and recovery autosave protect unsaved work | Complete for model/project state and artwork placement edits |
-| 5 | Release readiness | Non-SNAPSHOT version, repeatable release artifacts, checksums, and a recorded acceptance template/workflow | RC14 testing candidate; automated installer checks recorded per candidate; RC2 hardware report retained; current physical and external-user acceptance pending |
+| 5 | Release readiness | Non-SNAPSHOT version, repeatable release artifacts, checksums, and a recorded acceptance template/workflow | RC14 testing prerelease published; automated installer checks pass; RC2 hardware report retained; current physical and external-user acceptance pending |
 | 6 | Focused polish | Full SVG colour discovery for hatch overrides, accurate travel accounting/labeling, and vectorizer crop restoration | Complete |
 | 7 | CLI batch artifacts | Post-import optimize, shared config/station mapping, and optional G-code output work headlessly with end-to-end tests | Complete |
 | 8 | Exact-job history | Re-plot uses an immutable prepared-job snapshot; recent successful jobs persist and can be reopened/replotted | Complete |
