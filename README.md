@@ -14,7 +14,7 @@ The machine-aware Live View previews the configured workspace, final artwork
 placement, assigned pen colour, plot inclusion, plot order, and physical nib width
 before paper or ink is committed.
 
-![Gantry workspace with three colour layers](docs/images/workspace-layer-preview.png)
+![Dark-mode Gantry workspace with three colour layers](docs/images/workspace-layer-preview.png)
 
 [More screenshots and capture details](docs/images/README.md) ·
 [Documentation audit](docs/DOCUMENTATION_STATUS.md)
