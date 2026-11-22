@@ -44,6 +44,9 @@ final class WizardDialog extends JDialog {
     private final JLabel skippedLabel = new JLabel();
     private final javax.swing.JTextArea exitNotice = WorkspaceStyle.note("");
     private final JPanel buttons = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+    private final JPanel firmwareReviewRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
+    private final JButton firmwareReviewButton = new JButton("Review firmware limits...");
+    private java.util.function.BooleanSupplier firmwareReviewSupported = () -> false;
 
     WizardDialog(Window owner, String title, List<WizardStep> steps) {
         super(owner, title, ModalityType.APPLICATION_MODAL);
@@ -87,7 +90,10 @@ final class WizardDialog extends JDialog {
         notices.setBorder(BorderFactory.createEmptyBorder(0, 14, 0, 14));
         skippedLabel.setVisible(false);
         exitNotice.setVisible(false);
+        firmwareReviewRow.add(firmwareReviewButton);
+        firmwareReviewRow.setVisible(false);
         notices.add(skippedLabel);
+        notices.add(firmwareReviewRow);
         notices.add(exitNotice);
         footer.add(notices, BorderLayout.NORTH);
         footer.add(buttons, BorderLayout.SOUTH);
@@ -137,12 +143,22 @@ final class WizardDialog extends JDialog {
         if (operationTimer != null) operationTimer.stop();
         operationTimer=new javax.swing.Timer(100,e->{
             boolean active=operationBusy.getAsBoolean();
+            firmwareReviewRow.setVisible(firmwareReviewSupported.getAsBoolean());
+            firmwareReviewButton.setEnabled(!closePending && !active && connected.getAsBoolean());
             stopButton.setEnabled(active); backBtn.setEnabled(!closePending && !active && current>0);
             skipBtn.setEnabled(!closePending && !active); updateNextEnabled();
             updateMotionAvailability(cardPanel,!connected.getAsBoolean()?"Connect a plotter first.":active?"Wait for the current operation to finish, or use Stop.":null);
             if(closePending && !active)dispose();
         });
         operationTimer.start();
+    }
+
+    /** Keep reference review reachable when this modal wizard owns the connection. */
+    void firmwareReview(java.util.function.BooleanSupplier supported,
+                        java.util.function.Consumer<java.awt.Component> review) {
+        firmwareReviewSupported = supported;
+        firmwareReviewButton.addActionListener(event -> review.accept(this));
+        firmwareReviewRow.setVisible(supported.getAsBoolean());
     }
 
     private static void updateMotionAvailability(java.awt.Container parent,String reason) {

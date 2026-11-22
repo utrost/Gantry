@@ -25,7 +25,7 @@ final class BackendConnectionCoordinator {
     synchronized void toggle(GantryConfig config,boolean plotting){
         if(connecting){listener.log("Connection attempt already in progress.");return;}
         if(!jobs.isConnected()){PlotterBackend candidate=createBackend(config, listener::log);
-            if(candidate instanceof GcodeBackend g){g.setPositionCallback(listener::position);g.setSpeedCallback(listener::speed);g.setSentCommandCallback(listener::sent);g.setStateCallback(listener::machineState);}
+            if(candidate instanceof GcodeBackend g){g.requireSafetyReview(true);g.setPositionCallback(listener::position);g.setSpeedCallback(listener::speed);g.setSentCommandCallback(listener::sent);g.setStateCallback(listener::machineState);}
             connecting=true;listener.connectionState(true,false,false);
             new Thread(()->{boolean ok=false;try{ok=jobs.connect(candidate);}catch(RuntimeException failure){
                 listener.log("ERROR: Connection failed: "+failure.getMessage());candidate.disconnect();}

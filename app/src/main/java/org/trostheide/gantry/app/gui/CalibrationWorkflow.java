@@ -20,10 +20,14 @@ final class CalibrationWorkflow {
     private final Runnable save;
     private final BooleanSupplier busy;
     private final Runnable stop;
+    private final BooleanSupplier firmwareReviewSupported;
+    private final Consumer<Component> firmwareReview;
 
     CalibrationWorkflow(Window owner, GantryConfig config, BooleanSupplier connected, Runnable connect,
             Consumer<Consumer<PlotterBackend>> backendAction, Consumer<String> logger,
-            Runnable apply, Runnable save, BooleanSupplier busy, Runnable stop) {
+            Runnable apply, Runnable save, BooleanSupplier busy, Runnable stop,
+            BooleanSupplier firmwareReviewSupported, Consumer<Component> firmwareReview) {
+        this.firmwareReviewSupported=firmwareReviewSupported;this.firmwareReview=firmwareReview;
         this.busy=busy;this.stop=stop;this.owner=owner; this.config=config; this.connected=connected; this.connect=connect;
         this.backendAction=backendAction; this.logger=logger; this.apply=apply; this.save=save;
     }
@@ -57,7 +61,12 @@ final class CalibrationWorkflow {
                         + "<i>Machine &gt; Calibrate Axes…</i>.</html>")));
 
         WizardDialog wizard = new WizardDialog(owner, "Calibrate Axes", steps);
+        // Direction observation rows and the persistent reference control must fit
+        // together on an ordinary 1024 × 768 desktop.
+        wizard.setSize(680, 600);
+        wizard.setLocationRelativeTo(owner);
         wizard.operationControls(busy,stop,connected);
+        wizard.firmwareReview(firmwareReviewSupported,firmwareReview);
         connectStep.attachOwner(wizard);
         wizard.setVisible(true);
         if (wizard.finishedSuccessfully()) {

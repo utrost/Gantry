@@ -43,8 +43,9 @@ public record GantryProject(int formatVersion, ProcessorOutput output,
     }
 
     public record Placement(double offsetX, double offsetY, double scale,
-                            int rotation, boolean mirror, boolean suppressAlignment, double stretchX,double stretchY) {
-        public Placement { stretchX=stretchX>0&&Double.isFinite(stretchX)?stretchX:1;stretchY=stretchY>0&&Double.isFinite(stretchY)?stretchY:1; }
+                            int rotation, boolean mirror, boolean suppressAlignment, double stretchX,double stretchY,int anchor) {
+        public Placement { if(anchor<0||anchor>8)throw new IllegalArgumentException("Unknown placement reference");stretchX=stretchX>0&&Double.isFinite(stretchX)?stretchX:1;stretchY=stretchY>0&&Double.isFinite(stretchY)?stretchY:1; }
+        public Placement(double x,double y,double scale,int rotation,boolean mirror,boolean suppress,double stretchX,double stretchY){this(x,y,scale,rotation,mirror,suppress,stretchX,stretchY,0);}
         public Placement(double x,double y,double scale,int rotation,boolean mirror,boolean suppress){this(x,y,scale,rotation,mirror,suppress,1,1);}
         public static Placement identity() { return new Placement(0, 0, 1, 0, false, false); }
     }

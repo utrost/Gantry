@@ -11,7 +11,10 @@ final class WorkspaceChecks extends JPanel {
     private final List<JCheckBox> checks = List.of(new JCheckBox("Pen installed and lift checked"),
             new JCheckBox("Paper secured; bed and frame clear"), new JCheckBox("Correct origin, size and pen layers"));
     private final Runnable changed;
-    private boolean automaticPass;
+    private boolean automaticPass,firmwareReviewed=true;
+    private final JButton firmwareReview=new JButton("Review firmware limits...");
+    void setFirmwareReviewAction(Runnable action){firmwareReview.addActionListener(e->action.run());}
+    void setFirmwareReviewState(boolean supported,boolean reviewed){firmwareReview.setVisible(supported);firmwareReviewed=!supported||reviewed;}
     private final JButton frameButton;
     JButton frameButton(){return frameButton;}
     private final List<JButton> motionControls = new java.util.ArrayList<>();
@@ -22,7 +25,7 @@ final class WorkspaceChecks extends JPanel {
     }
     WorkspaceChecks(Runnable home,Runnable frame,Runnable penUp,Runnable overlap,Runnable changed) {
         super();setBorder(BorderFactory.createEmptyBorder(10,12,10,12));this.changed=changed;setLayout(new BoxLayout(this,BoxLayout.Y_AXIS));
-        add(WorkspaceStyle.heading("Review this plot"));add(automatic);add(bounds);
+        add(WorkspaceStyle.heading("Review this plot"));add(automatic);add(bounds);firmwareReview.setVisible(false);add(firmwareReview);
         add(WorkspaceStyle.button("Analyze ink overlap...", overlap));
         add(WorkspaceStyle.note("Machine checks"));
         addMotion(WorkspaceStyle.button("Home machine…",home));
@@ -34,9 +37,10 @@ final class WorkspaceChecks extends JPanel {
         for(JCheckBox c:checks){c.setAlignmentX(LEFT_ALIGNMENT);c.addActionListener(e->changed.run());add(c);}
     }
     void update(boolean hasArtwork,boolean selection,boolean connected,boolean idle,boolean busy,String summary){
-        automaticPass=hasArtwork&&selection&&connected&&idle&&!busy;
+        automaticPass=hasArtwork&&selection&&connected&&idle&&!busy&&firmwareReviewed;
+        firmwareReview.setEnabled(connected&&idle&&!busy);
         automatic.setText("<html><b>Automatic checks</b><br>"+WorkspaceStyle.escape(summary)+"<br>"+
-                (automaticPass?"✓ Drawing, layers and idle connection available":"Review drawing, selected layers and idle connection")+"</html>");
+                (automaticPass?"✓ Drawing, layers and idle connection available":"Review drawing, selected layers, idle connection and firmware/reference review")+"</html>");
         WorkspaceStyle.status(automatic,automaticPass?"Gantry.success":"Label.foreground");
         for(JCheckBox c:checks)c.setEnabled(automaticPass);
     }

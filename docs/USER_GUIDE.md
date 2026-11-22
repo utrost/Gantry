@@ -636,7 +636,7 @@ After import, the drawing appears in the visualisation panel.
 | **Rotate 90°** | Rotate the drawing 90° clockwise |
 | **Mirror** | Flip horizontally |
 | **Reset Position** | Return to the canvas-alignment position from Settings |
-| **X / Y (mm from origin) + Set** | Place the drawing precisely: the entered values become the position of the drawing's bounding-box corner nearest the machine origin. The fields also update live as you drag. |
+| **X / Y (mm from origin) + Set** | Place the drawing precisely: the entered values become the selected reference point of the placed drawing's bounding box. The fields also update live as you drag. |
 
 Dragging always follows the pointer's screen direction, including after the drawing
 has been rotated or mirrored; those artwork transforms do not rotate or reverse the
@@ -671,6 +671,23 @@ a new refill station at the clicked bed position — see [Placing refill station
 is left to plot or export) plus the same **Reset Position / Rotate 90° / Mirror**
 actions, reachable directly on the canvas. The drawing-related items are greyed out
 when no drawing is loaded; **Add station here** and **Reset View** are always available.
+
+### Nine-point placement references
+
+Development after RC13 adds **Reference** under Position & Size for the whole
+drawing or selected artwork. Choose X minimum/middle/maximum combined with Y
+minimum/middle/maximum, including Center. These are points of the existing placed
+DRAW vertex bounding box in controller work coordinates; rotation uses the new
+axis-aligned bounding box. They do not include travel, parking or station pots.
+The purple cross marks the selected point. X/Y show its work coordinates.
+
+Changing Reference alone does not move anything. Numeric X/Y moves that point;
+resize, Rotate 90° and Mirror retain it. A size/rotation that cannot fit while
+retaining the reference is rejected; reposition first or use a smaller size.
+Ordinary translation retains bed clamping. The selector, placement and edits
+participate in Undo/Redo, unsaved/recovery state and project save/reopen. Older
+projects keep the previous minimum-X/minimum-Y reference and unchanged placement.
+Preview, reviewed SVG and executable geometry use the same placement.
 
 ### Hatch-filling a region (click to fill)
 
@@ -1016,7 +1033,7 @@ for them to be accurate. Disable the checkbox to jog without clamping.
 
 ### Raw G-code
 
-Type any G-code command in the text field and press Enter to send it directly.
+Type a supported command in the text field and press Enter. Development after RC13 restricts GUI GRBL raw motion to reviewed absolute millimetre XY and configured pen commands. Unsupported modes fail, and explicit origin/settings writes invalidate reference review; see the firmware/reference section below.
 
 ---
 
@@ -1350,3 +1367,92 @@ of physical performance. It has no physical endstops, acceleration, actuator or
 ink model. See the [backend contract](BACKEND_CONTRACT.md) and
 [verification record](release-results/2026-11-21-completion-serial-simulator.md).
 These additions are source changes after RC13 and are absent from its downloads.
+
+## Firmware limits and machine reference (development after RC13)
+
+GUI GRBL connections, including **Serial GRBL simulator**, require **Machine >
+Review firmware limits...** before XY moves. The Check view offers the same action.
+It reads acknowledged `$130/$131` travel and `$110/$111` feed limits without
+writing firmware settings. Z-axis pen mode also needs a valid `$112`. Missing,
+unsupported, nonfinite or invalid values block review with an explanation.
+
+The dialog shows your configured profile, feeds and reported WCO beside firmware
+limits. Select the controller's actual machine-coordinate ranges explicitly:
+each axis is either −travel…0 or 0…travel. Do not infer this from the artwork,
+origin corner or homing direction mask. Confirm the actual machine reference and
+paper/work origin. Firmware limits shifted by WCO are intersected with your
+existing profile; smaller calibrated dimensions remain unchanged. Configured
+feeds over the conservative smaller XY maximum are rejected. Review Pen & Speeds
+manually; no automatic cap or enlargement is applied.
+
+Calibration and station-test wizards keep a **Review firmware limits...** control
+inside their modal window for GRBL connections. This remains reachable after
+connecting there, Home, Stop or calibration setting writes; no XY gate is bypassed.
+
+Starting a fresh firmware read invalidates the previous approval; cancelling or
+failing that read/review leaves XY blocked until a new review is approved.
+
+Firmware reference review also requires an explicit `$13=0` (millimetre status
+and WCO reporting). Missing/inch/invalid report units are unsupported and block
+approval; Gantry does not change them automatically. The actual reported work
+position must fit the reviewed envelope. GRBL distinguishes report units from
+command units: [upstream configuration](https://github.com/gnea/grbl/wiki/Grbl-v1.1-Configuration#13---report-inches-boolean).
+
+**Home** with switches runs `$H`. A power-on/reference position is not proof that
+homing occurred. Paper/work origin is the registration used for drawing, and
+returning to work origin only commands X0/Y0. Reading settings proves none of
+these physical facts. Stop, reset, alarm, disconnect, WCO or relevant profile/feed
+changes invalidate the review; after suspected lost steps use **Machine > Mark
+reference uncertain**, then establish and review the reference again. Home itself
+requires a new review afterward. Disconnect skips XY parking while unreviewed.
+
+Drawing, frame, travel and applicable station/swirl clearance must fit the reviewed
+firmware/profile intersection before motion starts. Existing profile clipping is
+preserved; firmware boundaries reject rather than silently adding more clipping.
+Expert raw commands accept reviewed absolute millimetre XY and configured pen
+commands. Unsupported motion/modal syntax is rejected. Explicit origin/settings
+writes invalidate reference review. The lightweight mock and file export do not
+establish actual firmware limits or physical reference.
+
+## Reviewed partial restart and reverse (development after RC13)
+
+**File > Review partial restart...** opens the saved prepared pen job, or captures
+the current prepared selection if none exists. Normal pen plotting records a
+checkpoint before motion. After Stop, alarm or application loss, reopen with the
+original machine/profile. Reopen the original project unchanged, or clear the
+current artwork to review the stored job. Changed geometry, placement, selected
+layers/order, passes, pens or machine settings block incompatible reuse.
+
+Click a path or its exact layer/command/pass occurrence in the list. Purple marks
+the selected start, muted paths are skipped. Forward traverses selected → end.
+Reverse traverses selected → first, reversing each stroke's vertices and layer/
+pass traversal. Every retained stroke starts with an explicit pen-up positioning
+move. The subset retains its original controller coordinates; it is not centered
+or rotated again. Each layer still requires its pen confirmation.
+
+The dialog separates started/submitted, acknowledged and controller-confirmed
+progress. Acknowledged does not mean physically finished. Only completed layer
+parking barriers confirm prior strokes at the controller. Everything beyond the
+last barrier remains uncertain after Stop or process loss, including a partly
+inked stroke. Inspect the paper and explicitly choose what to replay or skip.
+Controller completion still does not prove ink or paper registration.
+
+Confirm all three reviews: machine/profile mapping and paper/work origin; pens,
+layer order/inclusion and outstanding pass occurrences; uncertainty replay/skip
+choice. OK prepares a read-only partial job and starts nothing. Recheck firmware/
+reference and normal physical checks, then use Start and the pen gates. Cancel
+saves the proposed selection/direction without preparing or starting motion.
+There is no automatic resume, including on startup. Changing the proposal after
+approval requires review again.
+
+Proposals persist beside settings as `restart-proposal.json` (small atomic
+progress updates) and `restart-proposal.json.job.json` (full prepared source and
+identities). Do not edit either. Corruption and write failures are reported;
+**File > Discard restart proposal...** explicitly removes the saved proposal
+without moving hardware. Starting a different unfinished pen job asks before
+replacing it. Saving a project alone does not replace the prepared checkpoint.
+
+Refill commands, automatic refill budgets and inter-layer rinsing block this
+workflow with an explanation. Brush loading, cleaning, drying and color transitions
+need their own restart policy. Normal watercolor plotting remains available.
+See the [software verification and limits](release-results/2026-11-22-firmware-anchors-restart.md).

@@ -99,4 +99,6 @@ Idle establishes controller-reported completion, not a sensor measurement that a
 pen physically lifted. Software evidence closes #111/#112's software scope only.
 Hardware/operator #39/#54/#93, native scaling #43, participant and artwork gates
 remain open. Firmware envelope/origin #113 and placement/restart #114/#115 remain
-separate planned work. Release tags, assets and prior evidence remain unchanged.
+separate planned work at this audit date. They are subsequently implemented in the
+[2026-11-22 delivery](2026-11-22-firmware-anchors-restart.md). Release tags, assets
+and prior evidence remain unchanged.

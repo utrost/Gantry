@@ -92,6 +92,23 @@ public final class GcodeFileReplay {
     private static IOException rejected(int line, String message) { return new IOException("G-code line " + line + ": " + message); }
 
     public static void replay(Plan plan, PlotterBackend backend, Consumer<String> log) throws IOException {
+        backend.validateWorkEnvelope(0,0,0,0);
+        for (String command : plan.commands()) {
+            Matcher words = WORD.matcher(command.toUpperCase(Locale.ROOT).replaceAll("\\s+", ""));
+            Double mode = null, x = null, y = null;
+            while (words.find()) {
+                double value = Double.parseDouble(words.group(2));
+                switch (words.group(1)) {
+                    case "G" -> mode = value;
+                    case "X" -> x = value;
+                    case "Y" -> y = value;
+                    default -> { }
+                }
+            }
+            if (mode != null && (mode == 0 || mode == 1) && x != null && y != null) {
+                backend.validateWorkEnvelope(x, y, x, y);
+            }
+        }
         boolean completed = false;
         Throwable failure = null;
         try {

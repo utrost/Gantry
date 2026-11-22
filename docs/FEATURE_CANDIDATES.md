@@ -265,9 +265,15 @@ findings.
 
 ### Deliberately deferred
 
-- Resume across application restarts: controller/head state recovery is unsafe
+- Automatic physical resume across application restarts: controller/head state recovery is unsafe
   without a proven hardware protocol.
 - Pen pressure/per-stroke feed modeling, automatic safe-Z optimization, AxiDraw,
   and full vector node editing. Tracer capture import may preserve pressure data
   before these machine-expression features exist.
 
+
+Development #115 now supports a narrower reviewed pen-only partial-job proposal
+across restarts, with visual forward/reverse selection, full identity matching,
+explicit uncertainty and fresh reference/registration review. It never restores
+controller state or starts motion automatically; watercolor restart remains
+unsupported. See the [delivery contract](release-results/2026-11-22-firmware-anchors-restart.md).

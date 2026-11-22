@@ -85,6 +85,12 @@ public class GuiAcceptance {
             choose(root.resolve("docs/samples/multi-colour-layers.svg"));
             click(dialog("Open SVG or vector drawing"),"Cancel");
             check(edt(()->project().output().layers().size())==3,"cancelled import preserves drawing");
+            // Anchored rotation now rejects an out-of-bed result instead of drifting
+            // the selected point. Move this corner-aligned import inward first.
+            var edgePlacement=edt(()->project().placement());
+            click(panel,"Rotate 90°");
+            check(edt(()->project().placement().equals(edgePlacement)),"edge rotation rejects without changing placement");
+            edt(()->{findSpinner(panel,"Artwork X in millimetres").setValue(20.0);findSpinner(panel,"Artwork Y in millimetres").setValue(20.0);return null;});
             var originalPlacement=edt(()->project().placement());
             click(panel,"Rotate 90°");await(()->!project().placement().equals(originalPlacement));
             click(panel,"Undo");await(()->project().placement().equals(originalPlacement));

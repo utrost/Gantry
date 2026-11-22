@@ -22,9 +22,13 @@ final class StationTestWorkflow {
     private final Consumer<String> log;
     private final BooleanSupplier busy;
     private final Runnable stop;
+    private final BooleanSupplier firmwareReviewSupported;
+    private final Consumer<Component> firmwareReview;
 
     StationTestWorkflow(GantryConfig config, BooleanSupplier connected,
-            Consumer<Consumer<PlotterBackend>> backendAction, Runnable persist, Consumer<String> log, BooleanSupplier busy, Runnable stop) {
+            Consumer<Consumer<PlotterBackend>> backendAction, Runnable persist, Consumer<String> log, BooleanSupplier busy, Runnable stop,
+            BooleanSupplier firmwareReviewSupported, Consumer<Component> firmwareReview) {
+        this.firmwareReviewSupported=firmwareReviewSupported;this.firmwareReview=firmwareReview;
         this.busy=busy;this.stop=stop;this.config = config; this.connected = connected; this.backendAction = backendAction;
         this.persist = persist; this.log = log;
     }
@@ -43,6 +47,7 @@ final class StationTestWorkflow {
         steps.add(new PanelStep("Done", label("<h3>Test run complete</h3>Finish to save nudged positions.")));
         WizardDialog wizard = new WizardDialog(owner, "Test Color Stations", steps);
         wizard.operationControls(busy,stop,connected);
+        wizard.firmwareReview(firmwareReviewSupported,firmwareReview);
         wizard.setVisible(true);
         if (!wizard.finishedSuccessfully()) return;
         for (StationStep step : stationSteps) config.stations.put(step.name, step.current());

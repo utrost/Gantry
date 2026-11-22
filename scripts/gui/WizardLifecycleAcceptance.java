@@ -104,7 +104,7 @@ public final class WizardLifecycleAcceptance {
         Throwable[] failure = {null};
         SwingUtilities.invokeAndWait(() -> {
             var workflow = new StationTestWorkflow(config, () -> true, action -> action.accept(backend),
-                    () -> persisted.set(true), line -> {}, () -> false, () -> {});
+                    () -> persisted.set(true), line -> {}, () -> false, () -> {}, () -> false, parent -> {});
             int[] stage = {0}, polls = {0};
             Timer driver = new Timer(30, null);
             driver.addActionListener(event -> {

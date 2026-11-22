@@ -1,5 +1,10 @@
 # Gantry project digest — documentation and roadmap
 
+Current source also delivers #113–#115: explicit read-only firmware/work-origin
+review, nine-point placement and persisted reviewed pen-only restart/reverse.
+See the [delivery contract and evidence](release-results/2026-11-22-firmware-anchors-restart.md).
+Published RC13 assets do not contain these additions; physical acceptance remains open.
+
 This digest captures the current shape of Gantry so future documentation and roadmap work can start from the same map. It is a navigation aid, not a substitute for the code or the detailed guides.
 
 ## Current position
@@ -150,7 +155,7 @@ Defer work that expands capability without adoption evidence:
 - new import formats;
 - new backends;
 - full vector editing;
-- restart-resume for machine jobs;
+- unattended/automatic physical resume and watercolor restart; reviewed pen-only partial restart is delivered as #115;
 - plugin architecture;
 - broad UI restyling unrelated to comprehension or safety.
 

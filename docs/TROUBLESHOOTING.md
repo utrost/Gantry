@@ -270,3 +270,44 @@ opened. Its faster simulated execution and synthetic Home do not establish real
 motion, lift, switches or pot clearance. See the [backend contract](BACKEND_CONTRACT.md)
 and [verification](release-results/2026-11-21-completion-serial-simulator.md).
 RC13 downloads do not contain these later source changes.
+
+## Firmware review or XY movement is blocked
+
+Development after RC13 requires a fresh **Machine > Review firmware limits...**
+for GUI GRBL connections, including the serial simulator. Check acknowledged
+`$130/$131/$110/$111`, fresh WCO and an explicit machine-coordinate range for each
+axis; Z pen mode additionally needs `$112`. Unsupported firmware/settings are
+reported rather than guessed. Compare configured feeds to the smaller XY limit;
+change your profile deliberately, never enlarge it merely to dismiss a warning.
+
+Firmware reference review also requires an explicit `$13=0` (millimetre status
+and WCO reporting). Missing/inch/invalid report units are unsupported and block
+approval; Gantry does not change them automatically. The actual reported work
+position must fit the reviewed envelope. GRBL distinguishes report units from
+command units: [upstream configuration](https://github.com/gnea/grbl/wiki/Grbl-v1.1-Configuration#13---report-inches-boolean).
+
+Stop, reset, alarm, disconnect, origin and relevant profile/feed changes invalidate
+review. Establish the actual reference and paper origin again. Home, machine zero,
+work zero and paper registration are different. After suspected lost steps choose
+**Machine > Mark reference uncertain**. See the [operating contract](USER_GUIDE.md#firmware-limits-and-machine-reference-development-after-rc13).
+
+## Partial restart is unavailable or does not match
+
+A saved restart uses the full prepared geometry, inclusion/order, passes, pens and
+machine/profile identity. Restore the original project/profile or clear current
+artwork to review the stored job; no filename/count shortcut bypasses this match.
+Watercolor loading/refill/rinsing is unsupported for partial restart/reverse.
+
+A corrupt checkpoint never resumes. Use **File > Discard restart proposal...**
+only when you intend to abandon that saved proposal. For write failures check
+profile permissions/free space; progress persistence failure stops tracked
+execution. Reopening never moves hardware. Inspect uncertain strokes on paper,
+review selection and all confirmations, then establish reference/checks and Start.
+See [reviewed restart](USER_GUIDE.md#reviewed-partial-restart-and-reverse-development-after-rc13).
+
+## Resizing or rotating keeps being rejected
+
+The selected nine-point reference must stay fixed. If the transformed bounding
+box would leave the bed, the edit is restored rather than moving that point.
+Reposition first or reduce the size. X/Y describe the selected reference, not
+necessarily the nearest corner; changing Reference alone never moves artwork.

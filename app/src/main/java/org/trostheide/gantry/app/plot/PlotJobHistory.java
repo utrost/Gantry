@@ -17,12 +17,16 @@ public final class PlotJobHistory {
     public record PenSnapshot(String id, String name, String color, double widthMm) { }
 
     public record Job(Instant timestamp, ProcessorOutput output, PlotSettings settings,
-                      List<PenSnapshot> pens) {
+                      List<PenSnapshot> pens,PlotSettings referenceMapping,String restartMachineIdentity) {
+        public Job(Instant timestamp,ProcessorOutput output,PlotSettings settings,List<PenSnapshot> pens){this(timestamp,output,settings,pens,null,null);}
+        public PlotSettings reviewSettings(){return copySettings(referenceMapping==null?settings:referenceMapping);}
+        @Override public PlotSettings referenceMapping(){return referenceMapping==null?null:copySettings(referenceMapping);}
         public Job(Instant timestamp, ProcessorOutput output, PlotSettings settings) {
             this(timestamp, output, settings, List.of());
         }
         public Job {
             settings = copySettings(settings);
+            referenceMapping=referenceMapping==null?null:copySettings(referenceMapping);
             pens = pens == null ? List.of() : List.copyOf(pens);
         }
 

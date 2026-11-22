@@ -52,6 +52,11 @@ normal GUI workflows use the production serial backend without opening hardware.
 Layer changes and final success now wait for an explicit completion barrier. See
 the [verification and simulation limits](docs/release-results/2026-11-21-completion-serial-simulator.md);
 these changes are absent from RC13 downloads.
+Development source also adds read-only firmware/work-origin review, nine-point
+placement references and an explicitly reviewed pen-only partial restart/reverse
+workflow. Saved proposals never start motion automatically. See the
+[contracts and verification](docs/release-results/2026-11-22-firmware-anchors-restart.md).
+These additions are absent from RC13 downloads.
 Watch the [one-minute mock walkthrough](docs/demos/Gantry-first-plot-mock.mp4):
 actual app screens show import, preview, the pre-plot checklist, pen confirmation,
 and completion. This captioned walkthrough simulates plotting; no hardware moves.

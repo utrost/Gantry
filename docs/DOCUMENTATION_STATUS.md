@@ -1,4 +1,4 @@
-# Documentation status — 2026-11-21
+# Documentation status — 2026-11-22
 
 RC13 is a public testing prerelease containing the coordinate/preview/estimate fixes and
 matching guides/gallery. Its exact-tag builds and all nine assets are verified. RC12 remains
@@ -13,6 +13,13 @@ guides describe these corrected paths; preserve the release/source distinction.
 The [completion/simulator audit](release-results/2026-11-21-completion-serial-simulator.md)
 adds #111/#112 evidence, supported serial subset and physical boundaries. Settings,
 offline help, testing, backend contract and active roadmap describe these source additions.
+
+The [firmware/anchor/restart audit](release-results/2026-11-22-firmware-anchors-restart.md)
+adds #113–#115 source contracts and a separate actual-GUI evidence set, including
+an actual second JVM after mid-stroke Stop. User/offline help, developer contracts,
+coordinates, troubleshooting and testing describe these additions. The dated
+47-image gallery remains historical; the new feature captures have their own
+[provenance](validation/firmware-anchors-restart/README.md).
 
 | Area | Current state |
 |---|---|

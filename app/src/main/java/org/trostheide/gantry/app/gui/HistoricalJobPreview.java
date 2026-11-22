@@ -16,6 +16,7 @@ final class HistoricalJobPreview extends JPanel {
         canvas.setFlipY(s.flipY);canvas.setPadding(s.paddingX,s.paddingY);canvas.setCanvasAlignment(s.canvasAlign);
         canvas.setRefillStations(s.stations);
         canvas.loadFromOutput(job.output());
+        if(job.referenceMapping()!=null)canvas.setPageProjectionOverride(org.trostheide.gantry.app.plot.MachinePageProjection.from(job.reviewSettings()));
         canvas.setPenWidthsMm(job.pens().stream().map(PlotJobHistory.PenSnapshot::widthMm).toList());
         if(s.alignmentOffsetOverride!=null){canvas.alignOffsetX=s.alignmentOffsetOverride[0];canvas.alignOffsetY=s.alignmentOffsetOverride[1];}
         JPanel header=new JPanel(new BorderLayout());header.add(WorkspaceStyle.heading("Stored job · "+job.timestamp()),BorderLayout.CENTER);
