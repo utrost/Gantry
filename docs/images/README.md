@@ -1,16 +1,23 @@
 # Gantry screenshots — current development
 
-All 47 PNGs were regenerated on 2026-11-22 from the versioned RC14 JAR,
-based on implementation `0912c5b496e054900a95095128ae9c3b3cb40995`.
-Capture JAR SHA-256: `c797e337739f950208fd0ba1b495b3c7d42dc219f50c2b91432ebb6f4c871c85`.
-JDK 21 / Linux / Xvfb, requested/effective scale 1. They render actual Swing
-components with isolated mock profiles. Dark is the default; Light remains
-available. No physical plotter was connected. Root-pane captures exclude native
-borders. These screenshots describe RC14; older release payloads remain unchanged.
+All **40 dark-mode PNGs** were regenerated on 2026-11-22, including seven new
+firmware/reference, placement and partial-restart views. The gallery now contains
+54 images; the 14 Light examples retain their previous captures. Current guides
+use Dark examples. The [capture manifest](capture-manifest.json) records each Dark
+image's dimensions and SHA-256, the source baseline and capture time.
 
-The [60-second mock walkthrough](../demos/Gantry-first-plot-mock.mp4) was regenerated
-from the same JAR: six captioned application states, including the visible terminal
-state. It demonstrates the workflow with no hardware motion.
+Capture JAR: `1.0.0-rc.14`, SHA-256 `c797e337739f950208fd0ba1b495b3c7d42dc219f50c2b91432ebb6f4c871c85`.
+Source baseline: `4880da3161e1a4777559560a5db14b249883afb7` (documentation updates after RC14; application
+implementation unchanged). JDK 21 / Linux / Xvfb, requested/effective scale 1.
+Screenshots render actual Swing components with isolated lightweight-mock or
+serial-simulator profiles. No physical plotter was connected. Root-pane captures
+exclude native borders. Simulated limits and coordinate ranges are examples;
+verify the actual values for your controller.
+
+The [60-second mock walkthrough](../demos/Gantry-first-plot-mock.mp4) retains its
+previous RC14 capture. This refresh updates still images. Published RC14 assets
+and dated validation evidence remain unchanged; new offline-help images are
+included when building the next documentation ZIP or installer.
 
 [Text dialog](workspace/quick-artwork-dialog.png),
 [workspace/export feedback](workspace/quick-artwork.png) and
@@ -59,25 +66,38 @@ can change the physical result. Calibration artwork remains subject to preflight
 - [Pen and speeds](settings-pen-speeds.png)
 - [Watercolor stations](settings-watercolor-stations.png)
 
+## Firmware, placement and partial restart
+
+- [Center reference retained through resize/rotation](workspace/placement-reference.png)
+- [Compact 1024 × 768 workspace](workspace/placement-reference-compact.png)
+- [Read-only firmware and work-origin review](workspace/firmware-review.png)
+- [Review reachable inside calibration](workspace/calibration-firmware-review.png)
+- [Uncertain reverse proposal after mid-stroke Stop](workspace/partial-restart-uncertain.png)
+- [Forward selection and three explicit confirmations after reopening](workspace/partial-restart-reviewed.png)
+- [Completed retained strokes after Start and pen confirmation](workspace/partial-restart-complete.png)
+
+These are fresh serial-simulator captures. The restart examples run in two
+separate application processes; saved uncertainty and selected strokes are real
+application states. Controller simulation does not prove ink, paper registration,
+endstops or native fractional scaling.
+
 ## Reproduce
 
-With Java and a graphical display (or Xvfb):
+With a built application, Java and a graphical display (or Xvfb):
 
 ```bash
-mvn package
-./scripts/capture-screenshots.sh app/target/app-1.0.0.jar
-./scripts/record-demo.sh dist/demo
+./scripts/capture-screenshots.sh app/target/app-1.0.0.jar Dark
 ```
 
-The capture script refreshes the screenshot set. The demo script requires
-ffmpeg and produces the captioned one-minute mock video. Both use temporary
-profiles and application rendering rather than desktop capture. Inspect generated
-images before committing. The full scale/density acceptance matrix is separate:
-`./scripts/test-workspace-layouts.sh` exercises both themes, both densities and
-100%, 125%, 150%, 200% scales. Historical dated audit images are evidence of older
-revisions and are not presented as current screenshots.
+`Dark` refreshes the 40 dark-mode PNGs and preserves Light images. Omit the second
+argument, or use `All`, to regenerate both themes. The script includes the
+firmware/anchor/restart views and uses temporary profiles without physical ports.
+It performs the real simulated Stop and separate-process recovery before copying
+the seven feature images. Review the full-size images and update capture provenance
+when publishing a refreshed gallery.
 
-The dated post-RC13 firmware/reference, placement-anchor and partial-restart
-captures are kept separately with their own [2026-11-22 provenance](../validation/firmware-anchors-restart/README.md).
-The refreshed gallery includes current workspace controls; the separate evidence set
-shows firmware review and partial-restart states in the serial simulator.
+The separate `./scripts/record-demo.sh dist/demo` script regenerates the video and
+requires ffmpeg. The scale/density acceptance matrix is also separate:
+`./scripts/test-workspace-layouts.sh` checks both themes, both densities and requested
+100%, 125%, 150%, 200% scales. Historical dated audit captures retain their original
+[2026-11-22 provenance](../validation/firmware-anchors-restart/README.md).

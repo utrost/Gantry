@@ -9,6 +9,8 @@ remain unchanged.
 
 User/offline guides, first plot, troubleshooting, backend contracts and active
 roadmaps now identify RC14 as the first candidate containing these changes.
+The user guide and offline help now illustrate placement references, firmware review,
+modal calibration access and uncertain/reviewed partial restart with Dark screenshots.
 The [feature audit](release-results/2026-11-22-firmware-anchors-restart.md) preserves
 implementation contracts and separate actual-GUI evidence, including a second JVM
 after mid-stroke Stop. The gallery/video provenance is recorded in
@@ -22,10 +24,10 @@ source identities and results.
 | First plot and support | Source-vs-release distinction, migration troubleshooting, estimate discrepancies |
 | Developer reference | Actual command classes, shared plot-based estimation, controller-space starts, compatibility and regression coverage |
 | Roadmap and adoption | Delivered software separated from native/hardware/participant acceptance and deferred research |
-| Gallery | All 47 actual Swing PNGs regenerated 2026-11-22 from the versioned RC14 JAR; [provenance](images/README.md) |
+| Gallery | 40 fresh Dark PNGs, including seven firmware/placement/restart views; 14 existing Light examples retained; [provenance and manifest](images/README.md) |
 | Walkthrough | Refreshed 60-second/six-state mock video from the same RC14 JAR; no physical movement |
 | Historical evidence | Dated failures/counts retained; original RC12 image links pinned to immutable tag |
-| Packaging | Existing payload checks still validate installed offline links, screenshots and samples; older release assets unchanged |
+| Packaging | Offline help now references and stages the seven new Dark feature captures; archive link/resource checks pass; published RC14 assets unchanged |
 
 The initial scan covered 72 Markdown files and 286 local references; the final
 scan includes the new audit/evidence pages. `python3 scripts/check_doc_links.py`

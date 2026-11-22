@@ -30,6 +30,7 @@ public final class CaptureScreenshots {
         System.setProperty("gantry.config.file", profile.resolve("config.json").toString());
         GantryConfig config = new GantryConfig();
         config.mock = true;
+        config.uiTheme = "Dark";
         config.showWelcomeOnStartup = true;
         config.machineOrigin = "Top-Left";
         config.gcode.machineWidth = 210;

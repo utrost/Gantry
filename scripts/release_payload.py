@@ -10,7 +10,11 @@ IMAGES = ('workspace-layer-preview.png', 'first-run-guided-practice.png',
           'preferences-geometry.png', 'layer-watercolor-settings.png',
           'pen-fill/fill-dark.png', 'pen-fill/fill-light.png',
           'pen-fill/calibration.png', 'pen-fill/processing.png',
-          'workspace/quick-artwork-dialog.png', 'workspace/ink-overlap.png')
+          'workspace/quick-artwork-dialog.png', 'workspace/ink-overlap.png',
+          'workspace/placement-reference.png', 'workspace/placement-reference-compact.png',
+          'workspace/firmware-review.png', 'workspace/calibration-firmware-review.png',
+          'workspace/partial-restart-uncertain.png', 'workspace/partial-restart-reviewed.png',
+          'workspace/partial-restart-complete.png')
 
 class _Links(HTMLParser):
     def __init__(self):

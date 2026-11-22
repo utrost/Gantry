@@ -681,6 +681,11 @@ DRAW vertex bounding box in controller work coordinates; rotation uses the new
 axis-aligned bounding box. They do not include travel, parking or station pots.
 The purple cross marks the selected point. X/Y show its work coordinates.
 
+![Dark workspace with Center reference selected and the fixed point marked by a purple cross](images/workspace/placement-reference.png)
+
+[Compact dark workspace](images/workspace/placement-reference-compact.png) shows
+how the same controls fit a 1024 × 768 window.
+
 Changing Reference alone does not move anything. Numeric X/Y moves that point;
 resize, Rotate 90° and Mirror retain it. A size/rotation that cannot fit while
 retaining the reference is rejected; reposition first or use a smaller size.
@@ -1385,9 +1390,16 @@ existing profile; smaller calibrated dimensions remain unchanged. Configured
 feeds over the conservative smaller XY maximum are rejected. Review Pen & Speeds
 manually; no automatic cap or enlargement is applied.
 
+![Dark firmware review showing profile limits, reported work offset and explicit reference confirmation](images/workspace/firmware-review.png)
+
+This example uses the serial simulator. Its reported coordinates and selected
+range illustrate the dialog; choose the actual values for your own controller.
+
 Calibration and station-test wizards keep a **Review firmware limits...** control
 inside their modal window for GRBL connections. This remains reachable after
 connecting there, Home, Stop or calibration setting writes; no XY gate is bypassed.
+
+![Dark calibration wizard with firmware review available inside the modal window](images/workspace/calibration-firmware-review.png)
 
 Starting a fresh firmware read invalidates the previous approval; cancelling or
 failing that read/review leaves XY blocked until a new review is approved.
@@ -1423,6 +1435,11 @@ original machine/profile. Reopen the original project unchanged, or clear the
 current artwork to review the stored job. Changed geometry, placement, selected
 layers/order, passes, pens or machine settings block incompatible reuse.
 
+![Dark partial-restart review after Stop, showing uncertain progress and a selected reverse proposal](images/workspace/partial-restart-uncertain.png)
+
+The screenshot follows an actual Stop during simulated pen-down travel. The
+uncertain progress is retained across application restarts.
+
 Click a path or its exact layer/command/pass occurrence in the list. Purple marks
 the selected start, muted paths are skipped. Forward traverses selected → end.
 Reverse traverses selected → first, reversing each stroke's vertices and layer/
@@ -1456,3 +1473,9 @@ Refill commands, automatic refill budgets and inter-layer rinsing block this
 workflow with an explanation. Brush loading, cleaning, drying and color transitions
 need their own restart policy. Normal watercolor plotting remains available.
 See the [software verification and limits](release-results/2026-11-22-firmware-anchors-restart.md).
+
+![Dark restart review with a forward selection and the three explicit confirmations](images/workspace/partial-restart-reviewed.png)
+
+This second-process example reviews the saved proposal before preparing it.
+[Completed partial job](images/workspace/partial-restart-complete.png) shows the
+retained strokes after the normal Start and pen-confirmation steps.
