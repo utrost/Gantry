@@ -92,6 +92,40 @@ placement invariance and station fallback across 128 combinations. Existing
 `PageProjectionTest` retains 512 renderings and 256 unchanged legacy G-code hashes.
 [Verification and documentation audit](release-results/2026-11-21-prepared-route.md).
 
+### Firmware, placement and restart regressions (#113–#115)
+
+`FirmwareEnvelopeTest` exercises acknowledged settings parsing, missing/nonfinite
+values, shifted WCO, smaller profiles, XY/Z feed rejection, reference invalidation,
+stale review tokens, restricted raw syntax and uncertain disconnect without XY
+parking using the production backend and serial simulator. `FirmwareRouteValidationTest`
+rejects full station/swirl clearance and late travel before any motion/ink.
+
+Firmware reference review also requires an explicit `$13=0` (millimetre status
+and WCO reporting). Missing/inch/invalid report units are unsupported and block
+approval; Gantry does not change them automatically. The actual reported work
+position must fit the reviewed envelope. GRBL distinguishes report units from
+command units: [upstream configuration](https://github.com/gnea/grbl/wiki/Grbl-v1.1-Configuration#13---report-inches-boolean).
+
+`PlacementAnchorTest` covers nine references across 16 axis/flip combinations and
+four rotations, numeric positioning, repeated resize/rotation/mirror, old-placement
+defaults, save state and rejected oversized transforms. Existing page projection,
+legacy hashes, export and selected-group regressions retain the old geometry
+contract. `ReviewedRestartTest` covers full identity, changed order/profile,
+implicit stroke starts, multipass occurrences, reverse boundaries, 64 mappings,
+source corruption, progress-only writes, alarm uncertainty and final uncertainty
+persistence on an interrupted worker without losing its interrupt flag.
+
+The normal `scripts/test-gui.sh` now also runs `RoadmapAcceptance` in two actual
+JVMs on the production serial simulator. It checks anchors, Undo/save/reopen,
+1024×768 layout, firmware review/Cancel inside and outside the modal calibration
+wizard, a reviewed calibration jog, actual mid-stroke simulated Stop, visual path
+selection/reverse/Cancel, proposal restoration, explicit confirmations and only
+retained stroke execution. It never opens a physical port. See the
+[verification and screenshots](release-results/2026-11-22-firmware-anchors-restart.md).
+Actual native scaling, firmware behavior, paper registration and ink remain
+separate operator gates. Do not run Maven clean/package against a JAR currently
+being read by GUI acceptance; build first, then run the GUI suite.
+
 ### Backend contract and fault checks
 
 `MockMotionTest`, `MockOperationLifecycleTest` and `BackendContractTest` test
@@ -575,7 +609,7 @@ a `testdata/` folder.
    - [ ] **Reset Position** — snaps back to the canvas-alignment position from Settings.
    - [ ] The HUD shows current position / scale / rotation / alignment.
 2. Enter explicit **X** / **Y (mm from origin)** values and click **Set**.
-   - [ ] The bounding-box corner nearest the origin moves to those coordinates.
+   - [ ] The selected nine-point reference moves to those coordinates (subject to bed clamping). Select a different reference and verify geometry stays unchanged; resize/rotate/mirror retain it or reject an impossible fit.
 
 #### TS-K2 — Live View context menu *(mock OK)*
 1. **Right-click** the Live View with a drawing loaded.

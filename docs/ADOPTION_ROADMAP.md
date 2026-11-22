@@ -39,6 +39,13 @@ then use either exported G-code or a real GRBL connection without verbal coachin
 
 ## November 2026 update
 
+Source additions #113–#115 provide firmware/reference review, precise nine-point
+placement and explicit pen-only restart proposals. They reduce software risk but
+still need observed physical reference/paper registration and native scaling.
+See the [verification record](release-results/2026-11-22-firmware-anchors-restart.md).
+RC13 downloads remain unchanged.
+
+
 The [completion barrier and serial simulator](release-results/2026-11-21-completion-serial-simulator.md)
 add deterministic software evidence after RC13. Neither changes physical or
 participant acceptance requirements or the preserved download assets.

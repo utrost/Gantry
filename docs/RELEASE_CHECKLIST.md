@@ -1,5 +1,14 @@
 # Gantry release checklist
 
+Source additions #113–#115 require a newly identified build; RC13 does not contain
+them. For real firmware/reference tests verify actual coordinate ranges and WCO,
+smaller-profile preservation, feed rejection, frame and full pot/swirl clearance,
+Stop/reset/lost-reference rereview, and pen-up lift. For partial restart inspect
+paper registration and uncertain ink before explicitly selecting/reviewing strokes.
+Native desktop checks must include the nine-point selector and restart dialog.
+Software/simulation evidence does not mark these observations PASS. See the
+[delivery contract](release-results/2026-11-22-firmware-anchors-restart.md).
+
 ## Build and stage a candidate
 
 1. Use `MAJOR.MINOR.PATCH-rc.N` (RC 1–98) or `MAJOR.MINOR.PATCH`. Preserve

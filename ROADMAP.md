@@ -72,12 +72,13 @@ simulator under the production backend, preserving the lightweight mock. See the
 [completion/simulator verification](docs/release-results/2026-11-21-completion-serial-simulator.md).
 Neither follow-up is in RC13 downloads, and neither closes physical acceptance.
 
-Next independently actionable software issues from the Nib review are
-[#113](https://github.com/utrost/Gantry/issues/113) firmware/work-origin envelope
-validation and [#114](https://github.com/utrost/Gantry/issues/114) nine-point
-placement. [#115](https://github.com/utrost/Gantry/issues/115) reviewed partial
-restart/reverse depends on completion, simulator and origin/envelope evidence.
-These remain planned, not delivered.
+Software #113–#115 is delivered: read-only firmware/profile/work-origin envelope
+review, nine-point placement with fixed references, and persisted, explicitly
+reviewed pen-only partial restart/reverse. Restart never resumes automatically;
+watercolor cases are blocked pending a separate loading/cleaning/drying policy.
+See the [contracts, tests and actual GUI evidence](docs/release-results/2026-11-22-firmware-anchors-restart.md).
+These source changes are absent from RC13 and do not close hardware, paper
+registration or native scaling acceptance.
 
 Follow-up #100/#101/#103 fixes route estimates and controller-space preview starts
 (initial origin, refill and rinse). Known non-origin initial DRAWs are rejected

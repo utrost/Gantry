@@ -27,6 +27,21 @@ class PhysicalArtworkPlacementTest {
             session.undo();assertEquals(beforeOutput,session.currentOutput());assertEquals(beforePlacement,session.placement());
         }
     }
+    @Test void allGroupReferencesRemainFixedWithoutMovingOtherArtwork() {
+        for(int anchor=0;anchor<9;anchor++)for(int flags=0;flags<16;flags++)for(int rotation:new int[]{0,90,180,270}) {
+            var session=new DocumentSession();session.replace(artwork("first"));session.appendArtwork(artwork("second"),"second");
+            var view=new VisualizationPanel();view.setMachineSize(300,300);view.setCanvasAlignment("Center");
+            view.setEffectiveAxes((flags&1)!=0,(flags&2)!=0,(flags&4)!=0);view.setFlipY((flags&8)!=0);view.setDataRotation(rotation);
+            view.loadFromOutput(session.currentOutput());view.setPlacementAnchor(anchor);
+            var first=session.artworks().get(0);var second=session.artworks().get(1);
+            var other=PhysicalArtworkPlacement.bounds(view,second.bounds());var original=PhysicalArtworkPlacement.bounds(view,first.bounds());
+            PhysicalArtworkPlacement.apply(session,view,first,new PhysicalArtworkPlacement.Edit(120,120,original[2]*1.2,original[3],true));
+            var applied=PhysicalArtworkPlacement.bounds(view,session.artworks().get(0).bounds());
+            assertEquals(120,applied[0]+(anchor%3)*applied[2]/2,1e-7);
+            assertEquals(120,applied[1]+(anchor/3)*applied[3]/2,1e-7);
+            assertArrayEquals(other,PhysicalArtworkPlacement.bounds(view,session.artworks().get(1).bounds()),1e-7);
+        }
+    }
     private ProcessorOutput artwork(String name){
         return new ProcessorOutput(new Metadata(name,Instant.EPOCH,"pen","mm",1,new Bounds(0,0,20,10)),
                 List.of(new Layer(name,"pen",List.of(new DrawCommand(1,List.of(new Point(0,0),new Point(20,10)))))));

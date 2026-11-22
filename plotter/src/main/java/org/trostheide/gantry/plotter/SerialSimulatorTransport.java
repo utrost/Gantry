@@ -45,6 +45,7 @@ public final class SerialSimulatorTransport implements SerialTransport {
         feed = options.feedRateTravel;
         settings.putAll(Map.of(20,0.0,21,0.0,22,1.0,23,3.0,100,80.0,101,80.0,
                 110,6000.0,111,6000.0,112,3000.0));
+        settings.put(13,0.0);
         settings.put(130,options.machineWidth); settings.put(131,options.machineHeight);
         responses.add("Grbl 1.1h [Gantry serial simulator; no hardware]");
         worker = new Thread(this::execute, "grbl-simulator-planner");
@@ -251,8 +252,9 @@ public final class SerialSimulatorTransport implements SerialTransport {
     private void check(long gen) { if(!open||generation!=gen||alarm)throw new CancellationException("Simulator motion invalidated"); }
     private String state() { return !open?"Disconnected":alarm?"Alarm":held?"Hold:0":active!=null||!planner.isEmpty()?"Run":"Idle"; }
     private String status() {
+        double unit=settings.get(13)==1 ? 25.4 : 1;
         return String.format(Locale.ROOT,"<%s|MPos:%.3f,%.3f,%.3f|WCO:%.3f,%.3f,%.3f|FS:0,0|Ov:%d,100,100>",
-                state(),x,y,z,offsetX,offsetY,offsetZ,override);
+                state(),x/unit,y/unit,z/unit,offsetX/unit,offsetY/unit,offsetZ/unit,override);
     }
     private void reset() {
         generation++;planner.clear();delayedAcks.clear();responses.clear();input.setLength(0);discardLine=false;

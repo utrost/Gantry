@@ -20,6 +20,7 @@ final class OverlayControlsPanel extends JPanel {
     private final JSpinner y=new JSpinner(new SpinnerNumberModel(0.0,-2000.0,2000.0,1.0));
     private final JSpinner width=new JSpinner(new SpinnerNumberModel(1.0,0.1,2000.0,1.0));
     private final JSpinner height=new JSpinner(new SpinnerNumberModel(1.0,0.1,2000.0,1.0));
+    private final JComboBox<String> reference=new JComboBox<>(new String[]{"X min · Y min","X middle · Y min","X max · Y min","X min · Y middle","Center","X max · Y middle","X min · Y max","X middle · Y max","X max · Y max"});
     private boolean refreshing;
     private final List<JComponent> controls;
     OverlayControlsPanel(VisualizationPanel visualization,Actions actions){this.visualization=visualization;this.actions=actions;
@@ -27,6 +28,10 @@ final class OverlayControlsPanel extends JPanel {
         JButton reset=WorkspaceStyle.button("Reset",visualization::resetOverlay),rotate=WorkspaceStyle.button("Rotate 90°",visualization::rotateOverlay),mirror=WorkspaceStyle.button("Mirror",visualization::toggleMirror);
         reset.setToolTipText("Reset artwork placement");
         add(WorkspaceStyle.section("Position & size","mm · from origin"));
+        reference.getAccessibleContext().setAccessibleName("Artwork reference point");
+        reference.setToolTipText("X/Y identify this point of the placed bounding box; resize and rotation keep it fixed.");
+        add(row(new JLabel("Reference"),reference));
+        reference.addActionListener(e->{if(!refreshing)visualization.setPlacementAnchor(reference.getSelectedIndex());});
         JPanel grid=new JPanel(new GridBagLayout());GridBagConstraints g=new GridBagConstraints();g.insets=new Insets(3,2,3,2);g.fill=GridBagConstraints.HORIZONTAL;
         String[] names={"X","Y","Width","Height"};JSpinner[] fields={x,y,width,height};
         for(int i=0;i<fields.length;i++){compactCoordinateSpinner(fields[i]);fields[i].getAccessibleContext().setAccessibleName("Artwork "+names[i]+" in millimetres");
@@ -41,12 +46,13 @@ final class OverlayControlsPanel extends JPanel {
         height.addChangeListener(e->{if(!refreshing)visualization.resizeArtwork(((Number)width.getValue()).doubleValue(),((Number)height.getValue()).doubleValue(),false,lock.isSelected());});
         JTextArea validation=WorkspaceStyle.note("");validation.setRows(2);validation.setVisible(false);add(validation);
         for(JSpinner spinner:fields)NumericEditSupport.install(spinner,message->{validation.setText(message);validation.setVisible(!message.isBlank());revalidate();});
-        controls=List.of(reset,rotate,mirror,x,y,width,height,lock);wirePreview();
+        visualization.setPlacementErrorListener(message->{validation.setText(message);validation.setVisible(!message.isBlank());if(!message.isBlank())refreshPosition();revalidate();});
+        controls=List.of(reset,rotate,mirror,x,y,width,height,lock,reference);wirePreview();
     }
     void setPlotting(boolean plotting){for(JComponent c:controls)c.setEnabled(!plotting);}
-    void refreshPosition(){refreshing=true;try{double[]p=visualization.getContentMotorMin();x.setValue(Math.round(p[0]*10)/10.0);y.setValue(Math.round(p[1]*10)/10.0);
+    void refreshPosition(){refreshing=true;try{reference.setSelectedIndex(visualization.getPlacementAnchor());double[]p=visualization.getContentMotorAnchor();x.setValue(Math.round(p[0]*10)/10.0);y.setValue(Math.round(p[1]*10)/10.0);
         double[]size=visualization.getContentMotorSize();width.setValue(Math.max(.1,size[0]));height.setValue(Math.max(.1,size[1]));}finally{refreshing=false;}}
-    private void apply(){if(!actions.hasDocument()){actions.log("ERROR: Load or import commands first.");return;}visualization.setContentMotorMin(((Number)x.getValue()).doubleValue(),((Number)y.getValue()).doubleValue());}
+    private void apply(){if(!actions.hasDocument()){actions.log("ERROR: Load or import commands first.");return;}visualization.setContentMotorAnchor(((Number)x.getValue()).doubleValue(),((Number)y.getValue()).doubleValue());}
     private void wirePreview(){visualization.setOverlayChangeListener(()->{refreshPosition();actions.overlayChanged();});visualization.setRemoveDrawingListener(actions::remove);
         visualization.setRegionHatchListener(new VisualizationPanel.RegionHatchListener(){public void onHatchRegion(Path2D r,int l){actions.hatch(r,l);}public void onClearHatchRegion(Path2D r){actions.clearHatch(r);}});
         visualization.setHatchStyleAction(actions::hatchStyle);visualization.setStrokeEditListener(new VisualizationPanel.StrokeEditListener(){

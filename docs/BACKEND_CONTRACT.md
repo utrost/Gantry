@@ -14,7 +14,7 @@ supported common behavior, not firmware or physical equivalence.
 | Position | Simulated work XY, in mm | Last controller-reported work XY, asynchronous | Last emitted XY; not physical feedback |
 | Dwell | Interruptible simulated delay | Queued G4; GRBL synchronizes preceding motion before acknowledging | Emits G4 |
 | Stop | Invalidates active motion, interrupts its wait, freezes last reached XY and lifts simulated pen; repeated halt does not interrupt cleanup again | Realtime reset and best-effort recovery/pen lift; physical result needs acceptance | No running machine; inherited halt has no physical effect |
-| Raw commands | Explicit subset below; unsupported lines fail | Sent to firmware; replies/rejections depend on that controller | Written verbatim; “written to file” is not acknowledgement/execution |
+| Raw commands | Explicit subset below; unsupported lines fail | GUI reviewed mode uses the strict subset below; library default forwards to firmware | Written verbatim; “written to file” is not acknowledgement/execution |
 | Reconnect | After prior worker exits, resets simulated work origin and modal defaults | New serial connection/initialization; prior workers must be cleaned up first | Reopening starts a new output file, not a machine resume |
 
 High-level plotting assumes the absolute millimetre setup established by connect
@@ -159,3 +159,43 @@ The simulator is intentionally a documented subset, not a firmware-equivalence
 claim. Shared backend, serial fault, controller and actual Swing tests are linked
 in the [verification record](release-results/2026-11-21-completion-serial-simulator.md).
 Physical acceptance #39/#54/#93 remains open. These changes are after RC13.
+
+## Read-only firmware/reference review (#113)
+
+GUI production-backend connections, including serial simulation, opt in with
+`requireSafetyReview(true)`. Library constructors default off for compatibility;
+callers that execute on hardware must deliberately choose their safety policy.
+`validateWorkEnvelope` is a capability hook: generic/mock/file backends do not
+claim firmware validation. GUI GRBL motion requires acknowledged finite positive
+travel/feed limits, fresh WCO, an explicit machine-coordinate convention and
+operator reference confirmation. Firmware/profile intersection preserves smaller
+profiles and rejects unsafe targets/feeds without writing settings or capping.
+
+Calibration and station-test wizards keep a **Review firmware limits...** control
+inside their modal window for GRBL connections. This remains reachable after
+connecting there, Home, Stop or calibration setting writes; no XY gate is bypassed.
+
+Starting a fresh firmware read invalidates the previous approval; cancelling or
+failing that read/review leaves XY blocked until a new review is approved.
+
+Firmware reference review also requires an explicit `$13=0` (millimetre status
+and WCO reporting). Missing/inch/invalid report units are unsupported and block
+approval; Gantry does not change them automatically. The actual reported work
+position must fit the reviewed envelope. GRBL distinguishes report units from
+command units: [upstream configuration](https://github.com/gnea/grbl/wiki/Grbl-v1.1-Configuration#13---report-inches-boolean).
+
+All high-level absolute/relative XY calls validate. Relative reviewed moves first
+synchronize and refresh work position. PlotService, frame/manual station actions
+and restricted file replay prevalidate their full applicable route/envelopes.
+Stop/reset/alarm/disconnect/WCO/reference or relevant options changes invalidate
+review, including a dialog's revision token. A fresh settings read is not physical
+homing/reference evidence. Disconnect skips XY parking while reference is uncertain.
+
+Reviewed raw mode permits explicit absolute mm G0/G1 XY with optional reviewed F,
+read queries, setup G21/G90/G94, dwell and exact configured pen commands. Duplicate,
+nonfinite and unsupported motion/modal words fail. Explicit G92/G10, setting writes,
+unlock/reset requests invalidate review; no continued XY is allowed until rereview.
+Use the dedicated Home action for switch-based homing. The older general raw-mode
+warning above describes library callers without this GUI opt-in, not permission
+to bypass review in the application. File export retains legacy commands and has
+no actual firmware/reference claim. See the [verification](release-results/2026-11-22-firmware-anchors-restart.md).

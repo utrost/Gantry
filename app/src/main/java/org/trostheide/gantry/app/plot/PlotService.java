@@ -148,6 +148,8 @@ public class PlotService {
 
     private Consumer<String> logCallback = line -> { };
     private BiConsumer<Double, Double> commandedPositionCallback = (x, y) -> { };
+    private Consumer<Layer> layerCompletedCallback=layer->{ };
+    public void setLayerCompletedCallback(Consumer<Layer> callback){layerCompletedCallback=callback==null?layer->{ }:callback;}
     private Consumer<Layer> layerStartedCallback = layer -> { };
     private ProgressCallback progressCallback = (d, t) -> { };
     private Consumer<StrokeProgress> strokeProgressCallback = progress -> { };
@@ -270,6 +272,22 @@ public class PlotService {
         double offsetX = offset[0], offsetY = offset[1];
 
         checkPreflightBounds(contentBounds, machineW, machineH, offsetX, offsetY);
+        double[] reviewedBounds=computeFrameBounds(output);
+        backend.validateWorkEnvelope(0,0,0,0);
+        if(reviewedBounds!=null)backend.validateWorkEnvelope(reviewedBounds[0],reviewedBounds[2],reviewedBounds[1],reviewedBounds[3]);
+        forEachDrawSegment(output,segment->{backend.validateWorkEnvelope(segment.x1(),segment.y1(),segment.x2(),segment.y2());});
+        for(Layer layer:layers)for(Command command:layer.commands())if(command instanceof MoveCommand move){
+            checkCancellation();double[] point=transformAndClamp(move.x,move.y,machineW,machineH,offsetX,offsetY,contentBounds,new int[]{0});
+            backend.validateWorkEnvelope(point[0],point[1],point[0],point[1]);
+        }
+
+        // Validate every used pot's complete swirl before submitting any drawing or travel.
+        for(Layer layer:layers)for(Command command:layer.commands())if(command instanceof RefillCommand refill){
+            StationConfig station=resolveStation(settings.stations,refill.stationId);
+            if(station!=null)validateStation(station,effectiveBehavior(layer.dipBehavior(),station));
+        }
+        if(layers.size()>1&&findRinseStation()!=null)validateStation(findRinseStation(),findRinseStation().behavior());
+
 
         StationConfig rinseStation = findRinseStation();
 
@@ -303,6 +321,7 @@ public class PlotService {
 
                 if (!cancelled && !Thread.currentThread().isInterrupted()) {
                     parkAtOrigin();
+                    layerCompletedCallback.accept(layer);
                 }
             }
             completed = !cancelled && !Thread.currentThread().isInterrupted();
@@ -554,7 +573,7 @@ public class PlotService {
                 backend.moveto(p[0], p[1]);
                 reportPosition(p[0], p[1]);
             } else if (cmd instanceof DrawCommand draw) {
-                strokeProgressCallback.accept(new StrokeProgress(
+                if(!draw.points.isEmpty())strokeProgressCallback.accept(new StrokeProgress(
                         layer.id(), draw.id, StrokeProgressPhase.STARTED));
                 for (Point point : draw.points) {
                     if (cancelled || Thread.currentThread().isInterrupted()) {
@@ -568,7 +587,7 @@ public class PlotService {
                     backend.lineto(p[0], p[1]);
                     reportPosition(p[0], p[1]);
                 }
-                strokeProgressCallback.accept(new StrokeProgress(
+                if(!draw.points.isEmpty())strokeProgressCallback.accept(new StrokeProgress(
                         layer.id(), draw.id, StrokeProgressPhase.ACCEPTED));
             } else if (cmd instanceof RefillCommand refill) {
                 performRefill(refill.stationId, layer.dipBehavior());
@@ -660,6 +679,7 @@ public class PlotService {
      * no dip. Uses the same {@code penup()}/{@code moveto()} the real refill path uses.
      */
     public void dryVisitStation(StationConfig station) {
+        backend.validateWorkEnvelope(station.x(),station.y(),station.x(),station.y());
         backend.penup();
         backend.moveto(station.x(), station.y());
         checkCancellation();
@@ -677,6 +697,7 @@ public class PlotService {
      * used during a plot, so the test can never diverge from what a real refill does.
      */
     public void wetTestStation(StationConfig station) {
+        validateStation(station,station.behavior());
         logCallback.accept(String.format("--- Wet test at (%.1f mm / %.1f mm), behaviour '%s' ---",
                 station.x(), station.y(), station.behavior()));
         dip(station, station.behavior());
@@ -718,6 +739,11 @@ public class PlotService {
     private void checkCancellation() {
         if (cancelled || Thread.currentThread().isInterrupted())
             throw new java.util.concurrent.CancellationException("Plot stopped");
+    }
+
+    private void validateStation(StationConfig station,String behavior){
+        double radius=("dip_swirl".equals(behavior)||"rinse".equals(behavior))?station.swirlRadius():0;
+        backend.validateWorkEnvelope(station.x()-radius,station.y()-radius,station.x()+radius,station.y()+radius);
     }
 
     private static String effectiveBehavior(String layerBehavior, StationConfig station) {

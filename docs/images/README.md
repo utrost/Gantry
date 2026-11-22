@@ -76,3 +76,7 @@ images before committing. The full scale/density acceptance matrix is separate:
 `./scripts/test-workspace-layouts.sh` exercises both themes, both densities and
 100%, 125%, 150%, 200% scales. Historical dated audit images are evidence of older
 revisions and are not presented as current screenshots.
+
+The dated post-RC13 firmware/reference, placement-anchor and partial-restart
+captures are kept separately with their own [2026-11-22 provenance](../validation/firmware-anchors-restart/README.md).
+The 47-image gallery above predates those additions and is retained as dated evidence.

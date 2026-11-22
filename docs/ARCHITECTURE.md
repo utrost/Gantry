@@ -374,6 +374,20 @@ instance and observes pen/Z/feed updates without reconnecting.
 
 ---
 
+### Firmware envelope review (#113)
+
+`FirmwareEnvelope.Limits` parses acknowledged finite GRBL travel/feed settings.
+`Space` explicitly identifies each axis's machine range; `review` intersects
+`machine − WCO` with the unchanged configured work profile and rejects excess
+configured feeds. GUI connections opt in via `requireSafetyReview(true)`; library
+callers retain explicit capability control. `SafetySnapshot` includes a reference
+revision so Stop/reset/alarm/WCO/reference changes invalidate an open dialog.
+`validateWorkEnvelope` is delegated through `InterruptibleBackend`; PlotService
+prevalidates all draw/frame/travel and used pot/swirl envelopes before motion.
+Raw reviewed mode accepts a strict absolute XY subset; settings/origin writes
+invalidate review and unsupported modal changes fail. No persistent firmware or
+profile change is made by reading/reviewing. Disconnect skips uncertain XY return.
+
 ## 9. Plot orchestration (`app:plot/PlotService.java`)
 
 `PlotService(backend, settings)` executes a `ProcessorOutput` against a
@@ -590,6 +604,39 @@ The GUI runs long operations off the EDT (a `runBusy(...)` helper) and the plot 
 its own thread, marshaling UI updates back via Swing.
 
 ---
+
+Calibration and station-test wizards keep a **Review firmware limits...** control
+inside their modal window for GRBL connections. This remains reachable after
+connecting there, Home, Stop or calibration setting writes; no XY gate is bypassed.
+
+### Placement references and reviewed restart (#114/#115)
+
+`GantryProject.Placement.anchor` is 0…8, defaults to 0 for older JSON and is part
+of document history/recovery. VisualizationPanel computes the selected point on
+existing placed DRAW vertex bounds. Anchored resize/rotation/mirror apply an
+inverse motor-space shift; out-of-bed transforms restore prior placement.
+OverlayControlsPanel/ArtworkInspector and CanvasRenderer share that property.
+PhysicalArtworkPlacement preserves selected group references without moving others.
+
+`ReviewedRestart` hashes the full canonical prepared source/settings/pens and a
+separate full machine/profile identity. Stable strokes include layer and command
+indices, command IDs and pass occurrence. Controller-space points derive from
+`forEachDrawSegment`; partial execution has explicit MOVE per stroke and identity
+transforms. `PlotJobHistory.Job.referenceMapping` preserves original page review,
+and `restartMachineIdentity` prevents partial-history replay under changed setup.
+Both are optional for old history. HistoricalJobPreview uses page projection only
+for display; it never adds a second execution transform.
+
+Store writes an immutable `.job.json` source once and atomic small progress JSON
+for every selection/submission/ack. Completed layer parking barriers alone promote
+progress to controller-confirmed. Stop/alarm/process loss remain uncertain. Load
+validates full source identity and progress ranges. Progress I/O failure interrupts
+tracked execution. Final state saving temporarily clears/restores cancellation
+interruption so its atomic checkpoint can flush without any motion. RestartReviewDialog changes proposals, requires three reviews
+and prepares without motion. PlotterPanel still requires current reference review,
+normal checks, Start and pen gates. Changing a proposal after approval invalidates
+it. Refill/budget/rinse jobs are explicitly unsupported. See the
+[contract and evidence](release-results/2026-11-22-firmware-anchors-restart.md).
 
 ## 11. CLI (`cli:SvgImportCli.java`)
 

@@ -63,6 +63,9 @@ public interface PlotterBackend {
         throw new UnsupportedOperationException("This backend cannot confirm motion completion");
     }
 
+    /** Validates a controller-work-space rectangle before any associated motion. */
+    default void validateWorkEnvelope(double minX,double minY,double maxX,double maxY) { }
+
     /** Whether this backend is explicitly a no-hardware simulation. */
     default boolean isSimulation() { return false; }
 

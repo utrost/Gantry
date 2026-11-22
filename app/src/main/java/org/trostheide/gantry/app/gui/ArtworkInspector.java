@@ -22,6 +22,7 @@ final class ArtworkInspector extends JPanel {
     private final VisualizationPanel visualization;
     private final JSpinner x=number(0,-10000,10000),y=number(0,-10000,10000),scale=number(1,.001,1000);
     private final JCheckBox mirror=new JCheckBox("Mirror horizontally");
+    private final JComboBox<String> groupReference=new JComboBox<>(new String[]{"X min · Y min","X middle · Y min","X max · Y min","X min · Y middle","Center","X max · Y middle","X min · Y max","X middle · Y max","X max · Y max"});
     private final JLabel groupSize=new JLabel();
     private List<CompositionArtwork> artworks=List.of();
     private CompositionArtwork selected;
@@ -48,6 +49,8 @@ final class ArtworkInspector extends JPanel {
         relativePlacement.add(groupSize);relativePlacement.add(mirror);
         groupPlacement.setLayout(new BoxLayout(groupPlacement,BoxLayout.Y_AXIS));
         groupPlacement.add(WorkspaceStyle.section("Position & size","mm · from origin"));
+        groupReference.getAccessibleContext().setAccessibleName("Selected artwork reference point");
+        groupPlacement.add(groupReference);groupReference.addActionListener(e->{if(!refreshing&&!locked){visualization.setPlacementAnchor(groupReference.getSelectedIndex());}});
         JPanel physical=new JPanel(new GridLayout(2,4,6,6));
         String[] labels={"X","Y","Width","Height"};JSpinner[] values={bedX,bedY,width,height};
         JTextArea validation=WorkspaceStyle.note("");validation.setVisible(false);
@@ -79,14 +82,14 @@ final class ArtworkInspector extends JPanel {
             for(int i=0;i<next.size();i++)if(selected!=null&&next.get(i).id().equals(selected.id()))selection.setSelectedIndex(i+1);
             selection.setToolTipText(selected==null?"Properties for the whole drawing":selected.label());selection.setVisible(hasOutput);summary.setVisible(!hasOutput);layers.setVisible(hasOutput);layersHeading.setVisible(hasOutput);summary.setText(description);summary.setToolTipText(description);
             placement.setVisible(hasOutput&&selected==null);groupPlacement.setVisible(selected!=null);
-            if(selected!=null){double[] physical=PhysicalArtworkPlacement.bounds(visualization,selected.bounds());bedX.setValue(physical[0]);bedY.setValue(physical[1]);width.setValue(Math.max(.001,physical[2]));height.setValue(Math.max(.001,physical[3]));var t=selected.transform();x.setValue(t.x());y.setValue(t.y());scale.setValue(t.scale());mirror.setSelected(t.mirror());var b=selected.bounds();groupSize.setText(b==null?"":String.format(java.util.Locale.ROOT,"%.1f × %.1f mm",b.maxX()-b.minX(),b.maxY()-b.minY()));}
+            if(selected!=null){double[] physical=PhysicalArtworkPlacement.bounds(visualization,selected.bounds());groupReference.setSelectedIndex(visualization.getPlacementAnchor());bedX.setValue(physical[0]+(visualization.getPlacementAnchor()%3)*physical[2]/2);bedY.setValue(physical[1]+(visualization.getPlacementAnchor()/3)*physical[3]/2);width.setValue(Math.max(.001,physical[2]));height.setValue(Math.max(.001,physical[3]));var t=selected.transform();x.setValue(t.x());y.setValue(t.y());scale.setValue(t.scale());mirror.setSelected(t.mirror());var b=selected.bounds();groupSize.setText(b==null?"":String.format(java.util.Locale.ROOT,"%.1f × %.1f mm",b.maxX()-b.minX(),b.maxY()-b.minY()));}
             boolean canProcess=selected==null?svg||raster:selected.sourcePath()!=null&&selected.importOptions()!=null;
             processing.setVisible(hasOutput&&canProcess);groups.setVisible(next.size()>1);
         }finally{refreshing=false;}
         revalidate();repaint();
     }
     void updateSummary(String description){summary.setText(description);summary.setToolTipText(description);}
-    void setPlotting(boolean plotting){locked=plotting;for(JComponent component:new JComponent[]{selection,processing,groups,x,y,scale,mirror,bedX,bedY,width,height})component.setEnabled(!plotting);}
+    void setPlotting(boolean plotting){locked=plotting;for(JComponent component:new JComponent[]{selection,processing,groups,x,y,scale,mirror,bedX,bedY,width,height,groupReference})component.setEnabled(!plotting);}
     private static JSpinner number(double value,double min,double max){return new JSpinner(new SpinnerNumberModel(value,min,max,.1));}
     private static void add(JPopupMenu menu,String name,Runnable action){JMenuItem item=new JMenuItem(name);item.addActionListener(e->action.run());menu.add(item);}
 }

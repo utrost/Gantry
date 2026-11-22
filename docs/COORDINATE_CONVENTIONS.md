@@ -85,3 +85,24 @@ to add MOVE or deliberately return pen-up to origin and review again; it does no
 silently position the machine. Halt/pen-up recovery still applies. If the backend
 cannot report position, a warning records the origin assumption; this does not
 establish actual position. Mock results cannot substitute for physical checks.
+
+## Firmware intersection, placement reference and partial jobs
+
+GUI GRBL review uses explicit per-axis machine ranges (−travel…0 or 0…travel),
+converts them to work coordinates with `work = machine − WCO`, and intersects
+with the unchanged configured positive-work profile. No `$23` convention is
+assumed. All transformed/clamped draw targets, moves and applicable full pot/swirl
+envelopes are checked before motion. Existing profile clipping stays compatible;
+firmware limits reject extra out-of-envelope motion. File output is unchanged.
+
+Nine-point placement references belong to the existing placed axis-aligned DRAW
+vertex bounds in work coordinates. The reference property alone does not move
+geometry. Resize/rotation/mirror preserve its work point; impossible anchored
+transforms restore the old placement. Old projects default to reference 0.
+
+Reviewed partial jobs snapshot the original controller-space segments including
+implicit starts. Execution uses identity geometry transforms and explicit MOVE
+before each retained stroke, with original page mapping retained separately for
+review/export. The subset must never be re-aligned or have its original rotation,
+axis inversions or page projection applied to execution twice. Original mapping
+and full machine identity still gate replay. See the [delivery record](release-results/2026-11-22-firmware-anchors-restart.md).

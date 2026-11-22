@@ -31,5 +31,6 @@ final class InterruptibleBackend implements PlotterBackend {
     public void home(){check();backend.home();}
     public void haltMotion(){check();backend.haltMotion();}
     public MotionCompletion awaitMotionComplete(){check();var result=backend.awaitMotionComplete();check();return result;}
+    public void validateWorkEnvelope(double x,double y,double maxX,double maxY){check();backend.validateWorkEnvelope(x,y,maxX,maxY);}
     public boolean isSimulation(){return backend.isSimulation();}
 }

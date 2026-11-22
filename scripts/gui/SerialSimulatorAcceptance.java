@@ -68,6 +68,7 @@ public final class SerialSimulatorAcceptance extends GuiAcceptance {
             menu("Find Starting Corner (Home)");click(dialog("Home machine"),"OK");
             await(()->!jobs().isMachineBusy()&&idle());
             check(transport.commands().contains("$H"),"Home uses the actual serial protocol");
+            approveFirmware();
             menu("Test Color Stations...");JDialog station=dialog("Test Color Stations");click(station,"Next >");
             click(station,"Move here (pen up)");await(()->!jobs().isMachineBusy()&&transport.snapshot().x()==80);
             check(!transport.snapshot().penDown(),"station dry visit stays pen-up");
@@ -106,6 +107,7 @@ public final class SerialSimulatorAcceptance extends GuiAcceptance {
             click(panel,"Return to artwork");
             click(panel,"Disconnect");await(()->!jobs().isConnected());
             click(panel,"Connect");await(()->jobs().isConnected()&&idle());
+            approveFirmware();
             check(transport()!=transport&&!transport.isOpen(),"reconnect creates a fresh in-memory transport");
             edt(()->{((AbstractButton)field(field(panel,"workspace"),"machineToggle")).doClick();return null;});
             transport().armFault(SerialSimulatorTransport.Fault.REJECT_COMMAND);
@@ -138,6 +140,20 @@ public final class SerialSimulatorAcceptance extends GuiAcceptance {
     static void captureWindow(Window window,Path path) throws Exception {
         edt(()->{var image=new java.awt.image.BufferedImage(window.getWidth(),window.getHeight(),java.awt.image.BufferedImage.TYPE_INT_RGB);
             var graphics=image.createGraphics();window.paint(graphics);graphics.dispose();javax.imageio.ImageIO.write(image,"png",path.toFile());return null;});
+    }
+
+    static void approveFirmware() throws Exception {
+        menu("Review firmware limits...");JDialog review=dialog("Review firmware limits");
+        edt(()->{((JComboBox<?>)named(review,"firmwareCoordinateSpace")).setSelectedIndex(1);
+            ((JCheckBox)named(review,"firmwareReferenceConfirmed")).setSelected(true);return null;});
+        click(review,"OK");await(()->!review.isShowing()&&!jobs().isMachineBusy()&&!((GcodeBackend)jobs().backend()).needsSafetyReview());
+    }
+    static Component named(Container root,String name){
+        for(Component component:root.getComponents()){
+            if(name.equals(component.getName()))return component;
+            if(component instanceof Container nested){Component result=named(nested,name);if(result!=null)return result;}
+        }
+        return null;
     }
 
 }

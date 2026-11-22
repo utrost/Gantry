@@ -394,7 +394,7 @@ public class VisualizationPanel extends JPanel {
         travelTotalMm = 0;
         overlayOffsetX = 0;
         overlayOffsetY = 0;
-        overlayScale = 1.0;overlayStretchX=overlayStretchY=1;
+        overlayScale = 1.0;overlayStretchX=overlayStretchY=1;placementAnchor=0;
         overlayRotation = 0;
         overlayMirror = false;
         suppressAlignment = false;
@@ -406,18 +406,49 @@ public class VisualizationPanel extends JPanel {
         fireOverlayChange();
     }
 
+    private int placementAnchor;
+    private java.util.function.Consumer<String> placementError=message->{ };
+    public void setPlacementErrorListener(java.util.function.Consumer<String> listener){placementError=listener==null?message->{ }:listener;}
+    public int getPlacementAnchor(){return placementAnchor;}
+    public void setPlacementAnchor(int anchor){
+        if(anchor<0||anchor>8)throw new IllegalArgumentException("Unknown placement reference");
+        placementAnchor=anchor;repaint();fireOverlayChange();
+    }
+    /** Points belong to the placed, axis-aligned controller-work-space bounding box. */
+    public double[] getContentMotorAnchor(){
+        double[] min=getContentMotorMin(),size=getContentMotorSize();
+        return new double[]{min[0]+(placementAnchor%3)*size[0]/2,min[1]+(placementAnchor/3)*size[1]/2};
+    }
+    public void setContentMotorAnchor(double x,double y){
+        double[] point=getContentMotorAnchor(),min=getContentMotorMin();
+        setContentMotorMin(min[0]+x-point[0],min[1]+y-point[1]);
+    }
+    private void finishAnchoredTransform(double[] fixed,GantryProject.Placement before){
+        double[] after=getContentMotorAnchor();applyMotorShift(fixed[0]-after[0],fixed[1]-after[1]);
+        double[] min=getContentMotorMin(),size=getContentMotorSize();
+        if(min[0]<-.00001||min[1]<-.00001||min[0]+size[0]>machineWidth+.00001||min[1]+size[1]>machineHeight+.00001){
+            restorePlacementValues(before);placementError.accept("Transform would move artwork outside the bed. Reposition the reference or choose a smaller size.");repaint();return;
+        }else placementError.accept("");
+        repaint();fireOverlayChange();
+    }
+    private void restorePlacementValues(GantryProject.Placement placement){
+        overlayOffsetX=placement.offsetX();overlayOffsetY=placement.offsetY();overlayScale=placement.scale();
+        overlayRotation=placement.rotation();overlayMirror=placement.mirror();suppressAlignment=placement.suppressAlignment();
+        overlayStretchX=placement.stretchX();overlayStretchY=placement.stretchY();placementAnchor=placement.anchor();
+    }
     private GantryProject.Placement lastCommittedPlacement = GantryProject.Placement.identity();
     private java.util.function.BiConsumer<GantryProject.Placement,GantryProject.Placement> placementEditListener;
     public void setPlacementEditListener(java.util.function.BiConsumer<GantryProject.Placement,GantryProject.Placement> listener){placementEditListener=listener;lastCommittedPlacement=placement();}
     public void resizeArtwork(double width,double height,boolean fromWidth){resizeArtwork(width,height,fromWidth,true);}
     public void resizeArtwork(double width,double height,boolean fromWidth,boolean locked){
+        double[] fixed=getContentMotorAnchor();var before=placement();
         double[] current=getContentMotorSize();double basis=fromWidth?current[0]:current[1];
         double requested=fromWidth?width:height;
         if(basis<=0||!Double.isFinite(requested)||requested<=0)return;
         if(locked)overlayScale*=requested/basis;
         else {boolean swap=effectiveSwap() ^ (Math.floorMod(dataRotation,180)==90);
             if(fromWidth ^ swap)overlayStretchX*=requested/basis;else overlayStretchY*=requested/basis;}
-        clampOverlayToBed();repaint();fireOverlayChange();
+        finishAnchoredTransform(fixed,before);
     }
     void fireOverlayChange() {
         GantryProject.Placement after=placement();
@@ -479,10 +510,11 @@ public class VisualizationPanel extends JPanel {
 
     public GantryProject.Placement placement() {
         return new GantryProject.Placement(overlayOffsetX, overlayOffsetY, overlayScale,
-                overlayRotation, overlayMirror, suppressAlignment,overlayStretchX,overlayStretchY);
+                overlayRotation, overlayMirror, suppressAlignment,overlayStretchX,overlayStretchY,placementAnchor);
     }
 
     public void applyPlacement(GantryProject.Placement placement) {
+        placementAnchor=placement.anchor();
         overlayOffsetX = placement.offsetX();
         overlayOffsetY = placement.offsetY();
         overlayScale = placement.scale();overlayStretchX=placement.stretchX();overlayStretchY=placement.stretchY();
@@ -497,18 +529,16 @@ public class VisualizationPanel extends JPanel {
 
     /** Rotate the drawing 90° clockwise (interactive overlay), re-clamping to the bed. */
     public void rotateOverlay() {
+        double[] fixed=getContentMotorAnchor();var before=placement();
         overlayRotation = (overlayRotation + 90) % 360;
-        clampOverlayToBed();
-        repaint();
-        fireOverlayChange();
+        finishAnchoredTransform(fixed,before);
     }
 
     /** Toggle horizontal mirroring of the drawing (interactive overlay). */
     public void toggleMirror() {
+        double[] fixed=getContentMotorAnchor();var before=placement();
         overlayMirror = !overlayMirror;
-        clampOverlayToBed();
-        repaint();
-        fireOverlayChange();
+        finishAnchoredTransform(fixed,before);
     }
 
     public double[] getRawBounds() { return new double[] { rawMinX, rawMaxX, rawMinY, rawMaxY }; }
@@ -531,7 +561,7 @@ public class VisualizationPanel extends JPanel {
     public void resetOverlay() {
         overlayOffsetX = 0;
         overlayOffsetY = 0;
-        overlayScale = 1.0;overlayStretchX=overlayStretchY=1;
+        overlayScale = 1.0;overlayStretchX=overlayStretchY=1;placementAnchor=0;
         overlayRotation = 0;
         overlayMirror = false;
         suppressAlignment = false;
@@ -671,7 +701,7 @@ public class VisualizationPanel extends JPanel {
     public void loadFromOutput(ProcessorOutput output) {
         overlayOffsetX = 0;
         overlayOffsetY = 0;
-        overlayScale = 1.0;overlayStretchX=overlayStretchY=1;
+        overlayScale = 1.0;overlayStretchX=overlayStretchY=1;placementAnchor=0;
         overlayRotation = 0;
         overlayMirror = false;
         suppressAlignment = false;
@@ -1057,11 +1087,16 @@ public class VisualizationPanel extends JPanel {
         return "Portrait".equals(orientation);
     }
 
+    private org.trostheide.gantry.app.plot.MachinePageProjection pageProjectionOverride;
+    void setPageProjectionOverride(org.trostheide.gantry.app.plot.MachinePageProjection projection){pageProjectionOverride=projection;repaint();}
+
     double displayWidth() {
+        if(pageProjectionOverride!=null)return pageProjectionOverride.widthMm();
         return effectiveSwap() ? machineHeight : machineWidth;
     }
 
     double displayHeight() {
+        if(pageProjectionOverride!=null)return pageProjectionOverride.heightMm();
         return effectiveSwap() ? machineWidth : machineHeight;
     }
 
@@ -1077,6 +1112,7 @@ public class VisualizationPanel extends JPanel {
     }
 
     double[] physicalToScreen(double motorX, double motorY) {
+        if(pageProjectionOverride!=null)return pageProjectionOverride.point(motorX,motorY);
         return CoordinateTransform.physicalToScreen(motorX, motorY,
                 effectiveSwap(), isOriginRight(), isOriginBottom(),
                 machineWidth, machineHeight);

@@ -53,6 +53,16 @@ class GcodeFileReplayTest {
             assertEquals(List.of("halt", "up"), backend.calls);
         } finally { Thread.interrupted(); }
     }
+    @Test void firmwareEnvelopeRejectsLateCompactTargetBeforeAnyCommands() throws Exception {
+        var plan=plan("G21\nG90\nG1X1Y1F100\nG01X95Y50F100");
+        var backend=new RecordingBackend(){
+            @Override public void validateWorkEnvelope(double minX,double minY,double maxX,double maxY){
+                if(maxX>90)throw new GcodeBackendException("outside reviewed firmware");
+            }
+        };
+        assertThrows(GcodeBackendException.class,()->GcodeFileReplay.replay(plan,backend,s->{}));
+        assertTrue(backend.calls.isEmpty(),"Complete envelope validation must precede any pen or XY command");
+    }
     static class RecordingBackend implements PlotterBackend {
         public MotionCompletion awaitMotionComplete() { return MotionCompletion.SIMULATED_IDLE; }
         final List<String> calls = new ArrayList<>(); String failure;

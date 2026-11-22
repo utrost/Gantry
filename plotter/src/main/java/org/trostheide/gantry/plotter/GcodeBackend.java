@@ -97,13 +97,155 @@ public class GcodeBackend implements PlotterBackend {
 
     @Override public boolean isSimulation() { return simulation || transport instanceof SerialSimulatorTransport; }
 
+    private final java.util.concurrent.atomic.AtomicLong safetyRevision =
+            new java.util.concurrent.atomic.AtomicLong();
+    private volatile boolean requireSafetyReview, wcoKnown, referenceHomed;
+    private volatile FirmwareEnvelope safetyEnvelope;
+    private double plannedX, plannedY;
+
+    public record SafetySnapshot(
+            FirmwareEnvelope.Limits limits,
+            double offsetX,
+            double offsetY,
+            long referenceRevision,
+            boolean homed) {}
+
+    public void requireSafetyReview(boolean required) {
+        requireSafetyReview = required;
+        invalidateSafetyReview();
+    }
+
+    public boolean needsSafetyReview() {
+        FirmwareEnvelope envelope = safetyEnvelope;
+        return requireSafetyReview
+                && (!wcoKnown || envelope == null || !envelope.matches(options, wco));
+    }
+
+    public synchronized void invalidateSafetyReview() {
+        safetyEnvelope = null;
+        referenceHomed = false;
+        safetyRevision.incrementAndGet();
+    }
+
+    public SafetySnapshot readSafetySnapshot() {
+        // A failed/cancelled refresh must not leave an earlier limit receipt usable.
+        // Preserve the homing observation while requiring a new explicit approval.
+        synchronized (this) {
+            safetyEnvelope = null;
+            safetyRevision.incrementAndGet();
+        }
+        awaitMotionComplete();
+        var limits = FirmwareEnvelope.Limits.parse(sendRaw("$$"));
+        if (!wcoKnown)
+            throw new GcodeBackendException(
+                    "No valid machine/work offset report. Wait for status and retry; no coordinate"
+                        + " assumption made.");
+        return new SafetySnapshot(limits, wco[0], wco[1], safetyRevision.get(), referenceHomed);
+    }
+
+    public synchronized void approveSafetyReview(
+            SafetySnapshot snapshot, FirmwareEnvelope.Space space, boolean referenceConfirmed) {
+        if (machineState != MachineState.IDLE || terminalFailure != null || aborting)
+            throw new GcodeBackendException(
+                    "Controller must remain Idle and healthy throughout reference review");
+        if (!referenceConfirmed)
+            throw new GcodeBackendException(
+                    "Verify the machine reference and paper/work origin explicitly. Reading"
+                        + " settings cannot establish position.");
+        if (snapshot.referenceRevision() != safetyRevision.get()
+                || !wcoKnown
+                || Math.abs(snapshot.offsetX() - wco[0]) > 1e-6
+                || Math.abs(snapshot.offsetY() - wco[1]) > 1e-6)
+            throw new GcodeBackendException(
+                    "Controller reference changed during review; read firmware limits again.");
+        var reviewed =
+                snapshot.limits()
+                        .review(
+                                options,
+                                new double[] {snapshot.offsetX(), snapshot.offsetY()},
+                                space);
+        double[] position = queryPosition();
+        if (position == null || !Double.isFinite(position[0]) || !Double.isFinite(position[1]))
+            throw new GcodeBackendException("Work position unavailable.");
+        reviewed.check(position[0], position[1]);
+        plannedX = position[0];
+        plannedY = position[1];
+        safetyEnvelope = reviewed;
+    }
+
+    @Override
+    public void validateWorkEnvelope(double minX, double minY, double maxX, double maxY) {
+        if (!requireSafetyReview) return;
+        FirmwareEnvelope envelope = safetyEnvelope;
+        if (envelope == null || !wcoKnown || !envelope.matches(options, wco))
+            throw new GcodeBackendException(
+                    "Review firmware limits and machine/work origin before motion (Machine > Review"
+                        + " firmware limits...). Stop/reset/origin changes invalidate that"
+                        + " review.");
+        envelope.check(minX, minY);
+        envelope.check(maxX, maxY);
+    }
+
+    private void validateTarget(double x, double y) {
+        validateWorkEnvelope(x, y, x, y);
+    }
+
+    private void guardRaw(String command) {
+        if (!requireSafetyReview) return;
+        String line = command.trim().toUpperCase(java.util.Locale.ROOT);
+        String compact = line.replaceAll("\\s+", "");
+        if (compact.matches("\\$\\$|\\$[IG]|\\?")
+                || compact.matches("G21|G90|G94|G4P[0-9.]+")
+                || line.equals(GcodeFormatter.penUp(options))
+                || line.equals(GcodeFormatter.penDown(options))) return;
+        if (compact.matches("G92[XYZ0-9.+\\-]*|G10.*|\\$[0-9]+=.*|\\$X|\\$RST.*")) {
+            invalidateSafetyReview();
+            wcoKnown = false;
+            return;
+        }
+        if (compact.matches("G0?[01](?:[XYF].*)?")) {
+            var matcher =
+                    java.util.regex.Pattern.compile(
+                                    "([XYF])([-+]?(?:[0-9]+(?:\\.[0-9]*)?|\\.[0-9]+))")
+                            .matcher(compact);
+            java.util.Map<String, Double> words = new java.util.HashMap<>();
+            int end = compact.startsWith("G00") || compact.startsWith("G01") ? 3 : 2;
+            while (matcher.find()) {
+                if (matcher.start() != end
+                        || words.put(matcher.group(1), Double.parseDouble(matcher.group(2)))
+                                != null)
+                    throw new GcodeBackendException(
+                            "Unsupported or duplicate raw motion words; no coordinate assumptions"
+                                + " made");
+                end = matcher.end();
+            }
+            if (end != compact.length()
+                    || words.values().stream().anyMatch(v -> !Double.isFinite(v)))
+                throw new GcodeBackendException("Unsupported raw motion syntax");
+            FirmwareEnvelope envelope = safetyEnvelope;
+            if (words.containsKey("F")
+                    && (envelope == null
+                            || words.get("F") <= 0
+                            || words.get("F") > envelope.maxFeed()))
+                throw new GcodeBackendException(
+                        "Raw feed exceeds or lacks a reviewed firmware cap");
+            double x = words.getOrDefault("X", plannedX), y = words.getOrDefault("Y", plannedY);
+            validateTarget(x, y);
+            plannedX = x;
+            plannedY = y;
+        } else
+            throw new GcodeBackendException(
+                    "Unsupported raw motion/modal command in reviewed mode. Use Home or reviewed"
+                        + " absolute millimetre XY moves; no coordinate assumptions made.");
+    }
+
     public GcodeOptions getOptions() {
         return options;
     }
 
     /**
-     * Register a callback(x, y) invoked from the reader thread whenever GRBL reports a
-     * new realtime work position.
+     * Register a callback(x, y) invoked from the reader thread whenever GRBL reports a new realtime
+     * work position.
      */
     public void setPositionCallback(BiConsumer<Double, Double> callback) {
         this.positionCallback = callback;
@@ -165,6 +307,7 @@ public class GcodeBackend implements PlotterBackend {
 
     @Override
     public boolean connect() {
+        invalidateSafetyReview();wcoKnown=false;
         try {
             terminalFailure = null;
             aborting = false;
@@ -223,12 +366,17 @@ public class GcodeBackend implements PlotterBackend {
         try {
             if (t != null && t.isOpen() && terminalFailure == null) {
                 penup();
-                send(GcodeFormatter.home());
-                waitForOk();
+                if (!needsSafetyReview()) {
+                    validateTarget(0, 0);
+                    send(GcodeFormatter.home());
+                    waitForOk();
+                }
             }
         } catch (GcodeBackendException e) {
             System.out.println("ERROR: Graceful disconnect failed: " + e.getMessage());
         } finally {
+            invalidateSafetyReview();
+            wcoKnown = false;
             running = false;
             if (t != null) {
                 synchronized (writeLock) {
@@ -248,28 +396,33 @@ public class GcodeBackend implements PlotterBackend {
 
     @Override
     public void moveto(double x, double y) {
+        validateTarget(x,y);
         if (penIsDown) {
             penup();
         }
         send(GcodeFormatter.moveto(x, y, options.feedRateTravel));
-        waitForOk();
+        waitForOk();plannedX=x;plannedY=y;
     }
 
     @Override
     public void lineto(double x, double y) {
+        validateTarget(x,y);
         if (!penIsDown) {
             pendown();
         }
         send(GcodeFormatter.lineto(x, y, options.feedRateDraw));
-        waitForOk();
+        waitForOk();plannedX=x;plannedY=y;
     }
 
     @Override
     public void move(double dx, double dy) {
+        if(requireSafetyReview)awaitMotionComplete();
+        validateTarget(plannedX+dx,plannedY+dy);
         for (String cmd : GcodeFormatter.relativeMove(dx, dy, options.feedRateTravel)) {
             send(cmd);
             waitForOk();
         }
+        plannedX+=dx;plannedY+=dy;
     }
 
     @Override
@@ -363,6 +516,7 @@ public class GcodeBackend implements PlotterBackend {
         send(GcodeFormatter.zeroWorkOrigin());
         waitForOk(30);
         lastWpos = new double[] { 0.0, 0.0 };
+        safetyEnvelope=null;referenceHomed=true;safetyRevision.incrementAndGet();
     }
 
     /**
@@ -387,6 +541,7 @@ public class GcodeBackend implements PlotterBackend {
         // motion stops *now*. This byte is safe to write even while the plot thread is mid-command;
         // setting `aborting` makes that thread's remaining send()/waitForOk() calls no-ops so the
         // two threads don't fight over the write lock or the ack queue.
+        invalidateSafetyReview();wcoKnown=false;
         resetRevision++;
         aborting = true;
         synchronized (writeLock) {
@@ -428,6 +583,7 @@ public class GcodeBackend implements PlotterBackend {
         if (t == null || !t.isOpen()) {
             return List.of("(no serial connection)");
         }
+        guardRaw(command);
         rawQueue.clear();
         collectRaw = true;
         List<String> responses = new ArrayList<>();
@@ -542,6 +698,7 @@ public class GcodeBackend implements PlotterBackend {
         awaitAck(deadline, "Timed out waiting for motion-completion barrier acknowledgement");
         checkIdleWait(deadline, revision);
         awaitFreshIdleUntil(deadline, revision);
+        if(requireSafetyReview&&lastWpos!=null){plannedX=lastWpos[0];plannedY=lastWpos[1];}
         return isSimulation() ? MotionCompletion.SIMULATED_IDLE : MotionCompletion.CONTROLLER_IDLE;
     }
 
@@ -571,9 +728,14 @@ public class GcodeBackend implements PlotterBackend {
             }
             String low = line.toLowerCase(Locale.ROOT);
             if (low.startsWith("grbl ")) {
-                resetRevision++;
+                invalidateSafetyReview();wcoKnown=false;
+        resetRevision++;
                 if (!aborting) {
-                    if (terminalFailure == null) terminalFailure = new GcodeBackendException("Controller restarted unexpectedly; review work origin before recovery");
+                    if (terminalFailure == null)
+                        terminalFailure =
+                                new GcodeBackendException(
+                                        "Controller restarted unexpectedly; review work origin"
+                                            + " before recovery");
                     updateMachineState(MachineState.UNKNOWN);
                     ackQueue.offer(FAILURE_SENTINEL); rawQueue.offer(FAILURE_SENTINEL); wakeStateWaiters();
                 }
@@ -617,7 +779,8 @@ public class GcodeBackend implements PlotterBackend {
                     t.writeBytes(new byte[] { '?' });
                 }
             } catch (IOException e) {
-                recordSerialFailure("Serial status polling failed (lost connection to plotter?)", e);
+                recordSerialFailure(
+                        "Serial status polling failed (lost connection to plotter?)", e);
                 break;
             }
             sleepQuietly(intervalMs);
@@ -636,10 +799,6 @@ public class GcodeBackend implements PlotterBackend {
         String body = line.substring(1, line.length() - 1);
         String stateToken = body.split("\\|", 2)[0];
         MachineState state = parseMachineState(stateToken);
-        updateMachineState(state);
-        if (state == MachineState.ALARM && !homingFromAlarm) {
-            handleAlarm("GRBL status: " + stateToken);
-        }
         double[] mpos = null;
         double[] wpos = null;
         for (String field : body.split("\\|")) {
@@ -650,7 +809,8 @@ public class GcodeBackend implements PlotterBackend {
             } else if (field.startsWith("WCO:")) {
                 double[] w = parseXY(field.substring(4));
                 if (w != null) {
-                    wco = w;
+                    if(wcoKnown&&(Math.abs(wco[0]-w[0])>1e-6||Math.abs(wco[1]-w[1])>1e-6))invalidateSafetyReview();
+                    wco = w;wcoKnown=Double.isFinite(w[0])&&Double.isFinite(w[1]);
                 }
             } else if (field.startsWith("Ov:")) {
                 try {
@@ -673,10 +833,19 @@ public class GcodeBackend implements PlotterBackend {
         } else if (mpos != null) {
             pos = new double[] { mpos[0] - wco[0], mpos[1] - wco[1] };
         } else {
+        updateMachineState(state);
+        if (state == MachineState.ALARM && !homingFromAlarm) {
+            handleAlarm("GRBL status: " + stateToken);
+        }
             return;
         }
 
         lastWpos = pos;
+        updateMachineState(state);
+        if (state == MachineState.ALARM && !homingFromAlarm) {
+            handleAlarm("GRBL status: " + stateToken);
+        }
+
         if (positionCallback != null) {
             try {
                 positionCallback.accept(pos[0], pos[1]);
@@ -687,6 +856,7 @@ public class GcodeBackend implements PlotterBackend {
     }
 
     private void handleAlarm(String detail) {
+        invalidateSafetyReview();
         updateMachineState(MachineState.ALARM);
         if (aborting) {
             return;
@@ -702,6 +872,8 @@ public class GcodeBackend implements PlotterBackend {
     }
 
     private GcodeBackendException recordSerialFailure(String message, IOException cause) {
+        invalidateSafetyReview();
+        wcoKnown = false;
         GcodeBackendException failure = terminalFailure;
         if (failure == null) {
             failure = new GcodeBackendException(message + ": " + cause.getMessage(), cause);
@@ -739,7 +911,8 @@ public class GcodeBackend implements PlotterBackend {
                     stateLock.wait(50);
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
-                    throw new GcodeBackendException("Interrupted while waiting for GRBL Hold to clear", e);
+                    throw new GcodeBackendException(
+                            "Interrupted while waiting for GRBL Hold to clear", e);
                 }
             }
         }
@@ -786,7 +959,8 @@ public class GcodeBackend implements PlotterBackend {
             }
             SerialTransport t = transport;
             if (t == null || !t.isOpen()) {
-                throw new GcodeBackendException("Lost connection while waiting for motion completion");
+                throw new GcodeBackendException(
+                        "Lost connection while waiting for motion completion");
             }
             synchronized (writeLock) {
                 try {
@@ -830,7 +1004,8 @@ public class GcodeBackend implements PlotterBackend {
                     new java.util.concurrent.CancellationException("Motion stopped"));
         }
         if (Thread.currentThread().isInterrupted()) {
-            throw new GcodeBackendException("Interrupted while waiting for GRBL Idle/motion completion",
+            throw new GcodeBackendException(
+                    "Interrupted while waiting for GRBL Idle/motion completion",
                     new InterruptedException());
         }
         if (System.nanoTime() >= deadline) {

@@ -82,6 +82,17 @@ final class CanvasRenderer {
         g2.draw(new java.awt.geom.Line2D.Double(originScreen[0], originScreen[1], yAxisEnd[0], yAxisEnd[1]));
         g2.drawString("+Y", (float) (yAxisEnd[0] + 5 / scale), (float) (yAxisEnd[1] + 5 / scale));
 
+        if(!panel.allPaths.isEmpty()){
+            double[] anchor=panel.getContentMotorAnchor();
+            if(panel.selectedArtwork()!=null){double[] box=PhysicalArtworkPlacement.bounds(panel,panel.selectedArtwork().bounds());anchor=new double[]{box[0]+(panel.getPlacementAnchor()%3)*box[2]/2,box[1]+(panel.getPlacementAnchor()/3)*box[3]/2};}
+            double[] screen=panel.physicalToScreen(anchor[0],anchor[1]);
+            g2.setColor(CanvasPalette.light?new Color(150,40,180):new Color(220,125,245));
+            g2.setStroke(new BasicStroke((float)(1.5/scale)));double r=5/scale;
+            g2.draw(new java.awt.geom.Ellipse2D.Double(screen[0]-r,screen[1]-r,2*r,2*r));
+            g2.draw(new java.awt.geom.Line2D.Double(screen[0]-r*1.5,screen[1],screen[0]+r*1.5,screen[1]));
+            g2.draw(new java.awt.geom.Line2D.Double(screen[0],screen[1]-r*1.5,screen[0],screen[1]+r*1.5));
+        }
+
         // --- Draw Refill Stations ---
         for (VisualizationPanel.Station station : panel.stations) {
             // VisualizationPanel.Station coords are in raw input space, transform to screen

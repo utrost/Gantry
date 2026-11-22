@@ -91,10 +91,14 @@ Before using hardware:
 1. Measure the real travel area of the plotter, not just the paper size.
 2. Set the machine width, height, origin corner, and pen-lift mode in Settings or
    the Setup Wizard.
-3. Connect the plotter and verify manual jog directions with the pen raised.
-4. Use **Home machine…** only if the controller and limit switches
+3. Connect. Use **Home machine…** only if the controller and limit switches
    are configured for homing.
-5. Run **Check before plotting** and frame the job before putting the pen down.
+4. On development builds after RC13, use **Machine > Review firmware limits...**
+   to review explicit machine-coordinate ranges, WCO and actual machine/paper
+   reference before XY motion. This does not write firmware or enlarge the profile.
+5. Verify manual jog directions with the pen raised, then run **Check before
+   plotting** and frame the job before putting the pen down. Stop/reset/reference
+   changes require firmware/reference review again on these development builds.
 6. Keep a hand near power or emergency stop for the first real test.
 
 Start with a small, simple SVG near the centre of the bed. The committed sample
@@ -124,3 +128,10 @@ processing's pen-width mode. Start with 0.5 mm effective width and 20% overlap
 adds labelled test artwork. Creating it sends no machine commands. Choose real
 width/overlap from a plotted sample, save a named profile, and regenerate at the
 final artwork size. See [the full guide](USER_GUIDE.md).
+
+Development after RC13 adds a separate firmware/reference gate for real GRBL and
+Serial GRBL simulator connections: use **Machine > Review firmware limits...**
+before XY motion, select actual machine-coordinate ranges and verify the machine
+reference and paper/work origin. Stop/reset/reference changes require a new review.
+The guided lightweight-mock practice stays unchanged. See the
+[full instructions](USER_GUIDE.md#firmware-limits-and-machine-reference-development-after-rc13).
