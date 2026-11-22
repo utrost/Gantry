@@ -238,8 +238,8 @@ RC13 can undercount refill distances for a MOVE followed by a single-endpoint
 DRAW, reorder buffered ink at exact refill boundaries, or begin a DRAW-only
 layer from its initial pot. Its automatic color mapping can also select a
 colored rinse/water cup, and a station-wizard nudge can move relative to the
-head's previous position instead of the saved station coordinate. Development
-fixes and reproduction evidence are in the
+head's previous position instead of the saved station coordinate. RC14 includes
+the fixes; reproduction evidence is in the
 [watercolor/station/homing audit](release-results/2026-11-21-watercolor-homing.md).
 Those fixes are absent from the immutable RC13 artifacts; do not treat an old
 artifact as evidence for accepting them. Inspect exported paths and complete a
@@ -250,7 +250,7 @@ Record the alarm and diagnostics, use Stop and the controlled recovery procedure
 and inspect the hardware cause; do not repeatedly retry Home past an alarm.
 
 
-## Waiting for motion completion (development after RC13)
+## Waiting for motion completion (RC14)
 
 A layer may reach 100% submitted progress while the controller is still executing
 queued travel. Gantry waits for an acknowledged `G4 P0` planner barrier and a fresh
@@ -269,11 +269,11 @@ workspace and diagnostics identify it; its invalid/unused port name is never
 opened. Its faster simulated execution and synthetic Home do not establish real
 motion, lift, switches or pot clearance. See the [backend contract](BACKEND_CONTRACT.md)
 and [verification](release-results/2026-11-21-completion-serial-simulator.md).
-RC13 downloads do not contain these later source changes.
+RC14 includes these changes; RC13 downloads retain their earlier behavior.
 
 ## Firmware review or XY movement is blocked
 
-Development after RC13 requires a fresh **Machine > Review firmware limits...**
+RC14 requires a fresh **Machine > Review firmware limits...**
 for GUI GRBL connections, including the serial simulator. Check acknowledged
 `$130/$131/$110/$111`, fresh WCO and an explicit machine-coordinate range for each
 axis; Z pen mode additionally needs `$112`. Unsupported firmware/settings are
@@ -289,7 +289,7 @@ command units: [upstream configuration](https://github.com/gnea/grbl/wiki/Grbl-v
 Stop, reset, alarm, disconnect, origin and relevant profile/feed changes invalidate
 review. Establish the actual reference and paper origin again. Home, machine zero,
 work zero and paper registration are different. After suspected lost steps choose
-**Machine > Mark reference uncertain**. See the [operating contract](USER_GUIDE.md#firmware-limits-and-machine-reference-development-after-rc13).
+**Machine > Mark reference uncertain**. See the [operating contract](USER_GUIDE.md#firmware-limits-and-machine-reference-rc14).
 
 ## Partial restart is unavailable or does not match
 
@@ -303,7 +303,7 @@ only when you intend to abandon that saved proposal. For write failures check
 profile permissions/free space; progress persistence failure stops tracked
 execution. Reopening never moves hardware. Inspect uncertain strokes on paper,
 review selection and all confirmations, then establish reference/checks and Start.
-See [reviewed restart](USER_GUIDE.md#reviewed-partial-restart-and-reverse-development-after-rc13).
+See [reviewed restart](USER_GUIDE.md#reviewed-partial-restart-and-reverse-rc14).
 
 ## Resizing or rotating keeps being rejected
 

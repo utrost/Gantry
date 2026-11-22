@@ -34,44 +34,34 @@ Other distributions and architectures are not yet validated.
   `sudo apt install ./Gantry-<version>-linux-x64.deb`, then open **Gantry** from
   the applications menu.
 
-The [1.0.0-rc.13 candidate](https://github.com/utrost/Gantry/releases/tag/v1.0.0-rc.13)
-adds versioned upright profiles, complete stroke previews, prepared-route timing,
-editable artwork, SVG/ZIP export and image-art reliability fixes. It is a testing
-prerelease; physical-machine and human acceptance are still pending.
-Dark is the default theme. Earlier releases remain available unchanged. Portable users can download the GUI JAR and run
-`java -jar Gantry-<version>.jar` with Java 17 or newer, or build from source with
-`./scripts/build.sh`.
+The [1.0.0-rc.14 candidate](https://github.com/utrost/Gantry/releases/tag/v1.0.0-rc.14)
+includes the station/homing fixes, explicit motion-completion barriers, serial GRBL
+simulator, read-only firmware/work-origin review, nine-point placement references
+and reviewed pen-only partial restart/reverse. It retains upright profiles,
+complete previews, prepared-route timing, editable artwork and SVG/ZIP export.
+This is a testing prerelease; physical-machine and human acceptance remain pending.
+Dark is the default theme. Older releases and the held RC12 draft remain unchanged.
 
-Installer downloads contain the platform package, a standalone README, license,
-version information and checksums. Portable GUI/CLI JARs and the complete offline
-documentation ZIP are a separate download. See [installer contents](docs/packaging/README.md).
+Windows/Linux installers include Java and offline help. Portable users need Java
+17 or newer: `java -jar Gantry-<version>.jar`. See
+[installer contents](docs/packaging/README.md) and verify downloads with SHA256SUMS.
 
-Start with the [guided mock first plot](docs/FIRST_PLOT.md) before using hardware.
-Development after RC13 also offers **Settings → Simulation → Serial GRBL simulator**:
-normal GUI workflows use the production serial backend without opening hardware.
-Layer changes and final success now wait for an explicit completion barrier. See
-the [verification and simulation limits](docs/release-results/2026-11-21-completion-serial-simulator.md);
-these changes are absent from RC13 downloads.
-Development source also adds read-only firmware/work-origin review, nine-point
-placement references and an explicitly reviewed pen-only partial restart/reverse
-workflow. Saved proposals never start motion automatically. See the
-[contracts and verification](docs/release-results/2026-11-22-firmware-anchors-restart.md).
-These additions are absent from RC13 downloads.
+Start with the [guided mock first plot](docs/FIRST_PLOT.md).
+**Settings → Simulation → Serial GRBL simulator** uses the production backend
+without opening hardware; the lightweight mock is also available.
+Firmware/reference review is required before GUI GRBL XY motion. Saved partial
+restart proposals never start motion automatically; watercolor restart is blocked.
+See [completion/simulation limits](docs/release-results/2026-11-21-completion-serial-simulator.md)
+and [firmware/placement/restart contracts](docs/release-results/2026-11-22-firmware-anchors-restart.md).
+
 Watch the [one-minute mock walkthrough](docs/demos/Gantry-first-plot-mock.mp4):
-actual app screens show import, preview, the pre-plot checklist, pen confirmation,
-and completion. This captioned walkthrough simulates plotting; no hardware moves.
-
-RC13 packages the coordinate, preview and estimate fixes and refreshed offline guides. Existing
-calibrated profiles keep their mapping; upright migration requires explicit review
-and new pen-up direction/frame checks. See the
-[candidate evidence](docs/release-results/1.0.0-rc.13.md),
-[operator worksheet](docs/release-results/1.0.0-rc.13-operator.md) and
-[current software verification](docs/release-results/2026-11-21-prepared-route.md).
-The held RC12 draft remains unchanged and predates these fixes.
-
-Later development fixes watercolor refill geometry, rinse-pot color mapping,
-station nudges and homing fault waits. These fixes are absent from RC13 downloads;
-see the [fresh audit](docs/release-results/2026-11-21-watercolor-homing.md).
+actual application screens show import, review, pen confirmation and completion.
+No physical hardware moves. Existing calibrated profiles keep their mapping;
+upright migration requires explicit review and fresh pen-up direction/frame checks.
+Use the [candidate evidence](docs/release-results/1.0.0-rc.14.md) and
+[operator worksheet](docs/release-results/1.0.0-rc.14-operator.md) for acceptance.
+The [station/homing audit](docs/release-results/2026-11-21-watercolor-homing.md)
+records the corrected refill paths, rinse-pot mapping, nudges and fault waits.
 
 
 ## Start here
@@ -154,7 +144,7 @@ Windows (`.cmd`), all run from the repo root:
 
 Release builds require Python 3.9+ as well as Java/Maven; native installers
 require JDK 21+ with jpackage. Portable JARs still run on Java 17+. For example:
-`./scripts/release.sh 1.0.0-rc.13 --installer` (Windows: `scripts\release.cmd 1.0.0-rc.13 --installer`).
+`./scripts/release.sh 1.0.0-rc.14 --installer` (Windows: `scripts\release.cmd 1.0.0-rc.14 --installer`).
 
 Tagged releases are staged as drafts by GitHub Actions after both installers pass. See
 [`docs/RELEASE_CHECKLIST.md`](docs/RELEASE_CHECKLIST.md) for the required mock

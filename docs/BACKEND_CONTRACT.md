@@ -87,7 +87,7 @@ The new check does not turn mock/fake-serial evidence into physical acceptance.
 
 ## Homing wait failures
 
-Development after RC13 checks terminal controller failure, deadline and thread
+RC14 checks terminal controller failure, deadline and thread
 interruption on every fresh-Idle polling iteration, including before accepting
 Idle. Continuous non-Idle reports cannot extend the deadline. An explicit alarm
 during the initial lift fails Home without submitting $H. The existing controlled
@@ -158,7 +158,7 @@ endstop wiring, firmware buffer/USB timing, servo dynamics, pigment or pot model
 The simulator is intentionally a documented subset, not a firmware-equivalence
 claim. Shared backend, serial fault, controller and actual Swing tests are linked
 in the [verification record](release-results/2026-11-21-completion-serial-simulator.md).
-Physical acceptance #39/#54/#93 remains open. These changes are after RC13.
+Physical acceptance #39/#54/#93 remains open. These changes ship in RC14.
 
 ## Read-only firmware/reference review (#113)
 

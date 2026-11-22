@@ -39,22 +39,22 @@ then use either exported G-code or a real GRBL connection without verbal coachin
 
 ## November 2026 update
 
-Source additions #113–#115 provide firmware/reference review, precise nine-point
+RC14 additions #113–#115 provide firmware/reference review, precise nine-point
 placement and explicit pen-only restart proposals. They reduce software risk but
 still need observed physical reference/paper registration and native scaling.
 See the [verification record](release-results/2026-11-22-firmware-anchors-restart.md).
-RC13 downloads remain unchanged.
+RC14 includes these changes; RC13 downloads remain unchanged.
 
 
 The [completion barrier and serial simulator](release-results/2026-11-21-completion-serial-simulator.md)
 add deterministic software evidence after RC13. Neither changes physical or
-participant acceptance requirements or the preserved download assets.
+participant acceptance requirements; both changes ship in RC14.
 
 The later [watercolor/station/homing audit](release-results/2026-11-21-watercolor-homing.md)
 adds verified software fixes after RC13; these do not close any physical or human
-acceptance gate and are absent from RC13's preserved assets.
+acceptance gate. RC14 includes the fixes; RC13 assets remain preserved.
 
-RC13 packages versioned upright profiles, complete preview strokes and prepared-route
+RC14 also packages versioned upright profiles, complete preview strokes and prepared-route
 estimates as a testing prerelease. RC12 remains an immutable unpublished draft.
 Current software evidence is linked from [documentation status](DOCUMENTATION_STATUS.md).
 The adoption gates still need real people, native desktop observations and current

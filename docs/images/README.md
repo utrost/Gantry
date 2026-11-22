@@ -1,16 +1,16 @@
 # Gantry screenshots — current development
 
-All 47 PNGs were regenerated on 2026-11-21 from the
-`fix/prepared-preview-and-estimates` development JAR (based on `c9b1d38`),
+All 47 PNGs were regenerated on 2026-11-22 from the versioned RC14 JAR,
+based on implementation `0912c5b496e054900a95095128ae9c3b3cb40995`.
+Capture JAR SHA-256: `c797e337739f950208fd0ba1b495b3c7d42dc219f50c2b91432ebb6f4c871c85`.
 JDK 21 / Linux / Xvfb, requested/effective scale 1. They render actual Swing
 components with isolated mock profiles. Dark is the default; Light remains
 available. No physical plotter was connected. Root-pane captures exclude native
-borders. Current source screenshots do not describe the preserved public RC11
-payload or immutable RC12 draft.
+borders. These screenshots describe RC14; older release payloads remain unchanged.
 
 The [60-second mock walkthrough](../demos/Gantry-first-plot-mock.mp4) was regenerated
 from the same JAR: six captioned application states, including the visible terminal
-state. It demonstrates the application workflow and no hardware motion.
+state. It demonstrates the workflow with no hardware motion.
 
 [Text dialog](workspace/quick-artwork-dialog.png),
 [workspace/export feedback](workspace/quick-artwork.png) and
@@ -79,4 +79,5 @@ revisions and are not presented as current screenshots.
 
 The dated post-RC13 firmware/reference, placement-anchor and partial-restart
 captures are kept separately with their own [2026-11-22 provenance](../validation/firmware-anchors-restart/README.md).
-The 47-image gallery above predates those additions and is retained as dated evidence.
+The refreshed gallery includes current workspace controls; the separate evidence set
+shows firmware review and partial-restart states in the serial simulator.

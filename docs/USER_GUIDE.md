@@ -385,12 +385,12 @@ Used for watercolor painting. Each station has:
 | Dwell (ms) | How long to pause at the station while dipping. |
 | Swirl (mm) | Radius of the circular swirl motion for `dip_swirl` / `rinse` behaviours. |
 
-Development after RC13 excludes water/rinse pots from automatic paint-color
+RC14 excludes water/rinse pots from automatic paint-color
 matching, even if a cleaning pot has a color. Layer refill settings count actual
 pen-down travel from the preceding MOVE or DRAW endpoint, including a single
 endpoint. Refills return to the interrupted artwork point before drawing resumes;
 a DRAW-only layer gets an explicit origin return after its initial refill.
-These fixes are not in the RC13 downloads; see the
+These fixes ship in RC14; see the
 [watercolor/homing audit](release-results/2026-11-21-watercolor-homing.md).
 
 
@@ -674,7 +674,7 @@ when no drawing is loaded; **Add station here** and **Reset View** are always av
 
 ### Nine-point placement references
 
-Development after RC13 adds **Reference** under Position & Size for the whole
+RC14 adds **Reference** under Position & Size for the whole
 drawing or selected artwork. Choose X minimum/middle/maximum combined with Y
 minimum/middle/maximum, including Center. These are points of the existing placed
 DRAW vertex bounding box in controller work coordinates; rotation uses the new
@@ -1033,7 +1033,7 @@ for them to be accurate. Disable the checkbox to jog without clamping.
 
 ### Raw G-code
 
-Type a supported command in the text field and press Enter. Development after RC13 restricts GUI GRBL raw motion to reviewed absolute millimetre XY and configured pen commands. Unsupported modes fail, and explicit origin/settings writes invalidate reference review; see the firmware/reference section below.
+Type a supported command in the text field and press Enter. RC14 restricts GUI GRBL raw motion to reviewed absolute millimetre XY and configured pen commands. Unsupported modes fail, and explicit origin/settings writes invalidate reference review; see the firmware/reference section below.
 
 ---
 
@@ -1342,7 +1342,7 @@ cannot report position, a warning records the origin assumption; this does not
 establish actual position. Mock results cannot substitute for physical checks.
 
 
-### Motion completion and serial simulation (development after RC13)
+### Motion completion and serial simulation (RC14)
 
 At a layer boundary Gantry submits the pen-up return to work origin, then waits
 for a planner synchronization acknowledgement and newly requested **Idle** status
@@ -1366,9 +1366,9 @@ Motion and dwell run at 20 times nominal speed for practice; this is not an esti
 of physical performance. It has no physical endstops, acceleration, actuator or
 ink model. See the [backend contract](BACKEND_CONTRACT.md) and
 [verification record](release-results/2026-11-21-completion-serial-simulator.md).
-These additions are source changes after RC13 and are absent from its downloads.
+These additions ship in RC14; older immutable downloads remain unchanged.
 
-## Firmware limits and machine reference (development after RC13)
+## Firmware limits and machine reference (RC14)
 
 GUI GRBL connections, including **Serial GRBL simulator**, require **Machine >
 Review firmware limits...** before XY moves. The Check view offers the same action.
@@ -1414,7 +1414,7 @@ commands. Unsupported motion/modal syntax is rejected. Explicit origin/settings
 writes invalidate reference review. The lightweight mock and file export do not
 establish actual firmware limits or physical reference.
 
-## Reviewed partial restart and reverse (development after RC13)
+## Reviewed partial restart and reverse (RC14)
 
 **File > Review partial restart...** opens the saved prepared pen job, or captures
 the current prepared selection if none exists. Normal pen plotting records a
