@@ -15,13 +15,13 @@ GRBL cancellation/error handling. Its machine-aware preview also shows ordered
 layers with source pen colours, visibility, and physical nib widths that remain
 constant when artwork is scaled.
 
-RC13 is the current public **testing prerelease**, with verified Windows/Linux
-installers and preserved assets. RC12 remains an unpublished immutable draft.
-Versioned upright profiles, complete previews and prepared-route estimates ship
-in RC13. Later watercolor/station/homing and completion/simulator fixes are
-source changes after that release. Native CI verifies install, upgrade and launch;
-physical and external-user acceptance remain open. See the
-[current candidate record](docs/release-results/1.0.0-rc.13.md) and
+RC14 is the current testing candidate, combining the RC13 coordinate/preview/timing
+baseline with station/homing corrections, completion barriers, serial simulation
+and #113–#115 firmware review, placement anchors and reviewed partial restart.
+The release process verifies Windows/Linux installers and upgrades. Physical,
+native-desktop and external-user acceptance remain open. Older releases and the
+held RC12 draft remain unchanged. See the
+[current candidate record](docs/release-results/1.0.0-rc.14.md) and
 [documentation status](docs/DOCUMENTATION_STATUS.md).
 Beginner usability is closed as described in [`docs/USABILITY.md`](docs/USABILITY.md).
 
@@ -33,7 +33,7 @@ Beginner usability is closed as described in [`docs/USABILITY.md`](docs/USABILIT
 | 2 | Roadmap reconciliation | Active plan is concise; historical phase diary is explicitly deprecated and archived | Complete |
 | 3 | Project/session persistence | `.gantry` files preserve commands, placement, selected layers, passes, and source/vectorizer provenance; command JSON is clearly a flattened interchange export | Complete |
 | 4 | Undo/recovery | Multi-level undo/redo covers model edits; dirty state, close protection, and recovery autosave protect unsaved work | Complete for model/project state and artwork placement edits |
-| 5 | Release readiness | Non-SNAPSHOT version, repeatable release artifacts, checksums, and a recorded acceptance template/workflow | RC13 testing prerelease published; automated installer checks pass; RC2 hardware report retained; current physical and external-user acceptance pending |
+| 5 | Release readiness | Non-SNAPSHOT version, repeatable release artifacts, checksums, and a recorded acceptance template/workflow | RC14 testing candidate; automated installer checks recorded per candidate; RC2 hardware report retained; current physical and external-user acceptance pending |
 | 6 | Focused polish | Full SVG colour discovery for hatch overrides, accurate travel accounting/labeling, and vectorizer crop restoration | Complete |
 | 7 | CLI batch artifacts | Post-import optimize, shared config/station mapping, and optional G-code output work headlessly with end-to-end tests | Complete |
 | 8 | Exact-job history | Re-plot uses an immutable prepared-job snapshot; recent successful jobs persist and can be reopened/replotted | Complete |
@@ -63,22 +63,22 @@ assets predate these changes and remain unchanged. #93's software criteria are
 addressed; physical direction/frame/plot acceptance in #39/#54/#93 remains open.
 See [page projection](docs/release-results/2026-11-20-page-projection.md),
 [upright-profile verification](docs/release-results/2026-11-21-upright-profiles.md)
-and the [RC13 operator worksheet](docs/release-results/1.0.0-rc.13-operator.md).
+and the [RC14 operator worksheet](docs/release-results/1.0.0-rc.14-operator.md).
 
-Development after RC13 fixes #106–#109's watercolor route, cleaning-pot mapping,
+RC14 includes fixes for #106–#109's watercolor route, cleaning-pot mapping,
 station nudge and homing fault waits. #111 adds an explicit planner-completion
 barrier before pen handoff/final success; #112 supplies a selectable serial
 simulator under the production backend, preserving the lightweight mock. See the
 [completion/simulator verification](docs/release-results/2026-11-21-completion-serial-simulator.md).
-Neither follow-up is in RC13 downloads, and neither closes physical acceptance.
+Both follow-ups are included in RC14; physical acceptance remains open.
 
 Software #113–#115 is delivered: read-only firmware/profile/work-origin envelope
 review, nine-point placement with fixed references, and persisted, explicitly
 reviewed pen-only partial restart/reverse. Restart never resumes automatically;
 watercolor cases are blocked pending a separate loading/cleaning/drying policy.
 See the [contracts, tests and actual GUI evidence](docs/release-results/2026-11-22-firmware-anchors-restart.md).
-These source changes are absent from RC13 and do not close hardware, paper
-registration or native scaling acceptance.
+RC14 includes these changes; hardware, paper registration and native scaling
+acceptance remain open.
 
 Follow-up #100/#101/#103 fixes route estimates and controller-space preview starts
 (initial origin, refill and rinse). Known non-origin initial DRAWs are rejected
@@ -151,8 +151,9 @@ need review before executable waits or reordering are scheduled.
 Composition handles, extra formats/backends, new image-art engines, tone fidelity,
 continuity controls and sampler/renderer ideas are preserved in
 [FEATURE_CANDIDATES.md](docs/FEATURE_CANDIDATES.md). Tracer capture remains a
-[documented future handoff](docs/TRACER_CAPTURE_IMPORT.md). Restart-resume, pressure
-motion, automatic safe-Z, AxiDraw and full vector-node editing remain deferred.
+[documented future handoff](docs/TRACER_CAPTURE_IMPORT.md). Automatic/unattended
+physical resume, watercolor restart, pressure motion, automatic safe-Z, AxiDraw
+and full vector-node editing remain deferred.
 
 ## Roadmap maintenance rules
 

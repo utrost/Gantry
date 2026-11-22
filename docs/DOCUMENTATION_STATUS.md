@@ -1,25 +1,19 @@
 # Documentation status — 2026-11-22
 
-RC13 is a public testing prerelease containing the coordinate/preview/estimate fixes and
-matching guides/gallery. Its exact-tag builds and all nine assets are verified. RC12 remains
-an immutable unpublished draft at `8dcb772`; its assets and older public releases
-are unchanged. See [RC13 candidate evidence](release-results/1.0.0-rc.13.md),
-[RC12 historical identity](release-results/1.0.0-rc.12.md) and the
-[current software/audit record](release-results/2026-11-21-prepared-route.md).
+RC14 is the current testing candidate and includes all post-RC13 software fixes:
+watercolor/stations/homing, completion barriers and serial simulation, read-only
+firmware/reference review, nine-point placement and reviewed pen-only partial restart.
+See the [candidate record](release-results/1.0.0-rc.14.md) for publication and
+exact-tag verification status. RC13 and older assets, including the held RC12 draft,
+remain unchanged.
 
-Later [watercolor/station/homing fixes](release-results/2026-11-21-watercolor-homing.md)
-are development source changes, absent from the immutable RC13 downloads. Current
-guides describe these corrected paths; preserve the release/source distinction.
-The [completion/simulator audit](release-results/2026-11-21-completion-serial-simulator.md)
-adds #111/#112 evidence, supported serial subset and physical boundaries. Settings,
-offline help, testing, backend contract and active roadmap describe these source additions.
-
-The [firmware/anchor/restart audit](release-results/2026-11-22-firmware-anchors-restart.md)
-adds #113–#115 source contracts and a separate actual-GUI evidence set, including
-an actual second JVM after mid-stroke Stop. User/offline help, developer contracts,
-coordinates, troubleshooting and testing describe these additions. The dated
-47-image gallery remains historical; the new feature captures have their own
-[provenance](validation/firmware-anchors-restart/README.md).
+User/offline guides, first plot, troubleshooting, backend contracts and active
+roadmaps now identify RC14 as the first candidate containing these changes.
+The [feature audit](release-results/2026-11-22-firmware-anchors-restart.md) preserves
+implementation contracts and separate actual-GUI evidence, including a second JVM
+after mid-stroke Stop. The gallery/video provenance is recorded in
+[images/README.md](images/README.md); dated audit captures retain their original
+source identities and results.
 
 | Area | Current state |
 |---|---|
@@ -28,8 +22,8 @@ coordinates, troubleshooting and testing describe these additions. The dated
 | First plot and support | Source-vs-release distinction, migration troubleshooting, estimate discrepancies |
 | Developer reference | Actual command classes, shared plot-based estimation, controller-space starts, compatibility and regression coverage |
 | Roadmap and adoption | Delivered software separated from native/hardware/participant acceptance and deferred research |
-| Gallery | All 47 actual Swing PNGs regenerated 2026-11-21 from this development JAR; [provenance](images/README.md) |
-| Walkthrough | New 60-second/six-state mock video from the same JAR; no physical movement |
+| Gallery | All 47 actual Swing PNGs regenerated 2026-11-22 from the versioned RC14 JAR; [provenance](images/README.md) |
+| Walkthrough | Refreshed 60-second/six-state mock video from the same RC14 JAR; no physical movement |
 | Historical evidence | Dated failures/counts retained; original RC12 image links pinned to immutable tag |
 | Packaging | Existing payload checks still validate installed offline links, screenshots and samples; older release assets unchanged |
 
@@ -43,7 +37,7 @@ records preserved legacy output and explicit opt-in. [Prepared-route follow-up](
 records the later complete preview and time-estimate fixes. The [backend contract](BACKEND_CONTRACT.md)
 qualifies mock/fake-serial evidence; neither establishes firmware or physical fidelity.
 
-The [operator checklist](OPERATOR_ACCEPTANCE.md) uses the RC13 worksheet
+The [operator checklist](OPERATOR_ACCEPTANCE.md) uses the [RC14 worksheet](release-results/1.0.0-rc.14-operator.md)
 for #93 direction/frame/plot checks, current manual Stop/recovery #39, actual
 native scaling #43, operator benchmark #54, a real artwork task #72 and novice
 participants #16. #33 stays open for its acceptance dependencies; #71 remains

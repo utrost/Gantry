@@ -1,7 +1,7 @@
 # Gantry release checklist
 
-Source additions #113–#115 require a newly identified build; RC13 does not contain
-them. For real firmware/reference tests verify actual coordinate ranges and WCO,
+RC14 includes source additions #113–#115. For real firmware/reference tests verify
+actual coordinate ranges and WCO,
 smaller-profile preservation, feed rejection, frame and full pot/swirl clearance,
 Stop/reset/lost-reference rereview, and pen-up lift. For partial restart inspect
 paper registration and uncertain ink before explicitly selecting/reviewing strokes.
@@ -92,11 +92,11 @@ actual participant evidence from `NOVICE_STUDY.md`.
 
 ## Installed workflow and upgrade evidence
 
-The package job also builds a **synthetic** `1.0.0-rc.1` installer using the
+The package job also builds a **synthetic** `1.0.0-rc.13` installer using the
 candidate's code with an older manifest/native identity. It lives under
 `dist/upgrade-fixture/<candidate>/<baseline>/` and is never uploaded as a release
 asset. This verifies installer replacement/version ordering; it is not a claim
-that the historical RC1 application was tested with an installer.
+that the historical RC13 application was tested with an installer.
 
 CI installs that fixture, seeds an isolated profile with spaces in its path,
 redirects APPDATA/XDG_CONFIG_HOME into that isolated workspace and verifies the

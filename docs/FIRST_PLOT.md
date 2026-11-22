@@ -3,8 +3,8 @@
 This guide is the shortest path from a fresh Gantry checkout or release artifact
 to a safe first practice plot. Use it before connecting a real machine.
 
-RC13 packages the software fixes and current guide/gallery. RC11 and the unchanged
-RC12 draft predate the profile/preview fixes. See
+RC14 packages the software fixes, firmware review, serial simulation and current
+guides. Older releases retain their original behavior. See
 [documentation status](DOCUMENTATION_STATUS.md) before comparing an older download.
 
 ## What you need
@@ -79,7 +79,7 @@ Follow the primary action in the fixed job strip below the canvas:
 A successful mock run proves the basic workflow, not the physical calibration of
 a real machine.
 
-Fresh development profiles use Upright artwork; existing profiles retain Legacy
+Fresh profiles use Upright artwork; existing profiles retain Legacy
 mapping. Updating software does not migrate calibrated axes. Any explicit change
 requires disconnection, review and new pen-up direction/frame checks. See
 [artwork orientation](USER_GUIDE.md#artwork-orientation-and-existing-profiles).
@@ -93,12 +93,12 @@ Before using hardware:
    the Setup Wizard.
 3. Connect. Use **Home machine…** only if the controller and limit switches
    are configured for homing.
-4. On development builds after RC13, use **Machine > Review firmware limits...**
+4. In RC14, use **Machine > Review firmware limits...**
    to review explicit machine-coordinate ranges, WCO and actual machine/paper
    reference before XY motion. This does not write firmware or enlarge the profile.
 5. Verify manual jog directions with the pen raised, then run **Check before
    plotting** and frame the job before putting the pen down. Stop/reset/reference
-   changes require firmware/reference review again on these development builds.
+   changes require firmware/reference review again on RC14.
 6. Keep a hand near power or emergency stop for the first real test.
 
 Start with a small, simple SVG near the centre of the bed. The committed sample
@@ -129,9 +129,9 @@ adds labelled test artwork. Creating it sends no machine commands. Choose real
 width/overlap from a plotted sample, save a named profile, and regenerate at the
 final artwork size. See [the full guide](USER_GUIDE.md).
 
-Development after RC13 adds a separate firmware/reference gate for real GRBL and
+RC14 adds a separate firmware/reference gate for real GRBL and
 Serial GRBL simulator connections: use **Machine > Review firmware limits...**
 before XY motion, select actual machine-coordinate ranges and verify the machine
 reference and paper/work origin. Stop/reset/reference changes require a new review.
 The guided lightweight-mock practice stays unchanged. See the
-[full instructions](USER_GUIDE.md#firmware-limits-and-machine-reference-development-after-rc13).
+[full instructions](USER_GUIDE.md#firmware-limits-and-machine-reference-rc14).

@@ -69,14 +69,16 @@ hardware checks remain separate from automated package validation.
 ## RC10 help payload (historical)
 
 The offline guide now includes pen-width filling, coverage and calibration images,
-profile persistence and regeneration instructions. Native version 1.0.10 follows RC9
-(1.0.9). Upgrade CI uses a synthetic RC9 fixture. Release CI tests the matching help/resources using bundled Java with system
+profile persistence and regeneration instructions. RC14 native version 1.0.14 follows RC13
+(1.0.13). Upgrade CI uses current code with a synthetic RC13 identity; this does
+not test every historical schema. Release CI tests the matching help/resources using bundled Java with system
 Java removed from PATH; published SHA256SUMS covers installers and documentation.
 Pen/paper profiles live beside GUI settings and are separate from portable machine
 settings exports.
 
 ## Source documentation versus preserved releases
 
-RC13 packages matching guides/gallery, versioned upright profiles and prepared-route
-previews/estimates under a new immutable tag. Published RC11 and the held RC12 draft
+RC14 packages matching offline guides/gallery, versioned upright profiles, prepared-route
+previews/estimates, station/homing corrections, completion barriers, serial simulation,
+firmware review, anchors and reviewed pen-only partial restart under a new tag. Published RC11 and the held RC12 draft
 retain their original payloads; do not replace older release assets. See [documentation status](../DOCUMENTATION_STATUS.md).

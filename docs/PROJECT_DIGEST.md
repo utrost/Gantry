@@ -3,19 +3,18 @@
 Current source also delivers #113–#115: explicit read-only firmware/work-origin
 review, nine-point placement and persisted reviewed pen-only restart/reverse.
 See the [delivery contract and evidence](release-results/2026-11-22-firmware-anchors-restart.md).
-Published RC13 assets do not contain these additions; physical acceptance remains open.
+RC14 includes these additions; physical acceptance remains open.
 
 This digest captures the current shape of Gantry so future documentation and roadmap work can start from the same map. It is a navigation aid, not a substitute for the code or the detailed guides.
 
 ## Current position
 
-Post-RC13 software work adds explicit motion-completion barriers and a selectable
+RC14 adds explicit motion-completion barriers and a selectable
 serial simulator through the production GRBL backend; see the
 [verification and limitations](release-results/2026-11-21-completion-serial-simulator.md).
 It also fixes watercolor refill path accounting/order, palette
 cleaning-pot exclusion, station nudges and homing fault waits. See the
-[fresh audit](release-results/2026-11-21-watercolor-homing.md). Published RC13
-assets remain unchanged and do not contain this follow-up.
+[fresh audit](release-results/2026-11-21-watercolor-homing.md). RC14 includes these fixes; older release assets remain unchanged.
 
 Gantry is a Java 17 / Maven multi-module plotting studio for GRBL pen plotters. It combines SVG preparation, raster-to-SVG vectorization, editable project/session state, safe pre-plot checks, G-code export/streaming/replay, optional watercolor station workflows, and a beginner-aware Swing/FlatLaf GUI.
 
@@ -51,9 +50,8 @@ The Maven reactor contains eight modules:
 - `cli` — headless SVG/image batch conversion and optional G-code output.
 - `app` — Swing GUI, orchestration, persistence, recovery, history, visualization, and help surface.
 
-RC13 is the current public testing prerelease. Its exact-tag/native/asset evidence
-is in the [candidate record](release-results/1.0.0-rc.13.md). Later source fixes
-remain absent from those immutable downloads. CI verifies Java 17/21, GUI workflows
+RC14 is the current testing candidate. Its exact-tag/native/asset evidence
+is in the [candidate record](release-results/1.0.0-rc.14.md). All post-RC13 fixes are included in RC14. CI verifies Java 17/21, GUI workflows
 and Windows/Linux installers; physical and participant gates remain separate.
 
 ## Roadmap state
@@ -67,7 +65,7 @@ Active product roadmap:
 
 Active adoption roadmap:
 
-- Native Windows MSI/Linux DEB releases and portable GUI/CLI JARs are published through GitHub Releases; RC13 is the current testing prerelease.
+- Native Windows MSI/Linux DEB releases and portable GUI/CLI JARs are published through GitHub Releases; RC14 is the current testing candidate.
 - Mock first-plot video, screenshots, offline help and SVG samples ship with the documented workflow.
 - Windows 11 / iDraw H A1 RC2 hardware success is recorded; current changed behavior still needs physical confirmation.
 - External tester recruitment, structured novice evidence and additional known-good setups remain adoption work.
@@ -119,7 +117,7 @@ controlled-motion, shared-backend and scripted serial fault regressions. See
    initial-position validation and prepared-route estimates. Legacy profiles and
    recorded jobs retain their mapping. See the
    [upright-profile verification](release-results/2026-11-21-upright-profiles.md) and
-   [RC13 candidate record](release-results/1.0.0-rc.13.md). Physical direction/frame/plot
+   [RC14 candidate record](release-results/1.0.0-rc.14.md). Physical direction/frame/plot
    acceptance #93 remains open. RC12 stays an unchanged held draft.
 
 2. Use [OPERATOR_ACCEPTANCE.md](OPERATOR_ACCEPTANCE.md) for hardware, native scaling

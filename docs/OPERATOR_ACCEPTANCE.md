@@ -1,7 +1,6 @@
 # Operator acceptance for current candidates
 
-Source additions #113–#115 require a newly identified build; RC13 does not contain
-them. For real firmware/reference tests verify actual coordinate ranges and WCO,
+RC14 includes #113–#115. For real firmware/reference tests verify actual coordinate ranges and WCO,
 smaller-profile preservation, feed rejection, frame and full pot/swirl clearance,
 Stop/reset/lost-reference rereview, and pen-up lift. For partial restart inspect
 paper registration and uncertain ink before explicitly selecting/reviewing strokes.
@@ -9,18 +8,16 @@ Native desktop checks must include the nine-point selector and restart dialog.
 Software/simulation evidence does not mark these observations PASS. See the
 [delivery contract](release-results/2026-11-22-firmware-anchors-restart.md).
 
-The [RC13 worksheet](release-results/1.0.0-rc.13-operator.md) is ready for session
+The [RC14 worksheet](release-results/1.0.0-rc.14-operator.md) is ready for session
 identity, task observations, scaling combinations and benchmark timings.
 
-Status: **not run**. RC13 packages the upright-profile and prepared-route fixes
+Status: **not run**. RC14 packages the upright-profile, prepared-route and subsequent software fixes
 as a testing prerelease. Physical orientation #93, hardware Stop/recovery, native
 scaling and human acceptance remain open. See the
-[candidate record](release-results/1.0.0-rc.13.md) for artifact identity and checks.
-The held RC12 draft and older releases remain unchanged; do not use them to
-accept the later fixes. Record the exact artifact and hash for each session. Later source changes need a
-new identified build: the [completion/simulator fixes](release-results/2026-11-21-completion-serial-simulator.md)
-and watercolor/station/homing follow-up are absent from RC13. Do not use RC13
-results to claim these later changes physically accepted.
+[candidate record](release-results/1.0.0-rc.14.md) for artifact identity and checks.
+The held RC12 draft and older releases remain unchanged. Record the exact RC14
+artifact and hash for each session; previous results do not establish physical
+acceptance of completion barriers, firmware review or reviewed partial restart.
 
 
 Record results in `docs/release-results/<version>-operator.md`. Use PASS, FAIL,
@@ -63,8 +60,8 @@ alarms until the stationary/pen-up tests are understood and controlled.
 | Modal calibration/station dry visit | Stop remains accessible; Close/Escape waits for cleanup; no orphan operation | NOT RUN |
 | Controlled controller error/alarm and recovery | Explicit failure, halted sequence, best-effort pen lift where controller permits, deliberate recovery | NOT RUN |
 | Small pen plot and layer confirmation | Only selected layers run, requested pen/order agree with review, no automatic continuation | NOT RUN |
-| Completion barrier (post-RC13 build) | Next pen prompt and final success wait for actual pen-up return and controller Idle; Stop stays reachable; record firmware compatibility with G4 P0 | NOT RUN |
-| Stop during completion wait (post-RC13 build) | No next handoff or successful history; inspect halt/lift and deliberately review before restarting | NOT RUN |
+| Completion barrier (RC14) | Next pen prompt and final success wait for actual pen-up return and controller Idle; Stop stays reachable; record firmware compatibility with G4 P0 | NOT RUN |
+| Stop during completion wait (RC14) | No next handoff or successful history; inspect halt/lift and deliberately review before restarting | NOT RUN |
 | Stop mid-plot, then recheck/repeat | Halt/lift attempted; fresh review required; exact stored job is previewed before repeat | NOT RUN |
 
 Use [the sample gallery](SAMPLE_GALLERY.md) for a small suitable job. Record
